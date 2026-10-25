@@ -82,6 +82,15 @@ a player shows in place of that player's own pick until the host reverts it. Tur
 bones other players picked by hand. A client that loads the addon's code after the selector reached it asks the host to
 send it again.
 
+## Other addons
+An addon that shows a player as a body of its own while it has them (a skateboard's rider, a seated driver) gets the
+player's model on that body too: tag the object holding the body's `SkinnedModelRenderer` `player_body`, and make it
+under a network object the player owns (as a rider spawned with `NetworkSpawn( player )` is). Every client then shows
+that player's pick on it from its first frame, posed from the body's own animation the way a citizen is, with a stock
+character dressed in the player's own outfit, and takes it off with the body. Only the object's own tag counts, not one
+it has through a parent, and in a lobby a tagged body that isn't under a networked object is left alone. The Skateboard
+addon tags its rider this way.
+
 ## Limitations
 - The first time the window opens, each sbox.game model is downloaded once to check it, so the grid fills in over a
   minute or so; after that it's instant.

@@ -298,6 +298,12 @@ public sealed class PlayerModelSelector : Component
 		PlayerModelWindow.AddTo( Scene );
 	}
 
+	// Bodies other addons show players as are looked for every frame, so each shows its player's pick from its first frame
+	protected override void OnPreRender()
+	{
+		_bodies.ShowNewStandIns( Scene, this );
+	}
+
 	protected override void OnDestroy()
 	{
 		_bodies.Clear( Scene );

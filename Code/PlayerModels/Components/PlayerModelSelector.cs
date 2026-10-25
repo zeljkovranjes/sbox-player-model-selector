@@ -20,8 +20,15 @@ public sealed class PlayerModelSelector : Component
 	// new ragdoll shows the citizen until the scan finds it.
 	private const float ScanInterval = 0.1f;
 
-	/// <summary>Models always offered, after the default citizen: the stock characters, or any you choose.</summary>
-	[Property] public List<PlayerModelEntry> Models { get; set; } = new();
+	/// <summary>
+	/// Models always offered, after the default citizen: the stock characters, or any you choose. The defaults live here
+	/// rather than in the prefab: a model path the prefab names is packed into the published entity with everything it uses.
+	/// </summary>
+	[Property] public List<PlayerModelEntry> Models { get; set; } = new()
+	{
+		new PlayerModelEntry { Title = "Human Female", Model = "models/citizen_human/citizen_human_female.vmdl" },
+		new PlayerModelEntry { Title = "Classic Citizen", Model = "models/citizen/citizen.vmdl" },
+	};
 
 	/// <summary>The sbox.game search the window fills itself from. Only the rigged humanoids it finds are shown.</summary>
 	[Property, Group( "sbox.game" )] public string CloudSearch { get; set; } = "type:model playermodel sort:popular";

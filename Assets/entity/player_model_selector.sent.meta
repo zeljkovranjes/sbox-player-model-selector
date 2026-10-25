@@ -1,3 +1,26 @@
 {
-  "guid": "5e123765-8649-495e-8477-493465058151"
+  "guid": "5e123765-8649-495e-8477-493465058151",
+  "publish": {
+    "Enabled": true,
+    "ProjectConfig": {
+      "Title": "Player Model Selector",
+      "Type": "sent",
+      "Org": "notpointless",
+      "Ident": "chomnr_player_model_selector",
+      "Schema": 0,
+      "IncludeSourceFiles": false,
+      "Resources": null,
+      "PackageReferences": null,
+      "EditorReferences": null,
+      "Mounts": null,
+      "IsStandaloneOnly": false,
+      "AI": {
+        "EnableMcpCommunication": true
+      },
+      "Metadata": {
+        "SingleAssetSource": "entity/player_model_selector.sent",
+        "ParentPackage": "facepunch.sandbox"
+      }
+    }
+  }
 }

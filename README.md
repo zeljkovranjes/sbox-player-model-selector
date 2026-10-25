@@ -12,8 +12,9 @@ models their server allows and can choose a model for any player.
 Sandbox (`facepunch.sandbox`). Nothing else: Humanoid Retargeter's core is compiled into this addon.
 
 ## Install
-In Sandbox, open the spawn menu's **Entities** tab and search for **Player Model Selector** (the sbox.game package), or
-open this project in the s&box editor, where it is under Entities > World.
+In Sandbox, open the spawn menu's **Entities** tab and search for **Player Model Selector**
+(`notpointless.chomnr_player_model_selector` on sbox.game), or open this project in the s&box editor, where it is under
+Entities > World.
 
 ## Quick start
 ### In the editor
@@ -52,7 +53,7 @@ Set on the `PlayerModelSelector` component of `Assets/entity/player_model_select
 
 | Option | Default | What it does |
 |---|---|---|
-| Models | Human Female, Classic Citizen | Models always offered, after Default. Each entry is a title and a model: a path that ships with the game (`models/.../x.vmdl`) or an sbox.game ident (`org.model`). |
+| Models | Human Female, Classic Citizen | Models always offered, after Default. Each entry is a title and a model: a path that ships with the game (`models/.../x.vmdl`) or an sbox.game ident (`org.model`). The defaults are set in code; a path saved into the prefab is packed into the published entity with everything it uses. |
 | Cloud Search | `type:model playermodel sort:popular` | The sbox.game search the window fills itself from. Only the rigged humanoids it finds get a tile. |
 | Cloud Count | 50 | How many results each search looks at. |
 | Facepunch Search | `type:model org:facepunch human` | A second search for Facepunch's own characters, for the Facepunch group. Empty turns it off. |
@@ -123,7 +124,8 @@ send it again.
 - Publishing: publish the entity, not the project. In the editor's Asset Browser, right-click
   `Assets/entity/player_model_selector.sent` and choose Publish. It has Include Code on, so the addon's code and its
   stylesheets go with it, and the prefab brings everything else; the result is a `sent` package, the kind Sandbox's
-  spawn menu lists under Entities. Keep `Libraries/` empty.
+  spawn menu lists under Entities. Keep `Libraries/` empty, and keep model paths out of the prefab: anything it names is
+  packed with the entity (the citizen statue is made from code by `SelectorMannequin` for that reason).
 - Testing with a second client from the editor: the client gets the editor's code but not the addon's files, so the
   window shows unstyled there (and the client can't find the prefab). The published package carries both.
 

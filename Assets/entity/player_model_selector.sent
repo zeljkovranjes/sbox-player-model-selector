@@ -1,7 +1,7 @@
 {
   "Prefab": "entity/player_model_selector.prefab",
   "Title": "Player Model Selector",
-  "Description": "Spawn one to give everyone a Model window in the C menu. Click a model to wear it; everyone sees it. Remove it to put everyone back to the citizen.",
+  "Description": "Spawn one to give everyone a Player Model Selector window in the C menu. Wear any rigged humanoid from the game, sbox.game or a mounted game, customize it and see its own arms in first person; everyone sees it. The host decides which models are allowed. Remove it to put everyone back to the citizen.",
   "Category": "World",
   "IncludeCode": true,
   "Developer": false,

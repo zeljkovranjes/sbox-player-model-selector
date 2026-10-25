@@ -12,7 +12,8 @@ models their server allows and can choose a model for any player.
 Sandbox (`facepunch.sandbox`). Nothing else: Humanoid Retargeter's core is compiled into this addon.
 
 ## Install
-Spawn menu > Entities > World > **Player Model Selector** (`notpointless.chomnr_player_model_selector`).
+In Sandbox, open the spawn menu's **Entities** tab and search for **Player Model Selector** (the sbox.game package), or
+open this project in the s&box editor, where it is under Entities > World.
 
 ## Quick start
 ### In the editor
@@ -119,6 +120,12 @@ send it again.
 - Compile check outside the editor: `dotnet build Code/chomnr_player_model_selector.csproj` (gitignored, needs a
   `package.facepunch.sandbox.dll` from an addon the editor has opened). The editor build is the one that applies the
   whitelist and compiles the razor files the same way the game does.
+- Publishing: publish the entity, not the project. In the editor's Asset Browser, right-click
+  `Assets/entity/player_model_selector.sent` and choose Publish. It has Include Code on, so the addon's code and its
+  stylesheets go with it, and the prefab brings everything else; the result is a `sent` package, the kind Sandbox's
+  spawn menu lists under Entities. Keep `Libraries/` empty.
+- Testing with a second client from the editor: the client gets the editor's code but not the addon's files, so the
+  window shows unstyled there (and the client can't find the prefab). The published package carries both.
 
 ## License
 Humanoid Retargeter's core keeps its notices: see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -1,0 +1,44 @@
+@using System
+@using Sandbox
+@using Sandbox.UI
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    <div class="label">@Label</div>
+    <UIColor Property=@_so?.GetProperty( nameof( Picked ) )></UIColor>
+    <div class="reset @( string.IsNullOrEmpty( Hex ) ? "disabled" : "" )" @onclick=@(() => OnChanged?.Invoke( "" ))>Reset</div>
+</root>
+
+@code
+{
+    /// <summary>What the row colours.</summary>
+    [Parameter] public string Label { get; set; }
+
+    /// <summary>The colour now, as <c>#rrggbb</c>; empty for none.</summary>
+    [Parameter] public string Hex { get; set; }
+
+    /// <summary>Called with the new colour as <c>#rrggbb</c>, or empty when reset.</summary>
+    [Parameter] public Action<string> OnChanged { get; set; }
+
+    SerializedObject _so;
+
+    // The colour picker edits a property, so the colour is one (the same way Sandbox's face poser rows work)
+    public Color Picked
+    {
+        get => string.IsNullOrEmpty( Hex ) ? Color.White : Color.Parse( Hex ) ?? Color.White;
+        set
+        {
+            Hex = value.Hex.Length >= 7 ? value.Hex[ ..7 ].ToLowerInvariant() : "";
+            OnChanged?.Invoke( Hex );
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        _so ??= TypeLibrary.GetSerializedObject( this );
+    }
+
+    protected override int BuildHash() => HashCode.Combine( Label, Hex );
+}

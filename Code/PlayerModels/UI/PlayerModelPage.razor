@@ -1,0 +1,675 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using System.Threading.Tasks
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Components
+@using PlayerModels.Core
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+
+    <div class="views">
+        <div class="view @( _viewModel && !_server ? "active" : "" )" @onclick=@(() => SetViewModel( true ))>View Model</div>
+        <div class="view @( _viewModel || _server ? "" : "active" )" @onclick=@(() => SetViewModel( false ))>Third Person</div>
+        @if ( IsHost )
+        {
+            <div class="view @( _server ? "active" : "" )" @onclick=@ShowServer>Server</div>
+        }
+        <div class="spacer"></div>
+        @if ( !_viewModel && !_server )
+        {
+            @if ( _pane != Pane.Models )
+            {
+                <div class="action @( _lookDirty ? "" : "disabled" )" @onclick=@RevertLook>Revert</div>
+                <div class="action apply @( _lookDirty ? "" : "disabled" )" @onclick=@ApplyLook>Apply</div>
+                <div class="gap"></div>
+            }
+            <div class="view @( _pane == Pane.Models ? "active" : "" )" @onclick=@(() => SetPane( Pane.Models ))>Models</div>
+            <div class="view @( _pane == Pane.Customize ? "active" : "" )" @onclick=@(() => SetPane( Pane.Customize ))>Customize</div>
+            @if ( !ArmatureLocked )
+            {
+                <div class="view @( _pane == Pane.Armature ? "active" : "" )" @onclick=@(() => SetPane( Pane.Armature ))>Armature</div>
+            }
+        }
+    </div>
+
+    <div class="page">
+
+        <UISettingsPane class="preview-pane" Title="Preview">
+            <Body>
+                <ModelPreview @ref="Preview" class="@( _viewModel && !_server ? "hidden" : "" )" />
+                <ViewModelPreview @ref="ArmsPreview" class="@( _viewModel && !_server ? "" : "hidden" )" />
+            </Body>
+        </UISettingsPane>
+
+        @if ( _server )
+        {
+            <UISettingsPane class="models-pane" Title="Server" Revision=@BuildHash()>
+                <Body>
+                    <ServerEditor TitleOf=@TitleOf ChooseFor=@ChooseModelFor></ServerEditor>
+                </Body>
+            </UISettingsPane>
+        }
+        else if ( _pane == Pane.Customize && !_viewModel )
+        {
+            <UISettingsPane class="models-pane" Title="Customize" Revision=@BuildHash()>
+                <Body>
+                    <LookEditor Model=@_wornModel Look=@_look Changed=@LookChanged Pointed=@PointAt></LookEditor>
+                </Body>
+            </UISettingsPane>
+        }
+        else if ( _pane == Pane.Armature && !_viewModel && !ArmatureLocked )
+        {
+            <UISettingsPane class="models-pane" Title="Armature" Revision=@BuildHash()>
+                <Body>
+                    <ArmatureEditor Model=@_wornModel Look=@_look Changed=@LookChanged Pointed=@PointAtBone></ArmatureEditor>
+                </Body>
+            </UISettingsPane>
+        }
+        else
+        {
+            <UISettingsPane class="models-pane" Title=@( _viewModel ? "View Models" : "Models" ) Revision=@BuildHash()>
+                <Body>
+                    @if ( _viewModel )
+                    {
+                        <div class="model-arms">
+                            <ToggleRow Label="Use my player model's arms" Value=@LocalPrefs.UseModelArms OnChanged=@SetUseModelArms></ToggleRow>
+                            <div class="model-arms-text">@ModelArmsText()</div>
+                        </div>
+                    }
+
+                    @if ( _choosingFor is { } player && !_viewModel )
+                    {
+                        <div class="choosing">
+                            <div class="choosing-text">Click a model to put it on @player.DisplayName.</div>
+                            <div class="fix-button" @onclick=@CancelChoosing>Cancel</div>
+                        </div>
+                    }
+                    else if ( !_viewModel && Selector?.IsPickedByHost( Connection.Local ) == true )
+                    {
+                        <div class="note">The host chose your model. Your own picks show again when they revert it.</div>
+                    }
+
+                    <div class="search">
+                        <TextEntry class="search-entry" Placeholder="Search" Value:bind=@_search HasClearButton=@true></TextEntry>
+                    </div>
+
+                    @if ( _catalog.SearchFailed )
+                    {
+                        <div class="offline">
+                            <div class="offline-icon">cloud_off</div>
+                            <div class="offline-title">sbox.game may be down</div>
+                            <div class="offline-text">
+                                @( _viewModel
+                                    ? "Couldn't reach sbox.game or the Workshop, so only the game's own arms are listed. Open the menu again in a while."
+                                    : "Couldn't reach sbox.game or the Workshop, so only the game's own models and your mounted games are listed. Open the menu again in a while." )
+                            </div>
+                        </div>
+                    }
+
+                    @if ( _fixable is { } fixable && !_viewModel && !ArmatureLocked && _choosingFor is null )
+                    {
+                        <div class="fix">
+                            <div class="fix-text">@fixable.Title can't be worn yet: @_fixableReason</div>
+                            <div class="fix-button" @onclick=@(() => FixArmature( fixable ))>Set up armature</div>
+                        </div>
+                    }
+
+                    @{ var sections = Sections().ToList(); string shownGroup = null; }
+                    @if ( Searching && sections.Count == 0 )
+                    {
+                        <div class="note">No models match "@_search.Trim()".</div>
+                    }
+                    @foreach ( var section in sections )
+                    {
+                        // Every heading collapses and stays the way the player left it; a group (Mounts) folds its games too
+                        var group = section.Group;
+                        var groupKey = group is null ? null : HeadingKey( group );
+                        var key = HeadingKey( group is null ? section.Title : $"{group}/{section.Title}" );
+                        // While searching every match shows, whatever is collapsed
+                        var groupShut = !Searching && groupKey is not null && IsCollapsed( groupKey );
+                        var shut = !Searching && (groupShut || IsCollapsed( key ));
+
+                        @if ( group is not null && group != shownGroup )
+                        {
+                            shownGroup = group;
+                            <div class="section-title collapsible" @onclick=@(() => ToggleCollapsed( groupKey ))>
+                                <div class="chevron">@( groupShut ? "chevron_right" : "expand_more" )</div>
+                                <div class="heading">@group</div>
+                                <div class="count">@sections.Where( x => x.Group == group ).Sum( x => x.Tiles.Count )</div>
+                            </div>
+                        }
+
+                        @if ( group is null )
+                        {
+                            <div class="section-title collapsible" @onclick=@(() => ToggleCollapsed( key ))>
+                                <div class="chevron">@( shut ? "chevron_right" : "expand_more" )</div>
+                                <div class="heading">@section.Title</div>
+                                <div class="count">@section.Tiles.Count</div>
+                            </div>
+                        }
+                        else if ( !groupShut )
+                        {
+                            <div class="section-subtitle collapsible" @onclick=@(() => ToggleCollapsed( key ))>
+                                <div class="chevron">@( shut ? "chevron_right" : "expand_more" )</div>
+                                <div class="heading">@section.Title</div>
+                                <div class="count">@section.Tiles.Count</div>
+                            </div>
+                        }
+
+                        @if ( !shut )
+                        {
+                            <div class="grid @( section.Title == "Favorites" ? "favorites" : "" )">
+                                @foreach ( var tile in section.Tiles )
+                                {
+                                    var favorite = IsFavorite( tile.Model );
+                                    <div class="tile @TileClass( tile )"
+                                         @onclick=@(() => _ = WearAsync( tile ))
+                                         @onrightclick=@(() => ToggleFavorite( tile ))
+                                         @onmouseenter=@(() => _hovered = tile.Model)
+                                         @onmouseleave=@(() => _hovered = null)>
+                                        <div class="thumb" style="background-image: url( @tile.Icon )"></div>
+                                        <div class="title">@tile.Title</div>
+                                        @if ( tile.Model != "" )
+                                        {
+                                            <div class="favorite @( favorite ? "on" : "" )" @onclick=@(( PanelEvent e ) => ToggleFavorite( tile, e ))>@( favorite ? "favorite" : "favorite_border" )</div>
+                                        }
+                                        @if ( CanBlock( tile ) )
+                                        {
+                                            <div class="block" @onclick=@(( PanelEvent e ) => Block( tile, e ))>block</div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+
+                    @if ( _viewModel && MountsWithoutArms() is { Count: > 0 } bare )
+                    {
+                        <div class="note">@string.Join( " and ", bare ) @( bare.Count == 1 ? "has" : "have" ) no first-person arms Sandbox's weapons can move: their view models come with the weapon built in.</div>
+                    }
+                </Body>
+            </UISettingsPane>
+        }
+
+    </div>
+
+</root>
+
+@code
+{
+    // The first tile of each grid: no model picked, so the citizen as you, or Sandbox's own arms
+    static readonly Tile DefaultTile = new( "Default", "", $"thumb:{ModelLoader.CitizenModel}", false );
+    static readonly Tile DefaultArmsTile = new( "Default", "", $"thumb:{ViewModelArms.DefaultArms}", false );
+
+    // Game: the mounted game a model comes from, for its own group under Mounts
+    record Tile( string Title, string Model, string Icon, bool Checking, string Game = null );
+
+    // Group: the heading the section sits under (Mounts, for each mounted game's section)
+    record Section( string Title, List<Tile> Tiles, string Group = null );
+
+    // Where a model is listed, in grid order: the game's own, mounted games', Facepunch's packages, everyone else's
+    enum Category { Official, Mounts, Facepunch, Other }
+
+    ModelPreview Preview { get; set; }
+    ViewModelPreview ArmsPreview { get; set; }
+
+    readonly ModelCatalog _catalog = new();
+
+    // The right pane while showing player models: the grid, the look of the worn model, or its bone picks
+    enum Pane { Models, Customize, Armature }
+
+    bool _viewModel;
+    Pane _pane;
+
+    // The host's Server page, shown in place of the grid and panes; and what the grid is filtered by
+    bool _server;
+    string _search = "";
+
+    // The player the host is choosing a model for in the grid, from the Server page
+    Connection _choosingFor;
+    string _hovered;
+    PartHighlight? _pointed;
+    string _pointedBone;
+
+    // A model refused by the automatic check, offered for setting up by hand
+    Tile _fixable;
+    string _fixableReason;
+    string _previewing;
+    string _checking;
+    readonly HashSet<string> _refused = new();
+    List<FavoriteModel> _favorites = LocalPrefs.Favorites();
+
+    // Grid headings the player collapsed or opened, kept between sessions; the revision redraws the grid when one changes
+    Dictionary<string, bool> _headings = LocalPrefs.Headings();
+    int _collapsedRevision;
+
+    // The worn model, loaded, and the look being customised for it
+    string _lookModel;
+    Model _wornModel;
+    PlayerLook _look;
+    bool _lookDirty;
+
+    static PlayerModelSelector Selector => PlayerModelSelector.Find( Game.ActiveScene );
+
+    // What the local player is wearing now, "" for the default citizen
+    static string Worn => Selector?.PickOf( Connection.Local ) ?? "";
+
+    // The first-person arms picked, "" for Sandbox's own
+    static string WornArms => LocalPrefs.ViewModel;
+
+    // The model worn in the grid being shown: by the player a model is being chosen for, or by you
+    string WornHere => _choosingFor is { } player && !_viewModel ? Selector?.PickOf( player ) ?? "" : _viewModel ? WornArms : Worn;
+
+    // The host can keep players from picking bones by hand; the host never is
+    bool ArmatureLocked => Selector?.BlockArmature == true && !IsHost;
+
+    // The host decides which models their server allows
+    static bool IsHost => Networking.IsHost;
+
+    bool Searching => !string.IsNullOrWhiteSpace( _search );
+
+    public override void Tick()
+    {
+        base.Tick();
+
+        if ( Selector is { } selector )
+        {
+            var listed = selector.Models.Select( x => x.Model ).ToHashSet();
+            _ = _catalog.LoadAsync( new[] { selector.CloudSearch, selector.FacepunchSearch }, selector.ViewModelSearches,
+                selector.CloudCount, listed, () => IsValid );
+        }
+
+        TrackWornLook();
+
+        // The menu can close under the mouse without a mouse-leave; a tile only counts while the page is hovered
+        if ( _hovered is not null && !HasHovered )
+            _hovered = null;
+
+        // Hovering a tile shows those arms, otherwise the ones being worn: the worn model's own when they are used
+        _ = ArmsPreview?.ShowAsync( _viewModel ? _hovered ?? WornArms : WornArms );
+        if ( ArmsPreview is not null )
+            ArmsPreview.BodyArms = _viewModel && _hovered is null ? Selector?.ArmsLook() : null;
+
+        if ( Preview is null )
+            return;
+
+        var editing = !_viewModel && !_server;
+        Preview.Look = _look;
+        Preview.Highlight = editing && _pane == Pane.Customize && HasHovered ? _pointed : null;
+        Preview.ShowSkeleton = editing && _pane == Pane.Armature;
+        Preview.SelectedBone = _pointedBone;
+
+        // The grid previews what is hovered; Customize and Armature show the model being set up
+        var shown = !editing ? Worn : _pane == Pane.Models ? _hovered ?? Worn : _look?.Model ?? Worn;
+        if ( shown == _previewing )
+            return;
+
+        _previewing = shown;
+        _ = Preview.ShowAsync( shown );
+    }
+
+    protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Worn, WornArms, _hovered, _checking, _refused.Count, _viewModel, _pane ),
+        HashCode.Combine( Selector?.Models.Count, _catalog.Revision, _catalog.SearchFailed, _favorites.Count, _wornModel, _lookDirty, _fixable,
+            _collapsedRevision ),
+        HashCode.Combine( _server, _search, LocalPrefs.UseModelArms, Selector?.BlockCloudModels, Selector?.BlockMountedModels,
+            Selector?.BlockedModels?.Count, HashCode.Combine( _choosingFor, ArmatureLocked, Selector?.IsPickedByHost( Connection.Local ) ) ) );
+
+    // Favorites on top, then the categories; an empty one isn't shown
+    IEnumerable<Section> Sections()
+    {
+        var favorites = FavoriteTiles().Where( Matches ).ToList();
+        if ( favorites.Count > 0 )
+            yield return new Section( "Favorites", favorites );
+
+        var tiles = (_viewModel ? ArmsTiles() : BodyTiles()).Where( Matches ).ToList();
+        foreach ( var category in Enum.GetValues<Category>() )
+        {
+            var inCategory = tiles.Where( x => CategoryOf( x.Model ) == category ).ToList();
+            if ( inCategory.Count == 0 )
+                continue;
+
+            // Mounts are split by game: Counter-Strike, Half-Life, ...
+            if ( category == Category.Mounts )
+            {
+                foreach ( var game in inCategory.GroupBy( x => x.Game ?? "Other games" ) )
+                    yield return new Section( game.Key, game.ToList(), category.ToString() );
+
+                continue;
+            }
+
+            yield return new Section( category.ToString(), inCategory );
+        }
+    }
+
+    // A tile matches the search by its title or its model
+    bool Matches( Tile tile )
+    {
+        if ( !Searching )
+            return true;
+
+        var search = _search.Trim();
+        return tile.Title.Contains( search, StringComparison.OrdinalIgnoreCase ) || tile.Model.Contains( search, StringComparison.OrdinalIgnoreCase );
+    }
+
+    // A model path ships with the game (or a mounted one); an sbox.game ident starts with its organisation
+    static Category CategoryOf( string model )
+    {
+        if ( MountModels.IsMountPath( model ) )
+            return Category.Mounts;
+
+        if ( model == "" || model.EndsWith( ".vmdl", StringComparison.OrdinalIgnoreCase ) )
+            return Category.Official;
+
+        return model.StartsWith( "facepunch.", StringComparison.OrdinalIgnoreCase ) ? Category.Facepunch : Category.Other;
+    }
+
+    // This grid's favorites. A player model this world no longer offers stays saved but isn't shown, so it comes back
+    // if the model does; one that has gone from sbox.game is refused when clicked, like any other.
+    IEnumerable<Tile> FavoriteTiles()
+    {
+        if ( Selector is not { } selector )
+            yield break;
+
+        foreach ( var favorite in _favorites.Where( x => x.ViewModel == _viewModel && (_viewModel || selector.Offers( x.Model )) ) )
+            yield return new Tile( favorite.Title ?? favorite.Model, favorite.Model, $"thumb:{favorite.Model}", false );
+    }
+
+    IEnumerable<Tile> BodyTiles()
+    {
+        yield return DefaultTile;
+
+        if ( Selector is not { } selector )
+            yield break;
+
+        foreach ( var entry in selector.Models.Where( x => !string.IsNullOrWhiteSpace( x.Model ) && !IsFavorite( x.Model ) && selector.Offers( x.Model ) ) )
+            yield return new Tile( entry.Title ?? entry.Model, entry.Model, $"thumb:{entry.Model}", false );
+
+        // What the host doesn't allow on this server isn't offered
+        foreach ( var tile in CatalogTiles( _catalog.Bodies ).Where( x => selector.Offers( x.Model ) ) )
+            yield return tile;
+    }
+
+    IEnumerable<Tile> ArmsTiles()
+    {
+        yield return DefaultArmsTile;
+
+        foreach ( var tile in CatalogTiles( _catalog.Arms ) )
+            yield return tile;
+    }
+
+    // Catalog models show up as they pass their check; the ones still being checked are dimmed
+    IEnumerable<Tile> CatalogTiles( IEnumerable<ModelCatalog.Entry> entries )
+    {
+        return entries
+            .Where( x => x.Usable != false && !IsFavorite( x.Model ) )
+            .Select( x => new Tile( x.Title, x.Model, $"thumb:{x.Model}", x.Usable is null, x.Game ) );
+    }
+
+    string TileClass( Tile tile )
+    {
+        if ( tile.Model == WornHere ) return "worn";
+        if ( tile.Checking || tile.Model == _checking ) return "checking";
+        if ( _refused.Contains( tile.Model ) ) return "refused";
+        return "";
+    }
+
+    bool IsFavorite( string model ) => _favorites.Any( x => x.Model == model && x.ViewModel == _viewModel );
+
+    // The host can keep any player model off their server, right from the grid
+    bool CanBlock( Tile tile ) => IsHost && !_viewModel && Selector?.CanBlock( tile.Model ) == true;
+
+    void Block( Tile tile, PanelEvent e )
+    {
+        e.StopPropagation();
+        Selector?.SetBlocked( tile.Model, true );
+        _hovered = null;
+        StateHasChanged();
+    }
+
+    // The name the window knows a model by: its tile's title, or the model itself
+    string TitleOf( string model )
+    {
+        return Selector?.Models.FirstOrDefault( x => x.Model == model )?.Title
+            ?? _catalog.Bodies.FirstOrDefault( x => x.Model == model )?.Title
+            ?? _favorites.FirstOrDefault( x => x.Model == model )?.Title
+            ?? model;
+    }
+
+    void SetUseModelArms( bool use )
+    {
+        LocalPrefs.UseModelArms = use;
+        StateHasChanged();
+    }
+
+    // What the model arms switch does right now
+    string ModelArmsText()
+    {
+        if ( !LocalPrefs.UseModelArms )
+            return "Your weapons show the arms picked below.";
+
+        if ( Selector?.ArmsLook() is null )
+            return "Stock characters and the default citizen use the arms picked below, which match them.";
+
+        return $"Your weapons show {TitleOf( Worn )}'s own arms. The arms below are used when you wear a stock character.";
+    }
+
+    // Mounted games none of whose first-person arms passed the check, once all of them are checked
+    List<string> MountsWithoutArms()
+    {
+        return MountModels.MountedGames()
+            .Where( game => _catalog.Arms.Where( x => x.Game == game ).All( x => x.Usable == false ) )
+            .ToList();
+    }
+
+    // The Models and View Models grids keep their headings apart
+    string HeadingKey( string heading ) => _viewModel ? $"View Models/{heading}" : heading;
+
+    // Every heading starts collapsed until the player opens it
+    bool IsCollapsed( string key ) => !_headings.TryGetValue( key, out var collapsed ) || collapsed;
+
+    void ToggleCollapsed( string key )
+    {
+        LocalPrefs.SetCollapsed( key, !IsCollapsed( key ) );
+        _headings = LocalPrefs.Headings();
+        _collapsedRevision++;
+        StateHasChanged();
+    }
+
+    // The heart is on the tile; clicking it isn't wearing
+    void ToggleFavorite( Tile tile, PanelEvent e )
+    {
+        e.StopPropagation();
+        ToggleFavorite( tile );
+    }
+
+    // Right-clicking a tile, or clicking its heart
+    void ToggleFavorite( Tile tile )
+    {
+        if ( tile.Model == "" )
+            return;
+
+        LocalPrefs.ToggleFavorite( tile.Model, tile.Title, _viewModel );
+        _favorites = LocalPrefs.Favorites();
+        StateHasChanged();
+    }
+
+    void SetViewModel( bool viewModel )
+    {
+        _viewModel = viewModel;
+        _server = false;
+        _choosingFor = null;
+        _hovered = null;
+        StateHasChanged();
+    }
+
+    void ShowServer()
+    {
+        _server = true;
+        _choosingFor = null;
+        _hovered = null;
+        StateHasChanged();
+    }
+
+    // From the Server page: the grid opens to put a model on that player
+    void ChooseModelFor( Connection player )
+    {
+        _server = false;
+        _viewModel = false;
+        _pane = Pane.Models;
+        _hovered = null;
+        _choosingFor = player;
+        StateHasChanged();
+    }
+
+    void CancelChoosing()
+    {
+        ShowServer();
+    }
+
+    void SetPane( Pane pane )
+    {
+        _pane = pane;
+        _choosingFor = null;
+        _hovered = null;
+        _pointedBone = null;
+        StateHasChanged();
+    }
+
+    // A refused model opens on the Armature page, its look ready to take bones picked by hand; Apply wears it
+    void FixArmature( Tile tile )
+    {
+        _look = LocalPrefs.LookFor( tile.Model );
+        _lookModel = tile.Model;
+        _wornModel = null;
+        _lookDirty = true;
+        _fixable = null;
+        _ = LoadWornModelAsync( tile.Model );
+        SetPane( Pane.Armature );
+    }
+
+    // The bone under the mouse on the Armature page, lit up on the preview's skeleton
+    void PointAtBone( string bone )
+    {
+        _pointedBone = bone;
+    }
+
+    // The look being customised follows what is worn: a new model brings its own customisation
+    void TrackWornLook()
+    {
+        var worn = Worn;
+        if ( worn == _lookModel )
+            return;
+
+        _lookModel = worn;
+        _look = Selector?.LookOf( Connection.Local ) ?? new PlayerLook();
+        _lookDirty = false;
+        _wornModel = null;
+
+        if ( worn != "" )
+            _ = LoadWornModelAsync( worn );
+    }
+
+    async Task LoadWornModelAsync( string model )
+    {
+        var loaded = await ModelLoader.LoadAsync( model );
+        if ( model == _lookModel )
+            _wornModel = loaded;
+    }
+
+    // The part under the mouse on the Customize page, pointed out on the preview
+    void PointAt( PartHighlight? part )
+    {
+        _pointed = part;
+    }
+
+    // The preview shows each change at once; the player wears it (and everyone sees it) on Apply
+    void LookChanged()
+    {
+        _lookDirty = true;
+        StateHasChanged();
+    }
+
+    void ApplyLook()
+    {
+        if ( !_lookDirty || Selector is not { } selector || _look is null )
+            return;
+
+        _lookDirty = false;
+        selector.Wear( _look );
+        StateHasChanged();
+    }
+
+    // Back to what is worn, dropping the changes not applied yet (and a refused model being set up)
+    void RevertLook()
+    {
+        _look = Selector?.LookOf( Connection.Local ) ?? new PlayerLook();
+        _lookModel = null;
+        _lookDirty = false;
+        StateHasChanged();
+    }
+
+    // Clicking a tile wears it straight away, once it's known the model can be worn (as a body, or as arms)
+    async Task WearAsync( Tile tile )
+    {
+        var selector = Selector;
+        if ( selector is null || tile.Checking || tile.Model == WornHere || _checking is not null )
+            return;
+
+        // Who it goes on is settled now: the grid can change while the model is checked
+        var viewModel = _viewModel;
+        var choosingFor = viewModel ? null : _choosingFor;
+
+        if ( tile.Model == "" )
+        {
+            Wear( selector, "", viewModel, choosingFor );
+            return;
+        }
+
+        _checking = tile.Model;
+        var error = viewModel ? await ViewModelArms.WhyNotArmsAsync( tile.Model ) : await ModelCheck.WhyNotWearableAsync( tile.Model );
+        _checking = null;
+
+        if ( error is not null )
+        {
+            _refused.Add( tile.Model );
+            Log.Info( $"Player Model Selector: {tile.Title} can't be worn. {error}" );
+
+            // A body the automatic mapping got wrong can still be set up by hand
+            if ( !viewModel && choosingFor is null )
+            {
+                _fixable = tile;
+                _fixableReason = error;
+            }
+
+            return;
+        }
+
+        _refused.Remove( tile.Model );
+        _fixable = null;
+        Wear( selector, tile.Model, viewModel, choosingFor );
+    }
+
+    // Arms are only ever seen by their own player, so they stay on this machine; a body goes through the host, on you or
+    // on the player the host is choosing a model for (then it's back to the Server page)
+    void Wear( PlayerModelSelector selector, string model, bool viewModel, Connection choosingFor )
+    {
+        if ( choosingFor is not null )
+        {
+            selector.PickFor( choosingFor, model );
+            ShowServer();
+        }
+        else if ( viewModel )
+        {
+            LocalPrefs.ViewModel = model;
+        }
+        else
+        {
+            selector.Pick( model );
+        }
+    }
+}

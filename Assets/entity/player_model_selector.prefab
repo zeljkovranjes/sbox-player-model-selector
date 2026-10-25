@@ -1,0 +1,112 @@
+{
+  "RootObject": {
+    "__guid": "6f1d2a4e-3b7c-4e58-9a01-5c2f8d9e7b13",
+    "__version": 2,
+    "Flags": 0,
+    "Name": "player_model_selector",
+    "Position": "0,0,0",
+    "Rotation": "0,0,0,1",
+    "Scale": "1,1,1",
+    "Tags": "",
+    "Enabled": true,
+    "NetworkMode": 2,
+    "NetworkFlags": 0,
+    "NetworkOrphaned": 0,
+    "NetworkTransmit": true,
+    "OwnerTransfer": 1,
+    "Components": [
+      {
+        "__type": "PlayerModels.Components.PlayerModelSelector",
+        "__guid": "a3e9c1f2-6d84-4b0a-8f3e-2b7d5c9a1e46",
+        "__enabled": true,
+        "Flags": 0,
+        "Models": [
+          {
+            "Title": "Human Female",
+            "Model": "models/citizen_human/citizen_human_female.vmdl"
+          },
+          {
+            "Title": "Classic Citizen",
+            "Model": "models/citizen/citizen.vmdl"
+          }
+        ]
+      },
+      {
+        "__type": "Sandbox.SkinnedModelRenderer",
+        "__guid": "c8b4e7d1-2f95-4a36-b0c8-7e1a3d6f9b52",
+        "__enabled": true,
+        "Flags": 0,
+        "AnimationGraph": null,
+        "BodyGroups": 18446744073709551615,
+        "BoneMergeTarget": null,
+        "CreateAttachments": false,
+        "CreateBoneObjects": false,
+        "Model": "models/citizen_human/citizen_human_male.vmdl",
+        "PlaybackRate": 1,
+        "RenderType": "On",
+        "Tint": "0.82,0.82,0.85,1",
+        "UseAnimGraph": true
+      },
+      {
+        "__type": "Sandbox.Rigidbody",
+        "__guid": "e2f7a9c3-5b18-4d60-9c4a-1f8e6b3d7a25",
+        "__enabled": true,
+        "Flags": 0,
+        "AngularDamping": 0,
+        "Gravity": true,
+        "GravityScale": 1,
+        "LinearDamping": 0,
+        "Locking": {
+          "X": false,
+          "Y": false,
+          "Z": false,
+          "Pitch": true,
+          "Yaw": false,
+          "Roll": true
+        },
+        "MassOverride": 60,
+        "MotionEnabled": true,
+        "StartAsleep": false
+      },
+      {
+        "__type": "Sandbox.CapsuleCollider",
+        "__guid": "4d6b8e2a-9c71-4f35-a2d9-8b5e1c7f3a64",
+        "__enabled": true,
+        "Flags": 0,
+        "End": "0,0,62",
+        "IsTrigger": false,
+        "Radius": 10,
+        "Start": "0,0,10",
+        "Static": false
+      }
+    ],
+    "Children": [],
+    "__properties": {
+      "NetworkInterpolation": true,
+      "TimeScale": 1,
+      "WantsSystemScene": true,
+      "Metadata": {},
+      "NavMesh": {
+        "Enabled": false,
+        "IncludeStaticBodies": true,
+        "IncludeKeyframedBodies": true,
+        "EditorAutoUpdate": false,
+        "AgentHeight": 64,
+        "AgentRadius": 16,
+        "AgentStepSize": 18,
+        "AgentMaxSlope": 40,
+        "ExcludedBodies": "",
+        "IncludedBodies": "",
+        "CustomBounds": false
+      }
+    },
+    "__variables": []
+  },
+  "ResourceVersion": 2,
+  "ShowInMenu": false,
+  "MenuPath": null,
+  "MenuIcon": null,
+  "DontBreakAsTemplate": false,
+  "__references": [],
+  "__version": 2
+}

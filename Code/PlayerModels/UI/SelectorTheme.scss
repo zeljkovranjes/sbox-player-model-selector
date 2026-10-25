@@ -1,0 +1,246 @@
+// The look of the Player Model Selector: a copy of the parts of Sandbox's theme (its light palette and building blocks,
+// as published on 2026-10-24) that this addon's styles use. Imported instead of Sandbox's own "/UI/Theme.scss", so a
+// renamed or removed token in a Sandbox update can't break these styles; the window keeps this look until it is copied
+// again. Names match Sandbox's so the copy is easy to refresh.
+
+$deadzone-x: 2vw;
+$deadzone-y: 2vw;
+
+$body-font: "Inter";
+
+// text size in settings and the controls in them
+$ui-settings-font: 12px;
+
+// palette
+$ui-blue: #3e83eb;
+$ui-danger: #d04040;
+
+$ui-text: #555555;
+$ui-text-muted: #777777;
+$ui-text-label: #666666;
+$ui-text-disabled: #afafaf;
+$ui-text-disabled-hover: #8a8a8a;
+$ui-text-on-gray: rgba( 255, 255, 255, 0.55 );
+
+$ui-block-top: rgba( 140, 140, 140, 0.66 );
+$ui-block-bottom: rgba( 130, 130, 130, 0.66 );
+$ui-block-border: rgba( 255, 255, 255, 0.28 );
+
+$ui-control-border: #989898;
+$ui-control-bg: #f3f3f3;
+$ui-button-top: rgba( 248, 248, 248, 0.9 );
+$ui-button-bottom: rgba( 230, 230, 230, 0.9 );
+$ui-button-border: rgba( 0, 0, 0, 0.33 );
+$ui-separator: rgba( 0, 0, 0, 0.12 );
+
+$ui-input-bg: rgba( 255, 255, 255, 0.96 );
+$ui-input-border: rgba( 0, 0, 0, 0.51 );
+$ui-text-placeholder: #a8a8a8;
+
+$ui-tab-bg: #676767;
+$ui-tab-bg-hover: #707070;
+$ui-tab-bg-active: #878787;
+$ui-tab-border: #464646;
+
+$ui-tile-bg: rgba( 0, 0, 0, 0.16 );
+$ui-tile-title-bg: white;
+$ui-tile-title-text: black;
+$ui-tile-outline: white;
+
+// the selector's own: the heart on a favorite model
+$favorite-heart: #ff4d6d;
+
+// the gray block every window is built on
+@mixin ui-block
+{
+	padding: 8px;
+	border: 1px solid $ui-block-border;
+	background-image: linear-gradient( to bottom, $ui-block-top, $ui-block-bottom );
+	border-radius: 2px;
+}
+
+// grey uppercase group names with a line under them
+@mixin ui-section-header
+{
+	flex-shrink: 0;
+	margin: 4px 0px 6px 0px;
+	padding-bottom: 3px;
+	border-bottom: 1px solid $ui-separator;
+	font-size: $ui-settings-font;
+	font-weight: 800;
+	text-transform: uppercase;
+	color: $ui-text-muted;
+}
+
+// a menu tab; .active is the open one
+@mixin ui-tab
+{
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	height: 24px;
+	padding: 0 10px;
+	flex-shrink: 0;
+	border-radius: 2px 2px 0px 0px;
+	font-size: 13px;
+	font-weight: 600;
+	color: $ui-text-on-gray;
+	background-color: $ui-tab-bg;
+	border-top: 1px solid $ui-tab-border;
+	border-right: 1px solid $ui-tab-border;
+	cursor: pointer;
+	white-space: nowrap;
+
+	&:first-child
+	{
+		border-left: 1px solid $ui-tab-border;
+	}
+
+	&:hover
+	{
+		color: white;
+		background-color: $ui-tab-bg-hover;
+		sound-in: ui.hover;
+	}
+
+	&:active
+	{
+		sound-in: ui.select;
+	}
+
+	&.active
+	{
+		height: 25px;
+		padding-top: 1px;
+		color: white;
+		background-color: $ui-tab-bg-active;
+		border: 1px solid $ui-block-border;
+		border-bottom: 0px;
+		pointer-events: none;
+	}
+}
+
+// a plain button
+@mixin ui-button
+{
+	height: 24px;
+	padding: 0 10px;
+	gap: 6px;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	font-family: $body-font;
+	font-size: 12px;
+	font-weight: 500;
+	color: $ui-text;
+	background-image: linear-gradient( to bottom, $ui-button-top 0%, $ui-button-top 46%, $ui-button-bottom 54%, $ui-button-bottom 100% );
+	border: 1px solid $ui-button-border;
+	border-radius: 2px;
+	cursor: pointer;
+
+	&:hover
+	{
+		filter: brightness( 1.10 );
+		sound-in: ui.hover;
+	}
+
+	&:active
+	{
+		transform: translateY( 1px );
+		sound-in: ui.select;
+	}
+
+	&.disabled
+	{
+		opacity: 0.4;
+		background-image: none;
+		background-color: rgba( 0, 0, 0, 0.33 );
+		pointer-events: none;
+	}
+}
+
+// a text field, like Sandbox's search boxes
+@mixin ui-text-entry
+{
+	height: 24px;
+	min-width: 0px;
+	padding: 0 6px;
+	flex-direction: row;
+	justify-content: flex-start;
+	align-items: center;
+	background-color: $ui-input-bg;
+	border: 1px solid $ui-input-border;
+	border-radius: 2px;
+	font-family: $body-font;
+	font-size: 12px;
+	font-weight: 500;
+	color: $ui-text;
+	cursor: text;
+
+	&:focus
+	{
+		border-color: $ui-blue;
+	}
+
+	.placeholder
+	{
+		opacity: 1;
+		color: $ui-text-placeholder;
+	}
+
+	.content-label
+	{
+		color: $ui-text;
+	}
+}
+
+// white text on the blue fill, for the picked item of a segmented control
+@mixin ui-selected
+{
+	color: white;
+	background-color: $ui-blue;
+}
+
+// a setting's name
+@mixin ui-label
+{
+	font-size: $ui-settings-font;
+	font-weight: 500;
+	color: $ui-text-label;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	overflow: hidden;
+}
+
+// the picture of a spawn icon
+@mixin ui-tile-thumb
+{
+	width: 100%;
+	height: 100%;
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: contain;
+}
+
+// the white strip with the name at the bottom of a spawn icon
+@mixin ui-tile-title
+{
+	position: absolute;
+	left: 1px;
+	right: 1px;
+	bottom: 1px;
+	height: 28px;
+	padding: 0 6px;
+	justify-content: center;
+	align-items: center;
+	background-color: $ui-tile-title-bg;
+	color: $ui-tile-title-text;
+	font-family: $body-font;
+	font-size: 11px;
+	font-weight: 500;
+	text-align: center;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}

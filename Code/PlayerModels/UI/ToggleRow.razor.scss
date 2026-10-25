@@ -1,0 +1,61 @@
+@import "SelectorTheme.scss";
+
+// A setting that is on or off: a check box and its name, the whole row clickable
+ToggleRow
+{
+	flex-shrink: 0;
+	font-family: $body-font;
+
+	.toggle
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-grow: 1;
+		min-height: 26px;
+		gap: 8px;
+		cursor: pointer;
+
+		&:hover
+		{
+			sound-in: ui.hover;
+
+			.box
+			{
+				border-color: $ui-blue;
+			}
+		}
+
+		&:active
+		{
+			sound-in: ui.select;
+		}
+	}
+
+	.box
+	{
+		width: 16px;
+		height: 16px;
+		flex-shrink: 0;
+		justify-content: center;
+		align-items: center;
+		background-color: $ui-input-bg;
+		border: 1px solid $ui-input-border;
+		border-radius: 2px;
+		font-family: "Material Icons";
+		font-size: 14px;
+		color: white;
+		text-transform: none;
+	}
+
+	.on .box
+	{
+		background-color: $ui-blue;
+		border-color: $ui-blue;
+	}
+
+	.text
+	{
+		@include ui-label;
+		color: $ui-text;
+	}
+}

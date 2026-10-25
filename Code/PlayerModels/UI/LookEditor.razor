@@ -1,0 +1,332 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Core
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    @if ( Model is null || Look is null || Look.IsDefault )
+    {
+        <div class="note">Pick a model to customize it. The default citizen wears your avatar.</div>
+    }
+    else
+    {
+        <div class="section-header">Saved Looks</div>
+        <div class="row save-row">
+            <TextEntry class="name-entry" Placeholder=@NextLookName() Value:bind=@_lookName @onsubmit=@SaveLook></TextEntry>
+            <div class="button" @onclick=@SaveLook>Save</div>
+        </div>
+        @foreach ( var saved in SavedLooks() )
+        {
+            var name = saved.Name;
+            <div class="row saved-look">
+                <div class="saved-name" @onclick=@(() => UseSavedLook( name ))>@name</div>
+                <div class="button" @onclick=@(() => UseSavedLook( name ))>Use</div>
+                <div class="icon-button" @onclick=@(() => DeleteSavedLook( name ))>delete</div>
+            </div>
+        }
+
+        <div class="section-header">Color</div>
+        @if ( Skins() is { Count: > 1 } skins )
+        {
+            <div class="row">
+                <div class="label">Skin</div>
+                <div class="choices">
+                    @foreach ( var skin in skins )
+                    {
+                        var name = skin.Name;
+                        <div class="choice @( name == Look.Skin ? "active" : "" )" @onclick=@(() => SetSkin( name ))>@skin.Label</div>
+                    }
+                </div>
+            </div>
+        }
+        <ColorRow Label="Whole model" Hex=@Look.Tint OnChanged=@SetTint></ColorRow>
+        @foreach ( var part in ColorParts() )
+        {
+            var name = part;
+            <ColorRow Label=@( name.Replace( '_', ' ' ) ) Hex=@PartColour( name ) OnChanged=@(( string hex ) => SetPartColour( name, hex ))
+                      @onmouseenter=@(() => Point( PartHighlight.Part( name ) )) @onmouseleave=@(() => Point( null ))></ColorRow>
+        }
+
+        <div class="section-header">Body Shape</div>
+        @foreach ( var part in Enum.GetValues<BodyShape.Part>() )
+        {
+            var shape = part;
+            <SliderRow Label=@ShapeLabel( shape ) Value=@ShapeOf( shape ) Signed=@true OnChanged=@(( float amount ) => SetShape( shape, amount ))></SliderRow>
+        }
+
+        @if ( BodyParts().Any() )
+        {
+            <div class="section-header">Body Groups</div>
+            @foreach ( var part in BodyParts() )
+            {
+                var name = part.Name;
+                var current = ChoiceOf( name );
+                <div class="row" @onmouseenter=@(() => Point( PartHighlight.Group( name, current ) )) @onmouseleave=@(() => Point( null ))>
+                    <div class="label">@( name.Replace( '_', ' ' ) )</div>
+                    <div class="choices">
+                        @foreach ( var choice in ChoicesOf( part ) )
+                        {
+                            var index = choice.Index;
+                            <div class="choice @( choice.Index == current ? "active" : "" )" @onclick=@(() => Choose( name, index ))
+                                 @onmouseenter=@(() => Point( PartHighlight.Group( name, index ) ))
+                                 @onmouseleave=@(() => Point( PartHighlight.Group( name, ChoiceOf( name ) ) ))>@choice.Label</div>
+                        }
+                    </div>
+                </div>
+            }
+        }
+
+        @if ( MorphNames().Any() )
+        {
+            <div class="section-header">Morphs</div>
+            @foreach ( var morph in MorphNames() )
+            {
+                var name = morph;
+                <SliderRow Label=@name Value=@WeightOf( name ) OnChanged=@(( float weight ) => SetMorph( name, weight ))></SliderRow>
+            }
+        }
+
+        <div class="footer">
+            <div class="reset @( IsCustomised ? "" : "disabled" )" @onclick=@ResetAll>Reset everything</div>
+        </div>
+    }
+</root>
+
+@code
+{
+    /// <summary>The model being customised, loaded.</summary>
+    [Parameter] public Model Model { get; set; }
+
+    /// <summary>The look being edited. Changed in place; <see cref="Changed"/> says when.</summary>
+    [Parameter] public PlayerLook Look { get; set; }
+
+    /// <summary>Called after every change to <see cref="Look"/>.</summary>
+    [Parameter] public Action Changed { get; set; }
+
+    /// <summary>Called with the part under the mouse (a body group choice or a coloured part), null when it leaves.</summary>
+    [Parameter] public Action<PartHighlight?> Pointed { get; set; }
+
+    void Point( PartHighlight? highlight ) => Pointed?.Invoke( highlight );
+
+    bool IsCustomised => Look is not null
+        && (Look.BodyGroups.Count > 0 || Look.Morphs.Count > 0 || Look.Parts.Count > 0 || Look.Shape.Count > 0
+            || !string.IsNullOrEmpty( Look.Tint ) || !string.IsNullOrEmpty( Look.Skin ));
+
+    // The name typed for the next saved look, and a count that redraws the list when one is saved or deleted
+    string _lookName = "";
+    int _savedRevision;
+
+    protected override int BuildHash() => HashCode.Combine( Model, Look?.Serialize(), _savedRevision );
+
+    // A skin of the model: its name, "" for the default. Name: the material group's.
+    record SkinButton( string Label, string Name );
+
+    // The model's skins, default first. A stock character's skin is your avatar's skin tone, so it has none to choose
+    List<SkinButton> Skins()
+    {
+        var skins = new List<SkinButton>();
+        if ( Model is null || ModelOutfit.IsStock( Look.Model ) )
+            return skins;
+
+        for ( var i = 0; i < Model.MaterialGroupCount; i++ )
+        {
+            var name = Model.GetMaterialGroupName( i );
+            skins.Add( i == 0 ? new SkinButton( "Default", "" ) : new SkinButton( ChoiceName( name ), name ) );
+        }
+
+        return skins;
+    }
+
+    void SetSkin( string skin )
+    {
+        Look.Skin = skin ?? "";
+        Changed?.Invoke();
+    }
+
+    List<SavedLook> SavedLooks() => LocalPrefs.SavedLooks( Look.Model );
+
+    string NextLookName() => $"Look {SavedLooks().Count + 1}";
+
+    // Saves what the preview shows, under the typed name or the next free "Look N"
+    void SaveLook()
+    {
+        var name = string.IsNullOrWhiteSpace( _lookName ) ? NextLookName() : _lookName.Trim();
+        LocalPrefs.SaveLook( name, Look );
+        _lookName = "";
+        _savedRevision++;
+        StateHasChanged();
+    }
+
+    // Puts a saved look on the preview; Apply wears it. The bones picked by hand stay: they belong to the model, not the look
+    void UseSavedLook( string name )
+    {
+        var saved = SavedLooks().FirstOrDefault( x => x.Name == name );
+        if ( saved is null )
+            return;
+
+        var look = PlayerLook.Parse( saved.Look );
+        Look.Skin = look.Skin;
+        Look.Tint = look.Tint;
+        Look.BodyGroups = look.BodyGroups;
+        Look.Morphs = look.Morphs;
+        Look.Parts = look.Parts;
+        Look.Shape = look.Shape;
+        Changed?.Invoke();
+        StateHasChanged();
+    }
+
+    void DeleteSavedLook( string name )
+    {
+        LocalPrefs.DeleteSavedLook( Look.Model, name );
+        _savedRevision++;
+        StateHasChanged();
+    }
+
+    // The model's materials, coloured one by one. A stock character takes its colours from your avatar and its clothes
+    // are models of their own, and a mounted game's materials can't be copied, so both only get the whole-model tint
+    IEnumerable<string> ColorParts()
+    {
+        if ( Model is null || ModelOutfit.IsStock( Look.Model ) || MountModels.IsMountPath( Look.Model ) )
+            return Enumerable.Empty<string>();
+
+        return PartTints.PartsOf( Model );
+    }
+
+    string PartColour( string part ) => Look.Parts.TryGetValue( part, out var hex ) ? hex : "";
+
+    // A button of a body group: a choice that shows something, or the model's own default. An empty choice is never
+    // offered otherwise, so nothing the model shows can be hidden (ModelBody enforces the same for every look)
+    record ChoiceButton( string Label, int Index );
+
+    // Groups with at least two choices that show something
+    IEnumerable<Model.BodyPart> BodyParts()
+    {
+        if ( Model is null )
+            return Enumerable.Empty<Model.BodyPart>();
+
+        return Model.BodyParts.Where( x => ChoicesOf( x ).Count > 1 );
+    }
+
+    static List<ChoiceButton> ChoicesOf( Model.BodyPart part )
+    {
+        var buttons = new List<ChoiceButton>();
+        for ( var i = 0; i < part.Choices.Count; i++ )
+        {
+            if ( part.Choices[ i ].Mask != 0 )
+                buttons.Add( new ChoiceButton( ChoiceName( part.Choices[ i ].Name ), i ) );
+        }
+
+        // Names that don't tell the choices apart (empty, or the same source file twice) become numbered options
+        if ( buttons.Any( x => x.Label == "" ) || buttons.Select( x => x.Label ).Distinct().Count() < buttons.Count )
+        {
+            for ( var i = 0; i < buttons.Count; i++ )
+                buttons[ i ] = buttons[ i ] with { Label = $"Option {i + 1}" };
+        }
+
+        // An accessory the model leaves off by default (a cape) can be put on and taken off again
+        if ( part.Choices.Count > 0 && part.Choices[ 0 ].Mask == 0 )
+            buttons.Insert( 0, new ChoiceButton( "Default", 0 ) );
+
+        return buttons;
+    }
+
+    // "../dmatch/lowcount/rgrunt/DMRGrunt_Template_Biped1.smd" -> "DMRGrunt Template Biped1": the name, not its folders
+    static string ChoiceName( string name )
+    {
+        if ( string.IsNullOrWhiteSpace( name ) )
+            return "";
+
+        var start = name.LastIndexOfAny( new[] { '/', '\\' } ) + 1;
+        var end = name.LastIndexOf( '.' );
+        var file = end > start ? name[ start..end ] : name[ start.. ];
+
+        return file.Replace( '_', ' ' ).Trim();
+    }
+
+    IEnumerable<string> MorphNames() => Model?.Morphs?.Names ?? Array.Empty<string>();
+
+    int ChoiceOf( string group ) => Look.BodyGroups.TryGetValue( group, out var choice ) ? choice : 0;
+
+    float WeightOf( string morph ) => Look.Morphs.TryGetValue( morph, out var weight ) ? weight : 0f;
+
+    void Choose( string group, int choice )
+    {
+        if ( choice == 0 )
+            Look.BodyGroups.Remove( group );
+        else
+            Look.BodyGroups[ group ] = choice;
+
+        Changed?.Invoke();
+    }
+
+    void SetMorph( string morph, float weight )
+    {
+        if ( weight <= 0f )
+            Look.Morphs.Remove( morph );
+        else
+            Look.Morphs[ morph ] = weight;
+
+        Changed?.Invoke();
+    }
+
+    float ShapeOf( BodyShape.Part part ) => Look.Shape.TryGetValue( part.ToString(), out var amount ) ? amount : 0f;
+
+    // "ArmLength" -> "Arm length"
+    static string ShapeLabel( BodyShape.Part part )
+    {
+        var name = part.ToString();
+        var label = new System.Text.StringBuilder( name.Length + 2 );
+        for ( var i = 0; i < name.Length; i++ )
+        {
+            if ( i > 0 && char.IsUpper( name[ i ] ) )
+                label.Append( ' ' ).Append( char.ToLowerInvariant( name[ i ] ) );
+            else
+                label.Append( name[ i ] );
+        }
+
+        return label.ToString();
+    }
+
+    void SetShape( BodyShape.Part part, float amount )
+    {
+        if ( MathF.Abs( amount ) < 0.005f )
+            Look.Shape.Remove( part.ToString() );
+        else
+            Look.Shape[ part.ToString() ] = amount;
+
+        Changed?.Invoke();
+    }
+
+    void SetTint( string hex )
+    {
+        Look.Tint = hex;
+        Changed?.Invoke();
+    }
+
+    void SetPartColour( string part, string hex )
+    {
+        if ( string.IsNullOrEmpty( hex ) )
+            Look.Parts.Remove( part );
+        else
+            Look.Parts[ part ] = hex;
+
+        Changed?.Invoke();
+    }
+
+    void ResetAll()
+    {
+        Look.Skin = "";
+        Look.Tint = "";
+        Look.BodyGroups.Clear();
+        Look.Morphs.Clear();
+        Look.Parts.Clear();
+        Look.Shape.Clear();
+        Changed?.Invoke();
+        StateHasChanged();
+    }
+}

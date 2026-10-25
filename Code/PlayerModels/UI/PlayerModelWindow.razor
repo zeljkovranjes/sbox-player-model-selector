@@ -1,0 +1,92 @@
+@using System
+@using System.Linq
+@using Sandbox
+@using Sandbox.UI
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root class="@( _open ? "" : "collapsed" )" @onmousedown=@WindowPress>
+
+    <div class="tabs">
+        <div class="tab @( _open ? "active" : "" )" @onclick=@Toggle>Player Model Selector</div>
+    </div>
+
+    <div class="body">
+        <PlayerModelPage />
+    </div>
+
+</root>
+
+@code
+{
+    const string OpenCookie = "player_model_selector.open";
+
+    // Space between Sandbox's window and this one
+    const float Gap = 8f;
+
+    bool _open = Game.Cookies.Get( OpenCookie, true );
+
+    /// <summary>Puts the window in the C menu of this scene, unless it's there already.</summary>
+    public static void AddTo( Scene scene )
+    {
+        var menu = FindContextMenu( scene );
+        if ( menu is null || menu.ChildrenOfType<PlayerModelWindow>().Any() )
+            return;
+
+        menu.AddChild<PlayerModelWindow>();
+    }
+
+    /// <summary>Takes the window out of the C menu of this scene.</summary>
+    public static void RemoveFrom( Scene scene )
+    {
+        var menu = FindContextMenu( scene );
+        if ( menu is null )
+            return;
+
+        foreach ( var window in menu.ChildrenOfType<PlayerModelWindow>().ToArray() )
+            window.Delete( true );
+    }
+
+    // Sandbox's inspect menu, the one C opens
+    static ContextMenuHost FindContextMenu( Scene scene )
+    {
+        var host = scene?.Get<SpawnMenuHost>();
+        return host?.Panel?.Descendants.OfType<ContextMenuHost>().FirstOrDefault();
+    }
+
+    public override void Tick()
+    {
+        base.Tick();
+
+        Place();
+    }
+
+    protected override int BuildHash() => HashCode.Combine( _open );
+
+    void Toggle()
+    {
+        _open = !_open;
+        Game.Cookies.Set( OpenCookie, _open );
+        StateHasChanged();
+    }
+
+    // Keep clicks on the window from selecting whatever is in the world behind it
+    void WindowPress( PanelEvent e )
+    {
+        InputFocus.Clear();
+        e.StopPropagation();
+    }
+
+    // Just right of Sandbox's own window (Saves, Effects), following it as it opens and closes
+    void Place()
+    {
+        var sandboxWindow = Parent?.ChildrenOfType<InspectWindow>().FirstOrDefault();
+        if ( sandboxWindow is null || sandboxWindow.Box.Rect.Width <= 0 )
+            return;
+
+        var right = (sandboxWindow.Box.Rect.Right - Parent.Box.Rect.Left) * ScaleFromScreen;
+        var top = (sandboxWindow.Box.Rect.Top - Parent.Box.Rect.Top) * ScaleFromScreen;
+        Style.Left = Length.Pixels( right + Gap );
+        Style.Top = Length.Pixels( top );
+    }
+}

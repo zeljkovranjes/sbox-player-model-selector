@@ -1,0 +1,31 @@
+@using System
+@using Sandbox
+@using Sandbox.UI
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    <div class="toggle @( Value ? "on" : "" )" @onclick=@Toggle>
+        <div class="box">@( Value ? "check" : "" )</div>
+        <div class="text">@Label</div>
+    </div>
+</root>
+
+@code
+{
+    /// <summary>What the toggle turns on or off.</summary>
+    [Parameter] public string Label { get; set; }
+
+    /// <summary>Whether it is on.</summary>
+    [Parameter] public bool Value { get; set; }
+
+    /// <summary>Called with the new value when it is clicked.</summary>
+    [Parameter] public Action<bool> OnChanged { get; set; }
+
+    protected override int BuildHash() => HashCode.Combine( Label, Value );
+
+    void Toggle()
+    {
+        OnChanged?.Invoke( !Value );
+    }
+}

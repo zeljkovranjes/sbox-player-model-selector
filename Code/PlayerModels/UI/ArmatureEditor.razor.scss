@@ -1,0 +1,144 @@
+@import "SelectorTheme.scss";
+
+// The Armature page: body parts on the left, the model's bones on the right, each list scrolling on its own
+ArmatureEditor
+{
+	flex-direction: column;
+	flex-shrink: 0;
+	width: 100%;
+	padding: 4px 6px;
+	font-family: $body-font;
+	color: $ui-text;
+
+	.note, .intro, .hint
+	{
+		padding: 6px 4px;
+		color: $ui-text-muted;
+		font-size: $ui-settings-font;
+	}
+
+	.columns
+	{
+		flex-direction: row;
+		height: 350px;
+		gap: 8px;
+	}
+
+	.parts, .bones
+	{
+		flex-direction: column;
+		flex-basis: 0px;
+		flex-grow: 1;
+		overflow-y: scroll;
+		border: 1px solid $ui-control-border;
+		background-color: $ui-control-bg;
+	}
+
+	.group-title
+	{
+		@include ui-section-header;
+		margin: 6px 6px 2px 6px;
+	}
+
+	// a body part: its name, and the bone it uses under it
+	.part
+	{
+		flex-direction: column;
+		flex-shrink: 0;
+		padding: 3px 6px;
+		cursor: pointer;
+
+		&:hover
+		{
+			background-color: rgba( 62, 131, 235, 0.14 );
+			sound-in: ui.hover;
+		}
+
+		&.active
+		{
+			@include ui-selected;
+
+			.part-bone
+			{
+				color: rgba( 255, 255, 255, 0.8 );
+			}
+		}
+
+		// a part the model can't be worn without, with no bone
+		&.missing .part-bone
+		{
+			color: $ui-danger;
+		}
+
+		// found automatically: shown, never changed
+		&.locked
+		{
+			opacity: 0.7;
+		}
+	}
+
+	.part-name
+	{
+		flex-direction: row;
+		align-items: center;
+		gap: 4px;
+		font-size: $ui-settings-font;
+		font-weight: 600;
+	}
+
+	.lock
+	{
+		font-family: "Material Icons";
+		font-size: 12px;
+		color: $ui-text-muted;
+	}
+
+	.part-bone
+	{
+		font-size: 11px;
+		color: $ui-text-muted;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.bone, .bone-option
+	{
+		flex-shrink: 0;
+		padding: 2px 6px;
+		font-size: $ui-settings-font;
+		white-space: nowrap;
+		cursor: pointer;
+
+		&:hover
+		{
+			background-color: rgba( 62, 131, 235, 0.14 );
+			sound-in: ui.hover;
+		}
+
+		&.active
+		{
+			@include ui-selected;
+		}
+	}
+
+	.bone-option
+	{
+		font-weight: 600;
+		border-bottom: 1px solid $ui-separator;
+	}
+
+	.reset
+	{
+		@include ui-button;
+		flex-shrink: 0;
+	}
+
+	.footer
+	{
+		flex-direction: row;
+		justify-content: flex-end;
+		flex-shrink: 0;
+		margin-top: 8px;
+	}
+}

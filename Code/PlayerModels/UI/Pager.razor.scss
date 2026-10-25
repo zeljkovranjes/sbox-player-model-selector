@@ -1,0 +1,30 @@
+@import "SelectorTheme.scss";
+
+// Previous and Next under a long list, with the page between them
+Pager
+{
+	flex-shrink: 0;
+	font-family: $body-font;
+
+	.pager
+	{
+		flex-direction: row;
+		flex-grow: 1;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		padding: 6px 0;
+	}
+
+	.button
+	{
+		@include ui-button;
+		flex-shrink: 0;
+	}
+
+	.page
+	{
+		@include ui-label;
+		color: $ui-text-muted;
+	}
+}

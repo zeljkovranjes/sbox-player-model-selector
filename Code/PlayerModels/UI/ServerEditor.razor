@@ -1,0 +1,210 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Components
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    @if ( Selector is not { } selector )
+    {
+        return;
+    }
+
+    <div class="section-header">Players</div>
+    @if ( Others().Count == 0 )
+    {
+        <div class="note">Nobody else is here. Once players join, you can choose a model for any of them here.</div>
+    }
+    else
+    {
+        // Searching only when there is more than a page of them; with one page, nothing is filtered
+        var searchPlayers = Others().Count > PerPage;
+        @if ( searchPlayers )
+        {
+            <TextEntry class="search-entry" Placeholder="Search players" Value:bind=@PlayerSearch HasClearButton=@true></TextEntry>
+        }
+
+        var players = Matching( Others(), x => x.DisplayName, searchPlayers ? _playerSearch : "" );
+        var playerPages = PageCount( players.Count );
+        var playerPage = Math.Clamp( _playerPage, 0, playerPages - 1 );
+
+        @if ( players.Count == 0 )
+        {
+            <div class="note">No players match "@_playerSearch.Trim()".</div>
+        }
+
+        @foreach ( var player in OnPage( players, playerPage ) )
+        {
+            var connection = player;
+            var model = selector.PickOf( connection ) ?? "";
+            var chosen = selector.IsPickedByHost( connection );
+            <div class="row">
+                <div class="thumb" style="background-image: url( thumb:@( model == "" ? ModelLoader.CitizenModel : model ) )"></div>
+                <div class="player">
+                    <div class="name">@connection.DisplayName</div>
+                    <div class="detail">@( model == "" ? "Default" : TitleOf?.Invoke( model ) ?? model )@( chosen ? ", chosen by you" : "" )</div>
+                </div>
+                <div class="button" @onclick=@(() => ChooseFor?.Invoke( connection ))>Choose model</div>
+                @if ( chosen )
+                {
+                    <div class="button" @onclick=@(() => Revert( connection ))>Revert</div>
+                }
+            </div>
+        }
+
+        <Pager Page=@playerPage Pages=@playerPages OnPage=@ShowPlayerPage></Pager>
+    }
+
+    <div class="section-header">Models Players Can Wear</div>
+    <ToggleRow Label="Models from sbox.game" Value=@( !selector.BlockCloudModels ) OnChanged=@AllowCloud></ToggleRow>
+    <ToggleRow Label="Models from mounted games" Value=@( !selector.BlockMountedModels ) OnChanged=@AllowMounted></ToggleRow>
+    <div class="note">The default citizen and the game's own models can always be worn. Turning a source off puts anyone wearing one of its models back to the citizen.</div>
+
+    <div class="section-header">Armature</div>
+    <ToggleRow Label="Players can set up armatures" Value=@( !selector.BlockArmature ) OnChanged=@AllowArmature></ToggleRow>
+    <div class="note">Turned off, players can't give body parts a bone by hand; bones they picked are dropped, and models that need them show the citizen. You always can.</div>
+
+    <div class="section-header">Blocked Models</div>
+    @if ( selector.BlockedModels is not { Count: > 0 } blocked )
+    {
+        <div class="note">None. Hover a model in the Models grid and click its block icon to keep it off this server.</div>
+    }
+    else
+    {
+        // Searching only when there is more than a page of them; with one page, nothing is filtered
+        var searchBlocked = blocked.Count > PerPage;
+        @if ( searchBlocked )
+        {
+            <TextEntry class="search-entry" Placeholder="Search blocked models" Value:bind=@BlockedSearch HasClearButton=@true></TextEntry>
+        }
+
+        // The latest blocked first
+        var models = Matching( blocked.Reverse(), x => $"{TitleOf?.Invoke( x )} {x}", searchBlocked ? _blockedSearch : "" );
+        var blockedPages = PageCount( models.Count );
+        var blockedPage = Math.Clamp( _blockedPage, 0, blockedPages - 1 );
+
+        @if ( models.Count == 0 )
+        {
+            <div class="note">No blocked models match "@_blockedSearch.Trim()".</div>
+        }
+
+        @foreach ( var model in OnPage( models, blockedPage ) )
+        {
+            var id = model;
+            <div class="row">
+                <div class="thumb" style="background-image: url( thumb:@id )"></div>
+                <div class="name">@( TitleOf?.Invoke( id ) ?? id )</div>
+                <div class="button" @onclick=@(() => Unblock( id ))>Unblock</div>
+            </div>
+        }
+
+        <Pager Page=@blockedPage Pages=@blockedPages OnPage=@ShowBlockedPage></Pager>
+    }
+
+    <div class="note">These settings are saved on your machine and used whenever you host.</div>
+</root>
+
+@code
+{
+    /// <summary>The name to show for a model, from what the window knows of it.</summary>
+    [Parameter] public Func<string, string> TitleOf { get; set; }
+
+    /// <summary>Called with the player the host wants to choose a model for.</summary>
+    [Parameter] public Action<Connection> ChooseFor { get; set; }
+
+    static PlayerModelSelector Selector => PlayerModelSelector.Find( Game.ActiveScene );
+
+    // The players and the blocked models are shown ten at a time, filtered by what is typed above them
+    const int PerPage = 10;
+    string _playerSearch = "";
+    string _blockedSearch = "";
+    int _playerPage;
+    int _blockedPage;
+
+    // A new search starts from the first page
+    string PlayerSearch
+    {
+        get => _playerSearch;
+        set
+        {
+            _playerSearch = value ?? "";
+            _playerPage = 0;
+        }
+    }
+
+    string BlockedSearch
+    {
+        get => _blockedSearch;
+        set
+        {
+            _blockedSearch = value ?? "";
+            _blockedPage = 0;
+        }
+    }
+
+    static int PageCount( int count ) => Math.Max( 1, (count + PerPage - 1) / PerPage );
+
+    static List<T> Matching<T>( IEnumerable<T> items, Func<T, string> text, string search )
+    {
+        if ( string.IsNullOrWhiteSpace( search ) )
+            return items.ToList();
+
+        return items.Where( x => (text( x ) ?? "").Contains( search.Trim(), StringComparison.OrdinalIgnoreCase ) ).ToList();
+    }
+
+    static List<T> OnPage<T>( List<T> items, int page ) => items.Skip( page * PerPage ).Take( PerPage ).ToList();
+
+    void ShowPlayerPage( int page )
+    {
+        _playerPage = Math.Max( 0, page );
+        StateHasChanged();
+    }
+
+    void ShowBlockedPage( int page )
+    {
+        _blockedPage = Math.Max( 0, page );
+        StateHasChanged();
+    }
+
+    // Everyone connected but the host
+    static List<Connection> Others() => Connection.All.Where( x => x != Connection.Local ).ToList();
+
+    protected override int BuildHash() => HashCode.Combine( Selector?.BlockCloudModels, Selector?.BlockMountedModels, Selector?.BlockArmature,
+        string.Join( ";", Selector?.BlockedModels ?? Enumerable.Empty<string>() ),
+        string.Join( ";", Others().Select( x => $"{x.Id}={Selector?.PickOf( x )}{Selector?.IsPickedByHost( x )}" ) ),
+        HashCode.Combine( _playerSearch, _blockedSearch, _playerPage, _blockedPage ) );
+
+    void AllowCloud( bool allow )
+    {
+        Selector?.SetAllowCloudModels( allow );
+        StateHasChanged();
+    }
+
+    void AllowMounted( bool allow )
+    {
+        Selector?.SetAllowMountedModels( allow );
+        StateHasChanged();
+    }
+
+    void AllowArmature( bool allow )
+    {
+        Selector?.SetAllowArmature( allow );
+        StateHasChanged();
+    }
+
+    void Unblock( string model )
+    {
+        Selector?.SetBlocked( model, false );
+        StateHasChanged();
+    }
+
+    void Revert( Connection connection )
+    {
+        Selector?.RevertPick( connection );
+        StateHasChanged();
+    }
+}

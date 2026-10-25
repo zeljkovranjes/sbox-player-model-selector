@@ -1,0 +1,30 @@
+@using System
+@using Sandbox
+@using Sandbox.UI
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    @if ( Pages > 1 )
+    {
+        <div class="pager">
+            <div class="button @( Page <= 0 ? "disabled" : "" )" @onclick=@(() => OnPage?.Invoke( Page - 1 ))>Previous</div>
+            <div class="page">Page @( Page + 1 ) of @Pages</div>
+            <div class="button @( Page >= Pages - 1 ? "disabled" : "" )" @onclick=@(() => OnPage?.Invoke( Page + 1 ))>Next</div>
+        </div>
+    }
+</root>
+
+@code
+{
+    /// <summary>The page shown, from 0.</summary>
+    [Parameter] public int Page { get; set; }
+
+    /// <summary>How many pages there are; with one, nothing shows.</summary>
+    [Parameter] public int Pages { get; set; }
+
+    /// <summary>Called with the page asked for.</summary>
+    [Parameter] public Action<int> OnPage { get; set; }
+
+    protected override int BuildHash() => HashCode.Combine( Page, Pages );
+}

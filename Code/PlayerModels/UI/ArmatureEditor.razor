@@ -1,0 +1,201 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using Sandbox
+@using Sandbox.UI
+@using HumanoidRetargeter.Core.Mapping
+@using PlayerModels.Core
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    @if ( Model is null || Look is null || Look.IsDefault )
+    {
+        <div class="note">Pick a model to set up its armature. The default citizen needs none.</div>
+    }
+    else
+    {
+        <div class="intro">Parts found automatically are locked. A missing part can be given a bone: pick the part, then its bone. Saved for this model when you press Apply.</div>
+
+        <div class="columns">
+            <div class="parts">
+                @foreach ( var (group, roles) in Groups )
+                {
+                    <div class="group-title">@group</div>
+                    @foreach ( var (role, label) in roles )
+                    {
+                        var part = role;
+                        var bone = BoneOf( part );
+                        var locked = IsLocked( part );
+                        <div class="part @( _selected == part ? "active" : "" ) @( locked ? "locked" : "open" ) @( bone is null && Required.Contains( part ) ? "missing" : "" )"
+                             @onclick=@(() => Select( part ))
+                             @onmouseenter=@(() => Point( BoneOf( part ) ))
+                             @onmouseleave=@(() => Point( SelectedBone ))>
+                            <div class="part-name">
+                                @if ( locked )
+                                {
+                                    <div class="lock">lock</div>
+                                }
+                                @label
+                            </div>
+                            <div class="part-bone">@( bone ?? (Required.Contains( part ) ? "missing, needs a bone" : "missing") )</div>
+                        </div>
+                    }
+                }
+            </div>
+
+            <div class="bones">
+                @if ( _selected is not { } selected )
+                {
+                    <div class="hint">Pick a body part on the left. Only missing parts take a bone.</div>
+                }
+                else if ( IsLocked( selected ) )
+                {
+                    <div class="hint">This part was found automatically (@BoneOf( selected )), so it's locked.</div>
+                }
+                else
+                {
+                    @if ( IsPicked( selected ) )
+                    {
+                        <div class="bone-option" @onclick=@(() => ClearPick( selected ))>Clear (back to missing)</div>
+                    }
+                    @foreach ( var (name, depth) in FreeBones( selected ) )
+                    {
+                        var boneName = name;
+                        <div class="bone @( boneName == BoneOf( selected ) ? "active" : "" )" style="padding-left: @( 6 + depth * 8 )px"
+                             @onclick=@(() => Assign( selected, boneName ))
+                             @onmouseenter=@(() => Point( boneName ))
+                             @onmouseleave=@(() => Point( SelectedBone ))>@boneName</div>
+                    }
+                }
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="reset @( Look.Bones.Count > 0 ? "" : "disabled" )" @onclick=@ClearAll>Clear my picks</div>
+        </div>
+    }
+</root>
+
+@code
+{
+    /// <summary>The model being set up, loaded.</summary>
+    [Parameter] public Model Model { get; set; }
+
+    /// <summary>The look being edited; its bone picks change in place, and <see cref="Changed"/> says when.</summary>
+    [Parameter] public PlayerLook Look { get; set; }
+
+    /// <summary>Called after every change to <see cref="Look"/>.</summary>
+    [Parameter] public Action Changed { get; set; }
+
+    /// <summary>Called with the bone to light up on the preview, or null.</summary>
+    [Parameter] public Action<string> Pointed { get; set; }
+
+    // The body parts, in the order a person reads a body; fingers stay automatic
+    static readonly (string Group, (BoneRole Role, string Label)[] Roles)[] Groups =
+    {
+        ("Body", new[] { (BoneRole.Hips, "Hips"), (BoneRole.Spine0, "Lower spine"), (BoneRole.Spine1, "Middle spine"),
+            (BoneRole.Spine2, "Upper spine"), (BoneRole.Neck, "Neck"), (BoneRole.Head, "Head") }),
+        ("Left arm", new[] { (BoneRole.ClavicleL, "Shoulder"), (BoneRole.UpperArmL, "Upper arm"), (BoneRole.LowerArmL, "Forearm"),
+            (BoneRole.HandL, "Hand") }),
+        ("Right arm", new[] { (BoneRole.ClavicleR, "Shoulder"), (BoneRole.UpperArmR, "Upper arm"), (BoneRole.LowerArmR, "Forearm"),
+            (BoneRole.HandR, "Hand") }),
+        ("Left leg", new[] { (BoneRole.UpperLegL, "Thigh"), (BoneRole.LowerLegL, "Shin"), (BoneRole.FootL, "Foot"), (BoneRole.ToeL, "Toes") }),
+        ("Right leg", new[] { (BoneRole.UpperLegR, "Thigh"), (BoneRole.LowerLegR, "Shin"), (BoneRole.FootR, "Foot"), (BoneRole.ToeR, "Toes") }),
+    };
+
+    // A model can't be worn without these
+    static readonly HashSet<BoneRole> Required =
+        new() { BoneRole.Hips, BoneRole.Head, BoneRole.HandL, BoneRole.HandR, BoneRole.FootL, BoneRole.FootR };
+
+    BoneRole? _selected;
+    Model _readModel;
+    Dictionary<BoneRole, string> _automatic = new();
+    List<(string Name, int Depth)> _bones = new();
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+
+        if ( Model == _readModel )
+            return;
+
+        // A new model: read its bones and what the automatic mapping makes of them, once
+        _readModel = Model;
+        _selected = null;
+        _automatic = Model is null ? new() : PoseTransfer.AutomaticBones( Model );
+        _bones = Model is null ? new() : Model.Bones.AllBones.Select( x => (x.Name, DepthOf( x )) ).ToList();
+    }
+
+    protected override int BuildHash() => HashCode.Combine( Model, Look?.BonesKey(), _selected );
+
+    static int DepthOf( BoneCollection.Bone bone )
+    {
+        var depth = 0;
+        for ( var parent = bone.Parent; parent is not null; parent = parent.Parent )
+            depth++;
+
+        return depth;
+    }
+
+    string Automatic( BoneRole role ) => _automatic.TryGetValue( role, out var bone ) ? bone : null;
+
+    // What the automatic setup found is the preset: it can't be changed here (nor by any look, see PoseTransfer)
+    bool IsLocked( BoneRole role ) => Automatic( role ) is not null;
+
+    bool IsPicked( BoneRole role ) => !IsLocked( role ) && Look.Bones.TryGetValue( role.ToString(), out var picked ) && !string.IsNullOrEmpty( picked );
+
+    // The bone a part uses now: the preset's, or the one picked for a missing part
+    string BoneOf( BoneRole role )
+    {
+        if ( IsLocked( role ) )
+            return Automatic( role );
+
+        return Look.Bones.TryGetValue( role.ToString(), out var picked ) && !string.IsNullOrEmpty( picked ) ? picked : null;
+    }
+
+    // Bones a missing part can take: any no other part uses already
+    IEnumerable<(string Name, int Depth)> FreeBones( BoneRole role )
+    {
+        var used = Groups.SelectMany( x => x.Roles ).Select( x => x.Role ).Where( x => x != role ).Select( BoneOf ).Where( x => x is not null ).ToHashSet();
+        used.UnionWith( _automatic.Values );
+
+        var own = BoneOf( role );
+        return _bones.Where( x => x.Name == own || !used.Contains( x.Name ) );
+    }
+
+    string SelectedBone => _selected is { } role ? BoneOf( role ) : null;
+
+    void Point( string bone ) => Pointed?.Invoke( bone );
+
+    void Select( BoneRole role )
+    {
+        _selected = role;
+        Point( BoneOf( role ) );
+    }
+
+    void Assign( BoneRole role, string bone )
+    {
+        if ( IsLocked( role ) )
+            return;
+
+        Look.Bones[ role.ToString() ] = bone;
+        Point( BoneOf( role ) );
+        Changed?.Invoke();
+    }
+
+    void ClearPick( BoneRole role )
+    {
+        Look.Bones.Remove( role.ToString() );
+        Point( BoneOf( role ) );
+        Changed?.Invoke();
+    }
+
+    void ClearAll()
+    {
+        Look.Bones.Clear();
+        Point( SelectedBone );
+        Changed?.Invoke();
+    }
+}

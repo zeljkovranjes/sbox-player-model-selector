@@ -1,0 +1,89 @@
+@import "SelectorTheme.scss";
+
+// The host's Server page: which models players may wear here
+ServerEditor
+{
+	flex-direction: column;
+	flex-shrink: 0;
+	width: 100%;
+	padding: 4px 6px;
+	font-family: $body-font;
+	color: $ui-text;
+
+	.section-header
+	{
+		@include ui-section-header;
+		margin-top: 12px;
+
+		&:first-child
+		{
+			margin-top: 2px;
+		}
+	}
+
+	.note
+	{
+		flex-shrink: 0;
+		padding: 6px 0;
+		font-size: $ui-settings-font;
+		color: $ui-text-muted;
+	}
+
+	.row
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		min-height: 36px;
+		gap: 8px;
+	}
+
+	.thumb
+	{
+		@include ui-tile-thumb;
+		width: 32px;
+		height: 32px;
+		flex-shrink: 0;
+		background-color: $ui-tile-bg;
+	}
+
+	.name
+	{
+		@include ui-label;
+		flex-grow: 1;
+		color: $ui-text;
+	}
+
+	// a player: their name, and the model they wear under it
+	.player
+	{
+		flex-direction: column;
+		flex-grow: 1;
+		min-width: 0px;
+
+		.name
+		{
+			flex-grow: 0;
+		}
+	}
+
+	.detail
+	{
+		@include ui-label;
+		color: $ui-text-muted;
+	}
+
+	.button
+	{
+		@include ui-button;
+		flex-shrink: 0;
+	}
+
+	// the search box over the players and over the blocked models
+	.search-entry
+	{
+		@include ui-text-entry;
+		flex-shrink: 0;
+		margin: 2px 0 4px 0;
+	}
+}

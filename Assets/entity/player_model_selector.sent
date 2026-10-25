@@ -1,0 +1,10 @@
+{
+  "Prefab": "entity/player_model_selector.prefab",
+  "Title": "Player Model Selector",
+  "Description": "Spawn one to give everyone a Model window in the C menu. Click a model to wear it; everyone sees it. Remove it to put everyone back to the citizen.",
+  "Category": "World",
+  "IncludeCode": true,
+  "Developer": false,
+  "__references": [],
+  "__version": 0
+}

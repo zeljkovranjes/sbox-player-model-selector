@@ -1,0 +1,470 @@
+@import "SelectorTheme.scss";
+
+// The Player Model Selector window's page: view buttons, then the preview and the models.
+// The same size as Sandbox's Effects page, plus the buttons.
+PlayerModelPage
+{
+	flex-direction: column;
+	width: 724px;
+	height: 506px;
+	font-family: $body-font;
+
+	// the same buttons as the window's own tabs
+	> .views
+	{
+		flex-direction: row;
+		flex-shrink: 0;
+		gap: 2px;
+	}
+
+	> .views > .view
+	{
+		@include ui-tab;
+		border: 1px solid $ui-tab-border;
+		border-radius: 2px;
+
+		&.active
+		{
+			height: 24px;
+			padding-top: 0px;
+			border: 1px solid $ui-block-border;
+			pointer-events: all;
+
+			&:hover
+			{
+				background-color: $ui-tab-bg-active;
+				filter: brightness( 1.1 );
+			}
+		}
+	}
+
+	// pushes Models / Customize to the right, over the pane they switch
+	> .views > .spacer
+	{
+		flex-grow: 1;
+	}
+
+	> .views > .gap
+	{
+		width: 8px;
+	}
+
+	// Revert / Apply while customizing: lit up only when there are changes to wear
+	> .views > .action
+	{
+		@include ui-button;
+
+		&.apply:not( .disabled )
+		{
+			@include ui-selected;
+			background-image: none;
+			border-color: $ui-blue;
+		}
+	}
+
+	> .page
+	{
+		flex-direction: row;
+		flex-grow: 1;
+		min-height: 0px;
+		margin-top: 8px;
+		gap: 8px;
+	}
+
+	// the switch between the worn model's own arms and the picked ones, above the View Models grid
+	.models-pane .model-arms
+	{
+		flex-direction: column;
+		flex-shrink: 0;
+		padding: 2px 4px 6px 4px;
+	}
+
+	.models-pane .model-arms-text
+	{
+		padding-left: 24px;
+		font-size: $ui-settings-font;
+		color: $ui-text-muted;
+	}
+
+	// the search box on top of the grid
+	.models-pane .search
+	{
+		flex-shrink: 0;
+		padding: 2px 2px 6px 2px;
+	}
+
+	.models-pane .search-entry
+	{
+		@include ui-text-entry;
+		flex-grow: 1;
+	}
+
+	// a line of explanation under the grid
+	.models-pane .note
+	{
+		flex-shrink: 0;
+		padding: 10px 4px;
+		font-size: $ui-settings-font;
+		color: $ui-text-muted;
+	}
+
+	// sbox.game or the Workshop out of reach: the same big icon, blue title and hint as Sandbox's Effects page
+	.models-pane .offline
+	{
+		flex-direction: column;
+		align-items: center;
+		flex-shrink: 0;
+		padding: 24px 12px 28px 12px;
+		text-align: center;
+	}
+
+	.models-pane .offline-icon
+	{
+		font-family: "Material Icons";
+		font-size: 64px;
+		color: $ui-blue;
+	}
+
+	.models-pane .offline-title
+	{
+		margin-top: 6px;
+		font-size: 12px;
+		font-weight: 800;
+		text-transform: uppercase;
+		color: $ui-blue;
+	}
+
+	.models-pane .offline-text
+	{
+		max-width: 400px;
+		margin-top: 14px;
+		font-size: 12px;
+		font-weight: 500;
+		color: $ui-text;
+	}
+
+	// the host choosing a model for a player: what a click does now, and the way out
+	.models-pane .choosing
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		gap: 8px;
+		margin: 2px 2px 8px 2px;
+		padding: 6px 8px;
+		border: 1px solid $ui-blue;
+		border-radius: 2px;
+	}
+
+	.models-pane .choosing-text
+	{
+		flex-grow: 1;
+		font-size: $ui-settings-font;
+		color: $ui-text;
+	}
+
+	// a model the automatic check refused, with the way to set it up by hand
+	.models-pane .fix
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		gap: 8px;
+		margin: 2px 2px 8px 2px;
+		padding: 6px 8px;
+		border: 1px solid $ui-danger;
+		border-radius: 2px;
+	}
+
+	.models-pane .fix-text
+	{
+		flex-grow: 1;
+		font-size: $ui-settings-font;
+		color: $ui-text;
+	}
+
+	.models-pane .fix-button
+	{
+		@include ui-button;
+		flex-shrink: 0;
+	}
+
+	// a mounted game's own heading under Mounts
+	.models-pane .section-subtitle
+	{
+		flex-shrink: 0;
+		margin: 2px 2px 4px 6px;
+		font-size: 11px;
+		font-weight: 700;
+		color: $ui-text-label;
+	}
+
+	// a heading that folds its models away (Mounts and each game): a chevron, the name and how many models it holds
+	.models-pane .collapsible
+	{
+		flex-direction: row;
+		align-items: center;
+		gap: 3px;
+		cursor: pointer;
+
+		&:hover
+		{
+			color: $ui-text;
+			sound-in: ui.hover;
+		}
+
+		&:active
+		{
+			sound-in: ui.select;
+		}
+
+		// the icon font only turns the lower-case word into the arrow, and section headers are upper-case
+		.chevron
+		{
+			font-family: "Material Icons";
+			font-size: 14px;
+			text-transform: none;
+		}
+
+		.count
+		{
+			margin-left: 4px;
+			font-weight: 500;
+			color: $ui-text-muted;
+		}
+	}
+
+	// Favorites / Official / Facepunch / Other over their tiles
+	.models-pane .section-title
+	{
+		@include ui-section-header;
+		margin: 4px 2px 6px 2px;
+	}
+
+	.preview-pane
+	{
+		width: 228px;
+		flex-grow: 0;
+		flex-shrink: 0;
+		padding: 0px;
+
+		.settings-body
+		{
+			padding: 0px;
+			overflow: hidden;
+		}
+	}
+
+	// just enough room for the tiles' outlines under the title bar
+	.models-pane .settings-body
+	{
+		padding: 4px;
+	}
+
+	.grid
+	{
+		flex-direction: row;
+		flex-wrap: wrap;
+		flex-shrink: 0;
+		gap: 4px;
+	}
+
+	// a model just favorited eases into the Favorites row
+	.grid.favorites .tile
+	{
+		transition: opacity 0.25s ease-out, transform 0.25s ease-out, border-color 0.1s ease;
+
+		&:intro
+		{
+			opacity: 0;
+			transform: scale( 0.85 );
+		}
+	}
+
+	// a spawn-menu style icon: the picture, a white outline on hover, the name under it
+	.tile
+	{
+		position: relative;
+		width: 100px;
+		height: 100px;
+		flex-shrink: 0;
+		background-color: $ui-tile-bg;
+		border: 1px solid transparent;
+		border-radius: 2px;
+		cursor: pointer;
+		transition: border-color 0.1s ease;
+
+		.thumb
+		{
+			@include ui-tile-thumb;
+		}
+
+		.title
+		{
+			@include ui-tile-title;
+		}
+
+		&:hover
+		{
+			sound-in: ui.hover;
+			border-color: $ui-tile-outline;
+		}
+
+		&:active
+		{
+			sound-in: ui.select;
+		}
+
+		// the one being worn
+		&.worn
+		{
+			border: 2px solid $ui-blue;
+		}
+
+		&.checking
+		{
+			opacity: 0.5;
+		}
+
+		&.refused
+		{
+			border-color: $ui-danger;
+		}
+
+		// the heart in the corner: a red heart on favorites, an outline on hover for the rest
+		.favorite
+		{
+			position: absolute;
+			top: 2px;
+			right: 2px;
+			font-family: "Material Icons";
+			font-size: 18px;
+			color: white;
+			text-shadow: 0px 1px 2px rgba( 0, 0, 0, 0.8 );
+			opacity: 0;
+			cursor: pointer;
+			transition: opacity 0.15s ease-out, color 0.2s ease-out, transform 0.15s ease-out;
+
+			&:hover
+			{
+				color: $favorite-heart;
+				transform: scale( 1.2 );
+			}
+
+			// pressed in, then it springs back as it fills
+			&:active
+			{
+				transform: scale( 0.75 );
+			}
+
+			&.on
+			{
+				opacity: 1;
+				color: $favorite-heart;
+			}
+
+			// a heart that has just appeared grows into place
+			&.on:intro
+			{
+				opacity: 0;
+				transform: scale( 0.2 );
+			}
+		}
+
+		// the host's way to keep a model off their server, under the heart
+		.block
+		{
+			position: absolute;
+			top: 22px;
+			right: 2px;
+			font-family: "Material Icons";
+			font-size: 18px;
+			color: white;
+			text-shadow: 0px 1px 2px rgba( 0, 0, 0, 0.8 );
+			opacity: 0;
+			cursor: pointer;
+			transition: opacity 0.15s ease-out, color 0.2s ease-out, transform 0.15s ease-out;
+
+			&:hover
+			{
+				color: $ui-danger;
+				transform: scale( 1.2 );
+			}
+		}
+
+		&:hover .favorite, &:hover .block
+		{
+			opacity: 1;
+		}
+	}
+}
+
+// the player model preview and the view model preview share the pane; the one not in use is hidden
+ModelPreview, ViewModelPreview
+{
+	position: relative;
+	width: 100%;
+	height: 100%;
+	flex-grow: 1;
+	background-color: $ui-tile-bg;
+	cursor: grab;
+
+	&.hidden
+	{
+		display: none;
+	}
+
+	> .render
+	{
+		position: absolute;
+		left: 0px;
+		top: 0px;
+		width: 100%;
+		height: 100%;
+	}
+
+	> .loading
+	{
+		position: absolute;
+		left: 0px;
+		top: 0px;
+		right: 0px;
+		bottom: 0px;
+		justify-content: center;
+		align-items: center;
+		background-color: rgba( 0, 0, 0, 0.35 );
+		color: white;
+		font-size: 13px;
+		font-weight: 600;
+		opacity: 0;
+		pointer-events: none;
+
+		&.visible
+		{
+			opacity: 1;
+		}
+	}
+
+	> .message
+	{
+		position: absolute;
+		left: 6px;
+		right: 6px;
+		bottom: 6px;
+		padding: 6px 8px;
+		justify-content: center;
+		background-color: rgba( 0, 0, 0, 0.6 );
+		border-radius: 2px;
+		color: white;
+		font-size: 12px;
+		font-weight: 600;
+		text-align: center;
+		opacity: 0;
+		pointer-events: none;
+
+		&.visible
+		{
+			opacity: 1;
+		}
+	}
+}

@@ -1,0 +1,29 @@
+{
+  "Title": "Player Model Selector",
+  "Type": "addon",
+  "Org": "notpointless",
+  "Ident": "chomnr_player_model_selector",
+  "Schema": 1,
+  "IncludeSourceFiles": false,
+  "Resources": null,
+  "PackageReferences": [],
+  "EditorReferences": null,
+  "Mounts": null,
+  "IsStandaloneOnly": false,
+  "AI": {
+    "EnableMcpCommunication": true
+  },
+  "Metadata": {
+    "StartupScene": "scenes/testing_scene.scene",
+    "ParentPackage": "facepunch.sandbox",
+    "Summary": "Pick your player model in Sandbox's C menu; any rigged humanoid is animated live by Humanoid Retargeter.",
+    "Description": "Spawn the Player Model Selector from Sandbox's spawn menu and everyone gets a Player Model Selector window in the C menu. Click a model to wear it; everyone sees it. Models built on any humanoid skeleton are posed from Sandbox's own animation every frame by the embedded Humanoid Retargeter, so they walk, crouch, swim and ragdoll like the citizen.",
+    "WebsiteUrl": "https://github.com/zeljkovranjes/sbox-player-model-selector",
+    "Tags": [
+      "character",
+      "player-model",
+      "retargeting",
+      "sandbox"
+    ]
+  }
+}

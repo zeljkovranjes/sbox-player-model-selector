@@ -1,0 +1,57 @@
+@using System
+@using Sandbox
+@using Sandbox.UI
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    <div class="label">@Label</div>
+    <UISlider Property=@_so?.GetProperty( Signed ? nameof( Amount ) : nameof( Strength ) )></UISlider>
+</root>
+
+@code
+{
+    /// <summary>What the slider sets.</summary>
+    [Parameter] public string Label { get; set; }
+
+    /// <summary>Its value now: 0 to 1, or -1 to 1 when <see cref="Signed"/>.</summary>
+    [Parameter] public float Value { get; set; }
+
+    /// <summary>Runs from -1 (less) to 1 (more) around 0, instead of from 0 to 1.</summary>
+    [Parameter] public bool Signed { get; set; }
+
+    /// <summary>Called with the new value while the slider is dragged.</summary>
+    [Parameter] public Action<float> OnChanged { get; set; }
+
+    SerializedObject _so;
+
+    // The slider edits a property and takes its range from it (the same way Sandbox's face poser rows work), so each
+    // range is a property of its own over the same value
+    [Range( 0f, 1f ), Step( 0.01f )]
+    public float Strength
+    {
+        get => Value;
+        set => Set( value );
+    }
+
+    [Range( -1f, 1f ), Step( 0.01f )]
+    public float Amount
+    {
+        get => Value;
+        set => Set( value );
+    }
+
+    void Set( float value )
+    {
+        Value = value;
+        OnChanged?.Invoke( value );
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        _so ??= TypeLibrary.GetSerializedObject( this );
+    }
+
+    protected override int BuildHash() => HashCode.Combine( Label, Signed );
+}

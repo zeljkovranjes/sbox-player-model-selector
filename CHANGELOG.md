@@ -35,7 +35,8 @@ Long lists - the Server page shows players and blocked models ten at a time, lat
 Zoom - scroll over the preview to zoom in towards the face
 ### Improved
 # Player Model Selector window
-Placement - the window always sits right next to Saves and Effects instead of being dragged around
+Placement - the window opens from its own Player Model heading on the bar along the top of the C menu, right under it, instead of sitting next to Saves and Effects; click the heading again to close it
+Dragging - drag the window by its title bar to put it anywhere; it stays below the bar and on screen
 Style - the window carries its own copy of Sandbox's look, so a Sandbox restyle can't break it
 Hearts - favoriting pops the heart and eases the model into the Favorites row
 ### Fixed

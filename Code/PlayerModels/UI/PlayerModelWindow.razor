@@ -7,7 +7,7 @@
 
 <root class="@( _open ? "" : "collapsed" )" @onmousedown=@WindowPress>
 
-    <div class="title">Player Model Selector</div>
+    <div class="title" @ref="TitleBar">Player Model Selector</div>
 
     <div class="body">
         <PlayerModelPage />
@@ -27,6 +27,13 @@
 
     bool _open = Game.Cookies.Get( OpenCookie, false );
     Menu _heading;
+    Panel TitleBar = default;
+
+    // Where the title bar was grabbed, in the window's pixels; null while it isn't held
+    Vector2? _grab;
+
+    // Where the window was dragged to, in the menu's pixels; null until it is, keeping it under its heading
+    Vector2? _dropped;
 
     /// <summary>Puts the window and its heading in the C menu of this scene, unless they're there already.</summary>
     public static void AddTo( Scene scene )
@@ -88,6 +95,7 @@
         if ( !_open )
             return;
 
+        Drag();
         Place();
     }
 
@@ -108,7 +116,21 @@
         e.StopPropagation();
     }
 
-    // Right under its heading
+    // While the title bar is held, the window follows the mouse. Not a panel drag: those never start under a press the
+    // window keeps from the world.
+    void Drag()
+    {
+        if ( !TitleBar.IsValid() || !TitleBar.HasActive )
+        {
+            _grab = null;
+            return;
+        }
+
+        _grab ??= MousePosition;
+        _dropped = Parent.MousePosition - _grab.Value;
+    }
+
+    // Under its heading until dragged, and always below the bar and on screen, so the title bar can be grabbed again
     void Place()
     {
         if ( !_heading.IsValid() || _heading.Box.Rect.Width <= 0 )
@@ -116,7 +138,11 @@
 
         var menu = Parent.Box.Rect;
         var heading = _heading.Box.Rect;
-        Style.Left = Length.Pixels( (heading.Left - menu.Left) * ScaleFromScreen );
-        Style.Top = Length.Pixels( (heading.Bottom - menu.Top) * ScaleFromScreen + Gap );
+        var top = heading.Bottom - menu.Top + Gap * ScaleToScreen;
+        var position = _dropped ?? new Vector2( heading.Left - menu.Left, top );
+        var room = menu.Size - Box.Rect.Size;
+
+        Style.Left = Length.Pixels( Math.Clamp( position.x, 0, Math.Max( room.x, 0 ) ) * ScaleFromScreen );
+        Style.Top = Length.Pixels( Math.Clamp( position.y, top, Math.Max( room.y, top ) ) * ScaleFromScreen );
     }
 }

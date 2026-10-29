@@ -21,7 +21,7 @@ Entities > World.
 1. Open the addon (`player-model-selector.sbproj`) in the s&box editor and press Play.
 2. Spawn **Player Model Selector** from the spawn menu (Entities > World).
 3. Hold **C** and click **Player Model** on the bar along the top, after Client, NPCs and Server. The **Player Model
-   Selector** window opens under it; click the heading again to close it.
+   Selector** window opens under it; drag its title bar to move it, and click the heading again to close it.
 4. **Models**: hover a tile to preview it, click it to wear it. Models are grouped into Official, Mounts (a group per
    mounted game: Counter-Strike, Half-Life, ...), Facepunch and Other. Click a group's heading to open or fold it; groups
    start folded and stay the way you left them. Type in the search box to find a model by name. Right-click a tile (or

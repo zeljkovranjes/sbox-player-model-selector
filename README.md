@@ -59,29 +59,6 @@ Set on the `PlayerModelSelector` component of `Assets/entity/player_model_select
 | Facepunch Search | `type:model org:facepunch human` | A second search for Facepunch's own characters, for the Facepunch group. Empty turns it off. |
 | View Model Searches | `type:model first person arms`, `type:model hands` | Searches the View Model grid fills itself from. Only arms Sandbox's weapons can move are shown. |
 
-## How it works
-The citizen Sandbox makes for every player keeps running, driven by Sandbox's animation, IK and ragdoll physics, but
-is hidden with its clothes. A second renderer shows the picked model, and every frame `RuntimePoseRetargeter` from
-Humanoid Retargeter maps the citizen's pose onto it, keeping its planted foot on the citizen's ground. What a player
-wears is a look: the model with its colors, body shape, body groups, morphs and any bones picked by hand. The host
-keeps everyone's look; each client loads the models, poses them and applies the looks itself. sbox.game and mounted
-models are checked before they get a tile, and each verdict is remembered on your machine. In first person, the worn
-model's arms stand in for the `Hands` of Sandbox's weapon view models: the weapon's skeleton has the citizen's arm bones,
-so the same retargeter poses the model's arms from it, puts its joints on the weapon's and folds the rest of the model
-away between the shoulders. Picked arms just replace the `Hands` model. See [DEVLOG.md](DEVLOG.md) for the decisions
-behind all of this.
-
-## Multiplayer
-Works in single-player, as host and as client, checked with a second client joining the editor. Only the looks sync
-(connection to look, written by the host, which accepts listed models, sbox.game idents and mounted models, and caps
-the rest); every client loads, checks, poses and customizes the models locally. A player whose machine lacks a mounted
-game sees the citizen for that player. First-person arms only ever show to their own player, so they don't sync.
-Favorites, saved looks and the look saved for each model stay on your machine. The host's rules (allowed sources,
-blocked models, the armature switch) sync to everyone and are saved on the host's machine; a model the host chooses for
-a player shows in place of that player's own pick until the host reverts it. Turning the armature switch off drops the
-bones other players picked by hand. A client that loads the addon's code after the selector reached it asks the host to
-send it again.
-
 ## Other addons
 An addon that shows a player as a body of its own while it has them (a skateboard's rider, a seated driver) gets the
 player's model on that body too: tag the object holding the body's `SkinnedModelRenderer` `player_body`, and make it
@@ -90,53 +67,6 @@ that player's pick on it from its first frame, posed from the body's own animati
 character dressed in the player's own outfit, and takes it off with the body. Only the object's own tag counts, not one
 it has through a parent, and in a lobby a tagged body that isn't under a networked object is left alone. The Skateboard
 addon tags its rider this way.
-
-## Limitations
-- The first time the window opens, each sbox.game model is downloaded once to check it, so the grid fills in over a
-  minute or so; after that it's instant.
-- A package whose shader was built for an older s&box ("Old shader needs to be recompiled") shows the error material
-  in its bind pose; that is the package, not the selector.
-- Avatar clothing only goes on the stock characters, which only offer their heads as body groups and the whole-model
-  tint: their clothing decides the rest.
-- Part colors only show on materials whose shader has a color tint (most do). Mounted models only take the whole-model
-  tint: a mounted game's materials can't be copied.
-- Body groups can't hide a part: a group's empty choice is only offered when it is the model's own default (a cape
-  that starts off), and a look asking for any other empty choice shows the default instead.
-- Body group outlines can look faint: outlines only partly render inside the preview's own scene. Colored parts pulse
-  instead of being outlined.
-- First-person arms must use Sandbox's arm and finger bone names (`arm_upper_R`, `hand_R`…); arms with other bones
-  need converting with Humanoid Hand Retargeter first.
-- Mounted games only show once s&box has been restarted after installing them. Half-Life 2 and Counter-Strike: Source
-  need s&box's Source 1 mount, which isn't in every s&box install (`sbox/mount/source1`). Some mounted models have no
-  recognisable bones (Counter-Strike's HD GIGN) and offer Set up armature instead. Counter-Strike and Half-Life have no
-  first-person arms of their own (their view models have the weapon built in), so View Model's Mounts group says so.
-- Bones the automatic setup found can't be changed by hand (they are locked, for every look on every machine); a model
-  whose automatic mapping is wrong rather than incomplete needs a Humanoid Retargeter fix.
-- When sbox.game or the Workshop can't be reached, the grid says so and lists only the game's own and mounted models.
-- Held weapons keep the citizen's grip angle, so they aim where the player aims; on very different arms the grip can
-  look a little off.
-- Your model's arms in first person keep the model's own finger lengths, so fingers can sit a little off the grip. A
-  weapon whose view model lacks the citizen's arm bones shows the picked arms instead.
-- The default citizen and the game's own models (the component's Models list) can't be blocked, so there is always
-  something to wear.
-- Search finds the models the grid has loaded; sbox.game models still being checked show once they pass.
-- One selector per world; a second one removes itself.
-
-## Development
-- Code: `Code/PlayerModels` (the addon), `Code/HumanoidRetargeter/Core` (Humanoid Retargeter's core, copied unchanged from
-  `02-plugins/humanoid-retargeter`, see DEVLOG for the commit).
-- Styles import `Code/PlayerModels/UI/SelectorTheme.scss`, a copy of the parts of Sandbox's theme they use, so a
-  Sandbox restyle can't break them.
-- Compile check outside the editor: `dotnet build Code/chomnr_player_model_selector.csproj` (gitignored, needs a
-  `package.facepunch.sandbox.dll` from an addon the editor has opened). The editor build is the one that applies the
-  whitelist and compiles the razor files the same way the game does.
-- Publishing: publish the entity, not the project. In the editor's Asset Browser, right-click
-  `Assets/entity/player_model_selector.sent` and choose Publish. It has Include Code on, so the addon's code and its
-  stylesheets go with it, and the prefab brings everything else; the result is a `sent` package, the kind Sandbox's
-  spawn menu lists under Entities. Keep `Libraries/` empty, and keep model paths out of the prefab: anything it names is
-  packed with the entity (the citizen statue is made from code by `SelectorMannequin` for that reason).
-- Testing with a second client from the editor: the client gets the editor's code but not the addon's files, so the
-  window shows unstyled there (and the client can't find the prefab). The published package carries both.
 
 ## License
 Humanoid Retargeter's core keeps its notices: see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -1,12 +1,12 @@
 # Player Model Selector
 
 Pick your player model in Sandbox's C menu. Spawn the Player Model Selector from the spawn menu and everyone gets a
-Player Model Selector window next to Sandbox's Saves and Effects; click a model to wear it and everyone sees it. Any
-rigged humanoid works, from the game, sbox.game or a mounted game: the embedded Humanoid Retargeter poses it from
-Sandbox's own animation every frame, so it walks, crouches, swims, holds weapons and ragdolls like the citizen. Favorite
-models, customize the one you wear (skin, colors, body shape, body groups, morphs) and save looks, give bones by hand to
-body parts the automatic setup couldn't find, and see your model's own arms in first person. The host decides which
-models their server allows and can choose a model for any player.
+Player Model heading on the C menu's top bar that opens the Player Model Selector window; click a model to wear it and
+everyone sees it. Any rigged humanoid works, from the game, sbox.game or a mounted game: the embedded Humanoid
+Retargeter poses it from Sandbox's own animation every frame, so it walks, crouches, swims, holds weapons and ragdolls
+like the citizen. Favorite models, customize the one you wear (skin, colors, body shape, body groups, morphs) and save
+looks, give bones by hand to body parts the automatic setup couldn't find, and see your model's own arms in first
+person. The host decides which models their server allows and can choose a model for any player.
 
 ## Requirements
 Sandbox (`facepunch.sandbox`). Nothing else: Humanoid Retargeter's core is compiled into this addon.
@@ -20,8 +20,8 @@ Entities > World.
 ### In the editor
 1. Open the addon (`player-model-selector.sbproj`) in the s&box editor and press Play.
 2. Spawn **Player Model Selector** from the spawn menu (Entities > World).
-3. Hold **C**. The **Player Model Selector** window sits right of Sandbox's Saves/Effects window; its tab opens and
-   collapses it.
+3. Hold **C** and click **Player Model** on the bar along the top, after Client, NPCs and Server. The **Player Model
+   Selector** window opens under it; click the heading again to close it.
 4. **Models**: hover a tile to preview it, click it to wear it. Models are grouped into Official, Mounts (a group per
    mounted game: Counter-Strike, Half-Life, ...), Facepunch and Other. Click a group's heading to open or fold it; groups
    start folded and stay the way you left them. Type in the search box to find a model by name. Right-click a tile (or

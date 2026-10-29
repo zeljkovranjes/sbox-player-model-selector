@@ -1,7 +1,7 @@
 @import "SelectorTheme.scss";
 
-// A window of its own in the inspect menu, built like Sandbox's: a tab that opens and collapses it, the page under it.
-// Placed from code, right of Sandbox's window.
+// A window of its own in the inspect menu, built like Sandbox's: its title, the page under it.
+// Its heading on the bar along the top opens and closes it; placed from code, under the heading.
 PlayerModelWindow
 {
 	@include ui-block;
@@ -14,32 +14,19 @@ PlayerModelWindow
 	pointer-events: all;
 	z-index: 200;
 
-	> .tabs
-	{
-		flex-direction: row;
-		flex-shrink: 0;
-		gap: 2px;
-	}
-
-	> .tabs > .tab
+	// the look of Sandbox's open tab
+	> .title
 	{
 		@include ui-tab;
-		border: 1px solid $ui-tab-border;
+		color: white;
+		background-color: $ui-tab-bg-active;
+		border: 1px solid $ui-block-border;
 		border-radius: 2px;
 
-		// open; clicking it again collapses the window
-		&.active
+		&:hover
 		{
-			height: 24px;
-			padding-top: 0px;
-			border: 1px solid $ui-block-border;
-			pointer-events: all;
-
-			&:hover
-			{
-				background-color: $ui-tab-bg-active;
-				filter: brightness( 1.1 );
-			}
+			background-color: $ui-tab-bg-active;
+			filter: brightness( 1.1 );
 		}
 	}
 
@@ -49,7 +36,7 @@ PlayerModelWindow
 		min-height: 0px;
 	}
 
-	&.collapsed > .body
+	&.collapsed
 	{
 		display: none;
 	}

@@ -28,7 +28,7 @@ Body groups - choose heads, capes and accessories by name, or hide an accessory 
 Apply and Revert - changes show in the preview first and reach everyone when you press Apply
 # Armature
 Armature - give a bone to each body part the automatic setup couldn't find, with the skeleton drawn on the preview
-Set up armature - a model the automatic check refuses can be set up by hand and worn
+Set up armature - a model the automatic check refuses opens on the Armature page and stays there while you give its missing parts bones, saying what it still needs, until Apply puts it on
 Locked presets - parts the automatic setup found can't be changed; only missing parts take a bone, and picks are saved for the model
 # View Model
 View Model - choose your first-person arms from arms that Sandbox's weapons can move, grouped like the models

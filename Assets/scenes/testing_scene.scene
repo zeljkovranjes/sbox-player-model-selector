@@ -7,7 +7,7 @@
       "Flags": 0,
       "Name": "Directional Light",
       "Position": "0,0,200",
-      "Rotation": "-0.2459842,0.5938582,0.2931525,0.7077327",
+      "Rotation": "-0.245984197,0.593858182,0.293152511,0.707732677",
       "Scale": "1,1,1",
       "Tags": "light_directional,light",
       "Enabled": true,
@@ -22,17 +22,68 @@
           "__guid": "b8d4ef85-fbc5-46ba-9cf8-05771119ce09",
           "__enabled": true,
           "Flags": 0,
+          "__version": 1,
+          "AnimationCurve": [
+            {
+              "x": 0,
+              "y": 0,
+              "in": 0,
+              "out": 0,
+              "mode": "Mirrored"
+            },
+            {
+              "x": 0.5,
+              "y": 1,
+              "in": 0,
+              "out": 0,
+              "mode": "Mirrored"
+            },
+            {
+              "x": 1,
+              "y": 0,
+              "in": 0,
+              "out": 0,
+              "mode": "Mirrored"
+            }
+          ],
+          "AnimationDuration": 2,
+          "AnimationEnabled": false,
+          "AnimationGradient": {
+            "blend": "Linear",
+            "color": [
+              {
+                "t": 0.5,
+                "c": "1,1,1,1"
+              }
+            ],
+            "alpha": []
+          },
+          "AnimationPattern": "Flicker",
+          "AnimationSpeed": 1,
+          "AnimationTimeOffset": 0,
+          "BakeLightIndex": -1,
+          "ContactShadows": true,
+          "Contribution": "Diffuse, Specular, Transmissive",
           "FogMode": "Enabled",
           "FogStrength": 1,
+          "IncludeStaticShadowCasters": false,
+          "Intensity": 1,
           "LightColor": "0.91373,0.98039,1,1",
+          "MixedShadows": false,
           "OnComponentDestroy": null,
           "OnComponentDisabled": null,
           "OnComponentEnabled": null,
           "OnComponentFixedUpdate": null,
           "OnComponentStart": null,
           "OnComponentUpdate": null,
+          "ShadowBias": 0,
+          "ShadowCascadeCount": 4,
+          "ShadowCascadeSplitRatio": 0.91,
+          "ShadowHardness": 0,
           "Shadows": true,
-          "SkyColor": "0,0,0,0"
+          "SkyColor": "0,0,0,0",
+          "Temperature": 6500,
+          "Visualizer": {}
         }
       ],
       "Children": []
@@ -45,7 +96,7 @@
       "Position": "0,0,0",
       "Rotation": "0,0,0,1",
       "Scale": "1,1,1",
-      "Tags": "",
+      "Tags": "world",
       "Enabled": true,
       "NetworkMode": 2,
       "NetworkFlags": 0,
@@ -66,70 +117,9 @@
           "HideInGame": false,
           "IsTrigger": false,
           "Mesh": {
-            "Topology": "H4sIAAAAAAAACk2MCQoAIQzE4qqr//9wJdiCA6WQOQawgcbVBwzgT+bJXi0gIkLeM68q69fXm7n1bsv1a6skN2tH394B6DpJeKAAAAA=",
-            "Position": "0,0,0",
-            "Rotation": "0,0,0,1",
-            "Positions": [
-              "-1024,-1024,0",
-              "1024,-1024,0",
-              "1024,1024,0",
-              "-1024,1024,0"
-            ],
-            "Blends": [
-              "0,0,0,0",
-              "0,0,0,0",
-              "0,0,0,0",
-              "0,0,0,0",
-              "0,0,0,0",
-              "0,0,0,0",
-              "0,0,0,0",
-              "0,0,0,0"
-            ],
-            "Colors": [
-              "0,0,0,0",
-              "0,0,0,0",
-              "0,0,0,0",
-              "0,0,0,0",
-              "0,0,0,0",
-              "0,0,0,0",
-              "0,0,0,0",
-              "0,0,0,0"
-            ],
-            "TextureCoord": [
-              "32,32",
-              "0,0",
-              "32,-32",
-              "0,0",
-              "-32,-32",
-              "0,0",
-              "-32,32",
-              "0,0"
-            ],
-            "TextureUAxis": [
-              "1,0,0"
-            ],
-            "TextureVAxis": [
-              "0,-1,0"
-            ],
-            "TextureScale": [
-              "0.25,0.25"
-            ],
-            "TextureOffset": [
-              "0,0"
-            ],
-            "MaterialIndex": [
-              0
-            ],
-            "EdgeFlags": [
-              0,
-              0,
-              0,
-              0,
-              0,
-              0,
-              0,
-              0
-            ],
+            "Data": {
+              "$blob": "0d254efe-1fbe-8a8c-b9d6-0cb0fd9799fb"
+            },
             "Materials": [
               "materials/dev/dev_measuregeneric01b.vmat"
             ]
@@ -153,10 +143,32 @@
         }
       ],
       "Children": []
+    },
+    {
+      "__guid": "b50584fa-a115-4cb8-b4e9-5a5409ad0da9",
+      "__version": 2,
+      "__Prefab": {
+        "Id": "bbe4a80c-c486-467d-9d22-ffa15ebd29bc",
+        "Path": "entity/player_model_selector.prefab"
+      },
+      "__PrefabInstancePatch": {
+        "AddedObjects": [],
+        "RemovedObjects": [],
+        "PropertyOverrides": [],
+        "MovedObjects": []
+      },
+      "__PrefabIdToInstanceId": {
+        "6f1d2a4e-3b7c-4e58-9a01-5c2f8d9e7b13": "b50584fa-a115-4cb8-b4e9-5a5409ad0da9",
+        "a3e9c1f2-6d84-4b0a-8f3e-2b7d5c9a1e46": "39052a36-9150-4803-aa36-c285fe89e64f",
+        "5b2e8c41-7d39-4f6a-b1c4-9e3a6d0f8c27": "45963bcf-e0b8-420f-845a-50debe02ffcd",
+        "e2f7a9c3-5b18-4d60-9c4a-1f8e6b3d7a25": "4277e426-da15-491c-8122-248e9b763da4",
+        "4d6b8e2a-9c71-4f35-a2d9-8b5e1c7f3a64": "5d4fd8df-de88-4532-a3c0-82c03649c924"
+      }
     }
   ],
   "SceneProperties": {
     "NetworkInterpolation": true,
+    "PhysicsMode": "Physics3D",
     "TimeScale": 1,
     "WantsSystemScene": true,
     "Metadata": {},
@@ -171,12 +183,19 @@
       "AgentMaxSlope": 40,
       "ExcludedBodies": "",
       "IncludedBodies": "",
+      "DeferGeneration": false,
       "CustomBounds": false
     },
     "GameObjectSystems": {
       "Sandbox.Clutter.ClutterGridSystem": {
         "Storage": {
-          "$blob": "7ce867c0-037c-4568-a9e7-fbdf7f9196c8"
+          "$blob": "64db792e-5935-8fbc-8cfa-050cd49fa7fd",
+          "$refs": []
+        }
+      },
+      "Sandbox.SelectionSetsSystem": {
+        "Data": {
+          "SelectionSets": []
         }
       }
     }

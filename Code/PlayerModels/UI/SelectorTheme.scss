@@ -1,7 +1,7 @@
-// The look of the Player Model Selector: a copy of the parts of Sandbox's theme (its light palette and building blocks,
-// as published on 2026-10-24) that this addon's styles use. Imported instead of Sandbox's own "/UI/Theme.scss", so a
-// renamed or removed token in a Sandbox update can't break these styles; the window keeps this look until it is copied
-// again. Names match Sandbox's so the copy is easy to refresh.
+// The look of the Player Model Selector: Sandbox's own theme ("/UI/Theme.scss", imported at the end), over a copy of
+// the parts of it this addon's styles use (its light palette and building blocks, as published on 2026-10-24). A later
+// definition wins, so whatever Sandbox defines is used, dark or light, and the copy only fills in a token or mixin a
+// Sandbox update renamed or removed. Names match Sandbox's so the copy is easy to refresh.
 
 $deadzone-x: 2vw;
 $deadzone-y: 2vw;
@@ -244,3 +244,6 @@ $favorite-heart: #ff4d6d;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
+
+// Last, so Sandbox's current palette and building blocks replace the copy above wherever it has them
+@import "/UI/Theme.scss";

@@ -1,0 +1,89 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    <div class="intro">
+        <div class="back" @onclick=@(() => Done?.Invoke())>arrow_back</div>
+        <div class="heading">Back to the models</div>
+    </div>
+    <div class="note">Characters are looked for in folders named like player, humans, characters, heroes, npc, actors and peds, and a game with none of those offers all its models. Turn on a folder that holds a game's characters to put its models first in that game's group: each is checked as it is shown, and stays once it passes.</div>
+
+    @foreach ( var game in _games )
+    {
+        var key = $"Folders/{game.Game}";
+        var shut = IsCollapsed( key );
+        <div class="game" @onclick=@(() => ToggleCollapsed( key ))>
+            <div class="chevron">@( shut ? "chevron_right" : "expand_more" )</div>
+            <div class="heading">@game.Game</div>
+            <div class="count">@game.Folders.Count</div>
+        </div>
+        @if ( shut )
+        {
+            continue;
+        }
+
+        @foreach ( var folder in game.Folders )
+        {
+            var shown = folder;
+            var label = $"{shown.Name} ({shown.Models})";
+            @if ( shown.Searched )
+            {
+                <div class="row">
+                    <div class="name">@label</div>
+                    <div class="detail">Searched already</div>
+                </div>
+                continue;
+            }
+
+            <ToggleRow Label=@label Value=@_added.Contains( shown.Path ) OnChanged=@(( bool on ) => Set( shown, on ))></ToggleRow>
+        }
+    }
+</root>
+
+@code
+{
+    /// <summary>Called when a folder is added or taken away.</summary>
+    [Parameter] public Action Changed { get; set; }
+
+    /// <summary>Called when the player is done, to go back to the grid.</summary>
+    [Parameter] public Action Done { get; set; }
+
+    // Listed once, when the page opens: sorting a big game's thousands of models into folders isn't free
+    readonly List<MountModels.GameFolders> _games = MountModels.Folders();
+    readonly HashSet<string> _added = LocalPrefs.ModelFolders.ToHashSet();
+
+    // Each game's folders fold away like the grid's headings: folded until opened, and kept the way the player left them
+    Dictionary<string, bool> _headings = LocalPrefs.Headings();
+
+    bool IsCollapsed( string key ) => !_headings.TryGetValue( key, out var collapsed ) || collapsed;
+
+    void ToggleCollapsed( string key )
+    {
+        LocalPrefs.SetCollapsed( key, !IsCollapsed( key ) );
+        _headings = LocalPrefs.Headings();
+        StateHasChanged();
+    }
+
+    void Set( MountModels.Folder folder, bool on )
+    {
+        if ( on )
+            _added.Add( folder.Path );
+        else
+            _added.Remove( folder.Path );
+
+        Save();
+    }
+
+    void Save()
+    {
+        LocalPrefs.ModelFolders = _added.ToList();
+        Changed?.Invoke();
+        StateHasChanged();
+    }
+}

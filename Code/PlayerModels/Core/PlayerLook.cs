@@ -14,11 +14,18 @@ namespace PlayerModels.Core;
 /// </summary>
 public sealed class PlayerLook
 {
+	/// <summary>
+	/// The longest look text read: well over the longest a look within the caps below can be, so a client can't make the
+	/// host parse an unbounded one.
+	/// </summary>
+	public const int MaxTextLength = 64 * 1024;
+
 	// Enough for any model; a client can't make the host store an unbounded look
 	private const int MaxBodyGroups = 64;
 	private const int MaxMorphs = 256;
 	private const int MaxParts = 64;
 	private const int MaxNameLength = 64;
+	private const int MaxModelLength = 256;
 
 	private static readonly Regex HexColour = new( "^#[0-9a-fA-F]{6}$" );
 
@@ -65,11 +72,11 @@ public sealed class PlayerLook
 	/// </summary>
 	public static PlayerLook Parse( string text )
 	{
-		if ( string.IsNullOrWhiteSpace( text ) )
+		if ( string.IsNullOrWhiteSpace( text ) || text.Length > MaxTextLength )
 			return new PlayerLook();
 
 		if ( !text.TrimStart().StartsWith( '{' ) )
-			return new PlayerLook { Model = text.Trim() };
+			return new PlayerLook { Model = text.Trim() }.Sanitized();
 
 		try
 		{
@@ -87,9 +94,10 @@ public sealed class PlayerLook
 	/// </summary>
 	public PlayerLook Sanitized()
 	{
+		var model = Model?.Trim() ?? "";
 		return new PlayerLook
 		{
-			Model = Model?.Trim() ?? "",
+			Model = model.Length <= MaxModelLength ? model : "",
 			BodyGroups = (BodyGroups ?? new())
 				.Where( x => IsName( x.Key ) )
 				.Take( MaxBodyGroups )
@@ -117,6 +125,14 @@ public sealed class PlayerLook
 	public string BonesKey()
 	{
 		return string.Join( ";", (Bones ?? new()).OrderBy( x => x.Key, StringComparer.Ordinal ).Select( x => $"{x.Key}={x.Value}" ) );
+	}
+
+	/// <summary>The look with the model's own body groups: what shows while the host keeps players' choices off.</summary>
+	public PlayerLook WithoutBodyGroups()
+	{
+		var copy = Sanitized();
+		copy.BodyGroups.Clear();
+		return copy;
 	}
 
 	/// <summary>The same customisation on another model: what each model was last customised to is kept apart.</summary>

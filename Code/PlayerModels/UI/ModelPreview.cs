@@ -154,6 +154,7 @@ public sealed class ModelPreview : Panel
 			_unposed = unposedObject.AddComponent<SkinnedModelRenderer>();
 			_unposed.Model = model;
 			_unposed.UseAnimGraph = false;
+			StandInMaterials.Apply( _unposed );
 		}
 	}
 

@@ -50,7 +50,9 @@
         {
             <UISettingsPane class="models-pane" Title="Server" Revision=@BuildHash()>
                 <Body>
-                    <ServerEditor TitleOf=@TitleOf ChooseFor=@ChooseModelFor></ServerEditor>
+                    <SlowScroll><Content>
+                        <ServerEditor TitleOf=@TitleOf ChooseFor=@ChooseModelFor></ServerEditor>
+                    </Content></SlowScroll>
                 </Body>
             </UISettingsPane>
         }
@@ -58,7 +60,9 @@
         {
             <UISettingsPane class="models-pane" Title="Customize" Revision=@BuildHash()>
                 <Body>
-                    <LookEditor Model=@_wornModel Look=@_look Changed=@LookChanged Pointed=@PointAt></LookEditor>
+                    <SlowScroll><Content>
+                        <LookEditor Model=@_wornModel Look=@_look Changed=@LookChanged Pointed=@PointAt BodyGroupsLocked=@BodyGroupsLocked></LookEditor>
+                    </Content></SlowScroll>
                 </Body>
             </UISettingsPane>
         }
@@ -66,7 +70,19 @@
         {
             <UISettingsPane class="models-pane" Title="Armature" Revision=@BuildHash()>
                 <Body>
-                    <ArmatureEditor Model=@_wornModel Look=@_look Changed=@LookChanged Pointed=@PointAtBone></ArmatureEditor>
+                    <SlowScroll><Content>
+                        <ArmatureEditor Model=@_wornModel Look=@_look Changed=@LookChanged Pointed=@PointAtBone></ArmatureEditor>
+                    </Content></SlowScroll>
+                </Body>
+            </UISettingsPane>
+        }
+        else if ( _folders && !_viewModel && CanAddFolders )
+        {
+            <UISettingsPane class="models-pane" Title="Model Folders" Revision=@BuildHash()>
+                <Body>
+                    <SlowScroll><Content>
+                        <MountFolders Changed=@FoldersChanged Done=@HideFolders></MountFolders>
+                    </Content></SlowScroll>
                 </Body>
             </UISettingsPane>
         }
@@ -74,97 +90,85 @@
         {
             <UISettingsPane class="models-pane" Title=@( _viewModel ? "View Models" : "Models" ) Revision=@BuildHash()>
                 <Body>
-                    @if ( _viewModel )
-                    {
-                        <div class="model-arms">
-                            <ToggleRow Label="Use my player model's arms" Value=@LocalPrefs.UseModelArms OnChanged=@SetUseModelArms></ToggleRow>
-                            <div class="model-arms-text">@ModelArmsText()</div>
-                        </div>
-                    }
-
-                    @if ( _choosingFor is { } player && !_viewModel )
-                    {
-                        <div class="choosing">
-                            <div class="choosing-text">Click a model to put it on @player.DisplayName.</div>
-                            <div class="fix-button" @onclick=@CancelChoosing>Cancel</div>
-                        </div>
-                    }
-                    else if ( !_viewModel && Selector?.IsPickedByHost( Connection.Local ) == true )
-                    {
-                        <div class="note">The host chose your model. Your own picks show again when they revert it.</div>
-                    }
-
-                    <div class="search">
-                        <TextEntry class="search-entry" Placeholder="Search" Value:bind=@_search HasClearButton=@true></TextEntry>
-                    </div>
-
-                    @if ( _catalog.SearchFailed )
-                    {
-                        <div class="offline">
-                            <div class="offline-icon">cloud_off</div>
-                            <div class="offline-title">sbox.game may be down</div>
-                            <div class="offline-text">
-                                @( _viewModel
-                                    ? "Couldn't reach sbox.game or the Workshop, so only the game's own arms are listed. Open the menu again in a while."
-                                    : "Couldn't reach sbox.game or the Workshop, so only the game's own models and your mounted games are listed. Open the menu again in a while." )
-                            </div>
-                        </div>
-                    }
-
-                    @if ( _fixable is { } fixable && !_viewModel && !ArmatureLocked && _choosingFor is null )
-                    {
-                        <div class="fix">
-                            <div class="fix-text">@fixable.Title can't be worn yet: @_fixableReason</div>
-                            <div class="fix-button" @onclick=@(() => FixArmature( fixable ))>Set up armature</div>
-                        </div>
-                    }
-
-                    @{ var sections = Sections().ToList(); string shownGroup = null; }
-                    @if ( Searching && sections.Count == 0 )
-                    {
-                        <div class="note">No models match "@_search.Trim()".</div>
-                    }
-                    @foreach ( var section in sections )
-                    {
-                        // Every heading collapses and stays the way the player left it; a group (Mounts) folds its games too
-                        var group = section.Group;
-                        var groupKey = group is null ? null : HeadingKey( group );
-                        var key = HeadingKey( group is null ? section.Title : $"{group}/{section.Title}" );
-                        // While searching every match shows, whatever is collapsed
-                        var groupShut = !Searching && groupKey is not null && IsCollapsed( groupKey );
-                        var shut = !Searching && (groupShut || IsCollapsed( key ));
-
-                        @if ( group is not null && group != shownGroup )
+                    <SlowScroll class="models"><Content>
+                        @if ( _viewModel )
                         {
-                            shownGroup = group;
-                            <div class="section-title collapsible" @onclick=@(() => ToggleCollapsed( groupKey ))>
-                                <div class="chevron">@( groupShut ? "chevron_right" : "expand_more" )</div>
-                                <div class="heading">@group</div>
-                                <div class="count">@sections.Where( x => x.Group == group ).Sum( x => x.Tiles.Count )</div>
+                            <div class="model-arms">
+                                <ToggleRow Label="Use my player model's arms" Value=@LocalPrefs.UseModelArms OnChanged=@SetUseModelArms></ToggleRow>
+                                <div class="model-arms-text">@ModelArmsText()</div>
                             </div>
                         }
 
-                        @if ( group is null )
+                        @if ( _choosingFor is { } player && !_viewModel )
                         {
-                            <div class="section-title collapsible" @onclick=@(() => ToggleCollapsed( key ))>
-                                <div class="chevron">@( shut ? "chevron_right" : "expand_more" )</div>
-                                <div class="heading">@section.Title</div>
-                                <div class="count">@section.Tiles.Count</div>
+                            <div class="choosing">
+                                <div class="choosing-text">Click a model to put it on @player.DisplayName.</div>
+                                <div class="fix-button" @onclick=@CancelChoosing>Cancel</div>
                             </div>
                         }
-                        else if ( !groupShut )
+                        else if ( !_viewModel && Selector?.IsPickedByHost( Connection.Local ) == true )
                         {
-                            <div class="section-subtitle collapsible" @onclick=@(() => ToggleCollapsed( key ))>
-                                <div class="chevron">@( shut ? "chevron_right" : "expand_more" )</div>
-                                <div class="heading">@section.Title</div>
-                                <div class="count">@section.Tiles.Count</div>
+                            <div class="note">The host chose your model. Your own picks show again when they revert it.</div>
+                        }
+
+                        <div class="search">
+                            <TextEntry class="search-entry" Placeholder="Search" Value:bind=@Search HasClearButton=@true></TextEntry>
+                            @if ( !_viewModel && CanAddFolders )
+                            {
+                                <div class="folders-button" Tooltip="Model folders" @onclick=@ShowFolders>folder</div>
+                            }
+                        </div>
+
+                        @if ( _catalog.SearchFailed )
+                        {
+                            <div class="offline">
+                                <div class="offline-icon">cloud_off</div>
+                                <div class="offline-title">sbox.game may be down</div>
+                                <div class="offline-text">
+                                    @( _viewModel
+                                        ? "Couldn't reach sbox.game or the Workshop, so only the game's own arms are listed. Open the menu again in a while."
+                                        : "Couldn't reach sbox.game or the Workshop, so only the game's own models and your mounted games are listed. Open the menu again in a while." )
+                                </div>
                             </div>
                         }
 
-                        @if ( !shut )
+                        @if ( _fixable is { } fixable && !_viewModel && !ArmatureLocked && _choosingFor is null )
                         {
-                            <div class="grid @( section.Title == "Favorites" ? "favorites" : "" )">
-                                @foreach ( var tile in section.Tiles )
+                            <div class="fix">
+                                <div class="fix-text">@fixable.Title can't be worn yet: @_fixableReason</div>
+                                <div class="fix-button" @onclick=@(() => FixArmature( fixable ))>Set up armature</div>
+                            </div>
+                        }
+
+                        @{ var view = BuildGrid(); }
+                        @if ( view.Collection is { } open )
+                        {
+                            <div class="collection">
+                                <div class="back" @onclick=@CloseCollection>arrow_back</div>
+                                <div class="heading">@open.Title</div>
+                                <div class="count">@CountText( open )</div>
+                            </div>
+                        }
+                        @if ( Searching && view.Count == 0 )
+                        {
+                            <div class="note">No models match "@_search.Trim()".</div>
+                        }
+                        else if ( view.Collection?.Key == FavoritesKey && view.Count == 0 )
+                        {
+                            <div class="note">No favorites yet. Right-click a model, or click its heart, to keep it here.</div>
+                        }
+                        @foreach ( var block in view.Blocks )
+                        {
+                            @if ( block.Heading is not null )
+                            {
+                                <div class="section-title">
+                                    <div class="heading">@block.Heading</div>
+                                    <div class="count">@block.Tiles.Count</div>
+                                </div>
+                            }
+
+                            <div class="grid @block.Class">
+                                @foreach ( var tile in block.Tiles )
                                 {
                                     var favorite = IsFavorite( tile.Model );
                                     <div class="tile @TileClass( tile )"
@@ -172,7 +176,7 @@
                                          @onrightclick=@(() => ToggleFavorite( tile ))
                                          @onmouseenter=@(() => _hovered = tile.Model)
                                          @onmouseleave=@(() => _hovered = null)>
-                                        <div class="thumb" style="background-image: url( @tile.Icon )"></div>
+                                        <ModelIcon class="thumb" Model=@tile.Model Icon=@tile.Icon></ModelIcon>
                                         <div class="title">@tile.Title</div>
                                         @if ( tile.Model != "" )
                                         {
@@ -183,15 +187,36 @@
                                             <div class="block" @onclick=@(( PanelEvent e ) => Block( tile, e ))>block</div>
                                         }
                                     </div>
+                            }
+                                @foreach ( var folder in block.Folders )
+                                {
+                                    var group = folder;
+                                    <div class="tile folder" @onclick=@(() => OpenCollection( group.Key ))>
+                                        @if ( group.Art is not null )
+                                        {
+                                            <div class="thumb" style="background-image: url( @group.Art )"></div>
+                                        }
+                                        else
+                                        {
+                                            <div class="thumb folder-icon">@group.Icon</div>
+                                        }
+                                        <div class="title">@group.Title (@CountText( group ))</div>
+                                    </div>
+                                }
+                                @for ( var i = 0; i < FillersFor( block.Tiles.Count + block.Folders.Count ); i++ )
+                                {
+                                    <div class="tile-filler"></div>
                                 }
                             </div>
                         }
-                    }
 
-                    @if ( _viewModel && MountsWithoutArms() is { Count: > 0 } bare )
-                    {
-                        <div class="note">@string.Join( " and ", bare ) @( bare.Count == 1 ? "has" : "have" ) no first-person arms Sandbox's weapons can move: their view models come with the weapon built in.</div>
-                    }
+                        <Pager Page=@view.Page Pages=@view.Pages OnPage=@ShowGridPage></Pager>
+
+                        @if ( _viewModel && MountsWithoutArms() is { Count: > 0 } bare )
+                        {
+                            <div class="note">@string.Join( " and ", bare ) @( bare.Count == 1 ? "has" : "have" ) no first-person arms Sandbox's weapons can move: their view models come with the weapon built in.</div>
+                        }
+                    </Content></SlowScroll>
                 </Body>
             </UISettingsPane>
         }
@@ -219,6 +244,7 @@
     ViewModelPreview ArmsPreview { get; set; }
 
     readonly ModelCatalog _catalog = new();
+    bool _catalogStarted;
 
     // The right pane while showing player models: the grid, the look of the worn model, or its bone picks
     enum Pane { Models, Customize, Armature }
@@ -229,6 +255,13 @@
     // The host's Server page, shown in place of the grid and panes; and what the grid is filtered by
     bool _server;
     string _search = "";
+
+    // The mounted games' folders, shown in place of the grid; the catalog looks in the added ones while the host allows
+    // them, and is told again whenever they or the host's rule change
+    bool _folders;
+    bool _foldersAllowed;
+    int _foldersRevision = 1;
+    int _foldersUsed;
 
     // The player the host is choosing a model for in the grid, from the Server page
     Connection _choosingFor;
@@ -244,9 +277,29 @@
     readonly HashSet<string> _refused = new();
     List<FavoriteModel> _favorites = LocalPrefs.Favorites();
 
-    // Grid headings the player collapsed or opened, kept between sessions; the revision redraws the grid when one changes
-    Dictionary<string, bool> _headings = LocalPrefs.Headings();
-    int _collapsedRevision;
+    // A group of models the grid opens on its own: a category or a mounted game, with the game's logo as its picture
+    // when it has one, else an icon. More: sbox.game has more for it than listed yet
+    record Collection( string Key, string Title, int Count, string Art, string Icon, bool More );
+
+    // What the grid shows: the open group (none on the first page), blocks of model and group tiles, and the page
+    record GridBlock( string Heading, List<Tile> Tiles, List<Collection> Folders, string Class = "" );
+    record GridPage( Collection Collection, List<GridBlock> Blocks, int Count, int Page, int Pages );
+
+    // A group or a search shows this many models at a time: no long list to scroll, and only these are checked
+    const int TilesPerPage = 20;
+
+    // Tiles grow to fill their row, so the last row is made up to a full one with empty fillers: its tiles keep the
+    // width of the rows above
+    const int TilesPerRow = 5;
+
+    static int FillersFor( int tiles ) => (TilesPerRow - tiles % TilesPerRow) % TilesPerRow;
+
+    string _collection;
+    int _gridPage;
+    readonly HashSet<string> _shownModels = new();
+
+    // Whether the last page of a group sbox.game has more for is showing, so its next page is asked for
+    bool _atCloudEnd;
 
     // The worn model, loaded, and the look being customised for it
     string _lookModel;
@@ -268,6 +321,14 @@
     // The host can keep players from picking bones by hand; the host never is
     bool ArmatureLocked => Selector?.BlockArmature == true && !IsHost;
 
+    // The host can keep players' body group choices off; the host's never are
+    bool BodyGroupsLocked => Selector?.BlockBodyGroups == true && !IsHost;
+
+    // Folders can be added while mounted models are allowed and, for everyone but the host, while the host lets them
+    static bool FoldersAllowed => IsHost || Selector?.BlockModelFolders != true;
+
+    static bool CanAddFolders => FoldersAllowed && Selector?.BlockMountedModels != true && MountModels.MountedGames().Count > 0;
+
     // The host decides which models their server allows
     static bool IsHost => Networking.IsHost;
 
@@ -279,10 +340,22 @@
 
         if ( Selector is { } selector )
         {
-            var listed = selector.Models.Select( x => x.Model ).ToHashSet();
-            _ = _catalog.LoadAsync( new[] { selector.CloudSearch, selector.FacepunchSearch }, selector.ViewModelSearches,
-                selector.CloudCount, listed, () => IsValid );
+            if ( !_catalogStarted )
+            {
+                _catalogStarted = true;
+                var listed = selector.Models.Select( x => x.Model ).ToHashSet();
+                var bodySearches = new[] { selector.CloudSearch, selector.FacepunchSearch, selector.HumanSearch }
+                    .Concat( selector.MoreSearches ?? new() )
+                    .Select( x => (x, (string)null) );
+                _ = _catalog.LoadAsync( bodySearches, selector.ViewModelSearches, selector.CloudCount, listed, IsShown, () => IsValid );
+            }
+
+            UseFolders( selector );
         }
+
+        // At the end of a group sbox.game has more for, its next page is listed
+        if ( _atCloudEnd && _catalog.HasMore )
+            _ = _catalog.LoadMoreAsync();
 
         TrackWornLook();
 
@@ -299,7 +372,7 @@
             return;
 
         var editing = !_viewModel && !_server;
-        Preview.Look = _look;
+        Preview.Look = Selector?.Shown( _look, IsHost ) ?? _look;
         Preview.Highlight = editing && _pane == Pane.Customize && HasHovered ? _pointed : null;
         Preview.ShowSkeleton = editing && _pane == Pane.Armature;
         Preview.SelectedBone = _pointedBone;
@@ -315,16 +388,47 @@
 
     protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Worn, WornArms, _hovered, _checking, _refused.Count, _viewModel, _pane ),
         HashCode.Combine( Selector?.Models.Count, _catalog.Revision, _catalog.SearchFailed, _favorites.Count, _wornModel, _lookDirty, _fixable,
-            _collapsedRevision ),
+            HashCode.Combine( _collection, _gridPage, _catalog.HasMore ) ),
         HashCode.Combine( _server, _search, LocalPrefs.UseModelArms, Selector?.BlockCloudModels, Selector?.BlockMountedModels,
-            Selector?.BlockedModels?.Count, HashCode.Combine( _choosingFor, ArmatureLocked, Selector?.IsPickedByHost( Connection.Local ) ) ) );
+            Selector?.BlockedModels?.Count, HashCode.Combine( _choosingFor, ArmatureLocked, Selector?.IsPickedByHost( Connection.Local ) ),
+            HashCode.Combine( _folders, Selector?.BlockModelFolders, BodyGroupsLocked ) ) );
+
+    // Tells the catalog which added folders count, when that changed: they were changed, or the host's rule was
+    void UseFolders( PlayerModelSelector selector )
+    {
+        var allowed = IsHost || !selector.BlockModelFolders;
+        if ( allowed == _foldersAllowed && _foldersUsed == _foldersRevision )
+            return;
+
+        _foldersAllowed = allowed;
+        _foldersUsed = _foldersRevision;
+        _catalog.UseMountFolders( allowed ? LocalPrefs.ModelFolders : Array.Empty<string>() );
+    }
+
+    void FoldersChanged()
+    {
+        _foldersRevision++;
+    }
+
+    void ShowFolders()
+    {
+        _folders = true;
+        _hovered = null;
+        StateHasChanged();
+    }
+
+    void HideFolders()
+    {
+        _folders = false;
+        StateHasChanged();
+    }
 
     // Favorites on top, then the categories; an empty one isn't shown
     IEnumerable<Section> Sections()
     {
         var favorites = FavoriteTiles().Where( Matches ).ToList();
         if ( favorites.Count > 0 )
-            yield return new Section( "Favorites", favorites );
+            yield return new Section( FavoritesKey, favorites );
 
         var tiles = (_viewModel ? ArmsTiles() : BodyTiles()).Where( Matches ).ToList();
         foreach ( var category in Enum.GetValues<Category>() )
@@ -347,13 +451,25 @@
     }
 
     // A tile matches the search by its title or its model
-    bool Matches( Tile tile )
+    bool Matches( Tile tile ) => Matches( tile.Title, tile.Model );
+
+    bool Matches( string title, string model )
     {
         if ( !Searching )
             return true;
 
         var search = _search.Trim();
-        return tile.Title.Contains( search, StringComparison.OrdinalIgnoreCase ) || tile.Model.Contains( search, StringComparison.OrdinalIgnoreCase );
+        return title.Contains( search, StringComparison.OrdinalIgnoreCase ) || model.Contains( search, StringComparison.OrdinalIgnoreCase );
+    }
+
+    // Whether the player can see a catalog model right now, so only those are checked: the menu is up, the grid it is
+    // in is showing, and it is on the page of the grid shown
+    bool IsShown( ModelCatalog.Entry entry )
+    {
+        if ( !IsVisible || _server || _folders || entry.Arms != _viewModel || (!_viewModel && _pane != Pane.Models) )
+            return false;
+
+        return _shownModels.Contains( entry.Model );
     }
 
     // A model path ships with the game (or a mounted one); an sbox.game ident starts with its organisation
@@ -466,18 +582,107 @@
             .ToList();
     }
 
-    // The Models and View Models grids keep their headings apart
-    string HeadingKey( string heading ) => _viewModel ? $"View Models/{heading}" : heading;
-
-    // Every heading starts collapsed until the player opens it
-    bool IsCollapsed( string key ) => !_headings.TryGetValue( key, out var collapsed ) || collapsed;
-
-    void ToggleCollapsed( string key )
+    // The grid as it shows now: matches of a search, a page of an open group, or Favorites, Default and a tile for each
+    // group. The models on it are the ones checked (see IsShown)
+    GridPage BuildGrid()
     {
-        LocalPrefs.SetCollapsed( key, !IsCollapsed( key ) );
-        _headings = LocalPrefs.Headings();
-        _collapsedRevision++;
+        var sections = Sections().ToList();
+
+        // Favorites first, always there, even with none yet: it says how to add one
+        var favorites = sections.FirstOrDefault( x => x.Title == FavoritesKey );
+        var groups = sections.Where( x => x.Title != FavoritesKey ).Select( CollectionOf )
+            .Prepend( new Collection( FavoritesKey, FavoritesKey, favorites?.Tiles.Count ?? 0, null, "favorite", false ) )
+            .ToList();
+        GridPage grid;
+
+        if ( Searching )
+        {
+            grid = Paged( null, sections.SelectMany( x => x.Tiles ).DistinctBy( x => x.Model ).ToList() );
+            _atCloudEnd = grid.Page >= grid.Pages - 1;
+        }
+        else if ( groups.FirstOrDefault( x => x.Key == _collection ) is { } open )
+        {
+            grid = Paged( open, sections.FirstOrDefault( x => KeyOf( x ) == _collection )?.Tiles ?? new List<Tile>() );
+            _atCloudEnd = open.More && grid.Page >= grid.Pages - 1;
+        }
+        else
+        {
+            _collection = null;
+            _atCloudEnd = false;
+
+            var blocks = new List<GridBlock> { new( null, new List<Tile> { _viewModel ? DefaultArmsTile : DefaultTile }, groups ) };
+            grid = new GridPage( null, blocks, groups.Count, 0, 1 );
+        }
+
+        _shownModels.Clear();
+        foreach ( var tile in grid.Blocks.SelectMany( x => x.Tiles ) )
+            _shownModels.Add( tile.Model );
+
+        return grid;
+    }
+
+    GridPage Paged( Collection open, List<Tile> tiles )
+    {
+        var pages = Math.Max( 1, (tiles.Count + TilesPerPage - 1) / TilesPerPage );
+        var page = Math.Clamp( _gridPage, 0, pages - 1 );
+        var shown = tiles.Skip( page * TilesPerPage ).Take( TilesPerPage ).ToList();
+        var style = open?.Key == FavoritesKey ? "favorites" : "";
+        return new GridPage( open, new List<GridBlock> { new( null, shown, new(), style ) }, tiles.Count, page, pages );
+    }
+
+    static string KeyOf( Section section ) => section.Group is null ? section.Title : $"{section.Group}/{section.Title}";
+
+    // A category's or a mounted game's tile: the game shows its logo; Other and Facepunch can have more on sbox.game
+    Collection CollectionOf( Section section )
+    {
+        var isGame = section.Group is not null;
+        var more = !isGame && !_viewModel && section.Title is "Other" or "Facepunch" && _catalog.HasMore;
+        return new Collection( KeyOf( section ), section.Title, section.Tiles.Count, isGame ? MountModels.LogoOf( section.Title ) : null,
+            IconOf( section.Title ), more );
+    }
+
+    const string FavoritesKey = "Favorites";
+
+    static string IconOf( string category ) => category switch
+    {
+        "Official" => "verified",
+        "Facepunch" => "workspace_premium",
+        "Other" => "public",
+        _ => "sports_esports",
+    };
+
+    static string CountText( Collection collection ) => collection.More ? $"{collection.Count}+" : $"{collection.Count}";
+
+    void OpenCollection( string key )
+    {
+        _collection = key;
+        _gridPage = 0;
+        _hovered = null;
         StateHasChanged();
+    }
+
+    void CloseCollection()
+    {
+        _collection = null;
+        _gridPage = 0;
+        StateHasChanged();
+    }
+
+    void ShowGridPage( int page )
+    {
+        _gridPage = Math.Max( 0, page );
+        StateHasChanged();
+    }
+
+    // A new search starts from its first page
+    string Search
+    {
+        get => _search;
+        set
+        {
+            _search = value ?? "";
+            _gridPage = 0;
+        }
     }
 
     // The heart is on the tile; clicking it isn't wearing
@@ -501,7 +706,10 @@
     void SetViewModel( bool viewModel )
     {
         _viewModel = viewModel;
+        _collection = null;
+        _gridPage = 0;
         _server = false;
+        _folders = false;
         _choosingFor = null;
         _hovered = null;
         StateHasChanged();
@@ -510,6 +718,7 @@
     void ShowServer()
     {
         _server = true;
+        _folders = false;
         _choosingFor = null;
         _hovered = null;
         StateHasChanged();
@@ -520,6 +729,7 @@
     {
         _server = false;
         _viewModel = false;
+        _folders = false;
         _pane = Pane.Models;
         _hovered = null;
         _choosingFor = player;
@@ -534,6 +744,7 @@
     void SetPane( Pane pane )
     {
         _pane = pane;
+        _folders = false;
         _choosingFor = null;
         _hovered = null;
         _pointedBone = null;

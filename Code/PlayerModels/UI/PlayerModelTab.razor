@@ -1,0 +1,78 @@
+@using System.Linq
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Components
+@inherits Panel
+@namespace PlayerModels.UI
+@attribute [InspectWindow.Tab<PlayerModelTab.SelectorSpawned>]
+@attribute [Title( "Custom Player Model" )]
+@attribute [Order( 450 )]
+
+<root @onmousedown=@Press>
+    <PlayerModelPage />
+</root>
+
+@code
+{
+    /// <summary>The tab shows in Sandbox's window while a Player Model Selector is in the world.</summary>
+    public sealed class SelectorSpawned : SpawnMenuHost.ISpawnMenuCondition
+    {
+        public static bool IsVisible() => PlayerModelSelector.Find( Game.ActiveScene ) is not null;
+    }
+
+    // A scrollbar in the page held by its thumb, where along it the thumb was grabbed and how far its panel was scrolled
+    // then. Dragged here: Sandbox's window keeps every press from the world behind it, and the engine's own drag never
+    // starts under a press kept like that.
+    ScrollBar _heldBar;
+    float _barGrab;
+    float _barStart;
+
+    // A press on a scrollbar's track pages it there; only one on its thumb comes this far
+    void Press( PanelEvent e )
+    {
+        _heldBar = e.Target as ScrollBar ?? e.Target?.Parent as ScrollBar;
+        if ( _heldBar?.Parent is not { } owner )
+            return;
+
+        _barGrab = Along( _heldBar, _heldBar.MousePosition );
+        _barStart = Along( _heldBar, owner.ScrollOffset );
+    }
+
+    public override void Tick()
+    {
+        base.Tick();
+
+        DragScrollBar();
+    }
+
+    // The held scrollbar's panel follows the mouse, the way the engine's scrollbar drag moves it
+    void DragScrollBar()
+    {
+        if ( _heldBar is null )
+            return;
+
+        if ( !HasActive || !_heldBar.IsValid() || _heldBar.Parent is not { } owner )
+        {
+            _heldBar = null;
+            return;
+        }
+
+        var thumb = _heldBar.Children.FirstOrDefault();
+        var free = Along( _heldBar, _heldBar.Box.Rect.Size ) - Along( _heldBar, thumb?.Box.Rect.Size ?? Vector2.Zero );
+        if ( free <= 0 )
+            return;
+
+        var travel = Along( _heldBar, _heldBar.MousePosition ) - _barGrab;
+        var target = _barStart + travel * Along( _heldBar, owner.ScrollSize ) / free;
+
+        var offset = owner.ScrollOffset;
+        if ( _heldBar.IsVertical )
+            offset.y = target;
+        else
+            offset.x = target;
+
+        owner.ScrollTo( offset );
+    }
+
+    static float Along( ScrollBar bar, Vector2 value ) => bar.IsVertical ? value.y : value.x;
+}

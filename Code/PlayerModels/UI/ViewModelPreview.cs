@@ -68,7 +68,10 @@ public sealed class ViewModelPreview : Panel
 
 		SetMessage( arms is null ? "These arms couldn't be loaded." : null );
 		if ( arms is not null )
+		{
 			_arms.Model = arms;
+			StandInMaterials.Apply( _arms );
+		}
 	}
 
 	public override void Tick()

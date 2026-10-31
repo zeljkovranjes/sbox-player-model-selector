@@ -113,6 +113,12 @@ PlayerModelPage
 		font-size: 16px;
 	}
 
+	// Previous and Next centred in the room left under a full page of tiles
+	.models-pane .models > Pager
+	{
+		padding-top: 4px;
+	}
+
 	// a line of explanation under the grid
 	.models-pane .note
 	{

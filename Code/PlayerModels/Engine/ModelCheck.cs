@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Sandbox;
 
@@ -15,6 +16,9 @@ internal static class ModelCheck
 	/// rigged to the citizen's skeleton is smaller, a character standing head to feet isn't.
 	/// </summary>
 	internal const float MinBodySize = 48f;
+
+	// What the engine puts in place of a material a model names but its package doesn't have
+	private const string MissingMaterial = "materials/error.vmat";
 
 	/// <summary>Whether something <paramref name="size"/> across (its bounds) is big enough to be a body.</summary>
 	internal static bool IsBodySized( Vector3 size )
@@ -36,6 +40,10 @@ internal static class ModelCheck
 
 		if ( !IsBodySized( target.Bounds.Size ) )
 			return $"It is under {MinBodySize} units across, too small to be a body: a part or something worn.";
+
+		// A package published without its materials shows only the error checkerboard, which nothing on our side can fix
+		if ( !target.Materials.Any( x => x.Name != MissingMaterial ) )
+			return "Its package has none of its materials, so it would only show the error checkerboard.";
 
 		return PoseTransfer.TryCreate( citizen, target, out var error ) is null ? error : null;
 	}

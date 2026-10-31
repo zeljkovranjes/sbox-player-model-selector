@@ -21,7 +21,7 @@ internal static class CloudModels
 	internal sealed record SearchPage( List<Found> Found, int Total );
 
 	// Renamed whenever what passes changes, so models checked under older rules are checked again
-	private static readonly VerdictCache Verdicts = new( "player_model_selector/body_verdicts.json" );
+	private static readonly VerdictCache Verdicts = new( "player_model_selector/body_verdicts_2.json" );
 
 	/// <summary>The fewest bones a body can have: hips, spine and head, and three for each arm and leg.</summary>
 	internal const int MinHumanBones = 15;

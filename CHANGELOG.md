@@ -64,6 +64,7 @@ Detached heads - a model whose head isn't part of its skeleton's hierarchy (some
 Floating feet - every model's planted foot now stands on the ground, whatever its leg length
 Frozen legs - models whose body bones are outnumbered by hair and cloth bones walk again (Humanoid Retargeter fix)
 Crumpled chests - models whose spine bends back on itself no longer twist the chest (Humanoid Retargeter fix)
+Backward models - a model built facing the other way whose bone names can't be read (Elsa) no longer walks turned round, face to the camera: it faces where you go, its left arm on its left (Humanoid Retargeter fix)
 Weapon effects - beams and muzzle flashes start from the model's own hand
 Stacked bodies - a player no longer ends up wearing several copies of their model after many changes
 Human shadows - a player wearing a model no longer casts the citizen's shadow under it; the shadow is the model's own, and the citizen's comes back with Default

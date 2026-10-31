@@ -66,6 +66,7 @@ Frozen legs - models whose body bones are outnumbered by hair and cloth bones wa
 Crumpled chests - models whose spine bends back on itself no longer twist the chest (Humanoid Retargeter fix)
 Weapon effects - beams and muzzle flashes start from the model's own hand
 Stacked bodies - a player no longer ends up wearing several copies of their model after many changes
+Human shadows - a player wearing a model no longer casts the citizen's shadow under it; the shadow is the model's own, and the citizen's comes back with Default
 Skateboard riders - riding a skateboard no longer turns you back into the citizen: your model rides, for everyone, dressed the same; any addon showing a player as a body of its own can have it too (README, Other addons)
 # Preview
 Stacked models - the preview no longer piles up copies of the model after a reload

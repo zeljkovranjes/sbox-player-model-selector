@@ -37,7 +37,8 @@ public sealed class ModelBody : Component
 
 	private SkinnedModelRenderer _renderer;
 	private PoseTransfer _transfer;
-	private readonly List<ModelRenderer> _hidden = new();
+	// The citizen's renderers this hid, each with the shadows the game wants it to cast
+	private readonly Dictionary<ModelRenderer, ModelRenderer.ShadowRenderType> _hidden = new();
 	private readonly List<ModelRenderer> _own = new();
 	private readonly HeldItems _held = new();
 	private readonly CancellationTokenSource _cancel = new();
@@ -166,11 +167,13 @@ public sealed class ModelBody : Component
 		if ( !_renderer.IsValid() )
 			return;
 
-		// Follows the citizen's own visibility: the player controller turns it to shadows only in first person
+		// The model casts the shadows the game wants from the citizen, whose own are kept off
+		Hide( Source );
+		var shadows = _hidden.TryGetValue( Source, out var wanted ) ? wanted : Source.RenderType;
 		foreach ( var renderer in _own )
 		{
 			if ( renderer.IsValid() )
-				renderer.RenderType = Source.RenderType;
+				renderer.RenderType = shadows;
 		}
 
 		_transfer.Apply( Source, _renderer );
@@ -253,13 +256,29 @@ public sealed class ModelBody : Component
 		_held.Find( Source, _transfer, GameObject );
 	}
 
+	// Out of the game's view and out of its shadows: hidden from the camera alone, the citizen still cast the human's
+	// shadow under the model
 	private void Hide( ModelRenderer renderer )
 	{
+		if ( _hidden.ContainsKey( renderer ) )
+		{
+			// The game set its shadows since: that is what the model casts now
+			if ( renderer.RenderType != ModelRenderer.ShadowRenderType.Off )
+			{
+				_hidden[renderer] = renderer.RenderType;
+				renderer.RenderType = ModelRenderer.ShadowRenderType.Off;
+			}
+
+			return;
+		}
+
+		// Hidden by the game itself, which has its reasons
 		if ( !renderer.RenderOptions.Game )
 			return;
 
+		_hidden[renderer] = renderer.RenderType;
 		renderer.RenderOptions.Game = false;
-		_hidden.Add( renderer );
+		renderer.RenderType = ModelRenderer.ShadowRenderType.Off;
 	}
 
 	private void ShowSource()
@@ -270,17 +289,20 @@ public sealed class ModelBody : Component
 			return;
 		}
 
-		foreach ( var renderer in _hidden )
+		foreach ( var (renderer, shadows) in _hidden )
 		{
-			if ( renderer.IsValid() )
-				renderer.RenderOptions.Game = true;
+			if ( !renderer.IsValid() )
+				continue;
+
+			renderer.RenderOptions.Game = true;
+			renderer.RenderType = shadows;
 		}
 
 		_hidden.Clear();
 	}
 
-	// The list of what was hidden is gone (a hot reload), so everything under the citizen that isn't drawn is shown again;
-	// the game itself never hides those this way
+	// The list of what was hidden is gone (a hot reload), so everything under the citizen that isn't drawn is shown again,
+	// casting shadows; the game itself never hides those this way
 	private void ShowEverythingHidden()
 	{
 		if ( !Source.IsValid() )
@@ -288,8 +310,13 @@ public sealed class ModelBody : Component
 
 		foreach ( var renderer in Source.GameObject.Components.GetAll<ModelRenderer>( FindMode.EverythingInSelfAndDescendants ) )
 		{
-			if ( !IsMine( renderer.GameObject ) )
-				renderer.RenderOptions.Game = true;
+			if ( IsMine( renderer.GameObject ) )
+				continue;
+
+			if ( !renderer.RenderOptions.Game && renderer.RenderType == ModelRenderer.ShadowRenderType.Off )
+				renderer.RenderType = ModelRenderer.ShadowRenderType.On;
+
+			renderer.RenderOptions.Game = true;
 		}
 	}
 

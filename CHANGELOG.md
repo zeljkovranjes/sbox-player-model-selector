@@ -36,6 +36,7 @@ Zoom - scroll over the preview to zoom in towards the face
 ### Improved
 # Player Model Selector window
 Tab - the selector is a Custom Player Model tab in Sandbox's own window, after HUD and Physgun, shown while a selector is in the world, instead of a window next to Saves and Effects; it fits the screen it is on
+Scrolling - the mouse wheel scrolls the panes at an easy pace, and every scrollbar can be dragged
 Style - the tab follows Sandbox's own theme, dark or light, and keeps a copy of it for anything a Sandbox update renames or removes
 Hearts - favoriting pops the heart and eases the model into the Favorites row
 ### Fixed

@@ -1,0 +1,32 @@
+@using Sandbox
+@using Sandbox.UI
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    @Content
+</root>
+
+@code
+{
+    // The share of each wheel notch passed on to the scrolling pane
+    const float WheelShare = 0.35f;
+
+    /// <summary>The pane's content.</summary>
+    [Parameter] public RenderFragment Content { get; set; }
+
+    /// <summary>
+    /// Hands the mouse wheel on to the pane scrolling this at a fraction of its speed: the engine speeds the wheel up
+    /// with every notch, and a list of models flew past.
+    /// </summary>
+    public override void OnMouseWheel( Vector2 value )
+    {
+        Parent?.OnMouseWheel( value * WheelShare );
+    }
+
+    // "scrolling" while the pane has more than it shows, and so a scrollbar over its right edge to make room for
+    public override void Tick()
+    {
+        SetClass( "scrolling", Parent is { } pane && pane.ScrollSize.y > 0 );
+    }
+}

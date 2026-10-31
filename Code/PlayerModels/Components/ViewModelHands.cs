@@ -68,7 +68,10 @@ internal sealed class ViewModelHands
 
 			var model = _arms ?? _original[ hands.Id ];
 			if ( hands.Model != model )
+			{
 				hands.Model = model;
+				StandInMaterials.Apply( hands );
+			}
 
 			WearModelArms( scene, hands, body );
 		}

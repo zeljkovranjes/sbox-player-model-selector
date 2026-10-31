@@ -56,6 +56,7 @@ public sealed class ModelArms : Component
 		var renderer = go.AddComponent<SkinnedModelRenderer>();
 		renderer.Model = plan.Model;
 		renderer.UseAnimGraph = false;
+		StandInMaterials.Apply( renderer );
 
 		// Drawn the way the hands are: in a weapon view model that is over the world, without shadows
 		renderer.RenderType = hands.RenderType;

@@ -8,6 +8,7 @@ Favorites - right-click a model or click its heart to keep it at the top of the 
 Categories - models are grouped into Official, Mounts, Facepunch and Other; each group folds away, starts folded and remembers how you left it
 Facepunch models - a second search finds Facepunch's own characters on sbox.game
 Mounts - characters from mounted games are offered once they pass the same check, grouped by game (Counter-Strike, Half-Life, ...)
+Mounted textures - a mounted model whose own shader doesn't load (compiled for an older s&box, or not found) shows its textures on the standard shader instead of the error material: on its body, in the preview, on its tile (drawn once and kept on your machine) and as first-person arms, on Windows and Linux alike
 Offline notice - when sbox.game or the Workshop can't be reached, the grid says so the way the Effects page does
 Search - type in the box above the grid to find a model by name; every match shows, folded groups or not
 # Customize

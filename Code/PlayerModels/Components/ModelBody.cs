@@ -60,6 +60,7 @@ public sealed class ModelBody : Component
 		var renderer = go.AddComponent<SkinnedModelRenderer>();
 		renderer.Model = model;
 		renderer.UseAnimGraph = false;
+		StandInMaterials.Apply( renderer );
 
 		var body = go.AddComponent<ModelBody>();
 		body.Source = source;

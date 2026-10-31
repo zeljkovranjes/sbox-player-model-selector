@@ -45,6 +45,7 @@ Saved rules - the host's choices are kept on their machine and used whenever the
 Long lists - the Server page shows players and blocked models ten at a time, latest blocked first, with a search box once there is more than one page
 Flood protection - the host takes at most two picks a second from each player (the last one always lands) and refuses looks and model paths too long to be real, so no player can flood the server or everyone else with looks to load
 Package vetting - the host checks every sbox.game pick against the same rules (a model, not tagged as a hand, arm, clothing or the citizen, enough bones) before anyone sees it, so a changed client can't wear what the window leaves out
+Download limit - everyone here downloads each sbox.game model a player puts on, so each player other than the host brings in 3 new ones every 5 minutes, both set on the Server page (up to 50, over up to 60 minutes); every machine starts downloading a model as soon as the host takes it, so it is there when its player comes into view
 # Preview
 Zoom - scroll over the preview to zoom in towards the face
 ### Improved

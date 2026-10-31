@@ -75,10 +75,13 @@ public sealed partial class PlayerModelSelector
 		if ( !Offers( look.Model ) )
 			return;
 
-		// A package goes on once sbox.game says it is one a body can be: no client can pick what the window leaves out
+		// A package goes on once sbox.game says it is one a body can be: no client can pick what the window leaves out. One
+		// new to the server is downloaded by everyone, so each player brings in only so many (see DownloadLimit).
 		if ( CloudModels.IsPackageIdent( look.Model ) )
 		{
-			_ = PutOnVettedAsync( id, look, count );
+			if ( TakeServerDownload( id, look.Model, fromHost ) )
+				_ = PutOnVettedAsync( id, look, count );
+
 			return;
 		}
 
@@ -90,6 +93,7 @@ public sealed partial class PlayerModelSelector
 		if ( !await CloudModels.VetAsync( look.Model ) || !IsValid || _pickCounts.GetValueOrDefault( id ) != count )
 			return;
 
+		ShareDownload( look.Model );
 		Picks[ id ] = look.Serialize();
 	}
 }

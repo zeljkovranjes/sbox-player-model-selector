@@ -53,6 +53,7 @@ Tab - the selector is a Custom Player Model tab in Sandbox's own window, after H
 Scrolling - the mouse wheel scrolls the panes at an easy pace, and every scrollbar can be dragged
 Style - the tab follows Sandbox's own theme, dark or light, and keeps a copy of it for anything a Sandbox update renames or removes
 Hearts - favoriting pops the heart and eases the model into the Favorites group
+Icon - the entity's icon in the spawn menu and on sbox.game is the Player Model Selector logo instead of a render of the citizen; spawned, it still stands as the stone citizen
 ### Fixed
 # Models
 Floating feet - every model's planted foot now stands on the ground, whatever its leg length

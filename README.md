@@ -53,9 +53,11 @@ Set on the `PlayerModelSelector` component of `Assets/entity/player_model_select
 | Option | Default | What it does |
 |---|---|---|
 | Models | Human Female, Classic Citizen | Models always offered, after Default. Each entry is a title and a model: a path that ships with the game (`models/.../x.vmdl`) or an sbox.game ident (`org.model`). The defaults are set in code; a path saved into the prefab is packed into the published entity with everything it uses. |
-| Cloud Search | `type:model playermodel sort:popular` | The sbox.game search the window fills itself from. Only the rigged humanoids it finds get a tile. |
+| Cloud Search | `type:model playermodel sort:popular` | The sbox.game search the window fills itself from. Only the rigged humanoids it finds get a tile; packages tagged hand, hands, arm, arms, clothing or citizen, and models sbox.game says have fewer than 15 bones or are under 48 units across (hats, shirts), are left out of every body search. |
 | Cloud Count | 50 | How many results each search looks at. |
 | Facepunch Search | `type:model org:facepunch human` | A second search for Facepunch's own characters, for the Facepunch group. Empty turns it off. |
+| Human Search | `type:model category:human sort:popular` | sbox.game's Human category, under Other (Facepunch's own under Facepunch). Empty turns it off. |
+| More Searches | none | More searches for player models. Every search's next page is fetched when you reach the end of Other or Facepunch. |
 | View Model Searches | `type:model first person arms`, `type:model hands` | Searches the View Model grid fills itself from. Only arms Sandbox's weapons can move are shown. |
 
 ## Other addons

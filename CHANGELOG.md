@@ -7,6 +7,9 @@ Title: Customize, View Models, Armature and Server
 Favorites - right-click a model or click its heart to keep it at the top of the grid; a favorite the server no longer offers is hidden, not lost
 Categories - models are grouped into Official, Mounts, Facepunch and Other; each group folds away, starts folded and remembers how you left it
 Facepunch models - a second search finds Facepunch's own characters on sbox.game
+Human models - sbox.game's Human category (over 300 models) is listed too, under Other, less the hands, arms, clothing and citizens and the models with too few bones for a body
+Not bodies - sbox.game packages tagged hand, hands, arm, arms, clothing or citizen aren't offered as bodies, and a model sbox.game says has fewer than 15 bones, or is under 48 units across (a hat, a shirt, hair rigged to the citizen), leaves the grid at once, without being downloaded; mounted models under that size are refused too
+Caching - searches are kept for an hour and every check for as long as its package isn't updated, so starting or joining again doesn't ask sbox.game again
 Mounts - characters from mounted games are offered once they pass the same check, grouped by game (Counter-Strike, Half-Life, ...)
 Mounted textures - a mounted model whose own shader doesn't load (compiled for an older s&box, or not found) shows its textures on the standard shader instead of the error material: on its body, in the preview, on its tile (drawn once and kept on your machine) and as first-person arms, on Windows and Linux alike
 Offline notice - when sbox.game or the Workshop can't be reached, the grid says so the way the Effects page does

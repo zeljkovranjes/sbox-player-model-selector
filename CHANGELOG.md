@@ -12,11 +12,11 @@ Mounted textures - a mounted model whose own shader doesn't load (compiled for a
 Offline notice - when sbox.game or the Workshop can't be reached, the grid says so the way the Effects page does
 Search - type in the box above the grid to find a model by name; every match shows, folded groups or not
 # Customize
-Skins - pick one of the model's skins, where it has more than one
+Skins - pick one of the model's skins from a dropdown, where it has more than one
 Saved looks - save what you made under a name and put it on again later, per model
 Part colors - tint single parts of a model (jacket, hair, eyes) as well as the whole model
 Body Shape - height, head, body, arm, hand, leg and foot sliders that work on any model, morphs or not
-Body groups - choose heads, capes and accessories by name; hovering a choice points it out on the preview, and no choice can hide part of the model
+Body groups - choose heads, capes and accessories by name, or hide an accessory (a hat, a weapon, a pet); hovering a choice points it out on the preview; the body itself (head, chest, legs, arms, hands, feet) can never be hidden, so nobody turns invisible
 Apply and Revert - changes show in the preview first and reach everyone when you press Apply
 # Armature
 Armature - give a bone to each body part the automatic setup couldn't find, with the skeleton drawn on the preview
@@ -30,6 +30,7 @@ Server page - the host decides which models players can wear: models from sbox.g
 Blocking - the host can block any other model right from the grid; whoever wears it goes back to the citizen
 Choose a player's model - the host can put any model on any player, and Revert gives them their own back
 Armature switch - the host can stop players from picking bones by hand; the bones they picked are dropped
+Body groups switch - the host can keep players' body group choices off; their models show their own until it is turned back on, which puts every choice back at once
 Saved rules - the host's choices are kept on their machine and used whenever they host
 Long lists - the Server page shows players and blocked models ten at a time, latest blocked first, with a search box once there is more than one page
 # Preview

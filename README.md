@@ -27,11 +27,11 @@ Entities > World.
    click its heart) to favorite it; favorites come first. **Default** puts you back to the citizen. In the preview, drag
    to spin and scroll to zoom in.
 5. **Customize**: change the model you wear. **Saved Looks** keeps what you made under a name (Save) and puts it back
-   (Use). Skin picks one of the model's skins when it has several; Color tints the whole model or one part at a time; Body Shape sliders
-   (height, head, body, arms, hands, legs, feet) work on any model; Body Groups and Morphs show when the model has them.
-   A body group only offers choices that show something, so no part of a model can be hidden. Hover a part to see it on
-   the preview. Nothing changes for others until you press **Apply** (top right);
-   **Revert** drops the changes.
+   (Use). Skin picks one of the model's skins from a dropdown when it has several; Color tints the whole model or one
+   part at a time; Body Shape sliders (height, head, body, arms, hands, legs, feet) work on any model; Body Groups and
+   Morphs show when the model has them. A body group can hide an accessory (a hat, a weapon, a pet), never the body
+   itself, so nobody turns invisible. Hover a part to see it on the preview. Nothing changes for others until you press
+   **Apply** (top right); **Revert** drops the changes.
 6. **Armature**: body parts the automatic setup found are locked. A part it couldn't find can be given a bone: pick
    the part on the left, then click its bone on the right; the preview draws the skeleton and lights up the bone. Press
    **Apply**; the picks are saved for that model. A model the automatic check refuses offers **Set up armature** in the

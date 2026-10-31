@@ -35,13 +35,7 @@
         {
             <div class="row">
                 <div class="label">Skin</div>
-                <div class="choices">
-                    @foreach ( var skin in skins )
-                    {
-                        var name = skin.Name;
-                        <div class="choice @( name == Look.Skin ? "active" : "" )" @onclick=@(() => SetSkin( name ))>@skin.Label</div>
-                    }
-                </div>
+                <UIDropdown Items=@skins Value=@( Look.Skin ?? "" ) ValueChanged=@SetSkin Tokenize=@false></UIDropdown>
             </div>
         }
         <ColorRow Label="Whole model" Hex=@Look.Tint OnChanged=@SetTint></ColorRow>
@@ -59,7 +53,12 @@
             <SliderRow Label=@ShapeLabel( shape ) Value=@ShapeOf( shape ) Signed=@true OnChanged=@(( float amount ) => SetShape( shape, amount ))></SliderRow>
         }
 
-        @if ( BodyParts().Any() )
+        @if ( BodyParts().Any() && BodyGroupsLocked )
+        {
+            <div class="section-header">Body Groups</div>
+            <div class="note">The host keeps body groups off on this server, so your model shows its own. Your choices come back when they turn them on.</div>
+        }
+        else if ( BodyParts().Any() )
         {
             <div class="section-header">Body Groups</div>
             @foreach ( var part in BodyParts() )
@@ -111,6 +110,9 @@
     /// <summary>Called with the part under the mouse (a body group choice or a coloured part), null when it leaves.</summary>
     [Parameter] public Action<PartHighlight?> Pointed { get; set; }
 
+    /// <summary>Whether the host keeps this player's body group choices off: they are kept, but not offered.</summary>
+    [Parameter] public bool BodyGroupsLocked { get; set; }
+
     void Point( PartHighlight? highlight ) => Pointed?.Invoke( highlight );
 
     bool IsCustomised => Look is not null
@@ -123,28 +125,26 @@
 
     protected override int BuildHash() => HashCode.Combine( Model, Look?.Serialize(), _savedRevision );
 
-    // A skin of the model: its name, "" for the default. Name: the material group's.
-    record SkinButton( string Label, string Name );
-
-    // The model's skins, default first. A stock character's skin is your avatar's skin tone, so it has none to choose
-    List<SkinButton> Skins()
+    // The model's skins, default first, each valued by its material group's name ("" for the default). A stock
+    // character's skin is your avatar's skin tone, so it has none to choose
+    List<UIDropdown.Item> Skins()
     {
-        var skins = new List<SkinButton>();
+        var skins = new List<UIDropdown.Item>();
         if ( Model is null || ModelOutfit.IsStock( Look.Model ) )
             return skins;
 
         for ( var i = 0; i < Model.MaterialGroupCount; i++ )
         {
             var name = Model.GetMaterialGroupName( i );
-            skins.Add( i == 0 ? new SkinButton( "Default", "" ) : new SkinButton( ChoiceName( name ), name ) );
+            skins.Add( i == 0 ? new UIDropdown.Item( "Default", "" ) : new UIDropdown.Item( ChoiceName( name ), name ) );
         }
 
         return skins;
     }
 
-    void SetSkin( string skin )
+    void SetSkin( object skin )
     {
-        Look.Skin = skin ?? "";
+        Look.Skin = skin as string ?? "";
         Changed?.Invoke();
     }
 
@@ -199,8 +199,8 @@
 
     string PartColour( string part ) => Look.Parts.TryGetValue( part, out var hex ) ? hex : "";
 
-    // A button of a body group: a choice that shows something, or the model's own default. An empty choice is never
-    // offered otherwise, so nothing the model shows can be hidden (ModelBody enforces the same for every look)
+    // A button of a body group: a choice that shows something, the model's own default, or Hidden for an accessory. The
+    // body itself is never offered hidden (LookPainter enforces the same for every look, on every client)
     record ChoiceButton( string Label, int Index );
 
     // Groups with at least two choices that show something
@@ -230,7 +230,15 @@
 
         // An accessory the model leaves off by default (a cape) can be put on and taken off again
         if ( part.Choices.Count > 0 && part.Choices[ 0 ].Mask == 0 )
+        {
             buttons.Insert( 0, new ChoiceButton( "Default", 0 ) );
+            return buttons;
+        }
+
+        // One the model shows by default (a hat, a weapon) can be hidden, through its first empty choice
+        var empty = Enumerable.Range( 0, part.Choices.Count ).FirstOrDefault( i => part.Choices[ i ].Mask == 0, -1 );
+        if ( empty > 0 && LookPainter.CanHide( part.Name ) )
+            buttons.Add( new ChoiceButton( "Hidden", empty ) );
 
         return buttons;
     }

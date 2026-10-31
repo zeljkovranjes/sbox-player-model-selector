@@ -39,14 +39,14 @@ internal sealed class PlayerBodies
 		foreach ( var player in scene.GetAll<Player>() )
 		{
 			if ( player.Controller.IsValid() && player.Controller.Renderer.IsValid() )
-				Show( player.Controller.Renderer, selector.LookOf( player.Network.Owner ), player.Network.Owner );
+				Show( player.Controller.Renderer, selector.ShownLookOf( player.Network.Owner ), player.Network.Owner );
 		}
 
 		// Sandbox's ragdolls are made on every client by a broadcast, each with the dead player's connection
 		foreach ( var corpse in scene.GetAll<DeathCameraTarget>() )
 		{
 			if ( corpse.Components.Get<SkinnedModelRenderer>() is { } renderer )
-				Show( renderer, selector.LookOf( corpse.Connection ), corpse.Connection );
+				Show( renderer, selector.ShownLookOf( corpse.Connection ), corpse.Connection );
 		}
 
 		ShowStandIns( scene, selector, false );
@@ -79,7 +79,7 @@ internal sealed class PlayerBodies
 			if ( owner is null && Networking.IsActive )
 				continue;
 
-			Show( body, selector.LookOf( owner ), owner, PlayerBodyOf( scene, owner ) );
+			Show( body, selector.ShownLookOf( owner ), owner, PlayerBodyOf( scene, owner ) );
 		}
 	}
 

@@ -60,6 +60,7 @@ Icon - the entity's icon in the spawn menu and on sbox.game is the Player Model 
 Invisible - the selector no longer stands in the world as a stone citizen with a body to bump into: it is invisible and solid to nothing; undo it or clean up to remove it
 ### Fixed
 # Models
+Detached heads - a model whose head isn't part of its skeleton's hierarchy (some Garry's Mod ports, Aishi Ayano among them) no longer wears its head floating beside the neck: the neck carries it
 Floating feet - every model's planted foot now stands on the ground, whatever its leg length
 Frozen legs - models whose body bones are outnumbered by hair and cloth bones walk again (Humanoid Retargeter fix)
 Crumpled chests - models whose spine bends back on itself no longer twist the chest (Humanoid Retargeter fix)

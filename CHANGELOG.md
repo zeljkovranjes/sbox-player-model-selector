@@ -30,7 +30,7 @@ Set up armature - a model the automatic check refuses can be set up by hand and 
 Locked presets - parts the automatic setup found can't be changed; only missing parts take a bone, and picks are saved for the model
 # View Model
 View Model - choose your first-person arms from arms that Sandbox's weapons can move, grouped like the models
-Your model's arms - your weapons show the arms of the model you wear, moved by the weapon's own animation; a switch on the View Model page turns it off
+Your model's arms - your weapons show the arms of the model you wear, moved by the weapon's own animation, the forearm turning with the hand so a rifle's grip doesn't wring the wrist; a switch on the View Model page turns it off
 # Multiplayer
 Host leaving - when the host leaves, whoever hosts next takes over the selector, with everyone's picks and the rules as they were
 # Server

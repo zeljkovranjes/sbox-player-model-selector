@@ -19,6 +19,9 @@ internal sealed partial class PoseTransfer
 	private const float HiddenScale = 0.001f;
 	private const float HiddenDistance = 64f;
 
+	// The share of the hand's roll about the forearm that the forearm bone itself takes
+	private const float ForearmRollShare = 0.5f;
+
 	// The joints that are moved onto the weapon's joints; the fingers keep the model's own lengths from the hand on
 	private static readonly BoneRole[] PinnedRoles =
 	{
@@ -38,11 +41,13 @@ internal sealed partial class PoseTransfer
 	private int[] _pinnedTo;
 	private bool[] _isArm;
 	private int[] _armRoots;
+	private (int Forearm, int Hand)[] _forearms;
 
-	// The weapon model the arm bones were matched on: each source bone's bone there (-1 for none), the anchor, the
-	// weapon's bone parents and its pose relative to the weapon
+	// The weapon model the arm bones were matched on: each source bone's bone there (-1 for none), the turn from that
+	// bone's rest frame to the citizen's, the anchor, the weapon's bone parents and its pose relative to the weapon
 	private Model _weaponModel;
 	private int[] _weaponBones;
+	private Rotation[] _restTurns;
 	private int[] _weaponParents;
 	private Transform[] _weaponPose;
 	private int _anchor = -1;
@@ -54,7 +59,7 @@ internal sealed partial class PoseTransfer
 	internal float ArmsScale { get; private set; } = 1f;
 
 	private bool ArmsIntact => _sourceBind is not null && _armsSourcePose is not null && _pinnedTo is not null && _isArm is not null
-		&& _armRoots is not null;
+		&& _armRoots is not null && _forearms is not null;
 
 	private void PrepareArms( Model source )
 	{
@@ -82,6 +87,15 @@ internal sealed partial class PoseTransfer
 		}
 
 		_armRoots = armRoots.ToArray();
+
+		var forearms = new List<(int, int)>();
+		foreach ( var (lower, hand) in new[] { (BoneRole.LowerArmL, BoneRole.HandL), (BoneRole.LowerArmR, BoneRole.HandR) } )
+		{
+			if ( _retargeter.TargetRig.BoneForRole( lower ) is { } forearm && _retargeter.TargetRig.BoneForRole( hand ) is { } handBone )
+				forearms.Add( (forearm, handBone) );
+		}
+
+		_forearms = forearms.ToArray();
 		_isArm = new bool[ targetCount ];
 		for ( var i = 0; i < targetCount; i++ )
 			_isArm[ i ] = armRoots.Contains( i ) || _targetParents[ i ] >= 0 && _isArm[ _targetParents[ i ] ];
@@ -146,8 +160,18 @@ internal sealed partial class PoseTransfer
 
 		var sourceSkeleton = _retargeter.SourceSkeleton;
 		_weaponBones = new int[ sourceSkeleton.Count ];
+		_restTurns = new Rotation[ sourceSkeleton.Count ];
 		for ( var i = 0; i < sourceSkeleton.Count; i++ )
-			_weaponBones[ i ] = weapon.Bones.HasBone( sourceSkeleton[ i ].Name ) ? weapon.Bones.GetBone( sourceSkeleton[ i ].Name ).Index : -1;
+		{
+			var bone = weapon.Bones.HasBone( sourceSkeleton[ i ].Name ) ? weapon.Bones.GetBone( sourceSkeleton[ i ].Name ) : null;
+			_weaponBones[ i ] = bone?.Index ?? -1;
+
+			// The first-person arms rig names its bones like the citizen but rolls them differently at rest (the forearm
+			// by about 16 degrees). The retargeter measures the pose against the citizen's rest, so a bone is turned onto
+			// the citizen's frame first; left as it was, another model's wrists came out twisted. Both rests are given
+			// relative to their model, and the two models face the same way.
+			_restTurns[ i ] = bone is null ? Rotation.Identity : bone.LocalTransform.Rotation.Inverse * _sourceBind[ i ].Rotation;
+		}
 
 		_weaponParents = new int[ weapon.BoneCount ];
 		foreach ( var bone in weapon.Bones.AllBones )
@@ -182,7 +206,7 @@ internal sealed partial class PoseTransfer
 		{
 			var weaponBone = _weaponBones[ i ];
 			_armsSourcePose[ i ] = weaponBone >= 0 && weaponBone < count
-				? _weaponPose[ weaponBone ]
+				? _weaponPose[ weaponBone ].WithRotation( _weaponPose[ weaponBone ].Rotation * _restTurns[ i ] )
 				: _sourceBind[ i ].WithPosition( _sourceBind[ i ].Position + shift );
 		}
 
@@ -223,8 +247,32 @@ internal sealed partial class PoseTransfer
 		return sum / _armRoots.Length;
 	}
 
+	// A weapon grip turns the hand far over (about 120 degrees on a rifle's front hand), which the first-person arms
+	// spread along their forearm twist bones. Many models skin the forearm to the forearm bone alone, so all of that
+	// turn wrung the skin at the wrist: the forearm bone takes part of it, about its own length. Bones are written
+	// relative to the model, so the hand and the twist bones stay where they are.
+	private void ShareHandRoll()
+	{
+		foreach ( var (forearm, hand) in _forearms )
+		{
+			var restTurn = _targetBones[ forearm ].LocalTransform.Rotation.Inverse * _targetBones[ hand ].LocalTransform.Rotation;
+			var turn = _targetPose[ forearm ].Rotation.Inverse * _targetPose[ hand ].Rotation * restTurn.Inverse;
+			var axis = _targetBones[ forearm ].LocalTransform.ToLocal( _targetBones[ hand ].LocalTransform ).Position.Normal;
+
+			// The twist part of the turn about the forearm's length (swing-twist decomposition)
+			var along = new Vector3( turn.x, turn.y, turn.z ).Dot( axis );
+			var roll = 2f * MathF.Atan2( along, turn.w ) * (180f / MathF.PI);
+			if ( roll > 180f ) roll -= 360f;
+			if ( roll < -180f ) roll += 360f;
+
+			var pose = _targetPose[ forearm ];
+			_targetPose[ forearm ] = pose.WithRotation( pose.Rotation * Rotation.FromAxis( axis, roll * ForearmRollShare ) );
+		}
+	}
+
 	private void WriteArmsPose( SkinnedModelRenderer target )
 	{
+		ShareHandRoll();
 		var hidden = new Transform( FoldPoint(), Rotation.Identity, HiddenScale );
 
 		for ( var i = 0; i < _targetBones.Length; i++ )

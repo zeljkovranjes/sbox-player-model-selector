@@ -34,6 +34,24 @@ internal sealed class ModelCatalog
 		// quick look. Run before any full check, so what can't be a body leaves the grid at once
 		public Func<Task<bool>> PreCheck { get; init; }
 		public bool PreChecked { get; set; }
+
+		// The quick look found nothing against it
+		public bool PassedPreCheck { get; set; }
+
+		// An sbox.game model: its full check downloads it, so that waits for the player to pick it
+		public bool Downloads { get; init; }
+
+		// Remembers what checking it when it was picked found (null when it can be worn), for next time
+		public Action<string> Remember { get; init; }
+
+		/// <summary>
+		/// Whether the model can't be picked yet: a mounted model until it is checked, an sbox.game body until its quick
+		/// look passes (an sbox.game model is checked when picked, which downloads it).
+		/// </summary>
+		public bool IsChecking => Usable is null && (!Downloads || PreCheck is not null && !PassedPreCheck);
+
+		/// <summary>Whether picking the model downloads it: an sbox.game model never checked on this machine.</summary>
+		public bool NeedsDownload => Downloads && Usable is null;
 	}
 
 	// Arms packages are few among the props a search for hands or arms brings; only these get a check (a download)
@@ -64,11 +82,30 @@ internal sealed class ModelCatalog
 	private IReadOnlyCollection<string> _mountFolders = Array.Empty<string>();
 	private bool _mountsListed;
 
-	// How long the checker rests when nothing the player can see needs a check
+	// How long the checker rests before looking again for something to check: briefly while checks run, so a slot that
+	// frees up is filled again soon
 	private const int IdleMilliseconds = 250;
+	private const int BusyMilliseconds = 50;
 
-	// Whether the player can see an entry right now (its group open in the grid shown, or matching the search)
-	private Func<Entry, bool> _shown = _ => false;
+	// How many checks run at once: quick looks at what sbox.game says about a package, and full checks, which load the
+	// model. One at a time, a page of twenty took about fifteen seconds.
+	private const int QuickChecksAtOnce = 6;
+	private const int FullChecksAtOnce = 3;
+
+	// With the menu closed, this many models at the top of each group are checked ahead (a page of the grid), so the
+	// menu opens on models already checked
+	private const int CheckedAhead = 20;
+
+	private readonly HashSet<Entry> _inCheck = new();
+	private readonly Dictionary<string, int> _aheadCounts = new();
+	private int _quickChecks;
+	private int _fullChecks;
+
+	/// <summary>
+	/// Whether the player can see an entry right now (its group open in the grid shown, or matching the search), set
+	/// while the menu is open; null while it is closed, when the top of each group is checked instead.
+	/// </summary>
+	internal Func<Entry, bool> Shown { get; set; }
 
 	/// <summary>Player models from sbox.game, then the mounted games' characters.</summary>
 	internal IReadOnlyList<Entry> Bodies => _bodies;
@@ -82,23 +119,24 @@ internal sealed class ModelCatalog
 	/// <summary>Whether an sbox.game search failed (no connection, usually).</summary>
 	internal bool SearchFailed { get; private set; }
 
+	/// <summary>The download a pick started, and how far along it probably is.</summary>
+	internal DownloadEstimate Download { get; } = new();
+
 	/// <summary>Whether a body search has results on sbox.game not listed yet (see <see cref="LoadMoreAsync"/>).</summary>
 	internal bool HasMore => _searches.Any( x => !x.IsDone );
 
 	/// <summary>
-	/// Fills the catalog, once, then checks what the player sees, one model at a time. Body searches are a query and
-	/// the tag their results must carry (null for none); models already in <paramref name="listed"/> are left out.
-	/// <paramref name="shown"/> says whether the player can see an entry; <paramref name="stillWanted"/> stops the checks
-	/// when the window goes away.
+	/// Fills the catalog, once, then keeps checking what the player sees (see <see cref="Shown"/>), several models at a
+	/// time. Body searches are a query and the tag their results must carry (null for none); models already in
+	/// <paramref name="listed"/> are left out. <paramref name="stillWanted"/> stops the checks when the selector goes.
 	/// </summary>
 	internal async Task LoadAsync( IEnumerable<(string Query, string Tag)> bodySearches, IEnumerable<string> armsSearches,
-		int count, ISet<string> listed, Func<Entry, bool> shown, Func<bool> stillWanted )
+		int count, ISet<string> listed, Func<bool> stillWanted )
 	{
 		if ( _started )
 			return;
 
 		_started = true;
-		_shown = shown;
 		_listed = listed;
 		_pageSize = Math.Max( 1, count );
 		_searches = bodySearches.Where( x => !string.IsNullOrWhiteSpace( x.Query ) ).Select( x => new Search { Query = x.Query, Tag = x.Tag } ).ToList();
@@ -109,7 +147,7 @@ internal sealed class ModelCatalog
 		foreach ( var found in await SearchArmsAsync( armsSearches, count ) )
 		{
 			if ( LooksLikeArms( found ) )
-				_arms.Add( new Entry { Title = found.Title, Model = found.Ident, Arms = true, Usable = ViewModelArms.Known( found.Ident ), Check = () => ViewModelArms.CheckAsync( found.Ident ) } );
+				_arms.Add( new Entry { Title = found.Title, Model = found.Ident, Arms = true, Downloads = true, Usable = ViewModelArms.Known( found.Ident ), Check = () => ViewModelArms.CheckAsync( found.Ident ), Remember = why => ViewModelArms.Remember( found.Ident, why ) } );
 		}
 
 		_arms.AddRange( MountModels.ArmsCandidates()
@@ -118,7 +156,7 @@ internal sealed class ModelCatalog
 		AddMountBodies( MountModels.Candidates( _mountFolders ) );
 		Revision++;
 
-		await CheckShownAsync( stillWanted );
+		await KeepCheckingAsync( stillWanted );
 	}
 
 	/// <summary>
@@ -154,7 +192,7 @@ internal sealed class ModelCatalog
 				search.Total = page.Total;
 
 				foreach ( var found in page.Found.Where( x => !_listed.Contains( x.Ident ) && _bodyModels.Add( x.Ident ) ) )
-					_bodies.Add( new Entry { Title = found.Title, Model = found.Ident, Usable = CloudModels.Known( found ), Check = () => CloudModels.CheckAsync( found ), PreCheck = () => CloudModels.PreCheckAsync( found ) } );
+					_bodies.Add( new Entry { Title = found.Title, Model = found.Ident, Downloads = true, Usable = CloudModels.Known( found ), Check = () => CloudModels.CheckAsync( found ), PreCheck = () => CloudModels.PreCheckAsync( found ), Remember = why => CloudModels.Remember( found, why ) } );
 			}
 			catch ( Exception e )
 			{
@@ -200,38 +238,118 @@ internal sealed class ModelCatalog
 		_bodies.AddRange( added );
 	}
 
-	// One model at a time, and only one the player can see: the quick looks first, for every unchecked model shown, then
-	// the full checks, bodies then arms, in grid order
-	private async Task CheckShownAsync( Func<bool> stillWanted )
+	/// <summary>The entry for <paramref name="model"/> among the arms or the bodies; null when it isn't listed.</summary>
+	internal Entry Find( string model, bool arms )
+	{
+		foreach ( var entry in arms ? _arms : _bodies )
+		{
+			if ( entry.Model == model )
+				return entry;
+		}
+
+		return null;
+	}
+
+	/// <summary>
+	/// Records what checking <paramref name="model"/> as it was picked found: <paramref name="why"/> it can't be worn, or
+	/// null when it can. An sbox.game model is checked only then, as checking downloads it.
+	/// </summary>
+	internal void Remember( string model, bool arms, string why )
+	{
+		if ( Find( model, arms ) is not { } entry )
+			return;
+
+		entry.Usable = why is null;
+		entry.Remember?.Invoke( why );
+		Revision++;
+	}
+
+	// Starts checks on what the player sees, up to the limits, then looks again a moment later: for a free slot, or for
+	// the group the player opened since
+	private async Task KeepCheckingAsync( Func<bool> stillWanted )
 	{
 		while ( stillWanted() )
 		{
-			var quick = _bodies.FirstOrDefault( x => x.Usable is null && x.PreCheck is not null && !x.PreChecked && _shown( x ) );
-			var next = quick ?? _bodies.FirstOrDefault( x => x.Usable is null && _shown( x ) ) ?? _arms.FirstOrDefault( x => x.Usable is null && _shown( x ) );
-			if ( next is null )
-			{
-				await GameTask.Delay( IdleMilliseconds );
-				continue;
-			}
+			StartChecks();
+			await GameTask.Delay( _inCheck.Count > 0 ? BusyMilliseconds : IdleMilliseconds );
+		}
+	}
 
-			try
+	// In grid order, bodies then arms: an unchecked model gets its quick look first, and its full check after
+	private void StartChecks()
+	{
+		_aheadCounts.Clear();
+		StartChecks( _bodies, "bodies" );
+		StartChecks( _arms, "arms" );
+	}
+
+	private void StartChecks( List<Entry> entries, string kind )
+	{
+		foreach ( var entry in entries )
+		{
+			if ( !IsWanted( entry, kind ) || entry.Usable is not null || _inCheck.Contains( entry ) )
+				continue;
+
+			// An sbox.game model only gets its quick look here: the full check downloads it, which waits for a pick
+			var quick = entry.PreCheck is not null && !entry.PreChecked;
+			if ( !quick && entry.Downloads || (quick ? _quickChecks >= QuickChecksAtOnce : _fullChecks >= FullChecksAtOnce) )
+				continue;
+
+			_ = CheckAsync( entry, quick );
+		}
+	}
+
+	// What the player sees, or with the menu closed the top of each group: models refused already don't count, as the
+	// grid leaves them out
+	private bool IsWanted( Entry entry, string kind )
+	{
+		if ( Shown is { } shown )
+			return shown( entry );
+
+		if ( entry.Usable == false )
+			return false;
+
+		var group = entry.Game is null ? kind : entry.Game;
+		var place = _aheadCounts.GetValueOrDefault( group );
+		_aheadCounts[ group ] = place + 1;
+		return place < CheckedAhead;
+	}
+
+	private async Task CheckAsync( Entry entry, bool quick )
+	{
+		_inCheck.Add( entry );
+		if ( quick )
+			_quickChecks++;
+		else
+			_fullChecks++;
+
+		try
+		{
+			if ( quick )
 			{
-				if ( next == quick )
-				{
-					next.PreChecked = true;
-					if ( !await next.PreCheck() )
-						next.Usable = false;
-				}
+				entry.PreChecked = true;
+				if ( await entry.PreCheck() )
+					entry.PassedPreCheck = true;
 				else
-				{
-					next.Usable = await next.Check();
-				}
+					entry.Usable = false;
 			}
-			catch ( Exception e )
+			else
 			{
-				Log.Warning( $"Player Model Selector: couldn't check {next.Model}: {e.Message}" );
-				next.Usable = false;
+				entry.Usable = await entry.Check();
 			}
+		}
+		catch ( Exception e )
+		{
+			Log.Warning( $"Player Model Selector: couldn't check {entry.Model}: {e.Message}" );
+			entry.Usable = false;
+		}
+		finally
+		{
+			_inCheck.Remove( entry );
+			if ( quick )
+				_quickChecks--;
+			else
+				_fullChecks--;
 
 			Revision++;
 		}

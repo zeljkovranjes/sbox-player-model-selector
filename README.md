@@ -21,7 +21,8 @@ Entities > World.
 1. Open the addon (`player-model-selector.sbproj`) in the s&box editor and press Play.
 2. Spawn **Player Model Selector** from the spawn menu (Entities > World).
 3. Hold **C** and open the **Custom Player Model** tab in Sandbox's window, after HUD and Physgun.
-4. **Models**: hover a tile to preview it, click it to wear it. Models are grouped into Official, Facepunch, Other and
+4. **Models**: hover a tile to preview it, click it to wear it. An sbox.game model shows a download icon until you first
+   pick it; it downloads then, its tile filling in as it does. Models are grouped into Official, Facepunch, Other and
    one group per mounted game (shown with the game's logo); click a group to see its models twenty at a time, and the
    arrow to go back. Type in the search box to find a model by name. Right-click a tile (or click its heart) to favorite
    it; favorites come first. **Default** puts you back to the citizen. In the preview, drag to spin and scroll to zoom
@@ -41,9 +42,10 @@ Entities > World.
 7. **View Model**: **Use my player model's arms** (on by default) shows the arms of the model you wear on your weapons.
    Below it are first-person arms, grouped the same way: click one to use it when your model's arms aren't used (switch
    off, or a stock character, whose arms are Sandbox's own).
-8. **Server** (the host only): choose which models players can wear (sbox.game, mounted games), whether they can add
-   model folders (off until you turn it on), change body groups and set up armatures, which of the games players have
-   mounted are blocked, and see the blocked models. Hover a tile in the grid and click its block icon to block it. Under
+8. **Server** (the host only): choose which models players can wear (sbox.game, mounted games), how many new sbox.game
+   models each player may bring in and over how many minutes (everyone downloads each one), whether they can add model
+   folders (off until you turn it on), change body groups and set up armatures, which of the games players have mounted
+   are blocked, and see the blocked models. Hover a tile in the grid and click its block icon to block it. Under
    Players, **Choose model** opens the grid to put a model on that player; **Revert** gives them their own pick back.
    The lists show ten at a time (latest blocked first) and get a search box once they run past one page.
 

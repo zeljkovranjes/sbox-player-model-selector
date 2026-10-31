@@ -23,6 +23,23 @@ public sealed class ServerRules
 	/// <summary>Whether players other than the host may give body parts a bone by hand on the Armature page.</summary>
 	public bool AllowArmature { get; set; } = true;
 
+	/// <summary>
+	/// How many sbox.game models new to the server each player other than the host may put on per
+	/// <see cref="DownloadMinutes"/>: everyone here downloads each one.
+	/// </summary>
+	public int DownloadLimit { get; set; } = DefaultDownloadLimit;
+
+	/// <summary>The minutes <see cref="DownloadLimit"/> counts over.</summary>
+	public int DownloadMinutes { get; set; } = DefaultDownloadMinutes;
+
+	/// <summary>What <see cref="DownloadLimit"/> and <see cref="DownloadMinutes"/> start at.</summary>
+	public const int DefaultDownloadLimit = 3;
+	public const int DefaultDownloadMinutes = 5;
+
+	/// <summary>The most either can be set to.</summary>
+	public const int MaxDownloadLimit = 50;
+	public const int MaxDownloadMinutes = 60;
+
 	/// <summary>Mounted games nobody may wear models from, by mount ident ("deadlock").</summary>
 	public List<string> BlockedMounts { get; set; } = new();
 

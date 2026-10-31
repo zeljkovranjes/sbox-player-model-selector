@@ -28,6 +28,12 @@ internal static class ViewModelArms
 	}
 
 	/// <summary>Checks <paramref name="model"/> (loading it) and remembers the verdict. True when it can be worn as arms.</summary>
+	/// <summary>Remembers what checking <paramref name="model"/> found: why it can't be arms, or null when it can.</summary>
+	internal static void Remember( string model, string why )
+	{
+		Verdicts.Remember( model, why );
+	}
+
 	internal static async Task<bool> CheckAsync( string model )
 	{
 		var why = await WhyNotArmsAsync( model );

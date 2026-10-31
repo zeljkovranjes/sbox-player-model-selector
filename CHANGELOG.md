@@ -10,7 +10,8 @@ Facepunch models - a second search finds Facepunch's own characters on sbox.game
 Human models - sbox.game's Human category (over 300 models) is listed too, under Other, less the hands, arms, clothing and citizens and the models with too few bones for a body
 More models - every sbox.game search lists its next page when you reach the end of Other or Facepunch, so a long category isn't fetched all at once
 Not bodies - sbox.game packages tagged hand, hands, arm, arms, clothing or citizen aren't offered as bodies, and a model sbox.game says has fewer than 15 bones, or is under 48 units across (a hat, a shirt, hair rigged to the citizen), leaves the grid at once, without being downloaded; mounted models under that size are refused too
-Checked as you look - a model is checked only while its group is open (or it matches the search) and the menu is up, one at a time, so a game or search with thousands of models never loads them all at once
+Checked as you look - a model is checked only while its group is open (or it matches the search), several at a time, so a game or search with thousands of models never loads them all at once; with the menu closed, the first page of each group is checked ahead from the moment the selector is in the world, so the menu opens on models already checked
+Download on pick - an sbox.game model downloads only when you pick it, never while you browse or hover: its tile shows a download icon until then, and while it downloads the tile lightens from left to right (an estimate from the package's size and earlier downloads, as s&box doesn't report a download's progress)
 Caching - searches are kept for an hour and every check for as long as its package isn't updated, so starting or joining again doesn't ask sbox.game again
 Mounts - characters from mounted games are offered once they pass the same check, a group per game; they are looked for in folders named like player, humans, characters, heroes, npc, actors and peds, and a game whose folders say nothing offers all its models, characters by name first, so any mount works without setting anything up
 Model folders - the folder button next to the search box lists each mounted game's model folders with how many models each holds, each game folding away like the grid's groups; turn a folder on and its models come first in its game's group, each checked as it is shown
@@ -30,7 +31,7 @@ Set up armature - a model the automatic check refuses can be set up by hand and 
 Locked presets - parts the automatic setup found can't be changed; only missing parts take a bone, and picks are saved for the model
 # View Model
 View Model - choose your first-person arms from arms that Sandbox's weapons can move, grouped like the models
-Your model's arms - your weapons show the arms of the model you wear, moved by the weapon's own animation; a switch on the View Model page turns it off
+Your model's arms - your weapons show the arms of the model you wear, moved by the weapon's own animation, the forearm turning with the hand so a rifle's grip doesn't wring the wrist; a switch on the View Model page turns it off
 # Multiplayer
 Host leaving - when the host leaves, whoever hosts next takes over the selector, with everyone's picks and the rules as they were
 # Server
@@ -45,6 +46,7 @@ Saved rules - the host's choices are kept on their machine and used whenever the
 Long lists - the Server page shows players and blocked models ten at a time, latest blocked first, with a search box once there is more than one page
 Flood protection - the host takes at most two picks a second from each player (the last one always lands) and refuses looks and model paths too long to be real, so no player can flood the server or everyone else with looks to load
 Package vetting - the host checks every sbox.game pick against the same rules (a model, not tagged as a hand, arm, clothing or the citizen, enough bones) before anyone sees it, so a changed client can't wear what the window leaves out
+Download limit - everyone here downloads each sbox.game model a player puts on, so each player other than the host brings in 3 new ones every 5 minutes, both set on the Server page (up to 50, over up to 60 minutes); every machine starts downloading a model as soon as the host takes it, so it is there when its player comes into view
 # Preview
 Zoom - scroll over the preview to zoom in towards the face
 ### Improved
@@ -53,6 +55,7 @@ Tab - the selector is a Custom Player Model tab in Sandbox's own window, after H
 Scrolling - the mouse wheel scrolls the panes at an easy pace, and every scrollbar can be dragged
 Style - the tab follows Sandbox's own theme, dark or light, and keeps a copy of it for anything a Sandbox update renames or removes
 Hearts - favoriting pops the heart and eases the model into the Favorites group
+Icon - the entity's icon in the spawn menu and on sbox.game is the Player Model Selector logo instead of a render of the citizen; spawned, it still stands as the stone citizen
 ### Fixed
 # Models
 Floating feet - every model's planted foot now stands on the ground, whatever its leg length

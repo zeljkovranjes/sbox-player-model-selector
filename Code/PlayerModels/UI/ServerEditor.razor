@@ -63,7 +63,15 @@
     <ToggleRow Label="Models from sbox.game" Value=@( !selector.BlockCloudModels ) OnChanged=@AllowCloud></ToggleRow>
     <ToggleRow Label="Models from mounted games" Value=@( !selector.BlockMountedModels ) OnChanged=@AllowMounted></ToggleRow>
     <ToggleRow Label="Players can add model folders" Value=@( !selector.BlockModelFolders ) OnChanged=@AllowFolders></ToggleRow>
-    <div class="note">The default citizen and the game's own models can always be worn. Turning a source off puts anyone wearing one of its models back to the citizen. Model folders only put a game's chosen folders first in its group; every mounted game's characters are offered either way, and you can always use them.</div>
+    <div class="setting">
+        <div class="label">New sbox.game models per player</div>
+        <UIDropdown Items=@Choices( DownloadLimits, selector.DownloadLimit, "" ) Value=@selector.DownloadLimit ValueChanged=@SetDownloadLimit Tokenize=@false></UIDropdown>
+    </div>
+    <div class="setting">
+        <div class="label">Counted over</div>
+        <UIDropdown Items=@Choices( DownloadWindows, selector.DownloadMinutes, " minutes" ) Value=@selector.DownloadMinutes ValueChanged=@SetDownloadMinutes Tokenize=@false></UIDropdown>
+    </div>
+    <div class="note">The default citizen and the game's own models can always be worn. Turning a source off puts anyone wearing one of its models back to the citizen. Model folders only put a game's chosen folders first in its group; every mounted game's characters are offered either way, and you can always use them. Everyone here downloads each sbox.game model a player puts on, so each player other than you brings in only so many new ones in that many minutes; models already on the server don't count.</div>
 
     <div class="section-header">Mounted Games</div>
     @{ var games = selector.PlayersMounts(); }
@@ -261,6 +269,32 @@
     void AllowMounted( bool allow )
     {
         Selector?.SetAllowMountedModels( allow );
+        StateHasChanged();
+    }
+
+    // The choices for how many new sbox.game models a player brings in, and over how long
+    static readonly int[] DownloadLimits = { 1, 2, 3, 5, 10, 20, 50 };
+    static readonly int[] DownloadWindows = { 1, 2, 5, 10, 15, 30, 60 };
+
+    // The choices, with the one set now among them even if it was set to another
+    static List<UIDropdown.Item> Choices( int[] choices, int current, string unit )
+    {
+        return choices.Append( current ).Distinct().OrderBy( x => x ).Select( x => new UIDropdown.Item( $"{x}{unit}", x ) ).ToList();
+    }
+
+    void SetDownloadLimit( object value )
+    {
+        if ( value is int limit )
+            Selector?.SetDownloadLimit( limit );
+
+        StateHasChanged();
+    }
+
+    void SetDownloadMinutes( object value )
+    {
+        if ( value is int minutes )
+            Selector?.SetDownloadMinutes( minutes );
+
         StateHasChanged();
     }
 

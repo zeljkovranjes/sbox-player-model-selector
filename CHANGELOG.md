@@ -4,11 +4,13 @@
 Title: Customize, View Models, Armature and Server
 ### Added
 # Models
-Favorites - right-click a model or click its heart to keep it at the top of the grid; a favorite the server no longer offers is hidden, not lost
-Categories - models are grouped into Official, Mounts, Facepunch and Other; each group folds away, starts folded and remembers how you left it
+Favorites - right-click a model or click its heart to keep it in the Favorites group, the first tile of the grid on both the Models and View Model pages, there even before the first favorite; a favorite the server no longer offers is hidden, not lost
+Groups - models are grouped into Official, Facepunch, Other and one group per mounted game, each shown as a tile (a game with its own logo); click one to see its models twenty at a time, with Previous and Next
 Facepunch models - a second search finds Facepunch's own characters on sbox.game
 Human models - sbox.game's Human category (over 300 models) is listed too, under Other, less the hands, arms, clothing and citizens and the models with too few bones for a body
+More models - every sbox.game search lists its next page when you reach the end of Other or Facepunch, so a long category isn't fetched all at once
 Not bodies - sbox.game packages tagged hand, hands, arm, arms, clothing or citizen aren't offered as bodies, and a model sbox.game says has fewer than 15 bones, or is under 48 units across (a hat, a shirt, hair rigged to the citizen), leaves the grid at once, without being downloaded; mounted models under that size are refused too
+Checked as you look - a model is checked only while its group is open (or it matches the search) and the menu is up, one at a time, so a game or search with thousands of models never loads them all at once
 Caching - searches are kept for an hour and every check for as long as its package isn't updated, so starting or joining again doesn't ask sbox.game again
 Mounts - characters from mounted games are offered once they pass the same check, a group per game; they are looked for in folders named like player, humans, characters, heroes, npc, actors and peds, and a game whose folders say nothing offers all its models, characters by name first, so any mount works without setting anything up
 Model folders - the folder button next to the search box lists each mounted game's model folders with how many models each holds, each game folding away like the grid's groups; turn a folder on and its models come first in its game's group, each checked as it is shown
@@ -50,7 +52,7 @@ Zoom - scroll over the preview to zoom in towards the face
 Tab - the selector is a Custom Player Model tab in Sandbox's own window, after HUD and Physgun, shown while a selector is in the world, instead of a window next to Saves and Effects; it fits the screen it is on
 Scrolling - the mouse wheel scrolls the panes at an easy pace, and every scrollbar can be dragged
 Style - the tab follows Sandbox's own theme, dark or light, and keeps a copy of it for anything a Sandbox update renames or removes
-Hearts - favoriting pops the heart and eases the model into the Favorites row
+Hearts - favoriting pops the heart and eases the model into the Favorites group
 ### Fixed
 # Models
 Floating feet - every model's planted foot now stands on the ground, whatever its leg length

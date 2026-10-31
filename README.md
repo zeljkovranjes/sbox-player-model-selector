@@ -21,11 +21,13 @@ Entities > World.
 1. Open the addon (`player-model-selector.sbproj`) in the s&box editor and press Play.
 2. Spawn **Player Model Selector** from the spawn menu (Entities > World).
 3. Hold **C** and open the **Custom Player Model** tab in Sandbox's window, after HUD and Physgun.
-4. **Models**: hover a tile to preview it, click it to wear it. Models are grouped into Official, Mounts (a group per
-   mounted game: Counter-Strike, Half-Life, ...), Facepunch and Other. Click a group's heading to open or fold it; groups
-   start folded and stay the way you left them. Type in the search box to find a model by name. Right-click a tile (or
-   click its heart) to favorite it; favorites come first. **Default** puts you back to the citizen. In the preview, drag
-   to spin and scroll to zoom in.
+4. **Models**: hover a tile to preview it, click it to wear it. Models are grouped into Official, Facepunch, Other and
+   one group per mounted game (shown with the game's logo); click a group to see its models twenty at a time, and the
+   arrow to go back. Type in the search box to find a model by name. Right-click a tile (or click its heart) to favorite
+   it; favorites come first. **Default** puts you back to the citizen. In the preview, drag to spin and scroll to zoom
+   in. Mounted characters are looked for in folders named like player, humans, characters, heroes, npc, actors and peds;
+   a game whose folders say nothing offers all its models, characters by name first. The folder button next to the
+   search box puts a game's chosen folders first.
 5. **Customize**: change the model you wear. **Saved Looks** keeps what you made under a name (Save) and puts it back
    (Use). Skin picks one of the model's skins from a dropdown when it has several; Color tints the whole model or one
    part at a time; Body Shape sliders (height, head, body, arms, hands, legs, feet) work on any model; Body Groups and

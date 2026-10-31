@@ -1,12 +1,15 @@
 @import "SelectorTheme.scss";
 
-// The Player Model Selector window's page: view buttons, then the preview and the models.
-// The same size as Sandbox's Effects page, plus the buttons.
+// The Custom Player Model tab's page in Sandbox's window: view buttons, then the preview and the models. Sandbox's
+// window is sized by the page in it; this one is never more than the screen has room for: on a small screen the models
+// pane gives way, the preview keeping its size.
 PlayerModelPage
 {
 	flex-direction: column;
-	width: 724px;
-	height: 506px;
+	width: 880px;
+	height: 600px;
+	max-width: calc( 100vw - 64px );
+	max-height: calc( 100vh - 140px );
 	font-family: $body-font;
 
 	// the same buttons as the window's own tabs
@@ -86,17 +89,27 @@ PlayerModelPage
 		color: $ui-text-muted;
 	}
 
-	// the search box on top of the grid
+	// the search box on top of the grid, its edges in line with the tiles'
 	.models-pane .search
 	{
 		flex-shrink: 0;
-		padding: 2px 2px 6px 2px;
+		padding: 2px 0px 6px 0px;
 	}
 
 	.models-pane .search-entry
 	{
 		@include ui-text-entry;
 		flex-grow: 1;
+	}
+
+	// beside the search box: the mounted games' folders characters can be looked for in, as a folder icon
+	.models-pane .folders-button
+	{
+		@include ui-button;
+		flex-shrink: 0;
+		margin-left: 4px;
+		font-family: "Material Icons";
+		font-size: 16px;
 	}
 
 	// a line of explanation under the grid
@@ -255,6 +268,13 @@ PlayerModelPage
 		}
 	}
 
+	// the pane on the right takes the room the preview leaves, and gives way first on a small screen
+	.models-pane
+	{
+		flex-grow: 1;
+		min-width: 0px;
+	}
+
 	// just enough room for the tiles' outlines under the title bar
 	.models-pane .settings-body
 	{
@@ -267,6 +287,69 @@ PlayerModelPage
 		flex-wrap: wrap;
 		flex-shrink: 0;
 		gap: 4px;
+	}
+
+	// a pane's content, slowing the wheel down on its way to the pane
+	// as wide as the pane from its first layout, without padding of its own (100% plus padding would pass the pane's
+	// edge): the tiles' widths are a share of it, and a width not known yet lays them out one to a row for a frame
+	SlowScroll
+	{
+		flex-direction: column;
+		flex-shrink: 0;
+		width: 100%;
+	}
+
+	// while the pane scrolls, the grid and what lines up with it clear the scrollbar (8px, drawn over the pane's right
+	// edge and padding) by as much as they clear the pane's left edge (its 4px padding)
+	SlowScroll.scrolling .grid, SlowScroll.scrolling .search
+	{
+		padding-right: 8px;
+	}
+
+	SlowScroll.scrolling .collection
+	{
+		margin-right: 8px;
+	}
+
+	// an open group: back to all the groups, its name and how many it has
+	.models-pane .collection
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		gap: 6px;
+		margin: 0 0 6px 0;
+
+		.back
+		{
+			@include ui-button;
+			font-family: "Material Icons";
+			font-size: 16px;
+		}
+
+		.heading
+		{
+			flex-grow: 1;
+			font-size: $ui-settings-font;
+			font-weight: 700;
+			color: $ui-text;
+		}
+
+		.count
+		{
+			font-size: $ui-settings-font;
+			color: $ui-text-muted;
+		}
+	}
+
+	// a group's tile: the game's logo, or an icon for a category
+	.tile.folder .folder-icon
+	{
+		justify-content: center;
+		align-items: center;
+		font-family: "Material Icons";
+		font-size: 40px;
+		color: $ui-text-muted;
 	}
 
 	// a model just favorited eases into the Favorites row
@@ -282,14 +365,28 @@ PlayerModelPage
 	}
 
 	// a spawn-menu style icon: the picture, a white outline on hover, the name under it
+	// five to a row (TilesPerRow in the page): six never fit at 17%, and five grow to fill the row. Not calc( 20% - 6px ):
+	// a calc with a percentage is worked out from the grid's size in the last layout, which a new grid hasn't had, so
+	// its tiles took the whole row for a frame
+	.tile, .tile-filler
+	{
+		width: 17%;
+		height: 112px;
+		flex-grow: 1;
+		flex-shrink: 0;
+		border: 1px solid transparent;
+	}
+
+	// makes the last row a full one, so its tiles are as wide as the rest
+	.tile-filler
+	{
+		pointer-events: none;
+	}
+
 	.tile
 	{
 		position: relative;
-		width: 100px;
-		height: 100px;
-		flex-shrink: 0;
 		background-color: $ui-tile-bg;
-		border: 1px solid transparent;
 		border-radius: 2px;
 		cursor: pointer;
 		transition: border-color 0.1s ease;

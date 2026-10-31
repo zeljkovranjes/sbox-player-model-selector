@@ -119,6 +119,11 @@
                             }
                         </div>
 
+                        @if ( DownloadWaitText() is { } waitText )
+                        {
+                            <div class="note">@waitText</div>
+                        }
+
                         @if ( _catalog.SearchFailed )
                         {
                             <div class="offline">
@@ -186,6 +191,14 @@
                                         {
                                             <div class="block" @onclick=@(( PanelEvent e ) => Block( tile, e ))>block</div>
                                         }
+                                        @if ( tile.Model == _catalog.Download.Model )
+                                        {
+                                            <div class="download-shade" style="width: @( DownloadShade() )%"></div>
+                                        }
+                                        else if ( tile.NeedsDownload )
+                                        {
+                                            <div class="download" Tooltip="Downloads when you pick it">download</div>
+                                        }
                                     </div>
                             }
                                 @foreach ( var folder in block.Folders )
@@ -232,7 +245,7 @@
     static readonly Tile DefaultArmsTile = new( "Default", "", $"thumb:{ViewModelArms.DefaultArms}", false );
 
     // Game: the mounted game a model comes from, for its own group under Mounts
-    record Tile( string Title, string Model, string Icon, bool Checking, string Game = null );
+    record Tile( string Title, string Model, string Icon, bool Checking, string Game = null, bool NeedsDownload = false );
 
     // Group: the heading the section sits under (Mounts, for each mounted game's section)
     record Section( string Title, List<Tile> Tiles, string Group = null );
@@ -243,8 +256,11 @@
     ModelPreview Preview { get; set; }
     ViewModelPreview ArmsPreview { get; set; }
 
-    readonly ModelCatalog _catalog = new();
-    bool _catalogStarted;
+    // The selector's catalog, filling since it started (see PlayerModelSelector.Catalog); an empty one until there is a
+    // selector, and what the page tells it the player sees
+    readonly ModelCatalog _noCatalog = new();
+    ModelCatalog _catalog => Selector?.Catalog ?? _noCatalog;
+    Func<ModelCatalog.Entry, bool> _isShown;
 
     // The right pane while showing player models: the grid, the look of the worn model, or its bone picks
     enum Pane { Models, Customize, Armature }
@@ -266,6 +282,11 @@
     // The player the host is choosing a model for in the grid, from the Server page
     Connection _choosingFor;
     string _hovered;
+
+    // Whether the hovered tile is an sbox.game model not downloaded yet, asked once per tile and catalog change
+    string _hoverAsked;
+    int _hoverRevision = -1;
+    bool _hoverDownloads;
     PartHighlight? _pointed;
     string _pointedBone;
 
@@ -334,21 +355,25 @@
 
     bool Searching => !string.IsNullOrWhiteSpace( _search );
 
+    public override void OnDeleted()
+    {
+        base.OnDeleted();
+
+        if ( Selector?.Catalog is { } catalog && catalog.Shown == _isShown )
+            catalog.Shown = null;
+    }
+
     public override void Tick()
     {
         base.Tick();
 
         if ( Selector is { } selector )
         {
-            if ( !_catalogStarted )
-            {
-                _catalogStarted = true;
-                var listed = selector.Models.Select( x => x.Model ).ToHashSet();
-                var bodySearches = new[] { selector.CloudSearch, selector.FacepunchSearch, selector.HumanSearch }
-                    .Concat( selector.MoreSearches ?? new() )
-                    .Select( x => (x, (string)null) );
-                _ = _catalog.LoadAsync( bodySearches, selector.ViewModelSearches, selector.CloudCount, listed, IsShown, () => IsValid );
-            }
+            // While the page is up the models on it are checked first; closed, the catalog checks ahead
+            _isShown ??= IsShown;
+            var checkedFirst = IsVisible ? _isShown : null;
+            if ( selector.Catalog.Shown != checkedFirst )
+                selector.Catalog.Shown = checkedFirst;
 
             UseFolders( selector );
         }
@@ -364,9 +389,10 @@
             _hovered = null;
 
         // Hovering a tile shows those arms, otherwise the ones being worn: the worn model's own when they are used
-        _ = ArmsPreview?.ShowAsync( _viewModel ? _hovered ?? WornArms : WornArms );
+        var hovered = PreviewedHover();
+        _ = ArmsPreview?.ShowAsync( _viewModel ? hovered ?? WornArms : WornArms );
         if ( ArmsPreview is not null )
-            ArmsPreview.BodyArms = _viewModel && _hovered is null ? Selector?.ArmsLook() : null;
+            ArmsPreview.BodyArms = _viewModel && hovered is null ? Selector?.ArmsLook() : null;
 
         if ( Preview is null )
             return;
@@ -378,7 +404,7 @@
         Preview.SelectedBone = _pointedBone;
 
         // The grid previews what is hovered; Customize and Armature show the model being set up
-        var shown = !editing ? Worn : _pane == Pane.Models ? _hovered ?? Worn : _look?.Model ?? Worn;
+        var shown = !editing ? Worn : _pane == Pane.Models ? hovered ?? Worn : _look?.Model ?? Worn;
         if ( shown == _previewing )
             return;
 
@@ -388,7 +414,7 @@
 
     protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Worn, WornArms, _hovered, _checking, _refused.Count, _viewModel, _pane ),
         HashCode.Combine( Selector?.Models.Count, _catalog.Revision, _catalog.SearchFailed, _favorites.Count, _wornModel, _lookDirty, _fixable,
-            HashCode.Combine( _collection, _gridPage, _catalog.HasMore ) ),
+            HashCode.Combine( _collection, _gridPage, _catalog.HasMore, (int)(_catalog.Download.Fraction * 100f), (int)(Selector?.DownloadWait() ?? 0) ) ),
         HashCode.Combine( _server, _search, LocalPrefs.UseModelArms, Selector?.BlockCloudModels, Selector?.BlockMountedModels,
             Selector?.BlockedModels?.Count, HashCode.Combine( _choosingFor, ArmatureLocked, Selector?.IsPickedByHost( Connection.Local ) ),
             HashCode.Combine( _folders, Selector?.BlockModelFolders, BodyGroupsLocked ) ) );
@@ -492,7 +518,8 @@
             yield break;
 
         foreach ( var favorite in _favorites.Where( x => x.ViewModel == _viewModel && (_viewModel || selector.Offers( x.Model )) ) )
-            yield return new Tile( favorite.Title ?? favorite.Model, favorite.Model, $"thumb:{favorite.Model}", false );
+            yield return new Tile( favorite.Title ?? favorite.Model, favorite.Model, $"thumb:{favorite.Model}", false,
+                NeedsDownload: _catalog.Find( favorite.Model, _viewModel )?.NeedsDownload == true );
     }
 
     IEnumerable<Tile> BodyTiles()
@@ -523,12 +550,13 @@
     {
         return entries
             .Where( x => x.Usable != false && !IsFavorite( x.Model ) )
-            .Select( x => new Tile( x.Title, x.Model, $"thumb:{x.Model}", x.Usable is null, x.Game ) );
+            .Select( x => new Tile( x.Title, x.Model, $"thumb:{x.Model}", x.IsChecking, x.Game, x.NeedsDownload ) );
     }
 
     string TileClass( Tile tile )
     {
         if ( tile.Model == WornHere ) return "worn";
+        if ( tile.Model == _catalog.Download.Model ) return "downloading";
         if ( tile.Checking || tile.Model == _checking ) return "checking";
         if ( _refused.Contains( tile.Model ) ) return "refused";
         return "";
@@ -841,9 +869,21 @@
             return;
         }
 
+        // An sbox.game model is downloaded only now; everyone here downloads a body too, so a player brings in only so many
+        var downloads = tile.NeedsDownload;
+        if ( downloads && !viewModel && !selector.TakeOwnDownload() )
+            return;
+
         _checking = tile.Model;
+        if ( downloads )
+            _catalog.Download.Start( tile.Model, await DownloadSizeAsync( tile.Model ) );
+
         var error = viewModel ? await ViewModelArms.WhyNotArmsAsync( tile.Model ) : await ModelCheck.WhyNotWearableAsync( tile.Model );
+        _catalog.Download.Finish();
         _checking = null;
+
+        if ( downloads )
+            _catalog.Remember( tile.Model, viewModel, error );
 
         if ( error is not null )
         {
@@ -863,6 +903,42 @@
         _refused.Remove( tile.Model );
         _fixable = null;
         Wear( selector, tile.Model, viewModel, choosingFor );
+    }
+
+    // The hovered tile, for the previews: not one only a pick downloads, as hovering never downloads anything
+    string PreviewedHover()
+    {
+        if ( _hovered != _hoverAsked || _catalog.Revision != _hoverRevision )
+        {
+            _hoverAsked = _hovered;
+            _hoverRevision = _catalog.Revision;
+            _hoverDownloads = _hovered is not null && _catalog.Find( _hovered, _viewModel )?.NeedsDownload == true;
+        }
+
+        return _hoverDownloads ? null : _hovered;
+    }
+
+    // How much of the downloading tile is still dark, in percent: it lightens from the left as the download comes in
+    string DownloadShade()
+    {
+        return ((1f - _catalog.Download.Fraction) * 100f).ToString( "0.#", System.Globalization.CultureInfo.InvariantCulture );
+    }
+
+    // While this player can't bring in another sbox.game model, how long until they can and why
+    string DownloadWaitText()
+    {
+        if ( _viewModel || Selector is not { } selector || selector.DownloadWait() is var wait && wait <= 0 )
+            return null;
+
+        var time = TimeSpan.FromSeconds( Math.Ceiling( wait ) );
+        return $"Everyone here downloads each sbox.game model a player puts on, so each player brings in {selector.DownloadLimit} new ones every {selector.DownloadMinutes} minutes. Your next one in {(int)time.TotalMinutes}:{time.Seconds:00}; models you've downloaded before can be worn now.";
+    }
+
+    // The package's size in bytes, for the download estimate; 0 when sbox.game can't say
+    static async Task<long> DownloadSizeAsync( string model )
+    {
+        var package = await Package.FetchAsync( model, false );
+        return (long)((package?.FileSize ?? 0f) * 1024f * 1024f);
     }
 
     // Arms are only ever seen by their own player, so they stay on this machine; a body goes through the host, on you or

@@ -271,6 +271,8 @@ public sealed partial class PlayerModelSelector : Component
 			AllowModelFolders = !BlockModelFolders,
 			AllowBodyGroups = !BlockBodyGroups,
 			AllowArmature = !BlockArmature,
+			DownloadLimit = DownloadLimit,
+			DownloadMinutes = DownloadMinutes,
 			Blocked = (BlockedModels ?? Enumerable.Empty<string>()).ToList(),
 			BlockedMounts = (BlockedMounts ?? Enumerable.Empty<string>()).ToList(),
 		};
@@ -296,6 +298,8 @@ public sealed partial class PlayerModelSelector : Component
 		BlockModelFolders = !rules.AllowModelFolders;
 		BlockBodyGroups = !rules.AllowBodyGroups;
 		BlockArmature = !rules.AllowArmature;
+		DownloadLimit = Math.Clamp( rules.DownloadLimit, 1, ServerRules.MaxDownloadLimit );
+		DownloadMinutes = Math.Clamp( rules.DownloadMinutes, 1, ServerRules.MaxDownloadMinutes );
 
 		BlockedModels ??= new();
 		BlockedModels.Clear();
@@ -352,6 +356,8 @@ public sealed partial class PlayerModelSelector : Component
 
 	protected override void OnStart()
 	{
+		StartCatalog();
+
 		if ( !Networking.IsHost )
 			return;
 

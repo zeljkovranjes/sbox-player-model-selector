@@ -161,6 +161,12 @@ internal static class CloudModels
 		return false;
 	}
 
+	/// <summary>Remembers what checking <paramref name="found"/> found elsewhere: why it can't be worn, or null when it can.</summary>
+	internal static void Remember( Found found, string why )
+	{
+		Verdicts.Remember( KeyOf( found ), why );
+	}
+
 	/// <summary>
 	/// Checks <paramref name="found"/> and remembers the verdict. True when it can be worn. One sbox.game says can't be a
 	/// body is refused without a download (see <see cref="PreCheckAsync"/>); any other is downloaded and checked.

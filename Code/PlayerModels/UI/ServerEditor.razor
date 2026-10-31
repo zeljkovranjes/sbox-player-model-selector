@@ -62,7 +62,53 @@
     <div class="section-header">Models Players Can Wear</div>
     <ToggleRow Label="Models from sbox.game" Value=@( !selector.BlockCloudModels ) OnChanged=@AllowCloud></ToggleRow>
     <ToggleRow Label="Models from mounted games" Value=@( !selector.BlockMountedModels ) OnChanged=@AllowMounted></ToggleRow>
-    <div class="note">The default citizen and the game's own models can always be worn. Turning a source off puts anyone wearing one of its models back to the citizen.</div>
+    <ToggleRow Label="Players can add model folders" Value=@( !selector.BlockModelFolders ) OnChanged=@AllowFolders></ToggleRow>
+    <div class="note">The default citizen and the game's own models can always be worn. Turning a source off puts anyone wearing one of its models back to the citizen. Model folders only put a game's chosen folders first in its group; every mounted game's characters are offered either way, and you can always use them.</div>
+
+    <div class="section-header">Mounted Games</div>
+    @{ var games = selector.PlayersMounts(); }
+    @if ( games.Count == 0 )
+    {
+        <div class="note">Nobody here has a game mounted. Games players mount show up here, for you to block any of them.</div>
+    }
+    else
+    {
+        // Searching only when there is more than a page of them; with one page, nothing is filtered
+        var searchGames = games.Count > PerPage;
+        @if ( searchGames )
+        {
+            <TextEntry class="search-entry" Placeholder="Search mounted games" Value:bind=@GameSearch HasClearButton=@true></TextEntry>
+        }
+
+        var shownGames = Matching( games, x => x.Title, searchGames ? _gameSearch : "" );
+        var gamePages = PageCount( shownGames.Count );
+        var gamePage = Math.Clamp( _gamePage, 0, gamePages - 1 );
+
+        @if ( shownGames.Count == 0 )
+        {
+            <div class="note">No mounted games match "@_gameSearch.Trim()".</div>
+        }
+
+        @foreach ( var game in OnPage( shownGames, gamePage ) )
+        {
+            var ident = game.Ident;
+            var gameBlocked = selector.BlockedMounts?.Contains( ident ) == true;
+            <div class="row">
+                <div class="player">
+                    <div class="name">@game.Title</div>
+                    <div class="detail">@PlayersText( game.Players )@( gameBlocked ? ", blocked" : "" )</div>
+                </div>
+                <div class="button" @onclick=@(() => BlockMount( ident, !gameBlocked ))>@( gameBlocked ? "Allow" : "Block" )</div>
+            </div>
+        }
+
+        <Pager Page=@gamePage Pages=@gamePages OnPage=@ShowGamePage></Pager>
+        <div class="note">Nobody can wear models from a blocked game; anyone wearing one goes back to the citizen.</div>
+    }
+
+    <div class="section-header">Body Groups</div>
+    <ToggleRow Label="Players can change body groups" Value=@( !selector.BlockBodyGroups ) OnChanged=@AllowBodyGroups></ToggleRow>
+    <div class="note">Turned off, players' models show their own body groups; what they chose comes back when you turn it on. Nobody can hide the body itself, either way. You always can change yours.</div>
 
     <div class="section-header">Armature</div>
     <ToggleRow Label="Players can set up armatures" Value=@( !selector.BlockArmature ) OnChanged=@AllowArmature></ToggleRow>
@@ -122,8 +168,10 @@
     const int PerPage = 10;
     string _playerSearch = "";
     string _blockedSearch = "";
+    string _gameSearch = "";
     int _playerPage;
     int _blockedPage;
+    int _gamePage;
 
     // A new search starts from the first page
     string PlayerSearch
@@ -145,6 +193,23 @@
             _blockedPage = 0;
         }
     }
+
+    string GameSearch
+    {
+        get => _gameSearch;
+        set
+        {
+            _gameSearch = value ?? "";
+            _gamePage = 0;
+        }
+    }
+
+    static string PlayersText( int players ) => players switch
+    {
+        0 => "Nobody here has it",
+        1 => "1 player has it",
+        _ => $"{players} players have it",
+    };
 
     static int PageCount( int count ) => Math.Max( 1, (count + PerPage - 1) / PerPage );
 
@@ -170,13 +235,22 @@
         StateHasChanged();
     }
 
+    void ShowGamePage( int page )
+    {
+        _gamePage = Math.Max( 0, page );
+        StateHasChanged();
+    }
+
     // Everyone connected but the host
     static List<Connection> Others() => Connection.All.Where( x => x != Connection.Local ).ToList();
 
-    protected override int BuildHash() => HashCode.Combine( Selector?.BlockCloudModels, Selector?.BlockMountedModels, Selector?.BlockArmature,
+    protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Selector?.BlockCloudModels, Selector?.BlockMountedModels, Selector?.BlockModelFolders,
+            Selector?.BlockArmature, Selector?.BlockBodyGroups ),
         string.Join( ";", Selector?.BlockedModels ?? Enumerable.Empty<string>() ),
         string.Join( ";", Others().Select( x => $"{x.Id}={Selector?.PickOf( x )}{Selector?.IsPickedByHost( x )}" ) ),
-        HashCode.Combine( _playerSearch, _blockedSearch, _playerPage, _blockedPage ) );
+        string.Join( ";", Selector?.PlayersMounts().Select( x => $"{x.Ident}={x.Players}" ) ?? Enumerable.Empty<string>() ),
+        string.Join( ";", Selector?.BlockedMounts ?? Enumerable.Empty<string>() ),
+        HashCode.Combine( _playerSearch, _blockedSearch, _gameSearch, _playerPage, _blockedPage, _gamePage ) );
 
     void AllowCloud( bool allow )
     {
@@ -187,6 +261,24 @@
     void AllowMounted( bool allow )
     {
         Selector?.SetAllowMountedModels( allow );
+        StateHasChanged();
+    }
+
+    void AllowFolders( bool allow )
+    {
+        Selector?.SetAllowModelFolders( allow );
+        StateHasChanged();
+    }
+
+    void AllowBodyGroups( bool allow )
+    {
+        Selector?.SetAllowBodyGroups( allow );
+        StateHasChanged();
+    }
+
+    void BlockMount( string ident, bool blocked )
+    {
+        Selector?.SetMountBlocked( ident, blocked );
         StateHasChanged();
     }
 

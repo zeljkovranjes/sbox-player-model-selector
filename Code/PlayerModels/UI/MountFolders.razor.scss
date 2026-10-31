@@ -1,0 +1,95 @@
+@import "SelectorTheme.scss";
+
+// The folders of each mounted game, to add to where characters are looked for
+MountFolders
+{
+	flex-direction: column;
+	flex-shrink: 0;
+	padding: 4px 14px 4px 6px;
+	font-family: $body-font;
+	color: $ui-text;
+
+	// back to the grid, on the left like an open group's back arrow
+	.intro
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		gap: 6px;
+
+		.back
+		{
+			@include ui-button;
+			font-family: "Material Icons";
+			font-size: 16px;
+		}
+
+		.heading
+		{
+			font-size: $ui-settings-font;
+			font-weight: 700;
+			color: $ui-text;
+		}
+	}
+
+	.note
+	{
+		flex-shrink: 0;
+		padding: 6px 0;
+		font-size: $ui-settings-font;
+		color: $ui-text-muted;
+	}
+
+	// a game's heading, which folds its folders away
+	.game
+	{
+		@include ui-section-header;
+		flex-direction: row;
+		align-items: center;
+		gap: 4px;
+		margin-top: 12px;
+		cursor: pointer;
+
+		.chevron
+		{
+			font-family: "Material Icons";
+			font-size: 16px;
+			text-transform: none;
+		}
+
+		.heading
+		{
+			flex-grow: 1;
+		}
+
+		.count
+		{
+			font-weight: 500;
+		}
+	}
+
+	// a folder characters are looked for in anyway
+	.row
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		min-height: 24px;
+		gap: 8px;
+	}
+
+	.name
+	{
+		@include ui-label;
+		flex-grow: 1;
+		flex-shrink: 1;
+		min-width: 0px;
+		color: $ui-text;
+	}
+
+	.detail
+	{
+		@include ui-label;
+		color: $ui-text-muted;
+	}
+}

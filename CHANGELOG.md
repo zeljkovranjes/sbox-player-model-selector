@@ -10,7 +10,8 @@ Facepunch models - a second search finds Facepunch's own characters on sbox.game
 Human models - sbox.game's Human category (over 300 models) is listed too, under Other, less the hands, arms, clothing and citizens and the models with too few bones for a body
 Not bodies - sbox.game packages tagged hand, hands, arm, arms, clothing or citizen aren't offered as bodies, and a model sbox.game says has fewer than 15 bones, or is under 48 units across (a hat, a shirt, hair rigged to the citizen), leaves the grid at once, without being downloaded; mounted models under that size are refused too
 Caching - searches are kept for an hour and every check for as long as its package isn't updated, so starting or joining again doesn't ask sbox.game again
-Mounts - characters from mounted games are offered once they pass the same check, grouped by game (Counter-Strike, Half-Life, ...)
+Mounts - characters from mounted games are offered once they pass the same check, a group per game; they are looked for in folders named like player, humans, characters, heroes, npc, actors and peds, and a game whose folders say nothing offers all its models, characters by name first, so any mount works without setting anything up
+Model folders - the folder button next to the search box lists each mounted game's model folders with how many models each holds, each game folding away like the grid's groups; turn a folder on and its models come first in its game's group, each checked as it is shown
 Mounted textures - a mounted model whose own shader doesn't load (compiled for an older s&box, or not found) shows its textures on the standard shader instead of the error material: on its body, in the preview, on its tile (drawn once and kept on your machine) and as first-person arms, on Windows and Linux alike
 Offline notice - when sbox.game or the Workshop can't be reached, the grid says so the way the Effects page does
 Search - type in the box above the grid to find a model by name; every match shows, folded groups or not
@@ -33,7 +34,9 @@ Server page - the host decides which models players can wear: models from sbox.g
 Blocking - the host can block any other model right from the grid; whoever wears it goes back to the citizen
 Choose a player's model - the host can put any model on any player, and Revert gives them their own back
 Armature switch - the host can stop players from picking bones by hand; the bones they picked are dropped
+Model folders switch - players other than the host can only use the folder button once the host turns it on (off by default); everyone gets every mounted game's characters either way
 Body groups switch - the host can keep players' body group choices off; their models show their own until it is turned back on, which puts every choice back at once
+Mounted games - the Server page lists the games the players here have mounted, ten at a time with a search box, and the host can block any of them; whoever wears a model from a blocked game goes back to the citizen
 Saved rules - the host's choices are kept on their machine and used whenever they host
 Long lists - the Server page shows players and blocked models ten at a time, latest blocked first, with a search box once there is more than one page
 # Preview
@@ -60,7 +63,7 @@ Old shaders - a package whose shader was built for an older s&box shows the erro
 Source mounts - Half-Life 2 and Counter-Strike: Source need s&box's Source 1 mount, which not every install has
 Mounted colors - mounted models take the whole-model tint only, not part colors
 # View Model
-Mounted arms - Counter-Strike and Half-Life have no first-person arms of their own, so View Model's Mounts group is empty
+Mounted arms - Counter-Strike, Half-Life and Deadlock have no first-person arms Sandbox's weapons can move, so View Model lists none from them
 
 ## 2026-10-24
 Title: First Release

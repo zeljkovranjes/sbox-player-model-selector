@@ -39,10 +39,11 @@ Entities > World.
 7. **View Model**: **Use my player model's arms** (on by default) shows the arms of the model you wear on your weapons.
    Below it are first-person arms, grouped the same way: click one to use it when your model's arms aren't used (switch
    off, or a stock character, whose arms are Sandbox's own).
-8. **Server** (the host only): choose which models players can wear (sbox.game, mounted games), whether they can set up
-   armatures, and see the blocked models. Hover a tile in the grid and click its block icon to block it. Under Players,
-   **Choose model** opens the grid to put a model on that player; **Revert** gives them their own pick back. Both lists
-   show ten at a time (latest blocked first) and get a search box once they run past one page.
+8. **Server** (the host only): choose which models players can wear (sbox.game, mounted games), whether they can add
+   model folders (off until you turn it on), change body groups and set up armatures, which of the games players have
+   mounted are blocked, and see the blocked models. Hover a tile in the grid and click its block icon to block it. Under
+   Players, **Choose model** opens the grid to put a model on that player; **Revert** gives them their own pick back.
+   The lists show ten at a time (latest blocked first) and get a search box once they run past one page.
 
 ### In code
 None: the selector is a component, and picks go through the Player Model Selector window.

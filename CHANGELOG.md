@@ -54,6 +54,7 @@ Zoom - scroll over the preview to zoom in towards the face
 # Player Model Selector window
 Tab - the selector is a Custom Player Model tab in Sandbox's own window, after HUD and Physgun, shown while a selector is in the world, instead of a window next to Saves and Effects; it fits the screen it is on
 Scrolling - the mouse wheel scrolls the panes at an easy pace, and every scrollbar can be dragged
+Taller tab - a full page of models (20) and the Previous and Next buttons fit without scrolling (650 tall, was 600); a short screen still scrolls
 Style - the tab follows Sandbox's own theme, dark or light, and keeps a copy of it for anything a Sandbox update renames or removes
 Hearts - favoriting pops the heart and eases the model into the Favorites group
 Icon - the entity's icon in the spawn menu and on sbox.game is the Player Model Selector logo instead of a render of the citizen

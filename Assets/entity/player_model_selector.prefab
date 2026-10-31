@@ -22,42 +22,10 @@
         "Flags": 0
       },
       {
-        "__type": "PlayerModels.Components.SelectorMannequin",
+        "__type": "PlayerModels.Components.SelectorLogo",
         "__guid": "5b2e8c41-7d39-4f6a-b1c4-9e3a6d0f8c27",
         "__enabled": true,
         "Flags": 0
-      },
-      {
-        "__type": "Sandbox.Rigidbody",
-        "__guid": "e2f7a9c3-5b18-4d60-9c4a-1f8e6b3d7a25",
-        "__enabled": true,
-        "Flags": 0,
-        "AngularDamping": 0,
-        "Gravity": true,
-        "GravityScale": 1,
-        "LinearDamping": 0,
-        "Locking": {
-          "X": false,
-          "Y": false,
-          "Z": false,
-          "Pitch": true,
-          "Yaw": false,
-          "Roll": true
-        },
-        "MassOverride": 60,
-        "MotionEnabled": true,
-        "StartAsleep": false
-      },
-      {
-        "__type": "Sandbox.CapsuleCollider",
-        "__guid": "4d6b8e2a-9c71-4f35-a2d9-8b5e1c7f3a64",
-        "__enabled": true,
-        "Flags": 0,
-        "End": "0,0,62",
-        "IsTrigger": false,
-        "Radius": 10,
-        "Start": "0,0,10",
-        "Static": false
       }
     ],
     "Children": [],

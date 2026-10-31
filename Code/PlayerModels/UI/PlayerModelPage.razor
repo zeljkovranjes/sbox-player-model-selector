@@ -791,6 +791,8 @@
     // A refused model opens on the Armature page, its look ready to take bones picked by hand; Apply wears it
     void FixArmature( Tile tile )
     {
+        _settingUp = tile.Model;
+        _wornAtSetUp = Worn;
         _look = LocalPrefs.LookFor( tile.Model );
         _lookModel = tile.Model;
         _wornModel = null;
@@ -806,10 +808,24 @@
         _pointedBone = bone;
     }
 
-    // The look being customised follows what is worn: a new model brings its own customisation
+    // A refused model being given bones by hand (see FixArmature), and what was worn when that began: it can't be worn
+    // until it has them, so the look stays on it while the same model is worn
+    string _settingUp;
+    string _wornAtSetUp;
+
+    // The look being customised follows what is worn: a new model brings its own customisation. A model being set up
+    // stays until it is worn (Apply), reverted, or something else is put on
     void TrackWornLook()
     {
         var worn = Worn;
+        if ( _settingUp is not null )
+        {
+            if ( worn == _wornAtSetUp && worn != _settingUp )
+                return;
+
+            _settingUp = null;
+        }
+
         if ( worn == _lookModel )
             return;
 
@@ -855,6 +871,7 @@
     // Back to what is worn, dropping the changes not applied yet (and a refused model being set up)
     void RevertLook()
     {
+        _settingUp = null;
         _look = Selector?.LookOf( Connection.Local ) ?? new PlayerLook();
         _lookModel = null;
         _lookDirty = false;

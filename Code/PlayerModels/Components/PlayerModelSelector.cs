@@ -3,18 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using PlayerModels.Core;
 using PlayerModels.Engine;
-using PlayerModels.UI;
 using Sandbox;
 
 namespace PlayerModels.Components;
 
 /// <summary>
-/// The Player Model Selector spawned from Sandbox's spawn menu. While one is in the world, everyone has a Player Model
-/// window in the C menu and every player's pick shows on their body for everyone. The host keeps the picks; each client
+/// The Player Model Selector spawned from Sandbox's spawn menu. While one is in the world, everyone has a Custom Player
+/// Model tab in the C menu and every player's pick shows on their body for everyone. The host keeps the picks; each client
 /// loads and poses the models itself. Removing it puts everyone back to the citizen.
 /// </summary>
 [Title( "Player Model Selector" ), Icon( "accessibility_new" )]
-public sealed class PlayerModelSelector : Component
+public sealed partial class PlayerModelSelector : Component
 {
 	// How often bodies are checked against the picks, for respawns, new ragdolls and changed picks. Short, because a
 	// new ragdoll shows the citizen until the scan finds it.
@@ -43,6 +42,19 @@ public sealed class PlayerModelSelector : Component
 	[Property, Group( "sbox.game" )] public string FacepunchSearch { get; set; } = "type:model org:facepunch human";
 
 	/// <summary>
+	/// A search of sbox.game's Human category, which holds far more characters than the player model search finds:
+	/// listed under Other (Facepunch's own under Facepunch), less the hands, arms, clothing and citizens, and the models
+	/// with too few bones for a body. Empty turns it off.
+	/// </summary>
+	[Property, Group( "sbox.game" )] public string HumanSearch { get; set; } = "type:model category:human sort:popular";
+
+	/// <summary>
+	/// More searches for player models, beyond the player model search and the Human category; none by default. Only rigged
+	/// humanoids pass, and a model sbox.game says has too few bones is refused without a download.
+	/// </summary>
+	[Property, Group( "sbox.game" )] public List<string> MoreSearches { get; set; } = new();
+
+	/// <summary>
 	/// The searches the View Model grid fills itself from. Only first-person arms Sandbox's weapons can move are shown.
 	/// </summary>
 	[Property, Group( "sbox.game" )] public List<string> ViewModelSearches { get; set; } = new() { "type:model first person arms", "type:model hands" };
@@ -61,11 +73,26 @@ public sealed class PlayerModelSelector : Component
 	/// <summary>Whether models from mounted games are kept off this server. The host sets it on the Server page.</summary>
 	[Sync( SyncFlags.FromHost )] public bool BlockMountedModels { get; set; }
 
+	/// <summary>
+	/// Whether players other than the host are kept from the folder button, which puts a mounted game's folders first in
+	/// its group. Every mounted game's characters are offered either way. The host sets it on the Server page.
+	/// </summary>
+	[Sync( SyncFlags.FromHost )] public bool BlockModelFolders { get; set; }
+
+	/// <summary>Mounted games nobody may wear models from on this server, by mount ident. The host blocks them on the Server page.</summary>
+	[Sync( SyncFlags.FromHost )] public NetList<string> BlockedMounts { get; set; } = new();
+
 	/// <summary>Models nobody may wear on this server, whatever else allows them. The host blocks them from the grid.</summary>
 	[Sync( SyncFlags.FromHost )] public NetList<string> BlockedModels { get; set; } = new();
 
 	/// <summary>Whether players other than the host are kept from picking bones by hand. The host sets it on the Server page.</summary>
 	[Sync( SyncFlags.FromHost )] public bool BlockArmature { get; set; }
+
+	/// <summary>
+	/// Whether the body groups players other than the host chose are kept off, showing their model's own. The host sets it
+	/// on the Server page; their choices stay with their looks and show again once it is off.
+	/// </summary>
+	[Sync( SyncFlags.FromHost )] public bool BlockBodyGroups { get; set; }
 
 	/// <summary>
 	/// Looks the host put on players in place of their own picks, by connection id (a <see cref="PlayerLook"/> as text).
@@ -77,6 +104,9 @@ public sealed class PlayerModelSelector : Component
 	private readonly ViewModelHands _hands = new();
 	private TimeSince _sinceScan;
 	private bool _restored;
+
+	// Who hosts, last seen: when that changes the host left and another took over (see TrackHost)
+	private Guid? _knownHost;
 
 	/// <summary>The selector in this scene, or null when nobody has spawned one.</summary>
 	public static PlayerModelSelector Find( Scene scene )
@@ -92,6 +122,21 @@ public sealed class PlayerModelSelector : Component
 			return PlayerLook.Parse( chosen );
 
 		return PlayerLook.Parse( Picks.TryGetValue( id, out var look ) ? look : null );
+	}
+
+	/// <summary>How this connection is shown: <see cref="LookOf"/>, within what the host allows right now.</summary>
+	public PlayerLook ShownLookOf( Connection connection )
+	{
+		return Shown( LookOf( connection ), (connection ?? Connection.Local)?.IsHost ?? true );
+	}
+
+	/// <summary>
+	/// <paramref name="look"/> within what the host allows right now: without its body group choices while the host keeps
+	/// them off, unless it is the host's (<paramref name="isHost"/>).
+	/// </summary>
+	public PlayerLook Shown( PlayerLook look, bool isHost )
+	{
+		return isHost || !BlockBodyGroups || look is null || look.BodyGroups.Count == 0 ? look : look.WithoutBodyGroups();
 	}
 
 	/// <summary>Whether the host chose this connection's model in place of their own pick.</summary>
@@ -147,13 +192,28 @@ public sealed class PlayerModelSelector : Component
 		if ( CloudModels.IsPackageIdent( model ) )
 			return !BlockCloudModels;
 
-		return MountModels.IsMountPath( model ) && !BlockMountedModels;
+		return MountModels.IsMountPath( model ) && !BlockMountedModels && BlockedMounts?.Contains( MountModels.GameOf( model ) ) != true;
+	}
+
+	/// <summary>Lets players other than the host use the folder button, or keeps it from them. Host only.</summary>
+	public void SetAllowModelFolders( bool allow )
+	{
+		ChangeRules( rules => rules.AllowModelFolders = allow );
 	}
 
 	/// <summary>Lets players wear models from sbox.game, or stops them. Host only; anyone wearing one goes back to the citizen.</summary>
 	public void SetAllowCloudModels( bool allow )
 	{
 		ChangeRules( rules => rules.AllowCloudModels = allow );
+	}
+
+	/// <summary>
+	/// Shows the body groups players other than the host chose, or keeps them off (their choices stay, and show again when
+	/// this is turned back on). Host only.
+	/// </summary>
+	public void SetAllowBodyGroups( bool allow )
+	{
+		ChangeRules( rules => rules.AllowBodyGroups = allow );
 	}
 
 	/// <summary>Lets players other than the host pick bones by hand, or stops them (dropping the bones they picked). Host only.</summary>
@@ -188,28 +248,64 @@ public sealed class PlayerModelSelector : Component
 		} );
 	}
 
-	// The host's rules are kept on their machine, so their server allows the same models next time
+	// The host's rules are kept on their machine, so their server allows the same models next time. A change is made to
+	// the rules the server has now, so a host who took over from one who left changes those, not their own saved ones.
 	private void ChangeRules( Action<ServerRules> change )
 	{
 		if ( !Networking.IsHost )
 			return;
 
-		var rules = LocalPrefs.ServerRules;
+		var rules = CurrentRules();
 		change( rules );
 		LocalPrefs.ServerRules = rules;
 		UseRules( rules );
+	}
+
+	// The rules the server has now, as its synced state says
+	private ServerRules CurrentRules()
+	{
+		return new ServerRules
+		{
+			AllowCloudModels = !BlockCloudModels,
+			AllowMountedModels = !BlockMountedModels,
+			AllowModelFolders = !BlockModelFolders,
+			AllowBodyGroups = !BlockBodyGroups,
+			AllowArmature = !BlockArmature,
+			Blocked = (BlockedModels ?? Enumerable.Empty<string>()).ToList(),
+			BlockedMounts = (BlockedMounts ?? Enumerable.Empty<string>()).ToList(),
+		};
+	}
+
+	// When the host leaves, another player takes over the server and this selector with it (see OnStart). Everyone then
+	// tells the new host which games they have mounted again; the rules carry over as they were.
+	private void TrackHost()
+	{
+		var host = Connection.Host?.Id;
+		if ( host == _knownHost )
+			return;
+
+		_knownHost = host;
+		_mountsReported = null;
+		_sinceMountReport = MountReportInterval;
 	}
 
 	private void UseRules( ServerRules rules )
 	{
 		BlockCloudModels = !rules.AllowCloudModels;
 		BlockMountedModels = !rules.AllowMountedModels;
+		BlockModelFolders = !rules.AllowModelFolders;
+		BlockBodyGroups = !rules.AllowBodyGroups;
 		BlockArmature = !rules.AllowArmature;
 
 		BlockedModels ??= new();
 		BlockedModels.Clear();
 		foreach ( var model in rules.Blocked.Where( x => !string.IsNullOrEmpty( x ) ).Distinct() )
 			BlockedModels.Add( model );
+
+		BlockedMounts ??= new();
+		BlockedMounts.Clear();
+		foreach ( var ident in (rules.BlockedMounts ?? new()).Where( MountModels.IsGameIdent ).Distinct() )
+			BlockedMounts.Add( ident );
 
 		// Whoever wears what is no longer allowed goes back to the citizen, or to their own pick
 		foreach ( var id in Picks.Keys.ToList() )
@@ -254,22 +350,6 @@ public sealed class PlayerModelSelector : Component
 		PickOnHost( look.Serialize() );
 	}
 
-	[Rpc.Host]
-	private void PickOnHost( string text )
-	{
-		var id = KeyOf( Rpc.Caller );
-		var look = PlayerLook.Parse( text );
-
-		// Bones picked by hand only count from the host while the host keeps players from picking them
-		if ( BlockArmature && Rpc.Caller is { IsHost: false } )
-			look = WithoutBones( look );
-
-		if ( look.IsDefault )
-			Picks.Remove( id );
-		else if ( Offers( look.Model ) )
-			Picks[ id ] = look.Serialize();
-	}
-
 	protected override void OnStart()
 	{
 		if ( !Networking.IsHost )
@@ -283,6 +363,8 @@ public sealed class PlayerModelSelector : Component
 			return;
 		}
 
+		// The selector stays when its host leaves: whoever hosts next takes it over, picks and rules included
+		GameObject.Network.SetOrphanedMode( NetworkOrphaned.Host );
 		UseRules( LocalPrefs.ServerRules );
 	}
 
@@ -292,10 +374,14 @@ public sealed class PlayerModelSelector : Component
 			return;
 
 		_sinceScan = 0;
+		TrackHost();
+		if ( Networking.IsHost )
+			TakeWaitingPicks();
+
+		ReportMounts();
 		RestoreSavedPick();
 		_bodies.Update( Scene, this );
 		_hands.Update( Scene, LocalPrefs.ViewModel, ArmsLook() );
-		PlayerModelWindow.AddTo( Scene );
 	}
 
 	// Bodies other addons show players as are looked for every frame, so each shows its player's pick from its first frame
@@ -308,9 +394,6 @@ public sealed class PlayerModelSelector : Component
 	{
 		_bodies.Clear( Scene );
 		_hands.Update( Scene, "", null );
-
-		if ( Find( Scene ) is null )
-			PlayerModelWindow.RemoveFrom( Scene );
 	}
 
 	/// <summary>
@@ -322,7 +405,7 @@ public sealed class PlayerModelSelector : Component
 		if ( !LocalPrefs.UseModelArms )
 			return null;
 
-		var look = LookOf( Connection.Local );
+		var look = ShownLookOf( Connection.Local );
 		return look.IsDefault || ModelOutfit.IsStock( look.Model ) ? null : look;
 	}
 

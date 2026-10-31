@@ -29,6 +29,8 @@ Locked presets - parts the automatic setup found can't be changed; only missing 
 # View Model
 View Model - choose your first-person arms from arms that Sandbox's weapons can move, grouped like the models
 Your model's arms - your weapons show the arms of the model you wear, moved by the weapon's own animation; a switch on the View Model page turns it off
+# Multiplayer
+Host leaving - when the host leaves, whoever hosts next takes over the selector, with everyone's picks and the rules as they were
 # Server
 Server page - the host decides which models players can wear: models from sbox.game, from mounted games, or neither; the default citizen and the game's own models always stay
 Blocking - the host can block any other model right from the grid; whoever wears it goes back to the citizen

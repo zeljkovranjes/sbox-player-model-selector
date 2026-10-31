@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Sandbox;
@@ -48,11 +49,27 @@ internal static class LateLoad
 		}
 	}
 
-	/// <summary>Host: sends one component again to every client, asked by one whose copy of it is missing.</summary>
+	// Host: a component is sent again at most this often, however many clients ask or how often
+	private const float ResendInterval = 2f;
+	private static readonly Dictionary<Guid, RealTimeSince> Resent = new();
+
+	/// <summary>
+	/// Host: sends one of this addon's components again to every client, asked by one whose copy of it is missing. Any
+	/// other component, or one sent again a moment ago, is left alone: a client can't make the host resend the scene.
+	/// </summary>
 	[Rpc.Host]
 	public static void SendAgain( Guid component )
 	{
-		if ( Game.ActiveScene?.Directory.FindComponentByGuid( component ) is { } found && found.GameObject.IsValid() )
-			found.GameObject.Network.Refresh( found );
+		if ( Game.ActiveScene?.Directory.FindComponentByGuid( component ) is not { } found || !found.GameObject.IsValid() )
+			return;
+
+		if ( Game.TypeLibrary.GetType( found.GetType() )?.Namespace?.StartsWith( nameof( PlayerModels ) ) != true )
+			return;
+
+		if ( Resent.TryGetValue( component, out var since ) && since < ResendInterval )
+			return;
+
+		Resent[ component ] = 0;
+		found.GameObject.Network.Refresh( found );
 	}
 }

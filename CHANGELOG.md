@@ -39,6 +39,8 @@ Body groups switch - the host can keep players' body group choices off; their mo
 Mounted games - the Server page lists the games the players here have mounted, ten at a time with a search box, and the host can block any of them; whoever wears a model from a blocked game goes back to the citizen
 Saved rules - the host's choices are kept on their machine and used whenever they host
 Long lists - the Server page shows players and blocked models ten at a time, latest blocked first, with a search box once there is more than one page
+Flood protection - the host takes at most two picks a second from each player (the last one always lands) and refuses looks and model paths too long to be real, so no player can flood the server or everyone else with looks to load
+Package vetting - the host checks every sbox.game pick against the same rules (a model, not tagged as a hand, arm, clothing or the citizen, enough bones) before anyone sees it, so a changed client can't wear what the window leaves out
 # Preview
 Zoom - scroll over the preview to zoom in towards the face
 ### Improved

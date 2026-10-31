@@ -123,6 +123,8 @@ internal sealed partial class PoseTransfer
 				_targetRoles[ bone ] = role;
 		}
 
+		FindDetachedHead( retargeter.TargetRig );
+
 		_lengthScale = new float[ targetSkeleton.Count ];
 		_meshScale = new float[ targetSkeleton.Count ];
 		Shape( null );
@@ -330,6 +332,8 @@ internal sealed partial class PoseTransfer
 			if ( TryPinnedPosition( pinToWeapon, i, out var pinned ) )
 				_targetPose[ i ] = _targetPose[ i ].WithPosition( pinned );
 		}
+
+		CarryDetachedHead();
 	}
 
 	// A thicker limb or bigger head is scaled here, after chaining, so the bone's children keep their size

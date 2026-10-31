@@ -10,6 +10,7 @@ Facepunch models - a second search finds Facepunch's own characters on sbox.game
 Human models - sbox.game's Human category (over 300 models) is listed too, under Other, less the hands, arms, clothing and citizens and the models with too few bones for a body
 More models - every sbox.game search lists its next page when you reach the end of Other or Facepunch, so a long category isn't fetched all at once
 Not bodies - sbox.game packages tagged hand, hands, arm, arms, clothing or citizen aren't offered as bodies, and a model sbox.game says has fewer than 15 bones, or is under 48 units across (a hat, a shirt, hair rigged to the citizen), leaves the grid at once, without being downloaded; mounted models under that size are refused too
+No materials - an sbox.game package published without its materials (only the error checkerboard to show) is refused when picked and leaves the grid
 Checked as you look - a model is checked only while its group is open (or it matches the search), several at a time, so a game or search with thousands of models never loads them all at once; with the menu closed, the first page of each group is checked ahead from the moment the selector is in the world, so the menu opens on models already checked
 Download on pick - an sbox.game model downloads only when you pick it, never while you browse or hover: its tile shows a download icon until then, and while it downloads the tile lightens from left to right (an estimate from the package's size and earlier downloads, as s&box doesn't report a download's progress)
 Caching - searches are kept for an hour and every check for as long as its package isn't updated, so starting or joining again doesn't ask sbox.game again
@@ -55,9 +56,11 @@ Tab - the selector is a Custom Player Model tab in Sandbox's own window, after H
 Scrolling - the mouse wheel scrolls the panes at an easy pace, and every scrollbar can be dragged
 Style - the tab follows Sandbox's own theme, dark or light, and keeps a copy of it for anything a Sandbox update renames or removes
 Hearts - favoriting pops the heart and eases the model into the Favorites group
-Icon - the entity's icon in the spawn menu and on sbox.game is the Player Model Selector logo instead of a render of the citizen; spawned, it still stands as the stone citizen
+Icon - the entity's icon in the spawn menu and on sbox.game is the Player Model Selector logo instead of a render of the citizen
+Invisible - the selector no longer stands in the world as a stone citizen with a body to bump into: it is invisible and solid to nothing; undo it or clean up to remove it
 ### Fixed
 # Models
+Detached heads - a model whose head isn't part of its skeleton's hierarchy (some Garry's Mod ports, Aishi Ayano among them) no longer wears its head floating beside the neck: the neck carries it
 Floating feet - every model's planted foot now stands on the ground, whatever its leg length
 Frozen legs - models whose body bones are outnumbered by hair and cloth bones walk again (Humanoid Retargeter fix)
 Crumpled chests - models whose spine bends back on itself no longer twist the chest (Humanoid Retargeter fix)

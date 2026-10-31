@@ -363,9 +363,18 @@
             catalog.Shown = null;
     }
 
+    // The page's width last frame: a window opened again after being folded away grows back from nothing
+    float _lastWidth;
+
     public override void Tick()
     {
         base.Tick();
+
+        var width = Box.Rect.Width;
+        if ( width > _lastWidth + 1f )
+            MeasureLabelsAgain();
+
+        _lastWidth = width;
 
         if ( Selector is { } selector )
         {
@@ -903,6 +912,18 @@
         _refused.Remove( tile.Model );
         _fixable = null;
         Wear( selector, tile.Model, viewModel, choosingFor );
+    }
+
+    // A label cut short to fit (as the window folds away, to "..") keeps that size even once there is room again: the
+    // engine only measures it again when its text changes, so each label gets its text again
+    void MeasureLabelsAgain()
+    {
+        foreach ( var label in Descendants.OfType<Label>() )
+        {
+            var text = label.Text;
+            label.Text = "";
+            label.Text = text;
+        }
     }
 
     // The hovered tile, for the previews: not one only a pick downloads, as hovering never downloads anything

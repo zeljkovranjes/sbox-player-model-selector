@@ -75,6 +75,8 @@ public sealed partial class PlayerModelSelector
 		if ( !Offers( look.Model ) )
 			return;
 
+		KeepAffordableItems( id, look, fromHost );
+
 		// A package goes on once sbox.game says it is one a body can be: no client can pick what the window leaves out. One
 		// new to the server is downloaded by everyone, so each player brings in only so many (see DownloadLimit).
 		if ( CloudModels.IsPackageIdent( look.Model ) )
@@ -86,6 +88,19 @@ public sealed partial class PlayerModelSelector
 		}
 
 		Picks[ id ] = look.Serialize();
+	}
+
+	// Workshop items are downloaded by everyone who sees them, so what a player brings in counts like a model: past their
+	// limit an item is left off, and they are told when they can try again
+	private void KeepAffordableItems( Guid id, PlayerLook look, bool fromHost )
+	{
+		foreach ( var item in look.Accessories.Where( x => x.IsWorkshop ).ToList() )
+		{
+			if ( TakeServerDownload( id, item.Item, fromHost ) )
+				_serverModels.Add( item.Item );
+			else
+				look.Accessories.Remove( item );
+		}
 	}
 
 	private async Task PutOnVettedAsync( Guid id, PlayerLook look, int count )

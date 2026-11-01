@@ -42,6 +42,7 @@ Choose a player's model - the host can put any model on any player, and Revert g
 Armature switch - the host can stop players from picking bones by hand; the bones they picked are dropped
 Model folders switch - players other than the host can only use the folder button once the host turns it on (off by default); everyone gets every mounted game's characters either way
 Body groups switch - the host can keep players' body group choices off; their models show their own until it is turned back on, which puts every choice back at once
+Items switch - the host can keep the items players wear off; they stay with their looks and show again when it is turned back on, and Workshop items also stay off while models from sbox.game do
 Mounted games - the Server page lists the games the players here have mounted, ten at a time with a search box, and the host can block any of them; whoever wears a model from a blocked game goes back to the citizen
 Saved rules - the host's choices are kept on their machine and used whenever they host
 Long lists - the Server page shows players and blocked models ten at a time, latest blocked first, with a search box once there is more than one page

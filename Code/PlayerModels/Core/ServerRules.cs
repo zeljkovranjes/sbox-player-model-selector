@@ -23,6 +23,9 @@ public sealed class ServerRules
 	/// <summary>Whether players other than the host may give body parts a bone by hand on the Armature page.</summary>
 	public bool AllowArmature { get; set; } = true;
 
+	/// <summary>Whether players other than the host may wear items (glasses, hats) on their models.</summary>
+	public bool AllowAccessories { get; set; } = true;
+
 	/// <summary>
 	/// How many sbox.game models new to the server each player other than the host may put on per
 	/// <see cref="DownloadMinutes"/>: everyone here downloads each one.

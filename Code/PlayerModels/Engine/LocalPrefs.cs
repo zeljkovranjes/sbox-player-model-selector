@@ -8,7 +8,7 @@ namespace PlayerModels.Engine;
 /// <summary>
 /// What this player keeps between sessions, on this machine: the model they wear, how they customised each model and the
 /// looks they saved, their favourites, their first-person arms, which grid headings they collapsed, the mounted games'
-/// folders they added and, as a host, which models their server allows.
+/// folders they added, how they rated what others shared and, as a host, which models their server allows.
 /// </summary>
 internal static class LocalPrefs
 {
@@ -21,6 +21,7 @@ internal static class LocalPrefs
 	private const string ModelArmsCookie = "player_model_selector.model_arms";
 	private const string ServerRulesCookie = "player_model_selector.server_rules";
 	private const string ModelFoldersCookie = "player_model_selector.model_folders";
+	private const string VotesCookie = "player_model_selector.votes";
 
 	/// <summary>The model worn last, empty for the default citizen.</summary>
 	internal static string Pick
@@ -123,6 +124,24 @@ internal static class LocalPrefs
 			all[ model ?? "" ] = saved;
 
 		Game.Cookies.Set( SavedLooksCookie, all );
+	}
+
+	/// <summary>How this player rated something shared (by table and record id, see SharedLibrary): 1 up, -1 down, 0 not at all.</summary>
+	internal static int VoteOn( string key )
+	{
+		return Game.Cookies.Get( VotesCookie, new Dictionary<string, int>() ).GetValueOrDefault( key );
+	}
+
+	/// <summary>Remembers this player's rating of something shared (see <see cref="VoteOn"/>); 0 forgets it.</summary>
+	internal static void SetVote( string key, int vote )
+	{
+		var votes = Game.Cookies.Get( VotesCookie, new Dictionary<string, int>() );
+		if ( vote == 0 )
+			votes.Remove( key );
+		else
+			votes[ key ] = vote;
+
+		Game.Cookies.Set( VotesCookie, votes );
 	}
 
 	/// <summary>The starred models, in the order they were starred.</summary>

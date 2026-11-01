@@ -1,0 +1,252 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using PlayerModels.Core;
+using Sandbox;
+using Sandbox.Services;
+
+namespace PlayerModels.Engine;
+
+/// <summary>
+/// Things of one kind players share for models (armatures, looks), kept in the addon's cloud tables
+/// (<see cref="Database"/>): a public record for each thing published (a <see cref="SharePost"/>: the item with the name and
+/// description its author gave it), grouped by model, and one public vote per player per item, grouped as an up or a
+/// down vote on it so the votes are counted without being read. What is published stays as it was published: changing
+/// it means publishing it again, as a new one, and taking the old one down. Each share is also kept by its author
+/// (<see cref="AuthorIndex"/>). Calls fail with the backend's own exception; <see cref="Shared.Why"/> words it.
+/// </summary>
+public sealed class SharedLibrary<T>
+{
+	/// <summary>The most one player has published for one model at a time.</summary>
+	internal const int MaxPerPlayer = 5;
+
+	// The most listed for one model: the votes on all of them are counted in one ask, two groups each (100 at most)
+	private const int MaxListed = 50;
+
+	// The most groups counted in one ask
+	private const int MaxCounted = 100;
+
+	// How long a model's count of shared items is trusted before it is asked for again
+	private const float CountLife = 300f;
+
+	private readonly string _kind;
+	private readonly string _table;
+	private readonly string _votes;
+	private readonly Func<string, T> _parse;
+	private readonly Func<T, string> _serialize;
+	private readonly Func<T, string> _modelOf;
+	private readonly Func<T, T, bool> _same;
+	private readonly Dictionary<string, (long Count, RealTimeSince Age)> _counts = new();
+
+	/// <summary>
+	/// The items of <paramref name="kind"/> ("armature", "look") kept in table <paramref name="table"/> (their votes in
+	/// table <paramref name="votes"/>), read by <paramref name="parse"/> (null for anything that isn't one), written by
+	/// <paramref name="serialize"/>, made for the model <paramref name="modelOf"/> says, and alike when
+	/// <paramref name="same"/> says.
+	/// </summary>
+	internal SharedLibrary( string kind, string table, string votes, Func<string, T> parse, Func<T, string> serialize, Func<T, string> modelOf,
+		Func<T, T, bool> same )
+	{
+		_kind = kind;
+		_table = table;
+		_votes = votes;
+		_parse = parse;
+		_serialize = serialize;
+		_modelOf = modelOf;
+		_same = same;
+	}
+
+	/// <summary>What one item is called ("armature", "look").</summary>
+	internal string Kind => _kind;
+
+	/// <summary>
+	/// An item shared for a model: its record, who shared it, the name and description they gave it, and how it was rated.
+	/// </summary>
+	internal sealed record Entry( long Id, long Author, T Item, string Name, string Description, DateTimeOffset Changed, long Up, long Down )
+	{
+		/// <summary>Up votes less down votes.</summary>
+		internal long Score => Up - Down;
+
+		/// <summary>Whether this player shared it.</summary>
+		internal bool IsMine => Author == Game.SteamId.Value;
+	}
+
+	/// <summary>An item read from text, or null when the text isn't one.</summary>
+	internal T Parse( string text ) => text is null ? default : _parse( text );
+
+	/// <summary>The item as text, as it is stored and put in codes.</summary>
+	internal string Serialize( T item ) => _serialize( item );
+
+	/// <summary>The model the item was made for.</summary>
+	internal string ModelOf( T item ) => _modelOf( item );
+
+	/// <summary>Whether two items are alike: the same one is never shared twice.</summary>
+	internal bool Same( T a, T b ) => a is not null && b is not null && _same( a, b );
+
+	/// <summary>
+	/// The items shared for <paramref name="model"/>, the best rated first, then the newest. One shared twice (by two
+	/// players at once) is listed once, the better rated or else the first shared, except that this player's own always
+	/// is, and no player is listed more often than they may publish (only the client checks that when publishing).
+	/// </summary>
+	internal async Task<List<Entry>> ListAsync( string model )
+	{
+		var page = await Database.GetTable( _table ).List( GroupOf( model ), 0, MaxListed );
+		var shared = page.Records
+			.Select( x => (Record: x, Post: SharePost.Parse( x.Value )) )
+			.Select( x => (x.Record, x.Post, Item: x.Post is null ? default : Parse( x.Post.Item )) )
+			.Where( x => x.Item is not null && _modelOf( x.Item ) == model )
+			.ToList();
+
+		_counts[ model ] = (shared.Count, 0f);
+		if ( shared.Count == 0 )
+			return new List<Entry>();
+
+		var votes = await Database.GetTable( _votes ).GetPublicGroupInfo(
+			shared.SelectMany( x => new[] { UpGroup( x.Record.Id ), DownGroup( x.Record.Id ) } ).ToArray() );
+		long CountOf( string group ) => votes.TryGetValue( group, out var info ) ? info.Count : 0;
+
+		var entries = shared
+			.Select( x => new Entry( x.Record.Id, x.Record.OwnerSteamId, x.Item, x.Post.Name, x.Post.Description, x.Record.CreatedAt,
+				CountOf( UpGroup( x.Record.Id ) ), CountOf( DownGroup( x.Record.Id ) ) ) )
+			.OrderByDescending( x => x.Score )
+			.ThenBy( x => x.Changed );
+
+		var listed = new List<Entry>();
+		foreach ( var entry in entries )
+		{
+			if ( listed.Count( x => x.Author == entry.Author ) >= MaxPerPlayer )
+				continue;
+
+			if ( entry.IsMine || !listed.Any( x => Same( x.Item, entry.Item ) ) )
+				listed.Add( entry );
+		}
+
+		return listed.OrderByDescending( x => x.Score ).ThenByDescending( x => x.Changed ).ToList();
+	}
+
+	/// <summary>
+	/// Publishes <paramref name="item"/> for its model under <paramref name="name"/> with <paramref name="description"/>
+	/// (both tidied, see <see cref="SharePost.Tidy"/>). When the same is shared already, by anyone, that is returned and
+	/// nothing is published. The model's items are listed afresh for it, so one shared since the page listed them counts
+	/// too. Fails on a duplicate key only if a random id comes up twice.
+	/// </summary>
+	internal async Task<Entry> ShareAsync( T item, string name, string description )
+	{
+		var model = _modelOf( item );
+		if ( (await ListAsync( model )).FirstOrDefault( x => Same( x.Item, item ) ) is { } same )
+			return same;
+
+		var post = new SharePost
+		{
+			Kind = _kind,
+			Model = model,
+			Name = SharePost.Tidy( name, SharePost.MaxNameLength ),
+			Description = SharePost.Tidy( description, SharePost.MaxDescriptionLength ),
+			Item = _serialize( item ),
+		};
+
+		var record = await Database.GetTable( _table ).Create( NewKey(), post.Serialize(), GroupOf( model ), isPublic: true );
+		_counts.Remove( model );
+
+		// The share stands without it; only the author's list of shares misses it
+		try
+		{
+			await AuthorIndex.RecordAsync( post, record.Id );
+		}
+		catch ( Exception e )
+		{
+			Log.Warning( $"Player Model Selector: couldn't add the {_kind} shared for '{model}' to your shares: {e.Message}" );
+		}
+
+		return null;
+	}
+
+	/// <summary>Takes down what this player published as record <paramref name="id"/>. False when it isn't theirs.</summary>
+	internal async Task<bool> UnshareAsync( long id, string model )
+	{
+		var record = await Database.GetTable( _table ).Get( id );
+		if ( record is null || record.OwnerSteamId != Game.SteamId.Value )
+			return false;
+
+		await record.Delete();
+		_counts.Remove( model );
+
+		try
+		{
+			await AuthorIndex.ForgetAsync( _kind, id );
+		}
+		catch ( Exception e )
+		{
+			Log.Warning( $"Player Model Selector: couldn't take the {_kind} for '{model}' off your shares: {e.Message}" );
+		}
+
+		return true;
+	}
+
+	/// <summary>
+	/// Rates the item with record id <paramref name="id"/>: 1 up, -1 down, 0 takes the rating back. A player's vote is
+	/// one record of theirs, in the up or the down group, so changing it moves the record.
+	/// </summary>
+	internal async Task VoteAsync( long id, int vote )
+	{
+		var table = Database.GetTable( _votes );
+		foreach ( var group in new[] { UpGroup( id ), DownGroup( id ) } )
+		{
+			foreach ( var record in (await table.ListOwned( group, 0, 1 )).Records )
+				await record.Delete();
+		}
+
+		if ( vote != 0 )
+			await table.Create( $"{id}:{Game.SteamId.Value}", "1", vote > 0 ? UpGroup( id ) : DownGroup( id ), isPublic: true );
+
+		LocalPrefs.SetVote( VoteKey( id ), vote );
+	}
+
+	/// <summary>How this player rated the item with record id <paramref name="id"/>: 1 up, -1 down, 0 not at all.</summary>
+	internal int VoteOn( long id ) => LocalPrefs.VoteOn( VoteKey( id ) );
+
+	/// <summary>
+	/// Asks how many items are shared for the <paramref name="models"/> not known yet, or known for over five minutes, in
+	/// one go (see <see cref="CountOf"/>). Each is marked asked at once, so a page drawn again meanwhile doesn't ask
+	/// again. False when nothing needed asking.
+	/// </summary>
+	internal async Task<bool> CountAsync( IEnumerable<string> models )
+	{
+		var stale = models
+			.Where( x => !string.IsNullOrEmpty( x ) && (!_counts.TryGetValue( x, out var known ) || known.Age > CountLife) )
+			.Distinct()
+			.Take( MaxCounted )
+			.ToList();
+
+		if ( stale.Count == 0 )
+			return false;
+
+		foreach ( var model in stale )
+			_counts[ model ] = (CountOf( model ), 0f);
+
+		var info = await Database.GetTable( _table ).GetPublicGroupInfo( stale.Select( GroupOf ).ToArray() );
+		foreach ( var model in stale )
+			_counts[ model ] = (info.TryGetValue( GroupOf( model ), out var group ) ? group.Count : 0, 0f);
+
+		return true;
+	}
+
+	/// <summary>How many items are shared for <paramref name="model"/>, as last asked; 0 before that.</summary>
+	internal long CountOf( string model )
+	{
+		return model is not null && _counts.TryGetValue( model, out var known ) ? known.Count : 0;
+	}
+
+	// A model's group: the same for everyone, within the 128 characters a group takes
+	private static string GroupOf( string model ) => model.Md5();
+
+	// Keys are unique across a table, whoever owns the record, and a player publishes many
+	private static string NewKey() => $"{Game.SteamId.Value}:{Guid.NewGuid():N}";
+
+	private static string UpGroup( long id ) => $"up:{id}";
+	private static string DownGroup( long id ) => $"down:{id}";
+
+	// Votes are remembered by table, as two tables can give records the same id
+	private string VoteKey( long id ) => $"{_table}:{id}";
+}

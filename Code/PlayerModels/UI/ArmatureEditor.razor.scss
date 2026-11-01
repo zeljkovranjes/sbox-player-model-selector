@@ -1,11 +1,14 @@
 @import "SelectorTheme.scss";
 
-// The Armature page: body parts on the left, the model's bones on the right, each list scrolling on its own
+// The Armature page: body parts on the left, the model's bones on the right, each list scrolling on its own and both
+// stretching to fill the pane, with sharing under them
 ArmatureEditor
 {
 	flex-direction: column;
 	flex-shrink: 0;
-	padding: 4px 14px 4px 6px;
+	flex-grow: 1;
+	// its pane's 4px of padding included: that pane has none, so the page fills it exactly
+	padding: 8px 18px 8px 10px;
 	font-family: $body-font;
 	color: $ui-text;
 
@@ -16,10 +19,20 @@ ArmatureEditor
 		font-size: $ui-settings-font;
 	}
 
+	// the explanation, with Clear my picks and Workshop beside it; as far above the lists as sharing is below them
+	.top
+	{
+		@include ui-top-row;
+	}
+
+	// the room the top row and sharing leave, whatever it is
 	.columns
 	{
 		flex-direction: row;
-		height: 350px;
+		flex-grow: 1;
+		flex-shrink: 1;
+		flex-basis: 0px;
+		min-height: 0px;
 		gap: 8px;
 	}
 
@@ -131,13 +144,5 @@ ArmatureEditor
 	{
 		@include ui-button;
 		flex-shrink: 0;
-	}
-
-	.footer
-	{
-		flex-direction: row;
-		justify-content: flex-end;
-		flex-shrink: 0;
-		margin-top: 8px;
 	}
 }

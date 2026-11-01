@@ -89,6 +89,12 @@ public sealed partial class PlayerModelSelector : Component
 	[Sync( SyncFlags.FromHost )] public bool BlockArmature { get; set; }
 
 	/// <summary>
+	/// Whether the items (glasses, hats) players other than the host wear are kept off. The host sets it on the Server
+	/// page; the items stay with their looks and show again once it is off.
+	/// </summary>
+	[Sync( SyncFlags.FromHost )] public bool BlockAccessories { get; set; }
+
+	/// <summary>
 	/// Whether the body groups players other than the host chose are kept off, showing their model's own. The host sets it
 	/// on the Server page; their choices stay with their looks and show again once it is off.
 	/// </summary>
@@ -131,12 +137,20 @@ public sealed partial class PlayerModelSelector : Component
 	}
 
 	/// <summary>
-	/// <paramref name="look"/> within what the host allows right now: without its body group choices while the host keeps
-	/// them off, unless it is the host's (<paramref name="isHost"/>).
+	/// <paramref name="look"/> within what the host allows right now: without its body group choices or items while the
+	/// host keeps them off, and without Workshop items while it keeps sbox.game downloads off, unless it is the host's
+	/// (<paramref name="isHost"/>).
 	/// </summary>
 	public PlayerLook Shown( PlayerLook look, bool isHost )
 	{
-		return isHost || !BlockBodyGroups || look is null || look.BodyGroups.Count == 0 ? look : look.WithoutBodyGroups();
+		if ( isHost || look is null )
+			return look;
+
+		var shown = BlockBodyGroups && look.BodyGroups.Count > 0 ? look.WithoutBodyGroups() : look;
+		if ( shown.Accessories.Count == 0 )
+			return shown;
+
+		return BlockAccessories ? shown.WithoutAccessories() : BlockCloudModels ? shown.WithoutWorkshopItems() : shown;
 	}
 
 	/// <summary>Whether the host chose this connection's model in place of their own pick.</summary>
@@ -216,6 +230,12 @@ public sealed partial class PlayerModelSelector : Component
 		ChangeRules( rules => rules.AllowBodyGroups = allow );
 	}
 
+	/// <summary>Shows the items players other than the host wear, or keeps them off. Host only.</summary>
+	public void SetAllowAccessories( bool allow )
+	{
+		ChangeRules( rules => rules.AllowAccessories = allow );
+	}
+
 	/// <summary>Lets players other than the host pick bones by hand, or stops them (dropping the bones they picked). Host only.</summary>
 	public void SetAllowArmature( bool allow )
 	{
@@ -271,6 +291,7 @@ public sealed partial class PlayerModelSelector : Component
 			AllowModelFolders = !BlockModelFolders,
 			AllowBodyGroups = !BlockBodyGroups,
 			AllowArmature = !BlockArmature,
+			AllowAccessories = !BlockAccessories,
 			DownloadLimit = DownloadLimit,
 			DownloadMinutes = DownloadMinutes,
 			Blocked = (BlockedModels ?? Enumerable.Empty<string>()).ToList(),
@@ -298,6 +319,7 @@ public sealed partial class PlayerModelSelector : Component
 		BlockModelFolders = !rules.AllowModelFolders;
 		BlockBodyGroups = !rules.AllowBodyGroups;
 		BlockArmature = !rules.AllowArmature;
+		BlockAccessories = !rules.AllowAccessories;
 		DownloadLimit = Math.Clamp( rules.DownloadLimit, 1, ServerRules.MaxDownloadLimit );
 		DownloadMinutes = Math.Clamp( rules.DownloadMinutes, 1, ServerRules.MaxDownloadMinutes );
 

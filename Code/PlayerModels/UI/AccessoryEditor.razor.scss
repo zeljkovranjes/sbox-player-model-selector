@@ -1,0 +1,168 @@
+@import "SelectorTheme.scss";
+@import "LookEditor.razor.scss";
+
+// The Advanced editor's items: those worn, the one being placed, and the stock items to add
+AccessoryEditor
+{
+	flex-direction: column;
+	flex-shrink: 0;
+	padding: 4px 14px 4px 6px;
+	font-family: $body-font;
+	color: $ui-text;
+
+	.note
+	{
+		padding: 10px 4px;
+		color: $ui-text-muted;
+	}
+
+	.section-header
+	{
+		@include ui-section-header;
+		margin-top: 12px;
+
+		&:first-child
+		{
+			margin-top: 2px;
+		}
+	}
+
+	.row
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		min-height: 26px;
+		gap: 8px;
+
+		&.end
+		{
+			justify-content: flex-end;
+		}
+
+		> .label
+		{
+			@include ui-label;
+			width: 130px;
+			flex-shrink: 0;
+		}
+	}
+
+	.worn, .item
+	{
+		padding: 2px 4px;
+		border-bottom: 1px solid $ui-separator;
+	}
+
+	// the item's picture beside its name
+	.thumb
+	{
+		width: 40px;
+		height: 40px;
+		flex-shrink: 0;
+		background-size: contain;
+		background-position: center;
+		background-repeat: no-repeat;
+		background-color: $ui-tile-bg;
+		border-radius: 2px;
+	}
+
+	.worn.active .worn-name
+	{
+		color: $ui-blue;
+		font-weight: 600;
+	}
+
+	.worn-name
+	{
+		flex-grow: 1;
+		font-size: $ui-settings-font;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+		overflow: hidden;
+	}
+
+	.button
+	{
+		@include ui-button;
+		flex-shrink: 0;
+
+		&.disabled
+		{
+			opacity: 0.4;
+			pointer-events: none;
+		}
+	}
+
+	.icon-button
+	{
+		flex-shrink: 0;
+		font-family: "Material Icons";
+		font-size: 16px;
+		color: $ui-text-muted;
+		cursor: pointer;
+
+		&:hover
+		{
+			color: $ui-danger;
+			sound-in: ui.hover;
+		}
+	}
+
+	// the categories down the side, scrolling past however many there are, and the items of the one picked
+	.browser
+	{
+		flex-direction: row;
+		flex-shrink: 0;
+		gap: 8px;
+	}
+
+	.rail
+	{
+		flex-direction: column;
+		flex-shrink: 0;
+		width: 104px;
+		height: 500px;
+		gap: 3px;
+		padding-right: 6px;
+		overflow-y: scroll;
+	}
+
+	.group
+	{
+		@include ui-button;
+		flex-shrink: 0;
+		justify-content: flex-start;
+
+		&.active
+		{
+			@include ui-selected;
+		}
+	}
+
+	.shelf
+	{
+		flex-direction: column;
+		flex-grow: 1;
+		flex-basis: 0px;
+		min-width: 0px;
+	}
+
+	.search
+	{
+		@include ui-text-entry;
+		flex-shrink: 0;
+		margin-bottom: 4px;
+	}
+
+	.unresponsive
+	{
+		@include ui-failure-bar;
+	}
+
+	// the item's own colours and finish, under where it sits
+	LookEditor
+	{
+		padding: 0px;
+	}
+}

@@ -44,6 +44,7 @@ public sealed class ModelBody : Component
 	private readonly CancellationTokenSource _cancel = new();
 	private TimeSince _sinceHidden;
 	private LookPainter _painter;
+	private AccessoryRack _accessories;
 
 	/// <summary>
 	/// Puts <paramref name="model"/> on <paramref name="source"/>'s body, in the scene that is active now, dressed in
@@ -96,6 +97,10 @@ public sealed class ModelBody : Component
 
 		// The body shape bends the pose itself; only the height is the renderer's
 		_renderer.GameObject.LocalScale = _transfer.Shape( look.Shape );
+
+		// Made here too, for the same reason
+		_accessories ??= new AccessoryRack();
+		_accessories.Apply( look.Accessories, GameObject, _transfer, Source.Model, _renderer.Model, FindOwnRenderers );
 	}
 
 	/// <summary>
@@ -178,6 +183,7 @@ public sealed class ModelBody : Component
 
 		_transfer.Apply( Source, _renderer );
 		_held.Place( Source, _renderer );
+		_accessories?.Place( Source, _renderer );
 	}
 
 	/// <summary>

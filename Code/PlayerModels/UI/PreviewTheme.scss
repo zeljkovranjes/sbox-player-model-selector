@@ -1,0 +1,71 @@
+@import "SelectorTheme.scss";
+
+// the player model preview and the view model preview share the pane; the one not in use is hidden
+ModelPreview, ViewModelPreview
+{
+	position: relative;
+	width: 100%;
+	height: 100%;
+	flex-grow: 1;
+	background-color: $ui-tile-bg;
+	cursor: grab;
+
+	&.hidden
+	{
+		display: none;
+	}
+
+	> .render
+	{
+		position: absolute;
+		left: 0px;
+		top: 0px;
+		width: 100%;
+		height: 100%;
+	}
+
+	> .loading
+	{
+		position: absolute;
+		left: 0px;
+		top: 0px;
+		right: 0px;
+		bottom: 0px;
+		justify-content: center;
+		align-items: center;
+		background-color: rgba( 0, 0, 0, 0.35 );
+		color: white;
+		font-size: 13px;
+		font-weight: 600;
+		opacity: 0;
+		pointer-events: none;
+
+		&.visible
+		{
+			opacity: 1;
+		}
+	}
+
+	> .message
+	{
+		position: absolute;
+		left: 6px;
+		right: 6px;
+		bottom: 6px;
+		padding: 6px 8px;
+		justify-content: center;
+		background-color: rgba( 0, 0, 0, 0.6 );
+		border-radius: 2px;
+		color: white;
+		font-size: 12px;
+		font-weight: 600;
+		text-align: center;
+		opacity: 0;
+		pointer-events: none;
+
+		&.visible
+		{
+			opacity: 1;
+		}
+	}
+}

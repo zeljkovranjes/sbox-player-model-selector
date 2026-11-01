@@ -161,6 +161,47 @@ $favorite-heart: #ff4d6d;
 }
 
 // a text field, like Sandbox's search boxes
+// a page's top row: what the page is for, and its buttons beside it (or the arrow back out of a Workshop before it)
+@mixin ui-top-row
+{
+	flex-direction: row;
+	align-items: center;
+	flex-shrink: 0;
+	gap: 8px;
+	margin-bottom: 8px;
+
+	> .intro
+	{
+		flex-grow: 1;
+		padding: 0 4px;
+		color: $ui-text-muted;
+		font-size: $ui-settings-font;
+	}
+
+	// the same arrow as out of a group of models
+	> .back
+	{
+		@include ui-button;
+		flex-shrink: 0;
+		font-family: "Material Icons";
+		font-size: 16px;
+	}
+}
+
+// a bar saying Facepunch's service isn't answering
+@mixin ui-failure-bar
+{
+	flex-shrink: 0;
+	justify-content: center;
+	margin-top: 4px;
+	padding: 5px 8px;
+	font-size: $ui-settings-font;
+	font-weight: 600;
+	color: white;
+	background-color: $ui-danger;
+	border-radius: 2px;
+}
+
 @mixin ui-text-entry
 {
 	height: 24px;

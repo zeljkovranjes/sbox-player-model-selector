@@ -116,6 +116,7 @@
 
     <div class="section-header">Body Groups</div>
     <ToggleRow Label="Players can change body groups" Value=@( !selector.BlockBodyGroups ) OnChanged=@AllowBodyGroups></ToggleRow>
+    <ToggleRow Label="Players can wear items" Value=@( !selector.BlockAccessories ) OnChanged=@AllowAccessories></ToggleRow>
     <div class="note">Turned off, players' models show their own body groups; what they chose comes back when you turn it on. Nobody can hide the body itself, either way. You always can change yours.</div>
 
     <div class="section-header">Armature</div>
@@ -253,7 +254,7 @@
     static List<Connection> Others() => Connection.All.Where( x => x != Connection.Local ).ToList();
 
     protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Selector?.BlockCloudModels, Selector?.BlockMountedModels, Selector?.BlockModelFolders,
-            Selector?.BlockArmature, Selector?.BlockBodyGroups ),
+            Selector?.BlockArmature, Selector?.BlockBodyGroups, Selector?.BlockAccessories ),
         string.Join( ";", Selector?.BlockedModels ?? Enumerable.Empty<string>() ),
         string.Join( ";", Others().Select( x => $"{x.Id}={Selector?.PickOf( x )}{Selector?.IsPickedByHost( x )}" ) ),
         string.Join( ";", Selector?.PlayersMounts().Select( x => $"{x.Ident}={x.Players}" ) ?? Enumerable.Empty<string>() ),
@@ -302,6 +303,11 @@
     {
         Selector?.SetAllowModelFolders( allow );
         StateHasChanged();
+    }
+
+    void AllowAccessories( bool allow )
+    {
+        Selector?.SetAllowAccessories( allow );
     }
 
     void AllowBodyGroups( bool allow )

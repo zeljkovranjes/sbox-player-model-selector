@@ -25,9 +25,24 @@ Saved looks - save what you made under a name and put it on again later, per mod
 Part colors - tint single parts of a model (jacket, hair, eyes) as well as the whole model
 Body Shape - height, head, body, arm, hand, leg and foot sliders that work on any model, morphs or not
 Body groups - choose heads, capes and accessories by name, or hide an accessory (a hat, a weapon, a pet); hovering a choice points it out on the preview; the body itself (head, chest, legs, arms, hands, feet) can never be hidden, so nobody turns invisible
+Body group colors - each body group's color is right under its choices, for the choice picked
 Apply and Revert - changes show in the preview first and reach everyone when you press Apply
+Advanced editor - the Advanced editor button on the Customize page opens a window over the whole screen with your model in the middle, the options down the right, and Share mine, Copy code, Revert, Apply and Close along the bottom; your character stands still while it is open
+Camera - in the Advanced editor drag spins the model, right-drag slides the view and scroll moves straight in and out, so any part of the model can be looked at up close; Free camera flies it (drag to look, WASD to move, Q and E down and up, Shift for speed) and Reset view comes back
+Styles - save what you made as a style in the Advanced editor, Switch to one to edit it, and Save changes to keep them; styles are yours alone, and editing one never changes what you published from it
+Material finishes - give the whole model or single parts one of 8 stock finishes (gold, silver, chrome, copper, bronze, gloss, clay, matte black), in the Advanced editor; they take colors, and they work on mounted models, which colors of single parts don't
+Hide parts - hide a single part of a model from the Finish list in the Advanced editor, such as a dress that isn't a body group; skin and body parts can't be hidden, and neither can the last part showing, on anyone's screen
+Accessories - wear up to 8 cosmetics on any model, in the Advanced editor: every stock item and everything on the Workshop (1,500+), picked from a list of categories down the side, with pictures and a search; glasses, hats, hair and the like are pinned to a joint and can be moved, turned and sized, clothes bend with the body, and each has its own colors, finish, body groups and morphs; an item stays under half the model's height and within a quarter of it from its joint, on everyone's screen, and other players download the Workshop items you wear, which count towards your download limit on the server
+Shared looks - Share mine, under the Customize options, publishes your look for a model (skin, colors, finishes, body groups, morphs, body shape, items) where every player of the selector can find it; the Workshop button beside Reset everything opens the looks players shared, rated and a page at a time like shared armatures, where Use puts one on the preview and Apply wears it; Copy code puts it on the clipboard as one line of text
+Share details - sharing a look or an armature asks what to call it (up to 32 characters) and for a description (optional, up to 128); the Workshop lists each by its name with its author's Steam avatar and name as they are now, and the info button beside one shows its description, its author and everything else they shared
+Publishing - what you publish stays as it was published: to share changes, publish again as a new one (5 at once per model); your own can be taken down from the info button
+Workshop status - a red bar reads "Facepunch Workshop is currently unresponsive" while Facepunch's service isn't answering, and goes away by itself when it is back (asked every 30 seconds)
 # Armature
 Armature - give a bone to each body part the automatic setup couldn't find, with the skeleton drawn on the preview
+Shared armatures - Share mine, under the Armature page's lists, publishes your armature for a model where every player of the selector can find it; the Workshop button beside Clear my picks (with how many are shared for the model) opens the armatures players shared, a page at a time sized to fit, where Use takes the parts one gives your copy of the model onto the preview and Apply wears them; picks already shared, by you or anyone, aren't shared again, and copies shared at the same moment are listed once
+Ratings - thumbs up or down on each shared armature, the best rated listed first; clicking your vote again takes it back
+Armature codes - Copy code, beside Share mine, puts your armature on the clipboard as one line of text
+Shared counts - a model's tile shows how many armatures and looks are shared for it, a figure and a number in its top left corner
 Set up armature - a model the automatic check refuses opens on the Armature page and stays there while you give its missing parts bones, saying what it still needs, until Apply puts it on
 Locked presets - parts the automatic setup found can't be changed; only missing parts take a bone, and picks are saved for the model
 # View Model
@@ -42,6 +57,7 @@ Choose a player's model - the host can put any model on any player, and Revert g
 Armature switch - the host can stop players from picking bones by hand; the bones they picked are dropped
 Model folders switch - players other than the host can only use the folder button once the host turns it on (off by default); everyone gets every mounted game's characters either way
 Body groups switch - the host can keep players' body group choices off; their models show their own until it is turned back on, which puts every choice back at once
+Items switch - the host can keep the items players wear off; they stay with their looks and show again when it is turned back on, and Workshop items also stay off while models from sbox.game do
 Mounted games - the Server page lists the games the players here have mounted, ten at a time with a search box, and the host can block any of them; whoever wears a model from a blocked game goes back to the citizen
 Saved rules - the host's choices are kept on their machine and used whenever they host
 Long lists - the Server page shows players and blocked models ten at a time, latest blocked first, with a search box once there is more than one page

@@ -1,0 +1,240 @@
+@import "SelectorTheme.scss";
+
+// Sharing on the Armature and Customize pages: under their options, the player's own (Share mine, Copy code); in their
+// Workshops, a pasted code and what others shared for the model, best rated first. By class, as a generic
+// component's element name isn't its plain type name
+.sharing
+{
+	flex-direction: column;
+	flex-shrink: 0;
+	gap: 4px;
+	font-family: $body-font;
+	color: $ui-text;
+
+	// under the lists, as far below them as the page's top row is above
+	&.mine
+	{
+		margin-top: 8px;
+	}
+
+	// the Workshop takes the rest of the page; its list the rest of that, with the pager under it
+	&.workshop
+	{
+		flex-grow: 1;
+		min-height: 0px;
+	}
+
+	.list
+	{
+		flex-direction: column;
+		flex-grow: 1;
+		flex-shrink: 1;
+		flex-basis: 0px;
+		min-height: 0px;
+		overflow: hidden;
+	}
+
+	.top
+	{
+		@include ui-top-row;
+
+		// a share's name, in its details
+		> .title
+		{
+			flex-grow: 1;
+			padding: 0 4px;
+			font-size: 14px;
+			font-weight: 600;
+			white-space: nowrap;
+			text-overflow: ellipsis;
+			overflow: hidden;
+		}
+	}
+
+	// right under the Workshop's top row, which keeps the page's 8px from it
+	.section-header
+	{
+		@include ui-section-header;
+		margin-top: 0px;
+	}
+
+	.row
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		min-height: 26px;
+		gap: 8px;
+	}
+
+	.button
+	{
+		@include ui-button;
+		flex-shrink: 0;
+	}
+
+	// pasting a code is hidden for now, working as before underneath: remove this to offer it again
+	.code-row
+	{
+		display: none;
+	}
+
+	.code-entry
+	{
+		@include ui-text-entry;
+		flex-grow: 1;
+	}
+
+	// what the service answering or not means for everything above it, in a bar along the bottom
+	.unresponsive
+	{
+		@include ui-failure-bar;
+	}
+
+	.status, .note
+	{
+		padding: 4px;
+		font-size: $ui-settings-font;
+		color: $ui-text-muted;
+	}
+
+	.status
+	{
+		color: $ui-blue;
+	}
+
+	// RowHeight in SharingPanel.razor: the list counts how many fit by it
+	.shared
+	{
+		height: 34px;
+		flex-shrink: 0;
+		padding: 2px 4px;
+		border-bottom: 1px solid $ui-separator;
+	}
+
+	.shared-text
+	{
+		flex-direction: column;
+		flex-grow: 1;
+		overflow: hidden;
+	}
+
+	// the author's Steam avatar, as Steam has it now
+	.avatar
+	{
+		width: 24px;
+		height: 24px;
+		flex-shrink: 0;
+		border-radius: 2px;
+	}
+
+	.shared-name
+	{
+		font-size: $ui-settings-font;
+		font-weight: 600;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+		overflow: hidden;
+	}
+
+	// who shared it, then what it changes, apart without a mark between them
+	.shared-detail
+	{
+		flex-direction: row;
+		gap: 10px;
+		font-size: 11px;
+		color: $ui-text-muted;
+		white-space: nowrap;
+		overflow: hidden;
+	}
+
+	.shared-author
+	{
+		flex-shrink: 0;
+		color: $ui-text;
+	}
+
+	.shared-changes
+	{
+		text-overflow: ellipsis;
+		overflow: hidden;
+	}
+
+	// when it was shared, a column of its own beside the buttons
+	.shared-age
+	{
+		flex-shrink: 0;
+		min-width: 76px;
+		justify-content: flex-end;
+		font-size: 11px;
+		color: $ui-text-muted;
+		white-space: nowrap;
+	}
+
+	// the author, rating and Use at the top of a share's details
+	.author
+	{
+		padding: 0 4px 6px 4px;
+
+		.avatar
+		{
+			width: 32px;
+			height: 32px;
+		}
+	}
+
+	.description
+	{
+		flex-shrink: 0;
+		padding: 6px 4px 10px 4px;
+		font-size: $ui-settings-font;
+
+		&.empty
+		{
+			color: $ui-text-muted;
+		}
+	}
+
+	.vote, .info
+	{
+		width: 20px;
+		height: 24px;
+		flex-shrink: 0;
+		justify-content: center;
+		align-items: center;
+		font-family: "Material Icons";
+		font-size: 16px;
+		color: $ui-text-muted;
+		cursor: pointer;
+
+		&:hover
+		{
+			color: $ui-text;
+			sound-in: ui.hover;
+		}
+
+		&.up
+		{
+			color: $ui-blue;
+		}
+
+		&.down
+		{
+			color: $ui-danger;
+		}
+
+		&.disabled
+		{
+			opacity: 0.35;
+			pointer-events: none;
+		}
+	}
+
+	.votes
+	{
+		min-width: 14px;
+		margin-left: -6px;
+		font-size: 11px;
+		color: $ui-text-muted;
+	}
+}

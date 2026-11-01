@@ -1,0 +1,172 @@
+@using System
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Core
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    <ModelPreview @ref="Stage" class="stage" />
+
+    <div class="heading">
+        <div class="title">Advanced Editor</div>
+        <div class="subtitle">@Hint</div>
+    </div>
+
+    <div class="view-tools">
+        <div class="tool @( _freeCamera ? "active" : "" )" @onclick=@ToggleFreeCamera>Free camera</div>
+        <div class="tool" @onclick=@(() => Stage?.ResetView())>Reset view</div>
+    </div>
+
+    <div class="side">
+        <div class="tabs">
+            <div class="tab @( _items ? "" : "active" )" @onclick=@(() => ShowItems( false ))>Look</div>
+            <div class="tab @( _items ? "active" : "" )" @onclick=@(() => ShowItems( true ))>Accessories</div>
+        </div>
+        <UISettingsPane class="options" Title=@( _items ? "Accessories" : "Customize" ) Revision=@HashCode.Combine( _items, _look, _model )>
+            <Body>
+                <SlowScroll><Content>
+                    @if ( _items )
+                    {
+                        <AccessoryEditor Body=@_model Look=@_look Changed=@Changed Locked=@AccessoriesLocked></AccessoryEditor>
+                    }
+                    else
+                    {
+                        <LookEditor Advanced=@true Model=@_model Look=@_look Changed=@Changed Pointed=@Point BodyGroupsLocked=@BodyGroupsLocked></LookEditor>
+                    }
+                </Content></SlowScroll>
+            </Body>
+        </UISettingsPane>
+    </div>
+
+    <div class="bar">
+        <SharingPanel T="PlayerLook" Library=@Shared.Looks Noun="look" ModelId=@_look?.Model Current=@CurrentLook
+                      Describe=@LookEditor.DescribeLook Workshop=@false></SharingPanel>
+        <div class="spacer"></div>
+        <div class="action @( _dirty ? "" : "disabled" )" @onclick=@(() => Revert?.Invoke())>Revert</div>
+        <div class="action apply @( _dirty ? "" : "disabled" )" @onclick=@(() => Apply?.Invoke())>Apply</div>
+        <div class="action" @onclick=@Close>Close</div>
+    </div>
+</root>
+
+@code
+{
+    /// <summary>The look being edited now: the page's, which it can replace (Revert).</summary>
+    public Func<PlayerLook> LookNow { get; init; }
+
+    /// <summary>That look within what the host allows, for the preview.</summary>
+    public Func<PlayerLook> ShownNow { get; init; }
+
+    /// <summary>The model being customised, loaded, once it is.</summary>
+    public Func<Model> ModelNow { get; init; }
+
+    /// <summary>Whether there are changes not applied yet.</summary>
+    public Func<bool> DirtyNow { get; init; }
+
+    /// <summary>Called after every change to the look.</summary>
+    public Action Changed { get; init; }
+
+    /// <summary>Wears the look.</summary>
+    public Action Apply { get; init; }
+
+    /// <summary>Goes back to what is worn.</summary>
+    public Action Revert { get; init; }
+
+    /// <summary>Whether the host keeps this player's body group choices off.</summary>
+    public bool BodyGroupsLocked { get; init; }
+
+    /// <summary>Whether the host keeps this player's items off.</summary>
+    public bool AccessoriesLocked { get; init; }
+
+    ModelPreview Stage { get; set; }
+
+    PlayerLook _look;
+    Model _model;
+    bool _dirty;
+    bool _items;
+    PartHighlight? _pointed;
+    MenuHold _hold;
+    bool _freeCamera;
+
+    string Hint => _freeCamera
+        ? "Drag to look, right-drag to slide, scroll or WASD to fly, Q and E to go down and up, Shift for speed"
+        : "Drag to spin, right-drag to slide, scroll to move in and out";
+
+    // The menu this window lives in draws under the HUD's health (1050): while it is open it goes over that
+    const int AboveHud = 1100;
+    Panel _menu;
+    InputLock _inputLock;
+
+    PlayerLook CurrentLook => _look is { IsCustomised: true } ? _look.Customisation() : null;
+
+    protected override int BuildHash() => HashCode.Combine( _look, _look?.Serialize(), _model, _dirty, _items, _freeCamera );
+
+    protected override void OnAfterTreeRender( bool firstTime )
+    {
+        base.OnAfterTreeRender( firstTime );
+
+        if ( !firstTime )
+            return;
+
+        _hold = FindPopupPanel()?.AddChild<MenuHold>();
+        _menu = Game.ActiveScene?.Get<SpawnMenuHost>()?.Panel;
+        if ( _menu is not null )
+            _menu.Style.ZIndex = AboveHud;
+
+        // The keys are for this window while it is up: the player stays where they are
+        _inputLock = Game.ActiveScene?.GetSystem<InputLock>();
+        if ( _inputLock is not null )
+            _inputLock.IsHeld = true;
+    }
+
+    public override void Tick()
+    {
+        base.Tick();
+
+        _look = LookNow?.Invoke();
+        _model = ModelNow?.Invoke();
+        _dirty = DirtyNow?.Invoke() ?? false;
+
+        if ( Stage is null || _look is null )
+            return;
+
+        Stage.FillsWindow = true;
+        Stage.FreeCamera = _freeCamera;
+        Stage.Look = ShownNow?.Invoke() ?? _look;
+        Stage.Highlight = _items ? null : _pointed;
+        _ = Stage.ShowAsync( _look.Model );
+    }
+
+    void ToggleFreeCamera()
+    {
+        _freeCamera = !_freeCamera;
+        StateHasChanged();
+    }
+
+    void ShowItems( bool items )
+    {
+        _items = items;
+        StateHasChanged();
+    }
+
+    void Point( PartHighlight? part ) => _pointed = part;
+
+    /// <summary>Closes the window. Changes not applied stay on the page's preview, as they were made there.</summary>
+    public void Close()
+    {
+        Delete();
+    }
+
+    public override void OnDeleted()
+    {
+        _hold?.Delete();
+        if ( _menu.IsValid() )
+            _menu.Style.ZIndex = null;
+
+        if ( _inputLock is not null )
+            _inputLock.IsHeld = false;
+
+        base.OnDeleted();
+    }
+}

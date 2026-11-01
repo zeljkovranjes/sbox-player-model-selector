@@ -9,21 +9,11 @@ namespace PlayerModels.Engine;
 
 /// <summary>
 /// Puts what a look says about the surface of a model on a renderer: body group choices, morph weights, the skin, a
-/// tint over the whole model and colours of single parts. One per renderer; whatever a new look no longer lists goes
-/// back to the model's default. The body shape isn't here: it bends the pose, which the pose transfer does.
+/// tint over the whole model, and colours and finishes of single parts. One per renderer; whatever a new look no longer
+/// lists goes back to the model's default. The body shape isn't here: it bends the pose, which the pose transfer does.
 /// </summary>
 internal sealed class LookPainter
 {
-	// Words of body group names that are the body itself, not something worn on it
-	private static readonly HashSet<string> BodyWords = new( StringComparer.OrdinalIgnoreCase )
-	{
-		"head", "chest", "torso", "body", "leg", "legs", "arm", "arms", "hand", "hands", "foot", "feet", "default", "base",
-		"skin",
-	};
-
-	// What splits a group name into words: "weapon_front", "Head01", "reload-bow-clip"
-	private static readonly Regex NameWords = new( "[^a-zA-Z]+" );
-
 	private readonly PartTints _parts = new();
 	private string _applied;
 
@@ -62,7 +52,7 @@ internal sealed class LookPainter
 			renderer.MaterialGroup = HasSkin( renderer.Model, look.Skin ) ? look.Skin : null;
 
 		renderer.Tint = string.IsNullOrEmpty( look.Tint ) ? Color.White : Color.Parse( look.Tint ) ?? Color.White;
-		_parts.Apply( renderer, look.Parts, HasSkin( renderer.Model, look.Skin ) ? look.Skin : null );
+		_parts.Apply( renderer, look.Parts, look.Finish, look.PartFinishes, HasSkin( renderer.Model, look.Skin ) ? look.Skin : null );
 
 		// A skin brings materials of its own, which may need stand-ins of their own
 		StandInMaterials.Apply( renderer );
@@ -82,7 +72,7 @@ internal sealed class LookPainter
 	/// </summary>
 	internal static bool CanHide( string group )
 	{
-		return !string.IsNullOrEmpty( group ) && !NameWords.Split( group ).Any( BodyWords.Contains );
+		return Hiding.CanHide( group );
 	}
 
 	// The choice a look's choice is shown as: one that shows something, or hides a group that may be hidden; anything

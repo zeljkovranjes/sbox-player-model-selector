@@ -1,0 +1,367 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using System.Threading.Tasks
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Core
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    @if ( Body is null || Look is null || Look.IsDefault )
+    {
+        <div class="note">Pick a model to put items on it.</div>
+    }
+    else if ( Locked )
+    {
+        <div class="note">The host keeps items off on this server. Yours come back when they turn them on.</div>
+    }
+    else
+    {
+        <div class="section-header">@( $"Worn ({Look.Accessories.Count} of {Accessory.MaxWorn})" )</div>
+        @if ( Look.Accessories.Count == 0 )
+        {
+            <div class="note">Nothing yet. Add an item below.</div>
+        }
+        @for ( var i = 0; i < Look.Accessories.Count; i++ )
+        {
+            var index = i;
+            var worn = AccessoryCatalog.Find( Look.Accessories[ index ].Item );
+            <div class="row worn @( index == _selected ? "active" : "" )">
+                <ModelIcon class="thumb" Model=@worn?.Model Icon=@worn?.Icon></ModelIcon>
+                <div class="worn-name">@( worn?.Title ?? "Unknown item" )</div>
+                <div class="button" @onclick=@(() => _ = SelectAsync( index ))>@( index == _selected ? "Done" : "Edit" )</div>
+                <div class="icon-button" @onclick=@(() => Remove( index ))>delete</div>
+            </div>
+        }
+
+        @if ( _status is not null )
+        {
+            <div class="note">@_status</div>
+        }
+
+        @if ( Selected is { } selected )
+        {
+            <div class="section-header">Position</div>
+            @if ( _item?.Follows == true )
+            {
+                <div class="note">This bends with the body. Size is how close it fits.</div>
+            }
+            else
+            {
+                <div class="row">
+                    <div class="label">Pinned to</div>
+                    <UIDropdown Items=@Joints() Value=@selected.Pin ValueChanged=@SetPin Tokenize=@false></UIDropdown>
+                </div>
+            }
+            <SliderRow Label="Forward / back" Value=@( selected.Forward / Reach ) Signed=@true OnChanged=@(( float amount ) => Move( x => x.Forward = amount * Reach ))></SliderRow>
+            <SliderRow Label="Left / right" Value=@( selected.Left / Reach ) Signed=@true OnChanged=@(( float amount ) => Move( x => x.Left = amount * Reach ))></SliderRow>
+            <SliderRow Label="Up / down" Value=@( selected.Up / Reach ) Signed=@true OnChanged=@(( float amount ) => Move( x => x.Up = amount * Reach ))></SliderRow>
+            @if ( _item?.Follows != true )
+            {
+                <SliderRow Label="Tilt" Value=@( selected.Pitch / Accessory.MaxTurn ) Signed=@true OnChanged=@(( float amount ) => Move( x => x.Pitch = amount * Accessory.MaxTurn ))></SliderRow>
+                <SliderRow Label="Turn" Value=@( selected.Yaw / Accessory.MaxTurn ) Signed=@true OnChanged=@(( float amount ) => Move( x => x.Yaw = amount * Accessory.MaxTurn ))></SliderRow>
+                <SliderRow Label="Roll" Value=@( selected.Roll / Accessory.MaxTurn ) Signed=@true OnChanged=@(( float amount ) => Move( x => x.Roll = amount * Accessory.MaxTurn ))></SliderRow>
+            }
+            <SliderRow Label="Size" Value=@SizeSlider( selected.Scale ) Signed=@true OnChanged=@(( float amount ) => Move( x => x.Scale = SizeFrom( amount ) ))></SliderRow>
+            <div class="row end">
+                <div class="button" @onclick=@(() => Reset( selected ))>Reset position</div>
+            </div>
+
+            @if ( _itemModel is not null )
+            {
+                <LookEditor Compact=@true Model=@_itemModel Look=@selected.Style Changed=@Changed></LookEditor>
+            }
+        }
+        else
+        {
+            <div class="section-header">Add an item</div>
+            <div class="browser">
+                <div class="rail">
+                    @foreach ( var group in Groups )
+                    {
+                        var name = group;
+                        <div class="group @( name == _group ? "active" : "" )" @onclick=@(() => ShowGroup( name ))>@name</div>
+                    }
+                </div>
+                <div class="shelf">
+                    @if ( _group == WorkshopGroup )
+                    {
+                        <TextEntry class="search" Placeholder="Search the Workshop" Value:bind=@_search @onsubmit=@(() => _ = SearchAsync( 0 ))></TextEntry>
+                        @if ( _searching )
+                        {
+                            <div class="note">Looking through the Workshop...</div>
+                        }
+                    }
+                    @foreach ( var item in PageOfItems )
+                    {
+                        var shown = item;
+                        <div class="row item">
+                            <ModelIcon class="thumb" Model=@shown.Model Icon=@shown.Icon></ModelIcon>
+                            <div class="worn-name">@shown.Title</div>
+                            <div class="button @( _adding || Look.Accessories.Count >= Accessory.MaxWorn ? "disabled" : "" )" @onclick=@(() => _ = AddAsync( shown ))>Add</div>
+                        </div>
+                    }
+                    <Pager Page=@_page Pages=@Pages OnPage=@ShowPage></Pager>
+                    @if ( _unresponsive )
+                    {
+                        <div class="unresponsive">Facepunch Workshop is currently unresponsive</div>
+                    }
+                </div>
+            </div>
+        }
+    }
+</root>
+
+@code
+{
+    const int ItemsPerPage = 10;
+    const string WorkshopGroup = "Workshop";
+
+    /// <summary>The model wearing the items, loaded: their size and reach are capped by its size.</summary>
+    [Parameter] public Model Body { get; set; }
+
+    /// <summary>The look being edited. Changed in place; <see cref="Changed"/> says when.</summary>
+    [Parameter] public PlayerLook Look { get; set; }
+
+    /// <summary>Called after every change to <see cref="Look"/>.</summary>
+    [Parameter] public Action Changed { get; set; }
+
+    /// <summary>Whether the host keeps this player's items off.</summary>
+    [Parameter] public bool Locked { get; set; }
+
+    List<AccessoryCatalog.Item> _items;
+    string _group = WorkshopGroup;
+    int _page;
+    bool _adding;
+    string _status;
+
+    // The Workshop's page being shown, and what it was asked for
+    AccessoryCatalog.WorkshopPage _workshop;
+    string _search = "";
+    bool _searching, _unresponsive;
+    int _searchRequest;
+
+    // The item being edited, by its place in the look, with its details and model; -1 for none
+    int _selected = -1;
+    AccessoryCatalog.Item _item;
+    Model _itemModel;
+
+    Accessory Selected => Look is not null && _selected >= 0 && _selected < Look.Accessories.Count ? Look.Accessories[ _selected ] : null;
+
+    float BodyHeight => AccessoryCatalog.HeightOf( Body );
+
+    // How far the sliders reach: never past what every client lets the item do on this model
+    float Reach => Accessory.MaxOffsetFor( BodyHeight );
+
+    float LeastSize => _item?.Follows == true ? Accessory.MinFollowScale : Accessory.MinScale;
+
+    float MostSize => _item?.Follows == true ? Accessory.MaxFollowScale : Accessory.MaxScaleFor( BodyHeight, AccessoryCatalog.SizeOf( _itemModel ) );
+
+    protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Body, Look?.Serialize(), _selected, _group, _page, _itemModel, Locked ),
+        _workshop, _searching, _unresponsive, _adding, _status );
+
+    List<AccessoryCatalog.Item> Items => _items ??= AccessoryCatalog.All();
+
+    // The Workshop first, for what's on it is most of what there is
+    IEnumerable<string> Groups => Items.Select( x => x.Group ).Distinct().OrderBy( x => x ).Prepend( WorkshopGroup );
+
+    IEnumerable<AccessoryCatalog.Item> InGroup => Items.Where( x => x.Group == _group );
+
+    int ShownTotal => _group == WorkshopGroup ? _workshop?.Total ?? 0 : InGroup.Count();
+
+    int Pages => Math.Max( 1, (ShownTotal + ItemsPerPage - 1) / ItemsPerPage );
+
+    IEnumerable<AccessoryCatalog.Item> PageOfItems => _group == WorkshopGroup
+        ? _workshop?.Items ?? Enumerable.Empty<AccessoryCatalog.Item>()
+        : InGroup.Skip( _page * ItemsPerPage ).Take( ItemsPerPage );
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+
+        if ( _group == WorkshopGroup && _workshop is null && !_searching && !_unresponsive )
+            _ = SearchAsync( 0 );
+    }
+
+    void ShowPage( int page )
+    {
+        _page = Math.Clamp( page, 0, Pages - 1 );
+        if ( _group == WorkshopGroup )
+            _ = SearchAsync( _page );
+
+        StateHasChanged();
+    }
+
+    void ShowGroup( string group )
+    {
+        _group = group;
+        _page = 0;
+        if ( _group == WorkshopGroup )
+            _ = SearchAsync( 0 );
+
+        StateHasChanged();
+    }
+
+    async Task SearchAsync( int page )
+    {
+        var request = ++_searchRequest;
+        _page = page;
+        _searching = true;
+        StateHasChanged();
+
+        try
+        {
+            var found = await AccessoryCatalog.SearchAsync( _search, page, ItemsPerPage );
+            if ( request != _searchRequest )
+                return;
+
+            _workshop = found;
+            _unresponsive = false;
+        }
+        catch ( Exception e )
+        {
+            Log.Warning( $"Player Model Selector: couldn't list the Workshop's clothes: {e.Message}" );
+            _workshop = null;
+            _unresponsive = true;
+        }
+        finally
+        {
+            if ( request == _searchRequest )
+                _searching = false;
+
+            StateHasChanged();
+        }
+    }
+
+    static List<UIDropdown.Item> Joints()
+    {
+        return Enum.GetNames<Accessory.Joint>().Select( x => new UIDropdown.Item( x switch
+        {
+            nameof( Accessory.Joint.LeftHand ) => "Left hand",
+            nameof( Accessory.Joint.RightHand ) => "Right hand",
+            _ => x,
+        }, x ) ).ToList();
+    }
+
+    async Task AddAsync( AccessoryCatalog.Item item )
+    {
+        if ( _adding || Look.Accessories.Count >= Accessory.MaxWorn )
+            return;
+
+        _adding = true;
+        _status = null;
+        StateHasChanged();
+
+        try
+        {
+            // A Workshop item is only known once it is downloaded
+            var loaded = await AccessoryCatalog.LoadAsync( item.Path );
+            var model = loaded is null ? null : await ModelLoader.LoadAsync( loaded.Model );
+            if ( model is null )
+            {
+                _status = $"{item.Title} can't be worn.";
+                return;
+            }
+
+            Look.Accessories.Add( new Accessory
+            {
+                Item = loaded.Path,
+                Pin = Accessory.StartingJoint( loaded.Group ).ToString(),
+                Scale = StartingSize( loaded, model ),
+                Style = new PlayerLook { Model = loaded.Path },
+            } );
+
+            _selected = Look.Accessories.Count - 1;
+            _item = loaded;
+            _itemModel = model;
+            Changed?.Invoke();
+        }
+        catch ( Exception e )
+        {
+            Log.Warning( $"Player Model Selector: couldn't add '{item.Path}': {e.Message}" );
+            _status = $"{item.Title} couldn't be downloaded.";
+        }
+        finally
+        {
+            _adding = false;
+            StateHasChanged();
+        }
+    }
+
+    float StartingSize( AccessoryCatalog.Item item, Model model )
+    {
+        return item.Follows ? 1f : Accessory.StartingScale( BodyHeight, AccessoryCatalog.SizeOf( model ) );
+    }
+
+    // The worn item's page, or back to the list when it is open already
+    async Task SelectAsync( int index )
+    {
+        if ( index == _selected )
+        {
+            _selected = -1;
+            _item = null;
+            _itemModel = null;
+            StateHasChanged();
+            return;
+        }
+
+        var item = await AccessoryCatalog.LoadAsync( Look.Accessories[ index ].Item );
+        var model = item is null ? null : await ModelLoader.LoadAsync( item.Model );
+        if ( model is null )
+            return;
+
+        _selected = index;
+        _item = item;
+        _itemModel = model;
+        StateHasChanged();
+    }
+
+    void Remove( int index )
+    {
+        Look.Accessories.RemoveAt( index );
+        _selected = -1;
+        _item = null;
+        _itemModel = null;
+        Changed?.Invoke();
+        StateHasChanged();
+    }
+
+    void Move( Action<Accessory> change )
+    {
+        if ( Selected is not { } selected )
+            return;
+
+        change( selected );
+        Changed?.Invoke();
+    }
+
+    void SetPin( object pin ) => Move( x => x.Pin = pin as string ?? x.Pin );
+
+    void Reset( Accessory accessory )
+    {
+        accessory.Forward = accessory.Left = accessory.Up = 0f;
+        accessory.Pitch = accessory.Yaw = accessory.Roll = 0f;
+        accessory.Scale = StartingSize( _item, _itemModel );
+        Changed?.Invoke();
+        StateHasChanged();
+    }
+
+    // The size slider runs from the smallest through the middle to the most allowed. The middle is the size the item was
+    // made, or the most when even that is too big for the model
+    float SizeSlider( float scale )
+    {
+        var middle = Math.Min( 1f, MostSize );
+        return scale >= middle
+            ? (scale - middle) / Math.Max( MostSize - middle, 0.01f )
+            : (scale - middle) / Math.Max( middle - LeastSize, 0.01f );
+    }
+
+    float SizeFrom( float slider )
+    {
+        var middle = Math.Min( 1f, MostSize );
+        return slider >= 0f ? middle + slider * (MostSize - middle) : middle + slider * (middle - LeastSize);
+    }
+}

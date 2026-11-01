@@ -45,6 +45,12 @@ internal sealed class DownloadEstimate
 		Model = null;
 	}
 
+	/// <summary>Forgets the download without timing it: one dropped before it finished says nothing of the speed.</summary>
+	internal void Cancel()
+	{
+		Model = null;
+	}
+
 	/// <summary>How far along the download probably is, 0 to 1; 0 when there is none.</summary>
 	internal float Fraction
 	{

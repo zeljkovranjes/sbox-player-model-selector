@@ -58,19 +58,20 @@
         }
         else if ( _pane == Pane.Customize && !_viewModel )
         {
-            <UISettingsPane class="models-pane" Title="Customize" Revision=@BuildHash()>
+            <UISettingsPane class="models-pane @( LookWorkshop ? "fit-pane" : "" )" Title="Customize" Revision=@BuildHash()>
                 <Body>
-                    <SlowScroll><Content>
-                        <LookEditor Model=@_wornModel Look=@_look Changed=@LookChanged Pointed=@PointAt BodyGroupsLocked=@BodyGroupsLocked></LookEditor>
+                    <SlowScroll class="@( LookWorkshop ? "fill" : "" )"><Content>
+                        <LookEditor Model=@_wornModel Look=@_look Changed=@LookChanged Pointed=@PointAt BodyGroupsLocked=@BodyGroupsLocked
+                                    Workshop=@LookWorkshop ShowWorkshop=@ShowLookWorkshop OpenAdvanced=@OpenAdvanced></LookEditor>
                     </Content></SlowScroll>
                 </Body>
             </UISettingsPane>
         }
         else if ( _pane == Pane.Armature && !_viewModel && !ArmatureLocked )
         {
-            <UISettingsPane class="models-pane" Title="Armature" Revision=@BuildHash()>
+            <UISettingsPane class="models-pane fit-pane" Title="Armature" Revision=@BuildHash()>
                 <Body>
-                    <SlowScroll><Content>
+                    <SlowScroll class="fill"><Content>
                         <ArmatureEditor Model=@_wornModel Look=@_look Changed=@LookChanged Pointed=@PointAtBone></ArmatureEditor>
                     </Content></SlowScroll>
                 </Body>
@@ -199,6 +200,14 @@
                                         {
                                             <div class="download" Tooltip="Downloads when you pick it">download</div>
                                         }
+                                        @if ( !_viewModel && tile.Model != "" && SharedCount( tile.Model ) is > 0 and var shared )
+                                        {
+                                            <div class="shared @( tile.NeedsDownload || tile.Model == _catalog.Download.Model ? "beside-download" : "" )"
+                                                 Tooltip=@SharedTooltip( tile.Model )>
+                                                <div class="shared-icon">accessibility_new</div>
+                                                <div class="shared-count">@shared</div>
+                                            </div>
+                                        }
                                     </div>
                             }
                                 @foreach ( var folder in block.Folders )
@@ -322,6 +331,44 @@
     // Whether the last page of a group sbox.game has more for is showing, so its next page is asked for
     bool _atCloudEnd;
 
+    // Counts up as the counts of what is shared for a page come in, so the tiles show them
+    int _sharedRevision;
+
+    // The Advanced editor, while it is open. It lives in the menu's modal layer to cover the screen, so the page makes it
+    AdvancedEditor _advanced;
+
+    void OpenAdvanced()
+    {
+        if ( _advanced.IsValid() || _look is null || _look.IsDefault )
+            return;
+
+        _advanced = new AdvancedEditor
+        {
+            LookNow = () => _look,
+            ShownNow = () => Selector?.Shown( _look, IsHost ) ?? _look,
+            ModelNow = () => _wornModel,
+            DirtyNow = () => _lookDirty,
+            Changed = LookChanged,
+            Apply = ApplyLook,
+            Revert = RevertLook,
+            BodyGroupsLocked = BodyGroupsLocked,
+            AccessoriesLocked = Selector?.BlockAccessories == true && !IsHost,
+        };
+
+        _advanced.Parent = SpawnMenuHost.ModalLayer ?? FindPopupPanel();
+    }
+
+    // The model whose Customize page shows its Workshop: another model's page opens on its options again
+    string _lookWorkshopFor;
+
+    bool LookWorkshop => _lookWorkshopFor is not null && _lookWorkshopFor == _look?.Model;
+
+    void ShowLookWorkshop( bool show )
+    {
+        _lookWorkshopFor = show ? _look?.Model : null;
+        StateHasChanged();
+    }
+
     // The worn model, loaded, and the look being customised for it
     string _lookModel;
     Model _wornModel;
@@ -358,6 +405,7 @@
     public override void OnDeleted()
     {
         base.OnDeleted();
+        _advanced?.Close();
 
         if ( Selector?.Catalog is { } catalog && catalog.Shown == _isShown )
             catalog.Shown = null;
@@ -423,10 +471,10 @@
 
     protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Worn, WornArms, _hovered, _checking, _refused.Count, _viewModel, _pane ),
         HashCode.Combine( Selector?.Models.Count, _catalog.Revision, _catalog.SearchFailed, _favorites.Count, _wornModel, _lookDirty, _fixable,
-            HashCode.Combine( _collection, _gridPage, _catalog.HasMore, (int)(_catalog.Download.Fraction * 100f), (int)(Selector?.DownloadWait() ?? 0) ) ),
+            HashCode.Combine( _collection, _gridPage, _sharedRevision, _catalog.HasMore, (int)(_catalog.Download.Fraction * 100f), (int)(Selector?.DownloadWait() ?? 0) ) ),
         HashCode.Combine( _server, _search, LocalPrefs.UseModelArms, Selector?.BlockCloudModels, Selector?.BlockMountedModels,
             Selector?.BlockedModels?.Count, HashCode.Combine( _choosingFor, ArmatureLocked, Selector?.IsPickedByHost( Connection.Local ) ),
-            HashCode.Combine( _folders, Selector?.BlockModelFolders, BodyGroupsLocked ) ) );
+            HashCode.Combine( _folders, Selector?.BlockModelFolders, BodyGroupsLocked, LookWorkshop ) ) );
 
     // Tells the catalog which added folders count, when that changed: they were changed, or the host's rule was
     void UseFolders( PlayerModelSelector selector )
@@ -655,7 +703,44 @@
         foreach ( var tile in grid.Blocks.SelectMany( x => x.Tiles ) )
             _shownModels.Add( tile.Model );
 
+        if ( !_viewModel )
+            _ = CountSharedAsync( _shownModels.ToList() );
+
         return grid;
+    }
+
+    // How many armatures and looks are shared for the models on the page, asked a page at a time; their tiles show it
+    // once known
+    async Task CountSharedAsync( List<string> models )
+    {
+        try
+        {
+            var armatures = await Shared.Armatures.CountAsync( models );
+            var looks = await Shared.Looks.CountAsync( models );
+            if ( !armatures && !looks )
+                return;
+
+            _sharedRevision++;
+            StateHasChanged();
+        }
+        catch ( Exception e )
+        {
+            Log.Warning( $"Player Model Selector: couldn't count what's shared for this page: {e.Message}" );
+        }
+    }
+
+    static long SharedCount( string model ) => Shared.Armatures.CountOf( model ) + Shared.Looks.CountOf( model );
+
+    // "2 armatures and 1 look shared for it"
+    static string SharedTooltip( string model )
+    {
+        static string Count( long count, string noun ) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";
+
+        var armatures = Shared.Armatures.CountOf( model );
+        var looks = Shared.Looks.CountOf( model );
+        var shared = armatures > 0 && looks > 0 ? $"{Count( armatures, "armature" )} and {Count( looks, "look" )}"
+            : armatures > 0 ? Count( armatures, "armature" ) : Count( looks, "look" );
+        return $"{shared} shared for it";
     }
 
     GridPage Paged( Collection open, List<Tile> tiles )

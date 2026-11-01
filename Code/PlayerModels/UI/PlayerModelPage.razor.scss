@@ -1,4 +1,5 @@
 @import "SelectorTheme.scss";
+@import "PreviewTheme.scss";
 
 // The Custom Player Model tab's page in Sandbox's window: view buttons, then the preview and the models. Sandbox's
 // window is sized by the page in it; this one is never more than the screen has room for: on a small screen the models
@@ -306,6 +307,20 @@ PlayerModelPage
 		width: 100%;
 	}
 
+	// a page that fits its pane (the Armature page, a Workshop): exactly as tall as it, lists and pages sized to fit in it
+	SlowScroll.fill
+	{
+		height: 100%;
+	}
+
+	// a page that fits never scrolls (everything on it fits, see SlowScroll.fill); the editor keeps the padding itself,
+	// as 100% would otherwise take this in and overflow by it
+	.models-pane.fit-pane .settings-body
+	{
+		padding: 0px;
+		overflow: hidden;
+	}
+
 	// while the pane scrolls, the grid and what lines up with it clear the scrollbar (8px, drawn over the pane's right
 	// edge and padding) by as much as they clear the pane's left edge (its 4px padding)
 	SlowScroll.scrolling .grid, SlowScroll.scrolling .search
@@ -489,6 +504,36 @@ PlayerModelPage
 			pointer-events: none;
 		}
 
+		// how many armatures players shared for the model; a click on it is the tile's
+		.shared
+		{
+			position: absolute;
+			top: 2px;
+			left: 2px;
+			flex-direction: row;
+			align-items: center;
+			color: white;
+			text-shadow: 0px 1px 2px rgba( 0, 0, 0, 0.8 );
+			opacity: 0.9;
+
+			&.beside-download
+			{
+				left: 20px;
+			}
+		}
+
+		.shared-icon
+		{
+			font-family: "Material Icons";
+			font-size: 14px;
+		}
+
+		.shared-count
+		{
+			font-size: 11px;
+			font-weight: 600;
+		}
+
 		// the model downloading: what is still to come stays dark, so the tile lightens from left to right as it comes in
 		.download-shade
 		{
@@ -529,72 +574,3 @@ PlayerModelPage
 	}
 }
 
-// the player model preview and the view model preview share the pane; the one not in use is hidden
-ModelPreview, ViewModelPreview
-{
-	position: relative;
-	width: 100%;
-	height: 100%;
-	flex-grow: 1;
-	background-color: $ui-tile-bg;
-	cursor: grab;
-
-	&.hidden
-	{
-		display: none;
-	}
-
-	> .render
-	{
-		position: absolute;
-		left: 0px;
-		top: 0px;
-		width: 100%;
-		height: 100%;
-	}
-
-	> .loading
-	{
-		position: absolute;
-		left: 0px;
-		top: 0px;
-		right: 0px;
-		bottom: 0px;
-		justify-content: center;
-		align-items: center;
-		background-color: rgba( 0, 0, 0, 0.35 );
-		color: white;
-		font-size: 13px;
-		font-weight: 600;
-		opacity: 0;
-		pointer-events: none;
-
-		&.visible
-		{
-			opacity: 1;
-		}
-	}
-
-	> .message
-	{
-		position: absolute;
-		left: 6px;
-		right: 6px;
-		bottom: 6px;
-		padding: 6px 8px;
-		justify-content: center;
-		background-color: rgba( 0, 0, 0, 0.6 );
-		border-radius: 2px;
-		color: white;
-		font-size: 12px;
-		font-weight: 600;
-		text-align: center;
-		opacity: 0;
-		pointer-events: none;
-
-		&.visible
-		{
-			opacity: 1;
-		}
-	}
-}

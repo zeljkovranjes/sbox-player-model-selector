@@ -30,12 +30,22 @@ public sealed class ModelPreview : Panel
 	private const float MaxZoom = 4f;
 	private const float ZoomStep = 1.15f;
 
+	// Filling a wide window: the lens goes by the height, the way the whole body has to fit
+	private const float WindowFieldOfView = 41f;
+
+	// How far each notch of the wheel moves the window's camera
+	private const float DollyStep = 8f;
+
 	// Pointing at a part: Sandbox's hover outline for body groups, a pulse to this colour for coloured parts
 	private const string NoDrawMaterial = "materials/tools/toolsnodraw.vmat";
 	private static readonly Color OutlineColor = new( 2.6f, 2.0f, 0.2f, 1f );
 	private static readonly Color OutlineFill = new( 1f, 0.8f, 0.1f, 0.25f );
 	private static readonly Color PulseColor = new( 1f, 0.85f, 0.2f );
 	private const float PulsesPerSecond = 1.5f;
+
+	// What metal reflects: with nothing around the model, a metal finish shows black
+	private const string ReflectionCubemap = "textures/cubemaps/default.vtex";
+	private const float ReflectionSize = 2048f;
 
 	// The Armature page's skeleton lines
 	private static readonly Color SkeletonColor = new( 0.35f, 0.8f, 1f, 0.9f );
@@ -51,6 +61,22 @@ public sealed class ModelPreview : Panel
 
 	/// <summary>The bone drawn lit up on the skeleton, or null.</summary>
 	public string SelectedBone { get; set; }
+
+	/// <summary>Whether it fills a wide window rather than a tall panel: the camera then moves freely (see <see cref="WindowCamera"/>).</summary>
+	public bool FillsWindow { get; set; }
+
+	/// <summary>
+	/// Flying the window's camera: dragging looks around rather than spinning the model, and the WASD keys fly (Q and E down
+	/// and up, Shift for speed).
+	/// </summary>
+	public bool FreeCamera { get; set; }
+
+	/// <summary>Puts the window's camera back on the whole body, and the model facing it.</summary>
+	public void ResetView()
+	{
+		_view.Reset();
+		_yaw = StartYaw;
+	}
 
 	private ScenePanel _scene;
 	private SkinnedModelRenderer _citizen;
@@ -69,7 +95,9 @@ public sealed class ModelPreview : Panel
 	private float _yaw = StartYaw;
 	private float _zoom = 1f;
 	private bool _dragging;
-	private float _lastDragX;
+	private bool _panning;
+	private Vector2 _lastDrag;
+	private readonly WindowCamera _view = new();
 
 	public ModelPreview()
 	{
@@ -201,17 +229,32 @@ public sealed class ModelPreview : Panel
 	{
 		base.OnMouseDown( e );
 
-		if ( e.MouseButton != MouseButtons.Left )
+		// The right button slides the window's camera; elsewhere it does nothing
+		if ( e.MouseButton == MouseButtons.Right && FillsWindow )
+			_panning = true;
+		else if ( e.MouseButton == MouseButtons.Left )
+			_dragging = true;
+		else
 			return;
 
-		_dragging = true;
-		_lastDragX = MousePosition.x;
+		_lastDrag = MousePosition;
+	}
+
+	protected override void OnMouseUp( MousePanelEvent e )
+	{
+		base.OnMouseUp( e );
+
+		if ( e.MouseButton == MouseButtons.Right )
+			_panning = false;
 	}
 
 	// Wheel up zooms in. Not passed on: the wheel over the preview shouldn't scroll anything else
 	public override void OnMouseWheel( Vector2 value )
 	{
-		_zoom = Math.Clamp( _zoom * MathF.Pow( ZoomStep, -value.y ), 1f, MaxZoom );
+		if ( FillsWindow )
+			_view.Dolly( -value.y * DollyStep );
+		else
+			_zoom = Math.Clamp( _zoom * MathF.Pow( ZoomStep, -value.y ), 1f, MaxZoom );
 	}
 
 	public override void OnDeleted()
@@ -241,6 +284,11 @@ public sealed class ModelPreview : Panel
 			var sun = sunObject.AddComponent<DirectionalLight>();
 			sun.LightColor = new Color( 1.0f, 0.96f, 0.9f ) * 1.6f;
 			sun.SkyColor = new Color( 0.35f, 0.38f, 0.45f );
+
+			var reflections = new GameObject( true, "Reflections" ).AddComponent<EnvmapProbe>();
+			reflections.Mode = EnvmapProbe.EnvmapProbeMode.CustomTexture;
+			reflections.Texture = Texture.Load( ReflectionCubemap );
+			reflections.Bounds = BBox.FromPositionAndSize( Vector3.Zero, ReflectionSize );
 
 			var bodyObject = new GameObject( true, "Citizen" );
 			_citizen = bodyObject.AddComponent<SkinnedModelRenderer>();
@@ -279,6 +327,15 @@ public sealed class ModelPreview : Panel
 
 	private void PlaceCamera()
 	{
+		if ( FillsWindow )
+		{
+			_camera.FovAxis = CameraComponent.Axis.Vertical;
+			_camera.FieldOfView = WindowFieldOfView;
+			_camera.WorldPosition = _view.Position;
+			_camera.WorldRotation = _view.Rotation;
+			return;
+		}
+
 		// The shown model's own eyes, where zooming in heads, so a short or tall model is framed by its own head
 		var eyes = (_body.IsValid() ? _body.Renderer?.GetAttachment( "eyes" ) : null) ?? _citizen.GetAttachment( "eyes" );
 
@@ -296,12 +353,44 @@ public sealed class ModelPreview : Panel
 		if ( _dragging && !HasActive )
 			_dragging = false;
 
-		if ( !_dragging )
+		FlyWithKeys();
+
+		if ( !_dragging && !_panning )
 			return;
 
-		var x = MousePosition.x;
-		_yaw += (x - _lastDragX) * DragDegreesPerPixel;
-		_lastDragX = x;
+		var drag = MousePosition - _lastDrag;
+		_lastDrag = MousePosition;
+
+		if ( _panning )
+			_view.Pan( drag.x, drag.y );
+		else if ( FreeCamera )
+			_view.Look( drag.x, drag.y );
+		else
+			_yaw += drag.x * DragDegreesPerPixel;
+	}
+
+	// The keys are read while the game is kept from them (see InputLock): suppressed input reads as nothing, for this too,
+	// so it is lifted just for the read. Typing in a box isn't flying
+	private void FlyWithKeys()
+	{
+		if ( !FreeCamera )
+			return;
+
+		var suppressed = Input.Suppressed;
+		Input.Suppressed = false;
+
+		var move = Vector3.Zero;
+		if ( InputFocus.Current is not TextEntry )
+		{
+			move.x = (Input.Keyboard.Down( "w" ) ? 1f : 0f) - (Input.Keyboard.Down( "s" ) ? 1f : 0f);
+			move.y = (Input.Keyboard.Down( "a" ) ? 1f : 0f) - (Input.Keyboard.Down( "d" ) ? 1f : 0f);
+			move.z = (Input.Keyboard.Down( "e" ) ? 1f : 0f) - (Input.Keyboard.Down( "q" ) ? 1f : 0f);
+		}
+
+		var fast = Input.Keyboard.Down( "shift" );
+		Input.Suppressed = suppressed;
+
+		_view.Fly( move, RealTime.Delta, fast );
 	}
 
 	// A coloured part being pointed at pulses between its own colour and the highlight colour

@@ -25,7 +25,9 @@ Saved looks - save what you made under a name and put it on again later, per mod
 Part colors - tint single parts of a model (jacket, hair, eyes) as well as the whole model
 Body Shape - height, head, body, arm, hand, leg and foot sliders that work on any model, morphs or not
 Body groups - choose heads, capes and accessories by name, or hide an accessory (a hat, a weapon, a pet); hovering a choice points it out on the preview; the body itself (head, chest, legs, arms, hands, feet) can never be hidden, so nobody turns invisible
+Body group colors - each body group's color is right under its choices, for the choice picked
 Apply and Revert - changes show in the preview first and reach everyone when you press Apply
+Shared looks - Share mine, under the Customize options, publishes your look for a model (skin, colors, finishes, body groups, morphs, body shape, items) where every player of the selector can find it; the Workshop button beside Reset everything opens the looks players shared, rated and a page at a time like shared armatures, where Use puts one on the preview and Apply wears it; Copy code puts it on the clipboard as one line of text
 Share details - sharing a look or an armature asks what to call it (up to 32 characters) and for a description (optional, up to 128); the Workshop lists each by its name with its author's Steam avatar and name as they are now, and the info button beside one shows its description, its author and everything else they shared
 Publishing - what you publish stays as it was published: to share changes, publish again as a new one (5 at once per model); your own can be taken down from the info button
 Workshop status - a red bar reads "Facepunch Workshop is currently unresponsive" while Facepunch's service isn't answering, and goes away by itself when it is back (asked every 30 seconds)

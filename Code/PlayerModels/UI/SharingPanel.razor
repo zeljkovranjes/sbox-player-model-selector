@@ -1,0 +1,595 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using System.Threading.Tasks
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Core
+@using PlayerModels.Engine
+@typeparam T
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root class="sharing @( Workshop ? "workshop" : "mine" )">
+    @if ( Workshop && _details is { } open )
+    {
+        <div class="top">
+            <div class="back" Tooltip="Back to the list" @onclick=@CloseDetails>arrow_back</div>
+            <div class="title">@NameOf( open )</div>
+        </div>
+
+        <div class="row author">
+            <img class="avatar" src="avatar:@open.Author" />
+            <div class="shared-text">
+                <div class="shared-name">@AuthorOf( open )</div>
+                <div class="shared-detail">
+                    <div class="shared-changes">@( Describe?.Invoke( open.Item ) )</div>
+                </div>
+            </div>
+            <div class="shared-age">@( $"Shared {Ago( open.Changed )}" )</div>
+            <div class="vote @VoteClass( open, 1 )" @onclick=@(() => _ = VoteAsync( open, 1 ))>thumb_up</div>
+            <div class="votes">@open.Up</div>
+            <div class="vote @VoteClass( open, -1 )" @onclick=@(() => _ = VoteAsync( open, -1 ))>thumb_down</div>
+            <div class="votes">@open.Down</div>
+            <div class="button" @onclick=@(() => UseShared( open ))>Use</div>
+            @if ( open.IsMine )
+            {
+                <div class="button @( _busy ? "disabled" : "" )" @onclick=@(() => _ = TakeDownAsync( open ))>Take down</div>
+            }
+        </div>
+
+        <div class="description @( open.Description == "" ? "empty" : "" )">@( open.Description == "" ? "No description." : open.Description )</div>
+
+        @if ( _status is not null )
+        {
+            <div class="status">@_status</div>
+        }
+
+        <div class="section-header">@( $"More from {AuthorOf( open )}" )</div>
+        <div class="list" @ref="_list">
+        @if ( _more is null )
+        {
+            <div class="note">Looking for what else they shared...</div>
+        }
+        else if ( !OthersOf( open ).Any() )
+        {
+            <div class="note">Nothing else shared yet.</div>
+        }
+
+        @foreach ( var other in OthersOf( open ).Take( _perPage ) )
+        {
+            <div class="row shared">
+                <div class="shared-text">
+                    <div class="shared-name">@NameOf( other.Post.Name )</div>
+                    <div class="shared-detail">
+                        <div class="shared-changes">@( $"{Capitalised( other.Post.Kind )} for {ModelName( other.Post.Model )}" )</div>
+                    </div>
+                </div>
+                <div class="shared-age">@Ago( other.Published )</div>
+            </div>
+        }
+        </div>
+    }
+    else if ( Workshop )
+    {
+        <div class="top">
+            <div class="back" Tooltip="Back" @onclick=@(() => Back?.Invoke())>arrow_back</div>
+            <div class="intro">@Capitalised( Noun )s players shared for this model, the best rated first. Use one to put it on the preview; Apply wears it.</div>
+        </div>
+
+        <div class="section-header">Shared @( Noun )s</div>
+
+        <div class="row code-row">
+            <TextEntry class="code-entry" Placeholder=@( $"Paste {A( Noun )} code" ) Value:bind=@_code @onsubmit=@UseCode></TextEntry>
+            <div class="button" @onclick=@UseCode>Use code</div>
+        </div>
+
+        @if ( _status is not null )
+        {
+            <div class="status">@_status</div>
+        }
+
+        <div class="list" @ref="_list">
+        @if ( _loading )
+        {
+            <div class="note">Looking for @( Noun )s shared for this model...</div>
+        }
+        else if ( _listed && _entries.Count == 0 )
+        {
+            <div class="note">No one has shared @A( Noun ) for this model yet.</div>
+        }
+
+        @foreach ( var entry in PageOfEntries )
+        {
+            var shared = entry;
+            <div class="row shared">
+                <img class="avatar" src="avatar:@shared.Author" />
+                <div class="shared-text">
+                    <div class="shared-name">@NameOf( shared )</div>
+                    <div class="shared-detail">
+                        <div class="shared-author">@AuthorOf( shared )</div>
+                        <div class="shared-changes">@( Describe?.Invoke( shared.Item ) )</div>
+                    </div>
+                </div>
+                <div class="shared-age">@Ago( shared.Changed )</div>
+                <div class="info" Tooltip="Details" @onclick=@(() => ShowDetails( shared ))>info</div>
+                <div class="vote @VoteClass( shared, 1 )" @onclick=@(() => _ = VoteAsync( shared, 1 ))>thumb_up</div>
+                <div class="votes">@shared.Up</div>
+                <div class="vote @VoteClass( shared, -1 )" @onclick=@(() => _ = VoteAsync( shared, -1 ))>thumb_down</div>
+                <div class="votes">@shared.Down</div>
+                <div class="button" @onclick=@(() => UseShared( shared ))>Use</div>
+            </div>
+        }
+        </div>
+
+        <Pager Page=@_page Pages=@Pages OnPage=@ShowPage></Pager>
+    }
+    else
+    {
+        <div class="row">
+            <div class="button @( CanShare ? "" : "disabled" )" @onclick=@OpenShare>Share mine</div>
+            <div class="button @( Current is null ? "disabled" : "" )" @onclick=@CopyCode>Copy code</div>
+        </div>
+
+        @if ( ShareNote is { } note )
+        {
+            <div class="note">@note</div>
+        }
+
+        @if ( _status is not null )
+        {
+            <div class="status">@_status</div>
+        }
+    }
+
+    @if ( _unresponsive )
+    {
+        <div class="unresponsive">Facepunch Workshop is currently unresponsive</div>
+    }
+</root>
+
+@code
+{
+    /// <summary>Where these are shared: <see cref="Shared.Armatures"/> or <see cref="Shared.Looks"/>.</summary>
+    [Parameter] public SharedLibrary<T> Library { get; set; }
+
+    /// <summary>What one is called in the panel's words ("armature", "look"), and in its codes.</summary>
+    [Parameter] public string Noun { get; set; } = "design";
+
+    /// <summary>The model they are for, as its look names it.</summary>
+    [Parameter] public string ModelId { get; set; }
+
+    /// <summary>What this player has now, shared or copied as it is; null when there is nothing to share.</summary>
+    [Parameter] public T Current { get; set; }
+
+    /// <summary>
+    /// Puts one on the look being edited (Apply wears it), told whose it is ("Ana's look", "the code"), and says what
+    /// happened, for the panel to show.
+    /// </summary>
+    [Parameter] public Func<T, string, string> Use { get; set; }
+
+    /// <summary>What a row says about one, before when it was shared ("3 parts", "a skin and colours").</summary>
+    [Parameter] public Func<T, string> Describe { get; set; }
+
+    /// <summary>
+    /// True for the Workshop (a code pasted, and what was shared for the model to rate, use or take down); false for this
+    /// player's own, under the page's options (Share mine, Copy code).
+    /// </summary>
+    [Parameter] public bool Workshop { get; set; }
+
+    /// <summary>Leaves the Workshop, back to the page's options.</summary>
+    [Parameter] public Action Back { get; set; }
+
+    // The Workshop's list, a page at a time: as many rows (each RowHeight tall) as its room holds, so it never scrolls
+    const float RowHeight = 34f;
+    Panel _list;
+    int _page, _perPage = 1;
+
+    List<SharedLibrary<T>.Entry> _entries = new();
+
+    // The one whose details show in the Workshop, and what else its author shared (null until listed)
+    SharedLibrary<T>.Entry _details;
+    List<AuthorIndex.Share> _more;
+
+    // The share window, and whether its boxes were held to their lengths yet (they are made a frame or two after it)
+    UIModal _shareModal;
+    bool _shareLimited;
+
+    // Whether the service stopped answering, shown as a bar until it answers again; asked again every so often
+    const float RetrySeconds = 30f;
+    bool _unresponsive;
+    RealTimeSince _sinceFailed;
+    string _listedFor;
+    bool _loading, _listed, _busy;
+    string _status;
+    string _code;
+    int _revision;
+
+    bool AtLimit => _entries.Count( x => x.IsMine ) >= SharedLibrary<T>.MaxPerPlayer;
+
+    // The one listed that is just like this player's now, if any: that isn't published a second time
+    SharedLibrary<T>.Entry Same => Current is null ? null : _entries.FirstOrDefault( x => Library.Same( x.Item, Current ) );
+
+    bool CanShare => Current is not null && !_busy && Same is null && !AtLimit;
+
+    // Why Share mine is off, when it is for something the player can do about
+    string ShareNote
+    {
+        get
+        {
+            if ( Same is { } same )
+            {
+                return same.IsMine ? $"You've published this {Noun} already. Change it to publish a new one."
+                    : $"This {Noun} is shared already, by {AuthorOf( same )}. Rate theirs in the Workshop instead.";
+            }
+
+            return AtLimit ? $"You've published {SharedLibrary<T>.MaxPerPlayer} {Noun}s for this model, the most at once. Take one down in the Workshop first." : null;
+        }
+    }
+
+    // The authors' names are part of it: they come from Steam as they are now, and players change them
+    protected override int BuildHash() => HashCode.Combine( ModelId, Current, Workshop, _revision, _status, _loading, _busy,
+        HashCode.Combine( _page, _perPage, NamesHash() ) );
+
+    int Pages => Math.Max( 1, (_entries.Count + _perPage - 1) / _perPage );
+
+    IEnumerable<SharedLibrary<T>.Entry> PageOfEntries => _entries.Skip( _page * _perPage ).Take( _perPage );
+
+    void ShowPage( int page )
+    {
+        _page = Math.Clamp( page, 0, Pages - 1 );
+        Redraw();
+    }
+
+    // How many rows the list's room holds, checked every frame (the pane changes size with the window): a few divisions
+    public override void Tick()
+    {
+        base.Tick();
+
+        LimitShareBoxes();
+
+        if ( _unresponsive && !_loading && !_busy && _sinceFailed > RetrySeconds )
+        {
+            _sinceFailed = 0f;
+            _ = ListAsync();
+        }
+
+        if ( !Workshop || _list is null || !_list.IsValid() || ScaleToScreen <= 0f )
+            return;
+
+        var fits = Math.Max( 1, (int)(_list.Box.Rect.Height / (RowHeight * ScaleToScreen)) );
+        if ( fits == _perPage )
+            return;
+
+        _perPage = fits;
+        _page = Math.Clamp( _page, 0, Pages - 1 );
+        Redraw();
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+
+        if ( ModelId == _listedFor )
+            return;
+
+        _listedFor = ModelId;
+        _status = null;
+        _code = null;
+        _details = null;
+        _ = ListAsync();
+    }
+
+    async Task ListAsync()
+    {
+        var model = ModelId;
+        _entries = new();
+        _page = 0;
+        _listed = false;
+        _loading = !string.IsNullOrEmpty( model ) && Library is not null;
+        Redraw();
+
+        if ( !_loading )
+            return;
+
+        try
+        {
+            var entries = await Library.ListAsync( model );
+            if ( model != ModelId )
+                return;
+
+            _entries = entries;
+            _listed = true;
+            _unresponsive = false;
+
+            // The details show the entry as listed now: its votes, its name if its author changed it
+            if ( _details is not null )
+                _details = _entries.FirstOrDefault( x => x.Id == _details.Id ) ?? _details;
+        }
+        catch ( Exception e )
+        {
+            Failed( e );
+        }
+        finally
+        {
+            if ( model == ModelId )
+                _loading = false;
+
+            Redraw();
+        }
+    }
+
+    // Asks what to call it and what to say about it, then publishes it
+    void OpenShare()
+    {
+        if ( !CanShare )
+            return;
+
+        var name = "";
+        var description = "";
+        UIModal modal = null;
+
+        bool HasName() => !string.IsNullOrWhiteSpace( name );
+
+        void Confirm()
+        {
+            if ( !HasName() )
+                return;
+
+            modal?.Close();
+            _ = ShareAsync( name, description );
+        }
+
+        var properties = new List<SerializedProperty>
+        {
+            Game.TypeLibrary.CreateProperty( "Name", () => name, v => name = v,
+                new Attribute[] { new PropertyAttribute(), new PlaceholderAttribute( $"What to call it, up to {SharePost.MaxNameLength} characters" ) } ),
+            Game.TypeLibrary.CreateProperty( "Description", () => description, v => description = v,
+                new Attribute[] { new PropertyAttribute(), new TextAreaAttribute(), new PlaceholderAttribute( $"Optional, up to {SharePost.MaxDescriptionLength} characters" ) } ),
+            new UIActionProperty( "Publish", "share", Confirm, 1, separator: true ) { Enabled = HasName },
+            new UIActionProperty( "Cancel", null, () => modal?.Close(), 2, sameLine: true ),
+        };
+
+        modal = UIModal.Show( this, $"Share your {Noun}", properties );
+        if ( modal is null )
+            return;
+
+        modal.OnSubmit = Confirm;
+        _shareModal = modal;
+        _shareLimited = false;
+    }
+
+    // The share window's boxes hold no more than a name and description keep (the sheet doesn't take a length)
+    void LimitShareBoxes()
+    {
+        if ( _shareLimited || !_shareModal.IsValid() )
+            return;
+
+        var boxes = 0;
+        foreach ( var box in _shareModal.Descendants )
+        {
+            if ( box is not TextEntry entry )
+                continue;
+
+            entry.MaxLength = boxes == 0 ? SharePost.MaxNameLength : SharePost.MaxDescriptionLength;
+            boxes++;
+        }
+
+        _shareLimited = boxes >= 2;
+    }
+
+    async Task ShareAsync( string name, string description )
+    {
+        if ( !CanShare )
+            return;
+
+        await Busy( async () =>
+        {
+            var same = await Library.ShareAsync( Current, name, description );
+            _status = same is null
+                ? $"Published as \"{SharePost.Tidy( name, SharePost.MaxNameLength )}\". It stays as it is now; publish again to share changes."
+                : same.IsMine ? $"You've published this {Noun} already."
+                : $"{AuthorOf( same )} shared this {Noun} already. Rate theirs in the Workshop instead.";
+            await ListAsync();
+        } );
+    }
+
+    async Task TakeDownAsync( SharedLibrary<T>.Entry entry )
+    {
+        await Busy( async () =>
+        {
+            await Library.UnshareAsync( entry.Id, ModelId );
+            _details = null;
+            _status = $"\"{NameOf( entry )}\" is taken down.";
+            await ListAsync();
+        } );
+    }
+
+    void ShowDetails( SharedLibrary<T>.Entry entry )
+    {
+        _details = entry;
+        _more = null;
+        _status = null;
+        Redraw();
+        _ = ListMoreAsync( entry );
+    }
+
+    void CloseDetails()
+    {
+        _details = null;
+        _status = null;
+        Redraw();
+    }
+
+    async Task ListMoreAsync( SharedLibrary<T>.Entry entry )
+    {
+        List<AuthorIndex.Share> more;
+        try
+        {
+            more = await AuthorIndex.ListAsync( entry.Author );
+        }
+        catch ( Exception e )
+        {
+            Failed( e );
+            more = new();
+        }
+
+        if ( _details?.Id != entry.Id )
+            return;
+
+        _more = more;
+        Redraw();
+    }
+
+    // What else the author of what's open shared
+    IEnumerable<AuthorIndex.Share> OthersOf( SharedLibrary<T>.Entry entry )
+    {
+        var key = AuthorIndex.KeyOf( Library.Kind, entry.Id );
+        return (_more ?? new()).Where( x => x.Key != key );
+    }
+
+    // Clicking the vote already given takes it back
+    async Task VoteAsync( SharedLibrary<T>.Entry entry, int vote )
+    {
+        if ( entry.IsMine )
+            return;
+
+        await Busy( async () =>
+        {
+            await Library.VoteAsync( entry.Id, Library.VoteOn( entry.Id ) == vote ? 0 : vote );
+            await ListAsync();
+        } );
+    }
+
+    void UseShared( SharedLibrary<T>.Entry entry )
+    {
+        Took( entry.Item, entry.IsMine ? $"your {Noun}" : $"{AuthorOf( entry )}'s {Noun}" );
+    }
+
+    void CopyCode()
+    {
+        if ( Current is null )
+            return;
+
+        Clipboard.SetText( ShareCode.Write( Noun, Library.Serialize( Current ) ) );
+        _status = $"Code copied. Paste it anywhere to pass this {Noun} on.";
+        Redraw();
+    }
+
+    void UseCode()
+    {
+        var item = Library.Parse( ShareCode.Read( Noun, _code ) );
+        if ( item is null )
+            _status = $"That isn't {A( Noun )} code.";
+        else if ( Library.ModelOf( item ) != ModelId )
+            _status = $"That code is for another model: {Library.ModelOf( item )}.";
+        else
+        {
+            _code = null;
+            Took( item, "the code" );
+            return;
+        }
+
+        Redraw();
+    }
+
+    void Took( T item, string from )
+    {
+        _status = Use?.Invoke( item, from );
+        Redraw();
+    }
+
+    async Task Busy( Func<Task> work )
+    {
+        _busy = true;
+        Redraw();
+
+        try
+        {
+            await work();
+        }
+        catch ( Exception e )
+        {
+            Failed( e );
+        }
+        finally
+        {
+            _busy = false;
+            Redraw();
+        }
+    }
+
+    void Failed( Exception e )
+    {
+        Log.Warning( $"Player Model Selector: shared {Noun}s for '{ModelId}' failed: {e.Message}" );
+        _unresponsive = Shared.IsUnresponsive( e );
+        _status = _unresponsive ? null : Shared.Why( e );
+        _sinceFailed = 0f;
+    }
+
+    void Redraw()
+    {
+        _revision++;
+        StateHasChanged();
+    }
+
+    // The author as Steam names them now (players rename themselves); "A player" until Steam says
+    static string AuthorOf( SharedLibrary<T>.Entry entry )
+    {
+        var name = new Friend( entry.Author ).Name;
+        var known = !string.IsNullOrWhiteSpace( name ) && name != "[unknown]";
+        if ( entry.IsMine )
+            return known ? $"{name} (you)" : "You";
+
+        return known ? name : "A player";
+    }
+
+    // The names of the authors shown, to draw again when Steam learns or changes one. Every frame: no allocations
+    int NamesHash()
+    {
+        var hash = _details is null ? 0 : new Friend( _details.Author ).Name?.GetHashCode() ?? 0;
+        var end = Math.Min( _entries.Count, (_page + 1) * _perPage );
+        for ( var i = _page * _perPage; i < end; i++ )
+            hash = HashCode.Combine( hash, new Friend( _entries[ i ].Author ).Name );
+
+        return hash;
+    }
+
+    static string NameOf( SharedLibrary<T>.Entry entry ) => NameOf( entry.Name );
+
+    static string NameOf( string name ) => string.IsNullOrEmpty( name ) ? "Untitled" : name;
+
+    // A model as people know it: an sbox.game package by its name, a file by its own
+    static string ModelName( string model )
+    {
+        if ( model.Contains( '/' ) )
+            return System.IO.Path.GetFileNameWithoutExtension( model );
+
+        var dot = model.IndexOf( '.' );
+        return dot >= 0 ? model[ (dot + 1).. ] : model;
+    }
+
+    static string Capitalised( string text ) => string.IsNullOrEmpty( text ) ? "" : char.ToUpperInvariant( text[ 0 ] ) + text[ 1.. ];
+
+    static string A( string noun ) => "aeiou".Contains( char.ToLowerInvariant( noun[ 0 ] ) ) ? $"an {noun}" : $"a {noun}";
+
+    // Plain ifs: a line starting with "<" (a relational pattern) is read by Razor as markup
+    static string Ago( DateTimeOffset when )
+    {
+        var days = (int)(DateTimeOffset.UtcNow - when).TotalDays;
+        if ( days == 0 )
+            return "today";
+
+        if ( days == 1 )
+            return "yesterday";
+
+        return days >= 60 ? $"{days / 30} months ago" : $"{days} days ago";
+    }
+
+    // A vote button: lit for the vote this player gave, off for their own or while a change is on its way
+    string VoteClass( SharedLibrary<T>.Entry entry, int way )
+    {
+        var lit = Library.VoteOn( entry.Id ) == way ? (way > 0 ? "up" : "down") : "";
+        return entry.IsMine || _busy ? $"{lit} disabled" : lit;
+    }
+}

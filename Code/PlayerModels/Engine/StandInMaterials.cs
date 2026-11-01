@@ -43,7 +43,10 @@ internal static class StandInMaterials
 		if ( renderer?.Model is not { IsValid: true } model )
 			return;
 
-		var worn = string.IsNullOrEmpty( renderer.MaterialGroup ) ? model.Materials.ToArray() : model.GetMaterials( renderer.MaterialGroup ).ToArray();
+		// The skin may be one the model doesn't have: the dresser gives a stock character its outfit's skin tone by name,
+		// "default" even to the classic citizen, which has none. The engine draws it in its own materials, and so does this
+		var skin = string.IsNullOrEmpty( renderer.MaterialGroup ) ? -1 : model.GetMaterialGroupIndex( renderer.MaterialGroup );
+		var worn = skin < 0 ? model.Materials.ToArray() : model.GetMaterials( skin ).ToArray();
 		for ( var i = 0; i < worn.Length; i++ )
 		{
 			var current = renderer.Materials.GetOverride( i );

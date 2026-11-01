@@ -882,7 +882,7 @@
     async Task WearAsync( Tile tile )
     {
         var selector = Selector;
-        if ( selector is null || tile.Checking || tile.Model == WornHere || _checking is not null )
+        if ( selector is null || tile.Checking || tile.Model == WornHere || tile.Model == _checking )
             return;
 
         // Who it goes on is settled now: the grid can change while the model is checked
@@ -891,6 +891,7 @@
 
         if ( tile.Model == "" )
         {
+            DropChecking();
             Wear( selector, "", viewModel, choosingFor );
             return;
         }
@@ -900,16 +901,21 @@
         if ( downloads && !viewModel && !selector.TakeOwnDownload() )
             return;
 
+        DropChecking();
         _checking = tile.Model;
         if ( downloads )
             _catalog.Download.Start( tile.Model, await DownloadSizeAsync( tile.Model ) );
 
         var error = viewModel ? await ViewModelArms.WhyNotArmsAsync( tile.Model ) : await ModelCheck.WhyNotWearableAsync( tile.Model );
-        _catalog.Download.Finish();
-        _checking = null;
-
         if ( downloads )
             _catalog.Remember( tile.Model, viewModel, error );
+
+        // Dropped for a later pick while it was downloaded or checked: what it found is kept, but it isn't worn
+        if ( _checking != tile.Model )
+            return;
+
+        _catalog.Download.Finish();
+        _checking = null;
 
         if ( error is not null )
         {
@@ -929,6 +935,17 @@
         _refused.Remove( tile.Model );
         _fixable = null;
         Wear( selector, tile.Model, viewModel, choosingFor );
+    }
+
+    // A pick still being downloaded or checked gives way to the next click: sbox.game can keep one waiting for good, and
+    // the grid used to take no other pick meanwhile
+    void DropChecking()
+    {
+        if ( _checking is null )
+            return;
+
+        _catalog.Download.Cancel();
+        _checking = null;
     }
 
     // A label cut short to fit (as the window folds away, to "..") keeps that size even once there is room again: the

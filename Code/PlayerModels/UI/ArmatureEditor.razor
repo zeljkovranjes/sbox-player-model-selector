@@ -1,6 +1,7 @@
 @using System
 @using System.Collections.Generic
 @using System.Linq
+@using System.Threading.Tasks
 @using Sandbox
 @using Sandbox.UI
 @using HumanoidRetargeter.Core.Mapping
@@ -14,9 +15,18 @@
     {
         <div class="note">Pick a model to set up its armature. The default citizen needs none.</div>
     }
+    else if ( _workshop )
+    {
+        <SharingPanel T="SharedArmature" Library=@Shared.Armatures Noun="armature" ModelId=@Look.Model Current=@CurrentArmature
+                      Use=@UseShared Describe=@DescribeArmature Workshop=@true Back=@(() => ShowWorkshop( false ))></SharingPanel>
+    }
     else
     {
-        <div class="intro">Parts found automatically are locked. A missing part can be given a bone: pick the part, then its bone. Saved for this model when you press Apply.</div>
+        <div class="top">
+            <div class="intro">Parts found automatically are locked. A missing part can be given a bone: pick the part, then its bone. Saved for this model when you press Apply.</div>
+            <div class="reset @( Look.Bones.Count > 0 ? "" : "disabled" )" @onclick=@ClearAll>Clear my picks</div>
+            <div class="reset workshop" @onclick=@(() => ShowWorkshop( true ))>@WorkshopLabel</div>
+        </div>
 
         <div class="columns">
             <div class="parts">
@@ -72,9 +82,8 @@
             </div>
         </div>
 
-        <div class="footer">
-            <div class="reset @( Look.Bones.Count > 0 ? "" : "disabled" )" @onclick=@ClearAll>Clear my picks</div>
-        </div>
+        <SharingPanel T="SharedArmature" Library=@Shared.Armatures Noun="armature" ModelId=@Look.Model Current=@CurrentArmature
+                      Use=@UseShared Describe=@DescribeArmature Workshop=@false></SharingPanel>
     }
 </root>
 
@@ -111,6 +120,9 @@
 
     BoneRole? _selected;
     Model _readModel;
+
+    // The Workshop: the armatures players shared for the model, in place of the lists until Back to armature
+    bool _workshop;
     Dictionary<BoneRole, string> _automatic = new();
     List<(string Name, int Depth)> _bones = new();
 
@@ -121,14 +133,41 @@
         if ( Model == _readModel )
             return;
 
-        // A new model: read its bones and what the automatic mapping makes of them, once
+        // A new model: read its bones and what the automatic mapping makes of them, once, and ask how many armatures are
+        // shared for it so the Workshop button can say
         _readModel = Model;
         _selected = null;
+        _workshop = false;
+        _ = CountSharedAsync( Look?.Model );
         _automatic = Model is null ? new() : PoseTransfer.AutomaticBones( Model );
         _bones = Model is null ? new() : Model.Bones.AllBones.Select( x => (x.Name, DepthOf( x )) ).ToList();
     }
 
-    protected override int BuildHash() => HashCode.Combine( Model, Look?.BonesKey(), _selected );
+    protected override int BuildHash() => HashCode.Combine( Model, Look?.BonesKey(), _selected, _workshop, Shared.Armatures.CountOf( Look?.Model ) );
+
+    string WorkshopLabel => Shared.Armatures.CountOf( Look.Model ) is > 0 and var count ? $"Workshop ({count})" : "Workshop";
+
+    void ShowWorkshop( bool show )
+    {
+        _workshop = show;
+        StateHasChanged();
+    }
+
+    async Task CountSharedAsync( string model )
+    {
+        if ( string.IsNullOrEmpty( model ) )
+            return;
+
+        try
+        {
+            if ( await Shared.Armatures.CountAsync( new[] { model } ) )
+                StateHasChanged();
+        }
+        catch ( Exception e )
+        {
+            Log.Warning( $"Player Model Selector: couldn't count the armatures shared for '{model}': {e.Message}" );
+        }
+    }
 
     static int DepthOf( BoneCollection.Bone bone )
     {
@@ -197,5 +236,30 @@
         Look.Bones.Clear();
         Point( SelectedBone );
         Changed?.Invoke();
+    }
+
+    // The picks as an armature to share or copy; none when nothing was picked
+    SharedArmature CurrentArmature => Look.Bones.Count == 0 ? null : new() { Model = Look.Model, Bones = new Dictionary<string, string>( Look.Bones ) };
+
+    static string DescribeArmature( SharedArmature armature ) => PartsText( armature.Bones.Count );
+
+    static string PartsText( int parts ) => parts == 1 ? "1 part" : $"{parts} parts";
+
+    // A shared armature in place of the picks: what fits this model's setup (open parts, bones it has and the automatic
+    // setup doesn't use), on the preview until Apply. None fitting leaves the picks as they were
+    string UseShared( SharedArmature armature, string from )
+    {
+        var open = Groups.SelectMany( x => x.Roles ).Select( x => x.Role ).Where( x => !IsLocked( x ) ).Select( x => x.ToString() ).ToHashSet();
+        var fitted = armature.FittedTo( open, _bones.Select( x => x.Name ).ToHashSet(), _automatic.Values.ToHashSet() );
+        if ( fitted.Count == 0 )
+            return $"None of the parts in {from} fit this model's setup.";
+
+        Look.Bones.Clear();
+        foreach ( var (role, bone) in fitted )
+            Look.Bones[ role ] = bone;
+
+        Point( SelectedBone );
+        Changed?.Invoke();
+        return $"Took {PartsText( fitted.Count )} from {from}. Press Apply to wear it.";
     }
 }

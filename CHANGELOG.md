@@ -26,8 +26,14 @@ Part colors - tint single parts of a model (jacket, hair, eyes) as well as the w
 Body Shape - height, head, body, arm, hand, leg and foot sliders that work on any model, morphs or not
 Body groups - choose heads, capes and accessories by name, or hide an accessory (a hat, a weapon, a pet); hovering a choice points it out on the preview; the body itself (head, chest, legs, arms, hands, feet) can never be hidden, so nobody turns invisible
 Apply and Revert - changes show in the preview first and reach everyone when you press Apply
+Share details - sharing a look or an armature asks what to call it (up to 32 characters) and for a description (optional, up to 128); the Workshop lists each by its name with its author's Steam avatar and name as they are now, and the info button beside one shows its description, its author and everything else they shared
+Publishing - what you publish stays as it was published: to share changes, publish again as a new one (5 at once per model); your own can be taken down from the info button
+Workshop status - a red bar reads "Facepunch Workshop is currently unresponsive" while Facepunch's service isn't answering, and goes away by itself when it is back (asked every 30 seconds)
 # Armature
 Armature - give a bone to each body part the automatic setup couldn't find, with the skeleton drawn on the preview
+Shared armatures - Share mine, under the Armature page's lists, publishes your armature for a model where every player of the selector can find it; the Workshop button beside Clear my picks (with how many are shared for the model) opens the armatures players shared, a page at a time sized to fit, where Use takes the parts one gives your copy of the model onto the preview and Apply wears them; picks already shared, by you or anyone, aren't shared again, and copies shared at the same moment are listed once
+Ratings - thumbs up or down on each shared armature, the best rated listed first; clicking your vote again takes it back
+Armature codes - Copy code, beside Share mine, puts your armature on the clipboard as one line of text
 Set up armature - a model the automatic check refuses opens on the Armature page and stays there while you give its missing parts bones, saying what it still needs, until Apply puts it on
 Locked presets - parts the automatic setup found can't be changed; only missing parts take a bone, and picks are saved for the model
 # View Model

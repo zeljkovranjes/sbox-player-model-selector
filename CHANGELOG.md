@@ -4,6 +4,7 @@
 Title: Customize, View Models, Armature and Server
 ### Added
 # Models
+Stretched feet - a model with no ankle bone, like the GMod skeleton, no longer stretches its feet when it runs or jumps: the bend at the ankle used to land on a twist bone halfway down the shin
 Favorites - right-click a model or click its heart to keep it in the Favorites group, the first tile of the grid on both the Models and View Model pages, there even before the first favorite; a favorite the server no longer offers is hidden, not lost
 Groups - models are grouped into Official, Facepunch, Other and one group per mounted game, each shown as a tile (a game with its own logo); click one to see its models twenty at a time, with Previous and Next
 Facepunch models - a second search finds Facepunch's own characters on sbox.game

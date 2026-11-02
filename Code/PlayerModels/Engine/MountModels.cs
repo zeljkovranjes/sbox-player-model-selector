@@ -195,6 +195,16 @@ internal static class MountModels
 		return ident is null ? null : Sandbox.Mounting.Directory.Get( ident )?.LogoUrl;
 	}
 
+	/// <summary>
+	/// What is mounted now, to tell when that changes: each game and how many models it has, as a game can say it is
+	/// mounted before its models are in.
+	/// </summary>
+	internal static string Signature()
+	{
+		var mounted = Sandbox.Mounting.Directory.GetAll().Where( x => x.Mounted ).Select( x => x.Ident ).OrderBy( x => x );
+		return string.Join( ';', mounted.Select( x => $"{x}={Sandbox.Mounting.Directory.Get( x )?.GetAll( ResourceType.Model ).Count()}" ) );
+	}
+
 	/// <summary>The titles of the games mounted now.</summary>
 	internal static List<string> MountedGames()
 	{

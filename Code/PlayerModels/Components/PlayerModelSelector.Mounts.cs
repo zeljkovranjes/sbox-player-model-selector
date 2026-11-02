@@ -70,6 +70,8 @@ public sealed partial class PlayerModelSelector
 			return;
 
 		_sinceMountReport = 0;
+		Catalog.WatchMounts();
+
 		var text = string.Join( "\n", MountModels.Mounted().Select( x => $"{x.Ident}\t{x.Title}" ) );
 		if ( text == _mountsReported )
 			return;

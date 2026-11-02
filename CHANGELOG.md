@@ -40,7 +40,7 @@ Workshop status - a red bar reads "Facepunch Workshop is currently unresponsive"
 # Armature
 Armature - give a bone to each body part the automatic setup couldn't find, with the skeleton drawn on the preview
 Shared armatures - Share mine, under the Armature page's lists, publishes your armature for a model where every player of the selector can find it; the Workshop button beside Clear my picks (with how many are shared for the model) opens the armatures players shared, a page at a time sized to fit, where Use takes the parts one gives your copy of the model onto the preview and Apply wears them; picks already shared, by you or anyone, aren't shared again, and copies shared at the same moment are listed once
-Ratings - thumbs up or down on each shared armature, the best rated listed first; clicking your vote again takes it back
+Ratings - thumbs up or down on each shared armature or look, the best rated listed first; clicking your vote again takes it back; each player counts once, and never on their own share
 Armature codes - Copy code, beside Share mine, puts your armature on the clipboard as one line of text
 Shared counts - a model's tile shows how many armatures and looks are shared for it, a figure and a number in its top left corner
 Set up armature - a model the automatic check refuses opens on the Armature page and stays there while you give its missing parts bones, saying what it still needs, until Apply puts it on

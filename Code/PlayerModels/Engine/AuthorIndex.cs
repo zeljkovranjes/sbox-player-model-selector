@@ -48,13 +48,14 @@ internal static class AuthorIndex
 	/// <summary>What <paramref name="author"/> shared, the newest first.</summary>
 	internal static async Task<List<Share>> ListAsync( long author )
 	{
-		var page = await Database.GetTable( Table ).List( GroupOf( author ), 0, MaxListed );
-		return page.Records
+		var records = await Shared.ReadAsync( Database.GetTable( Table ), GroupOf( author ) );
+		return records
 			.Where( x => x.OwnerSteamId == author )
 			.Select( x => (Post: SharePost.Parse( x.Value ), x.CreatedAt, x.Key) )
 			.Where( x => x.Post is not null )
 			.Select( x => new Share( x.Post, x.CreatedAt, x.Key ) )
 			.OrderByDescending( x => x.Published )
+			.Take( MaxListed )
 			.ToList();
 	}
 

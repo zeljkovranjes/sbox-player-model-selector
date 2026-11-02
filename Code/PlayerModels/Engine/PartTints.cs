@@ -97,7 +97,7 @@ internal sealed class PartTints
 
 		var materials = renderer.Model.Materials;
 		var worn = skin is null ? materials.ToArray() : renderer.Model.GetMaterials( skin ).ToArray();
-		var hidden = Hiding.HiddenParts( PartsOf( renderer.Model ), partFinishes );
+		var hidden = Hiding.HiddenParts( DrawnParts( renderer ), partFinishes );
 
 		for ( var i = 0; i < materials.Length; i++ )
 		{
@@ -133,6 +133,14 @@ internal sealed class PartTints
 
 			copy.Set( TintAttribute, colour ?? FinishMaterials.ColourOf( partFinish ) );
 		}
+	}
+
+	// The parts its body groups leave drawn: hidden parts are checked against those, as hiding the rest as a body group and
+	// these as parts would otherwise add up to an invisible model
+	private static List<string> DrawnParts( ModelRenderer renderer )
+	{
+		var drawn = PartsOfChoice( renderer.Model, renderer.BodyGroups );
+		return drawn.Count > 0 ? drawn : PartsOf( renderer.Model );
 	}
 
 	// The material a part wears for a finish, or the copy of its own to colour; null when there can be none

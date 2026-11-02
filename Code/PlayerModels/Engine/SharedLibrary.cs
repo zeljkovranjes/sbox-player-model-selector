@@ -38,6 +38,7 @@ public sealed class SharedLibrary<T>
 	private readonly Func<T, string> _modelOf;
 	private readonly Func<T, T, bool> _same;
 	private readonly Dictionary<string, (long Count, RealTimeSince Age)> _counts = new();
+	private readonly Dictionary<string, (long Written, long Votes)> _votesCounted = new();
 
 	/// <summary>
 	/// The items of <paramref name="kind"/> ("armature", "look") kept in table <paramref name="table"/> (their votes in
@@ -87,42 +88,72 @@ public sealed class SharedLibrary<T>
 	/// <summary>
 	/// The items shared for <paramref name="model"/>, the best rated first, then the newest. One shared twice (by two
 	/// players at once) is listed once, the better rated or else the first shared, except that this player's own always
-	/// is, and no player is listed more often than they may publish (only the client checks that when publishing).
+	/// is, and no player is listed more often than they may publish: only the client checks that when publishing, so
+	/// what is listed is what any client could have written, read within bounds. Ratings count one vote per player.
 	/// </summary>
 	internal async Task<List<Entry>> ListAsync( string model )
 	{
-		var page = await Database.GetTable( _table ).List( GroupOf( model ), 0, MaxListed );
-		var shared = page.Records
+		var records = await Shared.ReadAsync( Database.GetTable( _table ), GroupOf( model ) );
+		var shared = records
 			.Select( x => (Record: x, Post: SharePost.Parse( x.Value )) )
 			.Select( x => (x.Record, x.Post, Item: x.Post is null ? default : Parse( x.Post.Item )) )
-			.Where( x => x.Item is not null && _modelOf( x.Item ) == model )
+			.Where( x => x.Item is not null && x.Post.Kind == _kind && x.Post.Model == model && _modelOf( x.Item ) == model )
+			.GroupBy( x => x.Record.OwnerSteamId )
+			.SelectMany( x => x.OrderByDescending( y => y.Record.CreatedAt ).Take( MaxPerPlayer ) )
+			.OrderByDescending( x => x.Record.CreatedAt )
+			.Take( MaxListed )
 			.ToList();
 
 		_counts[ model ] = (shared.Count, 0f);
 		if ( shared.Count == 0 )
 			return new List<Entry>();
 
-		var votes = await Database.GetTable( _votes ).GetPublicGroupInfo(
+		var table = Database.GetTable( _votes );
+		var written = await table.GetPublicGroupInfo(
 			shared.SelectMany( x => new[] { UpGroup( x.Record.Id ), DownGroup( x.Record.Id ) } ).ToArray() );
-		long CountOf( string group ) => votes.TryGetValue( group, out var info ) ? info.Count : 0;
+		long WrittenIn( string group ) => written.TryGetValue( group, out var info ) ? info.Count : 0;
 
-		var entries = shared
-			.Select( x => new Entry( x.Record.Id, x.Record.OwnerSteamId, x.Item, x.Post.Name, x.Post.Description, x.Record.CreatedAt,
-				CountOf( UpGroup( x.Record.Id ) ), CountOf( DownGroup( x.Record.Id ) ) ) )
-			.OrderByDescending( x => x.Score )
-			.ThenBy( x => x.Changed );
+		var entries = new List<Entry>();
+		foreach ( var (record, post, item) in shared )
+		{
+			var up = await CountVotesAsync( table, UpGroup( record.Id ), WrittenIn( UpGroup( record.Id ) ), record );
+			var down = await CountVotesAsync( table, DownGroup( record.Id ), WrittenIn( DownGroup( record.Id ) ), record );
+			entries.Add( new Entry( record.Id, record.OwnerSteamId, item, post.Name, post.Description, record.CreatedAt, up, down ) );
+		}
 
 		var listed = new List<Entry>();
-		foreach ( var entry in entries )
+		foreach ( var entry in entries.OrderByDescending( x => x.Score ).ThenBy( x => x.Changed ) )
 		{
-			if ( listed.Count( x => x.Author == entry.Author ) >= MaxPerPlayer )
-				continue;
-
 			if ( entry.IsMine || !listed.Any( x => Same( x.Item, entry.Item ) ) )
 				listed.Add( entry );
 		}
 
 		return listed.OrderByDescending( x => x.Score ).ThenByDescending( x => x.Changed ).ToList();
+	}
+
+	// The votes that count in a group of <paramref name="written"/> records (see Votes). Each group is its own request, so
+	// one is only read when it has votes, and only again once their number changes. Told to slow down, what is known stands
+	private async Task<long> CountVotesAsync( Database.Table table, string group, long written, Database.Record shared )
+	{
+		if ( written == 0 )
+			return 0;
+
+		var known = _votesCounted.TryGetValue( group, out var counted );
+		if ( known && counted.Written == written )
+			return counted.Votes;
+
+		try
+		{
+			var records = await Shared.ReadAsync( table, group );
+			var votes = Votes.Count( records.Select( x => (x.OwnerSteamId, x.Key) ), shared.Id, shared.OwnerSteamId );
+			_votesCounted[ group ] = (written, votes);
+			return votes;
+		}
+		catch ( DatabaseException e ) when ( e.StatusCode == 429 )
+		{
+			Log.Warning( $"Player Model Selector: told to slow down counting the votes on {shared.Id}: {e.Message}" );
+			return known ? counted.Votes : written;
+		}
 	}
 
 	/// <summary>
@@ -198,7 +229,7 @@ public sealed class SharedLibrary<T>
 		}
 
 		if ( vote != 0 )
-			await table.Create( $"{id}:{Game.SteamId.Value}", "1", vote > 0 ? UpGroup( id ) : DownGroup( id ), isPublic: true );
+			await table.Create( Votes.KeyOf( id, Game.SteamId.Value ), "1", vote > 0 ? UpGroup( id ) : DownGroup( id ), isPublic: true );
 
 		LocalPrefs.SetVote( VoteKey( id ), vote );
 	}

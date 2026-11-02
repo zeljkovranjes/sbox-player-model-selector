@@ -59,6 +59,9 @@ internal sealed class ModelCatalog
 
 	private readonly List<Entry> _bodies = new();
 	private readonly List<Entry> _arms = new();
+
+	// What was mounted when the mounts were last listed (see MountModels.Signature)
+	private string _mountsSeen;
 	private bool _started;
 
 	// A body search, and how far it has been fetched: a page at a time, as the player reaches the end of what is listed
@@ -150,8 +153,8 @@ internal sealed class ModelCatalog
 				_arms.Add( new Entry { Title = found.Title, Model = found.Ident, Arms = true, Downloads = true, Usable = ViewModelArms.Known( found.Ident ), Check = () => ViewModelArms.CheckAsync( found.Ident ), Remember = why => ViewModelArms.Remember( found.Ident, why ) } );
 		}
 
-		_arms.AddRange( MountModels.ArmsCandidates()
-			.Select( x => new Entry { Title = x.Title, Model = x.Path, Game = x.Game, Arms = true, Usable = ViewModelArms.Known( x.Path ), Check = () => ViewModelArms.CheckAsync( x.Path ) } ) );
+		_mountsSeen = MountModels.Signature();
+		AddMountArms();
 
 		AddMountBodies( MountModels.Candidates( _mountFolders ) );
 		Revision++;
@@ -205,6 +208,25 @@ internal sealed class ModelCatalog
 	}
 
 	/// <summary>
+	/// Lists the mounted games again if that changed since they were last listed: a game can be mounted at any time, and
+	/// mounts finish loading after the catalog has started. Cheap enough to ask every few seconds.
+	/// </summary>
+	internal void WatchMounts()
+	{
+		if ( !_mountsListed )
+			return;
+
+		var mounted = MountModels.Signature();
+		if ( mounted == _mountsSeen )
+			return;
+
+		_mountsSeen = mounted;
+		_arms.RemoveAll( x => x.Game is not null );
+		AddMountArms();
+		UseMountFolders( _mountFolders );
+	}
+
+	/// <summary>
 	/// Looks for mounted characters in <paramref name="folders"/> (mount paths a player added) as well as the usual
 	/// folders: what they hold is added, to be checked as the player sees it, and what only folders taken away held goes.
 	/// </summary>
@@ -222,6 +244,12 @@ internal sealed class ModelCatalog
 
 		AddMountBodies( candidates );
 		Revision++;
+	}
+
+	private void AddMountArms()
+	{
+		_arms.AddRange( MountModels.ArmsCandidates()
+			.Select( x => new Entry { Title = x.Title, Model = x.Path, Game = x.Game, Arms = true, Usable = ViewModelArms.Known( x.Path ), Check = () => ViewModelArms.CheckAsync( x.Path ) } ) );
 	}
 
 	// Adds the mounted characters not listed yet

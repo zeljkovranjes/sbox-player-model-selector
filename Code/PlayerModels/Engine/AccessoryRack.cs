@@ -49,11 +49,23 @@ internal sealed class AccessoryRack
 		public Rotation Turn;
 		public float Scale;
 
+		// Where it was last placed: its joint (with its offset), the way that joint faces and the model's scale there
+		public Vector3 Pivot;
+		public Rotation Heading;
+		public float AnchorScale = 1f;
+		public bool Placed;
+
 		// Clothes that follow the body: every bone, parents first, and a buffer for where they are this frame
 		public bool Follows;
 		public FollowBone[] Bones;
 		public Transform[] Pose;
 	}
+
+	/// <summary>
+	/// Where an item is: its pivot (its joint, moved by its offset), the way its joint faces (the axes its offset and turn
+	/// are in), the model's scale there, its own size, whether it bends with the body, and its renderer.
+	/// </summary>
+	internal readonly record struct Placement( Vector3 Pivot, Rotation Heading, float Scale, float Size, bool Follows, SkinnedModelRenderer Renderer );
 
 	private readonly List<Worn> _worn = new();
 	private IReadOnlyList<Accessory> _wanted = Array.Empty<Accessory>();
@@ -82,6 +94,21 @@ internal sealed class AccessoryRack
 		_items = items;
 		Clear();
 		_ = LoadAsync( parent, transfer, citizen, model, changed, ++_request );
+	}
+
+	/// <summary>How many items there are, by their places in the look; some may be missing (see <see cref="TryGetPlacement"/>).</summary>
+	internal int Count => _loading ? 0 : _worn.Count;
+
+	/// <summary>Where the item at <paramref name="index"/> in the look is now; false while it loads or when it couldn't be worn.</summary>
+	internal bool TryGetPlacement( int index, out Placement placement )
+	{
+		placement = default;
+		if ( _loading || index < 0 || index >= _worn.Count || _worn[ index ] is not { Placed: true } worn || !worn.Root.IsValid() )
+			return false;
+
+		var pivot = worn.Follows ? worn.Renderer.Bounds.Center : worn.Pivot;
+		placement = new Placement( pivot, worn.Heading, worn.AnchorScale, worn.Size, worn.Follows, worn.Renderer );
+		return true;
 	}
 
 	/// <summary>Places every item on its joint. Runs every frame, after the model is posed.</summary>
@@ -113,6 +140,10 @@ internal sealed class AccessoryRack
 			var joint = target.Position + heading * (worn.Offset * target.Scale.x);
 
 			worn.Root.WorldTransform = new Transform( joint - turn * (worn.Rest.Position * scale), turn, scale );
+			worn.Pivot = joint;
+			worn.Heading = heading;
+			worn.AnchorScale = target.Scale.x;
+			worn.Placed = true;
 		}
 	}
 
@@ -122,6 +153,9 @@ internal sealed class AccessoryRack
 		var world = citizen.BoneWorldTransforms;
 		var root = worn.Root.WorldTransform;
 		var facing = citizen.WorldRotation;
+		worn.Heading = facing;
+		worn.AnchorScale = model.WorldScale.x;
+		worn.Placed = true;
 
 		for ( var i = 0; i < worn.Bones.Length; i++ )
 		{

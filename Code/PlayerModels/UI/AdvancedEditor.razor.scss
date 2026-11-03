@@ -18,13 +18,15 @@ AdvancedEditor
 	background-color: rgba( 12, 16, 22, 0.85 );
 	pointer-events: all;
 
+	// The view ends where the options begin, so the model turns in the room left for it, not under them. Its right edge
+	// is the options' width with their margins (.side)
 	> .stage
 	{
 		position: absolute;
 		left: 0px;
 		top: 0px;
-		width: 100%;
-		height: 100%;
+		right: 492px;
+		bottom: 0px;
 	}
 
 	> .heading
@@ -56,6 +58,11 @@ AdvancedEditor
 		flex-direction: row;
 		gap: 6px;
 
+		> .gap
+		{
+			width: 10px;
+		}
+
 		> .tool
 		{
 			@include ui-button;
@@ -68,6 +75,21 @@ AdvancedEditor
 				border-color: $ui-blue;
 			}
 		}
+	}
+
+	// what a move, turn or size under way is doing, over the bottom of the view
+	> .status
+	{
+		position: absolute;
+		left: 24px;
+		bottom: 84px;
+		padding: 6px 10px;
+		font-size: 15px;
+		font-weight: 600;
+		color: white;
+		background-color: rgba( 0, 0, 0, 0.6 );
+		border-radius: 3px;
+		pointer-events: none;
 	}
 
 	> .side

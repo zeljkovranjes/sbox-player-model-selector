@@ -30,11 +30,6 @@ public sealed class ModelPreview : Panel
 	private const float MaxZoom = 4f;
 	private const float ZoomStep = 1.15f;
 
-	// Filling a wide window: the lens goes by the height, the way the whole body has to fit
-	private const float WindowFieldOfView = 41f;
-
-	// How far each notch of the wheel moves the window's camera
-	private const float DollyStep = 8f;
 
 	// Pointing at a part: Sandbox's hover outline for body groups, a pulse to this colour for coloured parts
 	private const string NoDrawMaterial = "materials/tools/toolsnodraw.vmat";
@@ -66,17 +61,19 @@ public sealed class ModelPreview : Panel
 	public bool FillsWindow { get; set; }
 
 	/// <summary>
-	/// Flying the window's camera: dragging looks around rather than spinning the model, and the WASD keys fly (Q and E down
-	/// and up, Shift for speed).
+	/// What works the window's view (see <see cref="EditorViewport"/>): the mouse, the wheel and the keys go to it while it
+	/// fills a window, and it draws over the scene.
 	/// </summary>
-	public bool FreeCamera { get; set; }
+	internal EditorViewport Viewport { get; set; }
 
-	/// <summary>Puts the window's camera back on the whole body, and the model facing it.</summary>
-	public void ResetView()
-	{
-		_view.Reset();
-		_yaw = StartYaw;
-	}
+	/// <summary>The window's camera.</summary>
+	internal WindowCamera View => _view;
+
+	/// <summary>The body shown, once it is.</summary>
+	internal ModelBody Body => _body;
+
+	/// <summary>Draws over the preview's scene, on top.</summary>
+	internal DebugOverlaySystem Overlay => _scene.RenderScene.DebugOverlay;
 
 	private ScenePanel _scene;
 	private SkinnedModelRenderer _citizen;
@@ -95,8 +92,7 @@ public sealed class ModelPreview : Panel
 	private float _yaw = StartYaw;
 	private float _zoom = 1f;
 	private bool _dragging;
-	private bool _panning;
-	private Vector2 _lastDrag;
+	private float _lastDragX;
 	private readonly WindowCamera _view = new();
 
 	public ModelPreview()
@@ -194,7 +190,11 @@ public sealed class ModelPreview : Panel
 			return;
 
 		UpdateSpin();
-		_citizen.GameObject.WorldRotation = Rotation.FromYaw( _yaw );
+
+		// In a window the camera goes around the model, which faces the front view (numpad 1)
+		var facing = Rotation.FromYaw( FillsWindow ? 0f : _yaw );
+		_citizen.GameObject.WorldRotation = facing;
+		AcceptsFocus = FillsWindow;
 
 		// Bones picked differently need a new pose plan (or make one possible at all)
 		if ( _shown is not null && BonesFor( _shown ) != _shownBones )
@@ -205,7 +205,7 @@ public sealed class ModelPreview : Panel
 
 		if ( _unposed.IsValid() )
 		{
-			_unposed.GameObject.WorldRotation = Rotation.FromYaw( _yaw );
+			_unposed.GameObject.WorldRotation = facing;
 			DrawSkeleton( _unposed );
 		}
 
@@ -222,6 +222,9 @@ public sealed class ModelPreview : Panel
 		else if ( _body is not null )
 			ShowAgain();
 
+		if ( FillsWindow )
+			Viewport?.Tick();
+
 		PlaceCamera();
 	}
 
@@ -229,30 +232,47 @@ public sealed class ModelPreview : Panel
 	{
 		base.OnMouseDown( e );
 
-		// The right button slides the window's camera; elsewhere it does nothing
-		if ( e.MouseButton == MouseButtons.Right && FillsWindow )
-			_panning = true;
-		else if ( e.MouseButton == MouseButtons.Left )
-			_dragging = true;
-		else
+		if ( FillsWindow && Viewport is not null )
+		{
+			// The keys go where the mouse was last used: the view, until a box is clicked
+			Focus();
+			if ( Viewport.MouseDown( e.MouseButton ) )
+				e.StopPropagation();
+
+			return;
+		}
+
+		if ( e.MouseButton != MouseButtons.Left )
 			return;
 
-		_lastDrag = MousePosition;
+		_dragging = true;
+		_lastDragX = MousePosition.x;
 	}
 
 	protected override void OnMouseUp( MousePanelEvent e )
 	{
 		base.OnMouseUp( e );
 
-		if ( e.MouseButton == MouseButtons.Right )
-			_panning = false;
+		if ( FillsWindow )
+			Viewport?.MouseUp( e.MouseButton );
+	}
+
+	public override void OnButtonEvent( ButtonEvent e )
+	{
+		if ( FillsWindow && Viewport is not null && Viewport.Key( e ) )
+		{
+			e.StopPropagation = true;
+			return;
+		}
+
+		base.OnButtonEvent( e );
 	}
 
 	// Wheel up zooms in. Not passed on: the wheel over the preview shouldn't scroll anything else
 	public override void OnMouseWheel( Vector2 value )
 	{
 		if ( FillsWindow )
-			_view.Dolly( -value.y * DollyStep );
+			Viewport?.Wheel( value.y );
 		else
 			_zoom = Math.Clamp( _zoom * MathF.Pow( ZoomStep, -value.y ), 1f, MaxZoom );
 	}
@@ -330,7 +350,7 @@ public sealed class ModelPreview : Panel
 		if ( FillsWindow )
 		{
 			_camera.FovAxis = CameraComponent.Axis.Vertical;
-			_camera.FieldOfView = WindowFieldOfView;
+			_camera.FieldOfView = WindowCamera.FieldOfView;
 			_camera.WorldPosition = _view.Position;
 			_camera.WorldRotation = _view.Rotation;
 			return;
@@ -347,50 +367,18 @@ public sealed class ModelPreview : Panel
 		_camera.WorldRotation = Rotation.FromYaw( 180 );
 	}
 
-	// While the left button is held, the model turns with the cursor
+	// While the left button is held, the model turns with the cursor (in the page's panel; a window's view is its own)
 	private void UpdateSpin()
 	{
 		if ( _dragging && !HasActive )
 			_dragging = false;
 
-		FlyWithKeys();
-
-		if ( !_dragging && !_panning )
+		if ( !_dragging || FillsWindow )
 			return;
 
-		var drag = MousePosition - _lastDrag;
-		_lastDrag = MousePosition;
-
-		if ( _panning )
-			_view.Pan( drag.x, drag.y );
-		else if ( FreeCamera )
-			_view.Look( drag.x, drag.y );
-		else
-			_yaw += drag.x * DragDegreesPerPixel;
-	}
-
-	// The keys are read while the game is kept from them (see InputLock): suppressed input reads as nothing, for this too,
-	// so it is lifted just for the read. Typing in a box isn't flying
-	private void FlyWithKeys()
-	{
-		if ( !FreeCamera )
-			return;
-
-		var suppressed = Input.Suppressed;
-		Input.Suppressed = false;
-
-		var move = Vector3.Zero;
-		if ( InputFocus.Current is not TextEntry )
-		{
-			move.x = (Input.Keyboard.Down( "w" ) ? 1f : 0f) - (Input.Keyboard.Down( "s" ) ? 1f : 0f);
-			move.y = (Input.Keyboard.Down( "a" ) ? 1f : 0f) - (Input.Keyboard.Down( "d" ) ? 1f : 0f);
-			move.z = (Input.Keyboard.Down( "e" ) ? 1f : 0f) - (Input.Keyboard.Down( "q" ) ? 1f : 0f);
-		}
-
-		var fast = Input.Keyboard.Down( "shift" );
-		Input.Suppressed = suppressed;
-
-		_view.Fly( move, RealTime.Delta, fast );
+		var x = MousePosition.x;
+		_yaw += (x - _lastDragX) * DragDegreesPerPixel;
+		_lastDragX = x;
 	}
 
 	// A coloured part being pointed at pulses between its own colour and the highlight colour

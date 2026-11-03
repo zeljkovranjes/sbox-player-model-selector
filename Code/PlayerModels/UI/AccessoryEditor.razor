@@ -42,7 +42,7 @@
             <div class="note">@_status</div>
         }
 
-        @if ( Selected is { } selected )
+        @if ( OpenAccessory is { } selected )
         {
             <div class="section-header">Position</div>
             @if ( _item?.Follows == true )
@@ -149,7 +149,28 @@
     AccessoryCatalog.Item _item;
     Model _itemModel;
 
-    Accessory Selected => Look is not null && _selected >= 0 && _selected < Look.Accessories.Count ? Look.Accessories[ _selected ] : null;
+    /// <summary>The item open on the tab, by its place in the look; -1 for none.</summary>
+    public int Selected => _selected;
+
+    /// <summary>Opens an item on the tab (loading its model first), or goes back to the list with -1.</summary>
+    public void Select( int index )
+    {
+        if ( index == _selected )
+            return;
+
+        if ( index < 0 || Look is null || index >= Look.Accessories.Count )
+        {
+            _selected = -1;
+            _item = null;
+            _itemModel = null;
+            StateHasChanged();
+            return;
+        }
+
+        _ = SelectAsync( index );
+    }
+
+    Accessory OpenAccessory => Look is not null && _selected >= 0 && _selected < Look.Accessories.Count ? Look.Accessories[ _selected ] : null;
 
     float BodyHeight => AccessoryCatalog.HeightOf( Body );
 
@@ -331,7 +352,7 @@
 
     void Move( Action<Accessory> change )
     {
-        if ( Selected is not { } selected )
+        if ( OpenAccessory is not { } selected )
             return;
 
         change( selected );

@@ -32,6 +32,9 @@ public sealed class ModelBody : Component
 	/// <summary>The bones picked by hand it was posed with (see <see cref="PlayerLook.BonesKey"/>).</summary>
 	internal string BonesKey { get; private set; } = "";
 
+	/// <summary>The items it wears; null before its look is first put on.</summary>
+	internal AccessoryRack Accessories => _accessories;
+
 	/// <summary>The renderer showing the picked model.</summary>
 	internal SkinnedModelRenderer Renderer => _renderer;
 

@@ -356,7 +356,7 @@
         _held = held;
         _weaponPath = held.Model.ResourcePath;
         var weapon = Game.ActiveScene.GetAll<BaseCombatWeapon>().FirstOrDefault( x => x.WorldModel == root );
-        _weaponName = string.IsNullOrWhiteSpace( weapon?.DisplayName ) ? WeaponDesign.NameOf( _weaponPath ) : weapon.DisplayName;
+        _weaponName = string.IsNullOrWhiteSpace( weapon?.DisplayName ) ? WeaponDesign.NameOf( _weaponPath ) : Phrase( weapon.DisplayName );
         StateHasChanged();
     }
 
@@ -381,6 +381,9 @@
     }
 
     static bool Hits( Ray ray, BBox bounds ) => bounds.Trace( ray, 10000f, out _ );
+
+    // A weapon's name as the game shows it: "#weapon.name.physgun" is a token for "Physics Gun"
+    static string Phrase( string name ) => name.StartsWith( '#' ) ? Language.GetPhrase( name[ 1.. ] ) : name;
 
     // The part of the weapon nearest along ray, by its bounds
     static string PartAt( Ray ray, ModelRenderer weapon )

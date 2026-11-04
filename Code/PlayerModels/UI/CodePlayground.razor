@@ -99,7 +99,7 @@
         }
     }
 
-    void Colour() => _entry?.Decorate( CodeText.Highlight( _entry.Source ), _error is null ? null : ErrorRange(), null, null );
+    void Colour() => _entry?.Decorate( CodeText.Highlight( _entry.Source ), _error is null ? null : ErrorRange(), null );
 
     List<(int, int)> ErrorRange() => _errorAt < 0 ? null : new List<(int, int)> { (_errorAt, 1) };
 

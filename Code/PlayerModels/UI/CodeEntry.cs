@@ -18,9 +18,6 @@ namespace PlayerModels.UI;
 /// </summary>
 public sealed class CodeEntry : TextEntry
 {
-	// Room left before a literal for its swatch or key picture, in the UI's units
-	private const float GapWidth = 16f;
-
 	/// <summary>The theme it colours text with.</summary>
 	[Parameter]
 	public CodeTheme Theme
@@ -170,10 +167,9 @@ public sealed class CodeEntry : TextEntry
 
 	/// <summary>
 	/// Colours the text: <paramref name="spans"/> by their kind, <paramref name="errors"/> underlined, <paramref name="marks"/>
-	/// on a background (find matches, the matching bracket), and room before each of <paramref name="gaps"/> (the places of
-	/// colour and key literals). Pieces may overlap: each character takes all that cover it.
+	/// on a background (find matches, the matching bracket). Pieces may overlap: each character takes all that cover it.
 	/// </summary>
-	public void Decorate( List<CodeSpan> spans, List<(int Start, int Length)> errors, List<(int Start, int Length)> marks, List<int> gaps )
+	public void Decorate( List<CodeSpan> spans, List<(int Start, int Length)> errors, List<(int Start, int Length)> marks )
 	{
 		var text = Source;
 		var keys = new int[ text.Length ];
@@ -185,13 +181,6 @@ public sealed class CodeEntry : TextEntry
 
 		foreach ( var (start, length) in marks ?? new List<(int, int)>() )
 			Fill( keys, start, length, 0x20, 0 );
-
-		// The room goes after the character before the literal: it is spaced out on its own
-		foreach ( var at in gaps ?? new List<int>() )
-		{
-			if ( at > 0 && at <= text.Length && text[ at - 1 ] != '\n' )
-				keys[ at - 1 ] |= 0x40;
-		}
 
 		Label.ClearStyleSpans();
 		if ( _stylesFor != Theme )
@@ -220,7 +209,7 @@ public sealed class CodeEntry : TextEntry
 			keys[ i ] = mask == 0 ? keys[ i ] | value : (keys[ i ] & ~mask) | value;
 	}
 
-	// One look: a kind's colour, underlined for an error, on a background for a mark, spaced out for a gap
+	// One look: a kind's colour, underlined for an error, on a background for a mark
 	private Styles StyleOf( int key )
 	{
 		if ( _styles.TryGetValue( key, out var style ) )
@@ -235,9 +224,6 @@ public sealed class CodeEntry : TextEntry
 
 		if ( (key & 0x20) != 0 )
 			style.BackgroundColor = Theme.Match;
-
-		if ( (key & 0x40) != 0 )
-			style.LetterSpacing = Length.Pixels( GapWidth );
 
 		_styles[ key ] = style;
 		return style;

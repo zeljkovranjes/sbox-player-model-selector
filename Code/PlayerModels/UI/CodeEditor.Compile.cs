@@ -511,13 +511,6 @@ public partial class CodeEditor
 			marks.Add( pair.Second );
 		}
 
-		var gaps = new List<int>();
-		foreach ( var colour in _colours )
-			gaps.Add( colour.Start );
-
-		foreach ( var key in KeysNow() )
-			gaps.Add( key.Start );
-
-		_entry.Decorate( CodeText.Highlight( _source ), errors, marks, gaps );
+		_entry.Decorate( CodeText.Highlight( _source ), errors, marks );
 	}
 }

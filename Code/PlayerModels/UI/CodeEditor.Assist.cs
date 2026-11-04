@@ -23,7 +23,10 @@ public partial class CodeEditor
 
 	// A swatch's and a key picture's size, and how far before its literal it sits, in the UI's units
 	private const float SwatchSize = 11f;
-	private const float GapBefore = 14f;
+
+	// Between a swatch or key picture and the text beside it, and the narrowest one worth showing in a space
+	private const float PictureMargin = 3f;
+	private const float LeastPicture = 3f;
 
 	private List<CompletionItem> _completions = new();
 	private int _completionIndex;
@@ -268,7 +271,7 @@ public partial class CodeEditor
 		for ( var i = 0; i < _colours.Count; i++ )
 		{
 			var literal = _colours[ i ];
-			Place( _swatches[ i ], _entry.RectOf( literal.Start ), origin, visible, scale );
+			Place( _swatches[ i ], literal.Start, literal.Length, origin, visible, scale );
 			_swatches[ i ].Style.BackgroundColor = new Color( (float)literal.R, (float)literal.G, (float)literal.B, 1f );
 			_swatches[ i ].SetClass( "index-" + i, true );
 		}
@@ -277,7 +280,7 @@ public partial class CodeEditor
 		for ( var i = 0; i < keys.Count; i++ )
 		{
 			_keyPictures[ i ].Key = keys[ i ].Key;
-			Place( _keyPictures[ i ], _entry.RectOf( keys[ i ].Start ), origin, visible, scale );
+			Place( _keyPictures[ i ], keys[ i ].Start, keys[ i ].Length, origin, visible, scale );
 		}
 
 		if ( _numbers is not null && _numbers.IsValid() )
@@ -308,15 +311,39 @@ public partial class CodeEditor
 		}
 	}
 
-	// A picture just before the literal at rect, hidden while that is scrolled out of view
-	private static void Place( Panel panel, Rect rect, Vector2 origin, Rect visible, float scale )
+	// A picture beside the literal at start (length long), where it covers no text: just after it when it ends its line,
+	// else in the space before it, narrowed to fit (none for no space). Hidden while the literal is scrolled out of view.
+	// The text can't be spaced apart to make room (the engine's text spans don't space letters), so it is found
+	private void Place( Panel panel, int start, int length, Vector2 origin, Rect visible, float scale )
 	{
-		var shows = rect.Top >= visible.Top && rect.Bottom <= visible.Bottom && rect.Left >= visible.Left && rect.Left <= visible.Right;
+		var end = start + length;
+		var endsLine = true;
+		for ( var at = end; at < _source.Length && _source[ at ] != '\n'; at++ )
+		{
+			if ( !char.IsWhiteSpace( _source[ at ] ) )
+			{
+				endsLine = false;
+				break;
+			}
+		}
+
+		var rect = _entry.RectOf( endsLine ? end : start );
+		var width = SwatchSize;
+		var left = (rect.Left - origin.x) / scale + PictureMargin;
+		if ( !endsLine )
+		{
+			var room = start > 0 && char.IsWhiteSpace( _source[ start - 1 ] ) ? (rect.Left - _entry.RectOf( start - 1 ).Left) / scale - PictureMargin : 0f;
+			width = MathF.Min( SwatchSize, room );
+			left = (rect.Left - origin.x) / scale - width - PictureMargin / 2f;
+		}
+
+		var shows = width >= LeastPicture && rect.Top >= visible.Top && rect.Bottom <= visible.Bottom && rect.Left >= visible.Left && rect.Left <= visible.Right;
 		panel.Style.Display = shows ? DisplayMode.Flex : DisplayMode.None;
 		if ( !shows )
 			return;
 
-		panel.Style.Left = Length.Pixels( (rect.Left - origin.x) / scale - GapBefore );
+		panel.Style.Left = Length.Pixels( left );
+		panel.Style.Width = Length.Pixels( width );
 		panel.Style.Top = Length.Pixels( (rect.Top - origin.y) / scale + (rect.Height / scale - SwatchSize) / 2f );
 	}
 

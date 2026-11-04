@@ -248,7 +248,7 @@ public sealed partial class Compiler
 
 		var what = kind.ToString().ToLowerInvariant();
 		var where = kind == LibraryItemKind.Effect ? "My effects" : "My shapes";
-		var close = Closest( name.Value, names ) is { } guess ? $" — did you mean '{guess}'?" : "";
+		var close = Suggestions.Closest( name.Value, names ) is { } guess ? $" — did you mean '{guess}'?" : "";
 		var make = kind == LibraryItemKind.Effect ? "Save it from the Effects tab" : "Make it in the shape creator";
 		Error( $"No {what} called '{name.Value}' in {where}{close} {make} or get it from the Workshop", name );
 	}

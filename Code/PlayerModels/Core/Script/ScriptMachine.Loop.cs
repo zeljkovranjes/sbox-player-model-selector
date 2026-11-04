@@ -4,7 +4,8 @@ namespace PlayerModels.Core.Script;
 
 public sealed partial class ScriptMachine
 {
-	// Runs function from its start until it returns (or the top halts), within budget instructions
+	// Runs function from its start until it returns (or the top halts), within budget instructions. One method with one
+	// switch, long as it is: the run's state (pc, sp, fp) stays in locals the JIT keeps in registers, the hot path
 	private bool Execute( int function, ScriptStack stack, int budget )
 	{
 		Fault = default;

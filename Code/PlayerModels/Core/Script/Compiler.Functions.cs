@@ -39,7 +39,7 @@ public sealed partial class Compiler
 			foreach ( var known in ScriptLibrary.AllEvents )
 				events.Add( known.Name );
 
-			if ( Closest( name, events ) is { } close )
+			if ( Suggestions.Closest( name, events ) is { } close )
 				Error( $"There is no event '{name}': did you mean '{close}'?", statement.Target );
 		}
 

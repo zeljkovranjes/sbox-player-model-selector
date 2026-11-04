@@ -117,26 +117,26 @@
         switch ( action.Event )
         {
             case ScriptEvent.Shoot:
-                citizen.Set( HoldParameter, Melee );
-                citizen.Set( AttackParameter, true );
+                citizen.Write( HoldParameter, Melee );
+                citizen.Write( AttackParameter, true );
                 Rack()?.Simulate( ScriptEvent.Shoot );
                 break;
             case ScriptEvent.Hit:
                 PutTarget( citizen );
-                citizen.Set( HoldParameter, Pistol );
-                citizen.Set( AttackParameter, true );
+                citizen.Write( HoldParameter, Pistol );
+                citizen.Write( AttackParameter, true );
                 Rack()?.Simulate( ScriptEvent.Shoot );
                 break;
             case ScriptEvent.Reload:
-                citizen.Set( ReloadParameter, true );
+                citizen.Write( ReloadParameter, true );
                 Rack()?.Simulate( ScriptEvent.Reload );
                 break;
             case ScriptEvent.Equip or ScriptEvent.Holster:
-                citizen.Set( HoldParameter, action.Event == ScriptEvent.Equip ? Pistol : 0 );
+                citizen.Write( HoldParameter, action.Event == ScriptEvent.Equip ? Pistol : 0 );
                 Rack()?.Simulate( action.Event );
                 break;
             case ScriptEvent.Jump:
-                citizen.Set( JumpParameter, true );
+                citizen.Write( JumpParameter, true );
                 Rack()?.Simulate( ScriptEvent.Jump );
                 break;
             case ScriptEvent.Land:
@@ -272,9 +272,9 @@
             if ( citizen.GameObject.WorldPosition != _home )
             {
                 citizen.GameObject.WorldPosition = _home;
-                citizen.Set( "move_speed", 0f );
-                citizen.Set( "move_x", 0f );
-                citizen.Set( "wish_x", 0f );
+                citizen.Write( "move_speed", 0f );
+                citizen.Write( "move_x", 0f );
+                citizen.Write( "wish_x", 0f );
             }
 
             return;
@@ -284,11 +284,11 @@
         var along = MathF.Sin( phase ) * WalkReach;
         var going = MathF.Cos( phase ) * _speed;
         citizen.GameObject.WorldPosition = _home + citizen.WorldRotation.Forward * along;
-        citizen.Set( "move_speed", MathF.Abs( going ) );
-        citizen.Set( "move_groundspeed", MathF.Abs( going ) );
-        citizen.Set( "move_x", going );
-        citizen.Set( "wish_x", going );
-        citizen.Set( "b_grounded", true );
+        citizen.Write( "move_speed", MathF.Abs( going ) );
+        citizen.Write( "move_groundspeed", MathF.Abs( going ) );
+        citizen.Write( "move_x", going );
+        citizen.Write( "wish_x", going );
+        citizen.Write( "b_grounded", true );
     }
 
     public override void OnDeleted()

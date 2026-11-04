@@ -15,6 +15,8 @@ internal static class AnimGraph1Parameters
 
 	internal static int ReadInt( this SkinnedModelRenderer renderer, string name ) => renderer.GetInt( name );
 
+	internal static void Write( this SkinnedModelRenderer renderer, string name, bool value ) => renderer.Set( name, value );
+
 	internal static void Write( this SkinnedModelRenderer renderer, string name, int value ) => renderer.Set( name, value );
 
 	internal static void Write( this SkinnedModelRenderer renderer, string name, float value ) => renderer.Set( name, value );

@@ -506,7 +506,8 @@ public sealed class EffectLayer
 			Lifetime = Limited( Lifetime, MinLifetime, MaxLifetime, 1f ),
 			Amount = isLight ? Limited( Amount, 0f, MaxBrightness, 1f ) : Limited( Amount, 0f, Kind == nameof( LayerKind.Ghost ) ? MaxGhostRate : MaxRate, 0f ),
 			Follow = Follow,
-			Drag = Follow ? Limited( Drag, 0f, 1f, 0f ) : 0f,
+			// Kept while sprites don't follow (it counts only while they do): following again keeps it
+			Drag = Limited( Drag, 0f, 1f, 0f ),
 			Solid = Solid,
 			Rhythm = Rhythm == nameof( LayerRhythm.Steady ) ? null : Rhythm,
 			RhythmSpeed = Limited( RhythmSpeed, 0f, MaxRhythmSpeed, 0f ),

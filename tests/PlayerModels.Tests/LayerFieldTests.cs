@@ -154,6 +154,6 @@ public class LayerFieldTests
 
 		var snow = RoundTrip( "local snow = Sprite()\nsnow.Follow = true\nsnow.Drag = 0.4" );
 		Assert.Equal( 0.6f, snow.StaysWithBody, 3 );
-		Assert.Equal( 0f, RoundTrip( "local snow = Sprite()\nsnow.Drag = 0.4" ).Drag );
+		Assert.Equal( 0f, RoundTrip( "local snow = Sprite()\nsnow.Drag = 0.4" ).StaysWithBody );
 	}
 }

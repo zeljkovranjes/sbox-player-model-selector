@@ -63,11 +63,32 @@ public class EditTests
 
 	private static Effect Copy( Effect effect ) => JsonSerializer.Deserialize<Effect>( JsonSerializer.Serialize( effect ) );
 
+	[Fact]
+	public void FollowingAgainKeepsTheDragTheCodeSays()
+	{
+		var source = PresetScripts.SnowCloud;
+		foreach ( var follow in new[] { false, true } )
+		{
+			var (_, build) = ScriptKit.Build( source );
+			var after = Copy( build.Effect );
+			after.Layers[ 1 ].Follow = follow;
+			var edited = ScriptEdit.Apply( source, build, build.Effect, after );
+			Assert.True( edited.Succeeded, $"{edited.Problem} (line {edited.Line})" );
+			ScriptKit.SameEffect( after, ScriptKit.BuildEffect( edited.Source ) );
+			source = edited.Source;
+		}
+	}
+
 	[Theory]
 	[MemberData( nameof( Sources ) )]
 	public void VisualEditsRebuildExactly( string name, string source )
 	{
-		var random = new Random( name.GetHashCode( StringComparison.Ordinal ) & 0xffff );
+		// Seeded by the name, the same every run (a string's own hash differs from run to run)
+		var seed = 0;
+		foreach ( var letter in name )
+			seed = seed * 31 + letter & 0xffff;
+
+		var random = new Random( seed );
 		for ( var round = 0; round < 6; round++ )
 		{
 			var (_, build) = ScriptKit.Build( source );

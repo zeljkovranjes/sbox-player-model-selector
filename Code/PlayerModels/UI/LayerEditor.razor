@@ -40,21 +40,17 @@
     }
     else
     {
-        <div class="section-header">Effect</div>
+        <div class="row effect-bar">
+            <ScrollingDropdown Items=@EffectChoices() Value=@effect.Id ValueChanged=@SelectEffect Tokenize=@false Tooltip="The effect you edit"></ScrollingDropdown>
+            <div class="reset @( CanStart ? "" : "disabled" )" Tooltip=@( CanStart ? "New effect: one of your own, from scratch" : $"A look wears up to {Effect.MaxWorn} effects and {Effect.MaxLookLayers} layers" )
+                 @onclick=@NewEffect><div class="glyph">add</div>New</div>
+            <div class="tool" Tooltip="Save draft: keep it unfinished, to come back to from My effects; it shows here, and isn't worn until you finish it" @onclick=@(() => SaveDraft( effect, false ))>edit_note</div>
+            <div class="reset" Tooltip="Edit as code: the script it is (or would be), changed here and there alike" @onclick=@(() => OpenCode?.Invoke( effect.Id ))><div class="glyph code">code</div>Code</div>
+        </div>
         @if ( effect.ForkedFrom is { } origin )
         {
             <div class="note">@ShapeCreator.BasedOn( origin )</div>
         }
-        <div class="row">
-            <div class="label">Effect</div>
-            <ScrollingDropdown Items=@EffectChoices() Value=@effect.Id ValueChanged=@SelectEffect Tokenize=@false></ScrollingDropdown>
-        </div>
-        <div class="row actions">
-            <div class="reset @( CanStart ? "" : "disabled" )" Tooltip=@( CanStart ? "An effect of your own, from scratch" : $"A look wears up to {Effect.MaxWorn} effects and {Effect.MaxLookLayers} layers" )
-                 @onclick=@NewEffect>New effect</div>
-            <div class="reset" Tooltip="Keep it unfinished, to come back to from My effects: it shows here, and isn't worn until you finish it" @onclick=@(() => SaveDraft( effect, false ))>Save draft</div>
-            <div class="reset" Tooltip="Open it in the code editor: the script it is (or would be), changed here and there alike" @onclick=@(() => OpenCode?.Invoke( effect.Id ))>Edit as code</div>
-        </div>
         @if ( DraftsOpen?.Effects.ContainsKey( effect.Id ) == true )
         {
             <div class="row draft-note">
@@ -73,20 +69,25 @@
         }
         @if ( effect.Script is not null )
         {
-            <div class="note">Written in code: what its script works out (in a loop, a function, from a parameter) changes only in code or with the parameter; the rest changes here and the script follows.</div>
-            <ScriptParameters Look=@Look Effect=@effect Changed=@Changed></ScriptParameters>
+            <ScriptParameters Look=@Look Effect=@effect Changed=@Changed FoldKey="Advanced/Parameters"
+                              Info="Written in code: what its script works out (in a loop, a function, from a parameter) changes only in code or with the parameter; the rest changes here and the script follows."></ScriptParameters>
         }
-        <div class="row">
-            <div class="label">Comes from</div>
-            <ScrollingDropdown Items=@AnchorChoices() Value=@AnchorValue( effect.Anchor ) ValueChanged=@SetAnchor Tokenize=@false></ScrollingDropdown>
-        </div>
-        <ToggleRow Label="Keep it where it is when it moves to another place" Value=@_keep OnChanged=@KeepWhereItIs></ToggleRow>
-        <NumberRow Label="Forward / back" Unit=@NumberRow.Field.Offset Value=@effect.Anchor.Forward OnChanged=@(( float v ) => Set( () => effect.Anchor.Forward = v ))></NumberRow>
-        <NumberRow Label="Left / right" Unit=@NumberRow.Field.Offset Value=@effect.Anchor.Left OnChanged=@(( float v ) => Set( () => effect.Anchor.Left = v ))></NumberRow>
-        <NumberRow Label="Up / down" Unit=@NumberRow.Field.Offset Value=@effect.Anchor.Up OnChanged=@(( float v ) => Set( () => effect.Anchor.Up = v ))></NumberRow>
+        <FoldingSection Title="Where It Comes From" Key="Advanced/Where It Comes From" Summary=@AnchorName( effect.Anchor )>
+            <Body>
+                <div class="row">
+                    <div class="label">Comes from</div>
+                    <ScrollingDropdown Items=@AnchorChoices() Value=@AnchorValue( effect.Anchor ) ValueChanged=@SetAnchor Tokenize=@false></ScrollingDropdown>
+                </div>
+                <ToggleRow Label="Keep it where it is when it moves to another place" Value=@_keep OnChanged=@KeepWhereItIs></ToggleRow>
+                <NumberRow Label="Forward / back" Unit=@NumberRow.Field.Offset Value=@effect.Anchor.Forward OnChanged=@(( float v ) => Set( () => effect.Anchor.Forward = v ))></NumberRow>
+                <NumberRow Label="Left / right" Unit=@NumberRow.Field.Offset Value=@effect.Anchor.Left OnChanged=@(( float v ) => Set( () => effect.Anchor.Left = v ))></NumberRow>
+                <NumberRow Label="Up / down" Unit=@NumberRow.Field.Offset Value=@effect.Anchor.Up OnChanged=@(( float v ) => Set( () => effect.Anchor.Up = v ))></NumberRow>
+            </Body>
+        </FoldingSection>
 
-        <div class="section-header">@( $"Layers ({effect.Layers.Count} of {Effect.MaxLayers})" )</div>
-        var held = Budget.HeldBack( Look.Effects )[ Look.Effects.IndexOf( effect ) ];
+        <FoldingSection Title=@( $"Layers ({effect.Layers.Count} of {Effect.MaxLayers})" ) Key="Advanced/Layers" Info=@BudgetText()>
+            <Body>
+        @{ var held = Budget.HeldBack( Look.Effects )[ Look.Effects.IndexOf( effect ) ]; }
         @for ( var i = 0; i < effect.Layers.Count; i++ )
         {
             var index = i;
@@ -97,30 +98,32 @@
                 <div class="switch @( layer.Off ? "" : "on" )" Tooltip=@( layer.Off ? "Turn on" : "Turn off" )
                      @onclick=@(( PanelEvent e ) => ToggleLayer( layer, e ))>check</div>
                 <div class="layer-name">@NameOf( layer )</div>
-                <div class="icon-button @( index == 0 ? "disabled" : "" )" Tooltip="Move up" @onclick=@(( PanelEvent e ) => MoveLayer( index, -1, e ))>arrow_upward</div>
-                <div class="icon-button @( index == effect.Layers.Count - 1 ? "disabled" : "" )" Tooltip="Move down" @onclick=@(( PanelEvent e ) => MoveLayer( index, 1, e ))>arrow_downward</div>
-                <div class="icon-button @( CanAdd ? "" : "disabled" )" Tooltip="Duplicate" @onclick=@(( PanelEvent e ) => DuplicateLayer( index, e ))>content_copy</div>
-                <div class="icon-button remove" Tooltip="Remove" @onclick=@(( PanelEvent e ) => RemoveLayer( index, e ))>delete</div>
+                <div class="icon-button on-hover @( index == 0 ? "disabled" : "" )" Tooltip="Move up" @onclick=@(( PanelEvent e ) => MoveLayer( index, -1, e ))>arrow_upward</div>
+                <div class="icon-button on-hover @( index == effect.Layers.Count - 1 ? "disabled" : "" )" Tooltip="Move down" @onclick=@(( PanelEvent e ) => MoveLayer( index, 1, e ))>arrow_downward</div>
+                <div class="icon-button on-hover @( CanAdd ? "" : "disabled" )" Tooltip="Duplicate" @onclick=@(( PanelEvent e ) => DuplicateLayer( index, e ))>library_add</div>
+                <div class="icon-button on-hover remove" Tooltip="Remove" @onclick=@(( PanelEvent e ) => RemoveLayer( index, e ))>delete</div>
+                <div class="icon-button" Tooltip="More: copy, paste, duplicate, move, switch off, delete (or right-click)" @onclick=@(( PanelEvent e ) => LayerMenuFrom( index, e ))>more_vert</div>
             </div>
         }
-        <div class="row">
+        <div class="row layer-tools">
             <div class="tool @( History?.CanUndo == true ? "" : "disabled" )" Tooltip="Undo the last change to your effects" @onclick=@(() => Undo?.Invoke())>undo</div>
-            <div class="tool @( History?.CanRedo == true ? "" : "disabled" )" Tooltip="Redo" @onclick=@(() => Redo?.Invoke())>redo</div>
-            <div class="reset @( CanAdd ? "" : "disabled" )" @onclick=@(() => AddLayer( LayerKind.Sprite ))>Add sprites</div>
-            <div class="reset @( CanAdd ? "" : "disabled" )" @onclick=@(() => AddLayer( LayerKind.Light ))>Add a light</div>
-            <div class="reset @( CanAdd ? "" : "disabled" )" @onclick=@(() => AddLayer( LayerKind.Trail ))>Add a trail</div>
+            <div class="tool @( History?.CanRedo == true ? "" : "disabled" )" Tooltip="Redo the change undone" @onclick=@(() => Redo?.Invoke())>redo</div>
+            <div class="tool @( Layer is null ? "disabled" : "" )" Tooltip="Copy layer: the selected one, to paste into this or another effect (or right-click a layer)" @onclick=@CopyLayer>content_copy</div>
+            <div class="tool @( _copied is not null && CanAdd ? "" : "disabled" )" Tooltip="Paste layer: the one copied, after the selected one" @onclick=@PasteLayer>content_paste</div>
+            <div class="spacer"></div>
+            <div class="reset @( CanAdd ? "" : "disabled" )" Tooltip="Add sprites" @onclick=@(() => AddLayer( LayerKind.Sprite ))><div class="glyph">add</div>Sprites</div>
+            <div class="reset @( CanAdd ? "" : "disabled" )" Tooltip="Add a light" @onclick=@(() => AddLayer( LayerKind.Light ))><div class="glyph">add</div>Light</div>
+            <div class="reset @( CanAdd ? "" : "disabled" )" Tooltip="Add a trail" @onclick=@(() => AddLayer( LayerKind.Trail ))><div class="glyph">add</div>Trail</div>
         </div>
-        <div class="row">
-            <div class="reset @( Layer is null ? "disabled" : "" )" Tooltip="Copy the selected layer, to paste into this or another effect (or right-click a layer)" @onclick=@CopyLayer>Copy layer</div>
-            <div class="reset @( _copied is not null && CanAdd ? "" : "disabled" )" Tooltip="Paste the layer copied, after the selected one" @onclick=@PasteLayer>Paste layer</div>
-        </div>
-        <div class="note">@BudgetText()</div>
+            </Body>
+        </FoldingSection>
 
         @if ( Layer is { } selected )
         {
             var kind = ChosenKind();
             var chosen = Chosen().Count;
-            <div class="section-header">@( chosen > 1 ? $"{chosen} layers" : NameOf( selected ) )</div>
+            <FoldingSection Title=@( chosen > 1 ? $"{chosen} layers" : NameOf( selected ) ) Key="Advanced/Layer">
+                <Body>
             @if ( effect.Script is not null && chosen == 1 )
             {
                 <ScriptFieldsNote Look=@Look Effect=@effect Layer=@_layer OpenCodeAt=@OpenCodeAt></ScriptFieldsNote>
@@ -233,8 +236,8 @@
 
             @if ( chosen == 1 )
             {
-                <div class="row">
-                    <div class="reset" Tooltip="Keep this layer alone in My effects, to add again" @onclick=@(() => KeepLayer( selected ))>Save layer to My effects</div>
+                <div class="row keep-layer">
+                    <div class="reset" Tooltip="Keep this layer alone in My effects, to add again" @onclick=@(() => KeepLayer( selected ))><div class="glyph">bookmark_add</div>Save layer to My effects</div>
                 </div>
                 <SharingPanel T="Effect" Library=@Shared.Effects Noun="effect" ModelId=@Shared.Everyone Scope=@Everywhere Current=@LayerShare( effect, selected )
                               ShareLabel="Share this layer" Describe=@EffectsEditor.DescribeEffect Workshop=@false></SharingPanel>
@@ -301,6 +304,8 @@
                     </div>
                 }
             }
+                </Body>
+            </FoldingSection>
         }
     }
 </root>
@@ -705,6 +710,20 @@
     {
         _layer = index;
         _chosen.Clear();
+    }
+
+    // The ⋮ on a layer's row: its menu, as a right-click opens it
+    void LayerMenuFrom( int index, PanelEvent e )
+    {
+        e.StopPropagation();
+        LayerMenu( index );
+    }
+
+    // What the effect comes from, in the words its list gives it
+    string AnchorName( EffectAnchor anchor )
+    {
+        var value = AnchorValue( anchor );
+        return AnchorChoices().FirstOrDefault( x => Equals( x.Value, value ) )?.Label;
     }
 
     void ToggleMore()

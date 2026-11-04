@@ -11,7 +11,7 @@
 <root>
     @if ( Fields() is { Count: > 0 } fields )
     {
-        <TextLabel class="note" Text="Set by script (change these in code; click one to go to its line):"></TextLabel>
+        <TextLabel class="label" Text="Set by script" Tooltip="Its script works these out: change them in code. Click one to go to its line"></TextLabel>
         <div class="chips">
             @foreach ( var field in fields )
             {

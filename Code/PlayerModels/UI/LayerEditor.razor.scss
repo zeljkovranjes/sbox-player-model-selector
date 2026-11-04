@@ -39,10 +39,53 @@ LayerEditor
 		gap: 8px;
 	}
 
-	// buttons under what they act on, wrapping onto another line in a narrow pane
-	.row.actions
+	// the groups breathe: farther apart than the rows in them
+	FoldingSection > .fold-header
+	{
+		margin-top: 16px;
+	}
+
+	FoldingSection:first-child > .fold-header
+	{
+		margin-top: 2px;
+	}
+
+	// the effect edited, and what makes a new one, keeps it as a draft or opens its code, in one toolbar
+	.effect-bar
+	{
+		gap: 6px;
+		margin-bottom: 2px;
+	}
+
+	// an icon before a button's word; the way into the code editor in the accent colour, so it is found
+	.reset > .glyph
+	{
+		font-family: "Material Icons";
+		font-size: 15px;
+		text-transform: none;
+
+		&.code
+		{
+			color: $ui-blue;
+		}
+	}
+
+	// under the layers: undo, redo, copy and paste as icons, then what adds a layer; wrapping in a narrow pane
+	.layer-tools
 	{
 		flex-wrap: wrap;
+		gap: 6px;
+		margin-top: 4px;
+
+		> .spacer
+		{
+			flex-grow: 1;
+		}
+	}
+
+	.keep-layer
+	{
+		margin-top: 6px;
 	}
 
 	// direct children only: s&box gives every text in a div the class "label" too
@@ -126,13 +169,25 @@ LayerEditor
 		}
 	}
 
-	// a layer: on or off, its name, and what can be done to it; the selected one is the one its settings change
+	// a layer: on or off, its name, and its menu; moving, duplicating and removing it show on the row pointed at and the
+	// selected one, which is the one its settings change
 	.layer
 	{
 		gap: 2px;
+		min-height: 30px;
 		padding: 0 4px;
 		border-radius: 2px;
 		cursor: pointer;
+
+		.on-hover
+		{
+			display: none;
+		}
+
+		&:hover .on-hover, &.selected .on-hover
+		{
+			display: flex;
+		}
 
 		&:hover
 		{
@@ -199,39 +254,28 @@ LayerEditor
 		}
 	}
 
-	// everything else about the layer, folded away until wanted
+	// everything else about the layer, folded away until wanted, under a heading like the groups'
 	.fold
 	{
+		@include ui-section-header;
 		flex-direction: row;
 		align-items: center;
-		flex-shrink: 0;
-		min-height: 28px;
-		margin-top: 6px;
+		min-height: 22px;
+		margin: 16px 0px 4px 0px;
 		gap: 4px;
 		cursor: pointer;
-		border-top: 1px solid $ui-separator;
 
 		&:hover
 		{
+			color: $ui-text;
 			sound-in: ui.hover;
-
-			.fold-name
-			{
-				color: $ui-text;
-			}
 		}
 	}
 
 	.fold-icon
 	{
 		font-family: "Material Icons";
-		font-size: 18px;
-		color: $ui-text-muted;
+		font-size: 14px;
 		text-transform: none;
-	}
-
-	.fold-name
-	{
-		@include ui-label;
 	}
 }

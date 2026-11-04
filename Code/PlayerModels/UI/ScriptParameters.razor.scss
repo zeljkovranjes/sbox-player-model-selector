@@ -7,11 +7,6 @@ ScriptParameters
 	flex-shrink: 0;
 	gap: 4px;
 
-	.section-header
-	{
-		@include ui-section-header;
-	}
-
 	.group
 	{
 		flex-direction: row;

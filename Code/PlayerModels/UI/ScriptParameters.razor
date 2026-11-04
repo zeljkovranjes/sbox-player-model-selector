@@ -13,7 +13,8 @@
 <root>
     @if ( Parameters() is { Count: > 0 } parameters )
     {
-        <div class="section-header">Parameters</div>
+        <FoldingSection Title="Parameters" Key=@FoldKey Summary=@( $"{parameters.Count} set in its script" ) Info=@Info>
+            <Body>
         @foreach ( var group in parameters.GroupBy( x => x.Group ?? "Options" ) )
         {
             <div class="group @( _folded.Contains( group.Key ) ? "folded" : "" )" @onclick=@(() => Fold( group.Key ))>
@@ -104,6 +105,8 @@
         {
             <TextLabel class="note" Text=@_status></TextLabel>
         }
+            </Body>
+        </FoldingSection>
     }
 </root>
 
@@ -117,6 +120,12 @@
 
     /// <summary>Called after every change (the preview follows).</summary>
     [Parameter] public Action Changed { get; set; }
+
+    /// <summary>Where the player's choice to fold the parameters away is kept (see <see cref="FoldingSection.Key"/>).</summary>
+    [Parameter] public string FoldKey { get; set; } = "Effects/Parameters";
+
+    /// <summary>A longer note about the parameters, behind an info icon on their heading; none when null.</summary>
+    [Parameter] public string Info { get; set; }
 
     readonly HashSet<string> _folded = new();
     string _status;

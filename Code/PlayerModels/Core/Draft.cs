@@ -1,30 +1,35 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using PlayerModels.Core.Script;
 
 namespace PlayerModels.Core;
 
 /// <summary>
-/// Unfinished work kept to come back to: an effect, a shape (a sticker or an emblem too) or a weapon design as its editor
-/// had it (<see cref="Item"/>, as text, whether or not it is finished), with how the editor was left
-/// (<see cref="State"/>: the layer selected, the tool picked), its name and when it was last edited. Kept on this machine
+/// Unfinished work kept to come back to: an effect, a shape (a sticker or an emblem too), a weapon design or a script as
+/// its editor had it (<see cref="Item"/>, as text, whether or not it is finished or compiles), with how the editor was
+/// left (<see cref="State"/>: the layer selected, the tool picked; for a script, the effect it was for), its name and when
+/// it was last edited. Kept on this machine
 /// only: never worn, sent or published. A kind keeps at most <see cref="MaxPerKind"/>, the newest first (see
 /// <see cref="Put"/>).
 /// </summary>
 public sealed class Draft
 {
 	/// <summary>What a draft is of.</summary>
-	public enum Of { Effect, Shape, Weapon }
+	public enum Of { Effect, Shape, Weapon, Script }
 
 	/// <summary>The most drafts of one kind kept.</summary>
 	public const int MaxPerKind = 50;
 
 	/// <summary>
 	/// The longest a draft's item may be, as text: as long as the longest item of its kind shared (an effect, an emblem or a
-	/// weapon design, each 32 KB at most), and its editor's state.
+	/// weapon design, each 32 KB at most; see <see cref="MaxItemLengthOf"/> for a script), and its editor's state.
 	/// </summary>
 	public const int MaxItemLength = 32 * 1024;
 	public const int MaxStateLength = 4 * 1024;
+
+	/// <summary>The longest a draft of <paramref name="kind"/> may be: a script as long as the code editor opens.</summary>
+	public static int MaxItemLengthOf( Of kind ) => kind == Of.Script ? ScriptLimits.MaxSourceLength : MaxItemLength;
 
 	/// <summary>The longest name.</summary>
 	public const int MaxNameLength = 32;
@@ -48,7 +53,7 @@ public sealed class Draft
 	[JsonPropertyName( "t" )]
 	public long Edited { get; set; }
 
-	/// <summary>The work itself, as its editor writes it (an effect, a shape or a design as JSON).</summary>
+	/// <summary>The work itself, as its editor writes it (an effect, a shape or a design as JSON; a script as its text).</summary>
 	[JsonPropertyName( "i" )]
 	public string Item { get; set; } = "";
 
@@ -67,7 +72,7 @@ public sealed class Draft
 	public Draft Sanitized()
 	{
 		if ( KindIs is not { } kind || string.IsNullOrWhiteSpace( Id ) || Id.Length > MaxIdLength || string.IsNullOrEmpty( Item )
-			|| Item.Length > MaxItemLength || State is { Length: > MaxStateLength } )
+			|| Item.Length > MaxItemLengthOf( kind ) || State is { Length: > MaxStateLength } )
 			return null;
 
 		var name = SharePost.Tidy( Name, MaxNameLength );

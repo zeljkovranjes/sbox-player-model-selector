@@ -162,26 +162,6 @@
         }
 
         <div class="section-header">My Effects</div>
-        @if ( Drafts.Count > 0 )
-        {
-            <div class="grid">
-                @foreach ( var draft in Drafts )
-                {
-                    var shown = draft;
-                    <div class="tile effect draft" Tooltip=@( $"Draft, {ScriptDraft.Age( shown.Edited, DateTimeOffset.UtcNow.ToUnixTimeSeconds() )}: open it in the code editor as you left it" )
-                         @onclick=@(() => OpenScriptDraft?.Invoke( shown ))>
-                        <div class="thumb draft-icon">code</div>
-                        <div class="draft-badge" Tooltip="Draft">edit</div>
-                        <TextLabel class="title" Text=@shown.Name></TextLabel>
-                        <div class="forget" Tooltip="Delete the draft" @onclick=@(( PanelEvent e ) => ForgetDraft( shown, e ))>delete</div>
-                    </div>
-                }
-                @for ( var i = 0; i < FillersFor( Drafts.Count ); i++ )
-                {
-                    <div class="tile-filler"></div>
-                }
-            </div>
-        }
         @if ( Mine.Count == 0 && MyDrafts.Count == 0 )
         {
             <div class="note">Effects you keep show here, to put on again; drafts too, marked with a pencil. Select one you wear and save it below its sliders.</div>
@@ -192,9 +172,17 @@
                 @foreach ( var kept in MyDrafts )
                 {
                     var shown = kept;
-                    <div class="tile effect draft" Tooltip=@( $"Draft: {shown.Name}, {shown.EditedText( PlayerModels.Engine.Drafts.Now )}. Click to go on with it in the Advanced editor" )
+                    var isScript = shown.KindIs == Draft.Of.Script;
+                    <div class="tile effect draft" Tooltip=@( $"Draft: {shown.Name}, {shown.EditedText( PlayerModels.Engine.Drafts.Now )}. Click to go on with it in the {(isScript ? "code editor" : "Advanced editor")}" )
                          @onclick=@(() => OpenDraft( shown )) @onrightclick=@(() => DraftMenu( shown ))>
-                        <EffectIcon class="thumb" Effect=@DraftEffect( shown )></EffectIcon>
+                        @if ( isScript )
+                        {
+                            <div class="thumb draft-icon">code</div>
+                        }
+                        else
+                        {
+                            <EffectIcon class="thumb" Effect=@DraftEffect( shown )></EffectIcon>
+                        }
                         <div class="title">@shown.Name</div>
                         <div class="badge" Tooltip="Draft">edit</div>
                         <div class="more" Tooltip="More: open, rename, duplicate, delete (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => DraftMenu( shown ) ))>more_vert</div>
@@ -413,35 +401,9 @@
     /// <summary>The drafts open in the editors (the page's): an effect that is one is shown, not worn until finished.</summary>
     [Parameter] public OpenDrafts DraftsOpen { get; set; }
 
-    /// <summary>Opens the code editor on a worn effect (by id; null for a new one), or on a draft as it was left.</summary>
+    /// <summary>Opens the code editor on a worn effect (by id; null for a new one), or on a script draft as it was left.</summary>
     [Parameter] public Action<string> OpenCode { get; set; }
-    [Parameter] public Action<ScriptDraft> OpenScriptDraft { get; set; }
-
-    // The scripts left as drafts, read again whenever one is kept or let go of
-    List<ScriptDraft> _drafts;
-    int _draftsRead = -1;
-
-    List<ScriptDraft> Drafts
-    {
-        get
-        {
-            if ( _drafts is null || _draftsRead != LocalPrefs.ScriptDraftsRevision )
-            {
-                _draftsRead = LocalPrefs.ScriptDraftsRevision;
-                _drafts = LocalPrefs.ScriptDrafts();
-            }
-
-            return _drafts;
-        }
-    }
-
-    void ForgetDraft( ScriptDraft draft, PanelEvent e )
-    {
-        e.StopPropagation();
-        LocalPrefs.DeleteScriptDraft( draft.Name );
-        _drafts = null;
-        StateHasChanged();
-    }
+    [Parameter] public Action<Draft> OpenScriptDraft { get; set; }
 
     /// <summary>The steps back and forward through changes to the effects, and what takes them.</summary>
     [Parameter] public EditHistory History { get; set; }
@@ -478,7 +440,7 @@
         string.Join( ";", Others().Select( x => $"{x.Id}{Selector?.HidesEffectsOf( x )}" ) ),
         HashCode.Combine( (int)(Selector?.TriggerWait() ?? 0f), History?.CanUndo, History?.CanRedo, _mineRevision, _status, _variationsOf, _variations,
             HashCode.Combine( Workshop, _category, Muted, Selector?.BlockWorkshopEffects, Selector?.BlockDrawnShapes, Selector?.BlockEffectLights, Selector?.BlockedShares?.Count,
-                HashCode.Combine( DraftsOpen?.Revision, PlayerModels.Engine.Drafts.Revision, LocalPrefs.ScriptDraftsRevision, _renaming, _confirmDrop ) ) ) );
+                HashCode.Combine( DraftsOpen?.Revision, PlayerModels.Engine.Drafts.Revision, _renaming, _confirmDrop ) ) ) );
 
     public override void Tick()
     {
@@ -814,7 +776,8 @@
     string _newName;
     Draft _confirmDrop;
 
-    IReadOnlyList<Draft> MyDrafts => PlayerModels.Engine.Drafts.Of( Draft.Of.Effect );
+    // Effects and scripts left unfinished, the newest first
+    List<Draft> MyDrafts => PlayerModels.Engine.Drafts.Of( Draft.Of.Effect ).Concat( PlayerModels.Engine.Drafts.Of( Draft.Of.Script ) ).OrderByDescending( x => x.Edited ).ToList();
 
     bool IsDraft( Effect effect ) => DraftsOpen?.Effects.ContainsKey( effect.Id ) == true;
 
@@ -827,9 +790,16 @@
         action();
     }
 
-    // A draft goes on, as a draft, and opens in the Advanced editor as it was left; one open already is selected
+    // A draft goes on, as a draft, and opens in the Advanced editor as it was left; one open already is selected. A
+    // script's opens in the code editor
     void OpenDraft( Draft draft )
     {
+        if ( draft.KindIs == Draft.Of.Script )
+        {
+            OpenScriptDraft?.Invoke( draft );
+            return;
+        }
+
         foreach ( var (effectId, draftId) in DraftsOpen?.Effects ?? new Dictionary<string, string>() )
         {
             if ( draftId == draft.Id && Look.Effects.Exists( x => x.Id == effectId ) )
@@ -935,6 +905,9 @@
         } );
     }
 
+    // My effects lists effects' drafts and scripts'
+    static Draft.Of KindOf( Draft draft ) => draft.KindIs ?? Draft.Of.Effect;
+
     void DraftMenu( Draft draft )
     {
         const string tip = "A draft isn't shared until you finish it";
@@ -942,7 +915,7 @@
         {
             new( "Open", "edit", () => OpenDraft( draft ), "Click" ),
             new( "Rename", "drive_file_rename_outline", () => StartRename( draft, draft.Name ) ),
-            new( "Duplicate", "content_copy", () => DuplicateDraft( draft ), null, MyDrafts.Count < Draft.MaxPerKind, $"Drafts are full ({Draft.MaxPerKind})" ),
+            new( "Duplicate", "content_copy", () => DuplicateDraft( draft ), null, PlayerModels.Engine.Drafts.Of( KindOf( draft ) ).Count < Draft.MaxPerKind, $"Drafts are full ({Draft.MaxPerKind})" ),
             new( "Delete", "delete", () => DeleteDraft( draft ) ),
             new( "Publish", "publish", null, null, false, tip ),
             new( "Copy code", "code", null, null, false, tip ),
@@ -969,7 +942,7 @@
             return;
 
         if ( _renaming is Draft draft )
-            PlayerModels.Engine.Drafts.Rename( Draft.Of.Effect, draft.Id, name );
+            PlayerModels.Engine.Drafts.Rename( KindOf( draft ), draft.Id, name );
         else if ( _renaming is Effect kept )
         {
             var renamed = kept.Sanitized();
@@ -997,7 +970,7 @@
 
     void DuplicateDraft( Draft draft )
     {
-        var copy = PlayerModels.Engine.Drafts.Make( Draft.Of.Effect, null, SharePost.Tidy( $"{draft.Name} copy", Draft.MaxNameLength ), draft.Item, draft.State );
+        var copy = PlayerModels.Engine.Drafts.Make( KindOf( draft ), null, SharePost.Tidy( $"{draft.Name} copy", Draft.MaxNameLength ), draft.Item, draft.State );
         _status = PlayerModels.Engine.Drafts.Save( copy, false, out _ ) ? $"Copied as the draft \"{copy.Name}\"." : $"Drafts are full ({Draft.MaxPerKind}). Delete one first.";
         StateHasChanged();
     }
@@ -1005,7 +978,7 @@
     // A draft deleted; one worn as a draft stays on the preview, no longer a draft of anything kept
     void DeleteDraft( Draft draft )
     {
-        PlayerModels.Engine.Drafts.Delete( Draft.Of.Effect, draft.Id );
+        PlayerModels.Engine.Drafts.Delete( KindOf( draft ), draft.Id );
         _status = $"The draft \"{draft.Name}\" is deleted.";
         StateHasChanged();
     }

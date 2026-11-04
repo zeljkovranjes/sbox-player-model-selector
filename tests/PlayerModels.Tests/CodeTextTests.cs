@@ -1,4 +1,5 @@
 using System.Linq;
+using PlayerModels.Core;
 using PlayerModels.Core.Script;
 using Xunit;
 
@@ -210,25 +211,31 @@ public class CodeTextTests
 	}
 
 	[Fact]
-	public void DraftsKeepTheNewestWithinTheCap()
+	public void ScriptDraftsKeepTheNewestWithinTheCap()
 	{
-		var drafts = Enumerable.Range( 0, ScriptDraft.MaxDrafts ).Select( x => new ScriptDraft { Name = "d" + x, Script = "x", Edited = x } ).ToList();
-		var kept = ScriptDraft.Keep( drafts, new ScriptDraft { Name = "new", Script = "local x = (", Edited = 1000 }, out var dropped );
-		Assert.Equal( ScriptDraft.MaxDrafts, kept.Count );
-		Assert.Equal( "new", kept[ 0 ].Name );
-		Assert.Equal( "local x = (", kept[ 0 ].Script );
-		Assert.Equal( "d0", dropped );
+		var drafts = Enumerable.Range( 0, Draft.MaxPerKind ).Select( x => new Draft { Id = "d" + x, Kind = nameof( Draft.Of.Script ), Name = "d" + x, Item = "x", Edited = x } ).ToList();
+		var broken = new Draft { Id = "new", Kind = nameof( Draft.Of.Script ), Name = "new", Item = "local x = (", Edited = 1000 }.Sanitized();
+		Assert.Null( Draft.Put( drafts, broken, false, out _ ) );
 
-		var again = ScriptDraft.Keep( kept, new ScriptDraft { Name = "new", Script = "local x = 1", Edited = 2000 }, out dropped );
+		var kept = Draft.Put( drafts, broken, true, out var dropped );
+		Assert.Equal( Draft.MaxPerKind, kept.Count );
+		Assert.Equal( "new", kept[ 0 ].Id );
+		Assert.Equal( "local x = (", kept[ 0 ].Item );
+		Assert.Equal( "d0", dropped.Id );
+
+		var again = Draft.Put( kept, new Draft { Id = "new", Kind = nameof( Draft.Of.Script ), Name = "new", Item = "local x = 1", Edited = 2000 }, false, out dropped );
 		Assert.Null( dropped );
-		Assert.Single( again, x => x.Name == "new" );
+		Assert.Single( again, x => x.Id == "new" );
 	}
 
 	[Fact]
-	public void ADraftTooLongOrNamelessIsNotKept()
+	public void AScriptDraftKeepsAsLongAScriptAsTheEditorOpens()
 	{
-		Assert.Null( new ScriptDraft { Name = "", Script = "x" }.Sanitized() );
-		Assert.Null( new ScriptDraft { Name = "big", Script = new string( 'x', ScriptDraft.MaxLength + 1 ) }.Sanitized() );
-		Assert.Equal( "edited 5 min ago", ScriptDraft.Age( 0, 300 ) );
+		var longest = new string( 'x', ScriptLimits.MaxSourceLength );
+		Assert.NotNull( new Draft { Id = "a", Kind = nameof( Draft.Of.Script ), Name = "big", Item = longest }.Sanitized() );
+		Assert.Null( new Draft { Id = "a", Kind = nameof( Draft.Of.Script ), Name = "big", Item = longest + "x" }.Sanitized() );
+		Assert.Null( new Draft { Id = "a", Kind = nameof( Draft.Of.Effect ), Name = "big", Item = longest }.Sanitized() );
+		Assert.Equal( "Untitled", new Draft { Id = "a", Kind = nameof( Draft.Of.Script ), Name = "", Item = "x" }.Sanitized().Name );
+		Assert.Equal( "edited 5 min ago", new Draft { Edited = 0 }.EditedText( 300 ) );
 	}
 }

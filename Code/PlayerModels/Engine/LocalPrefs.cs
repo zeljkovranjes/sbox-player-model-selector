@@ -46,9 +46,6 @@ internal static class LocalPrefs
 	private const string CodeReferenceCookie = "player_model_selector.code_reference";
 	private const string TestBarCookie = "player_model_selector.test_bar";
 
-	// Script drafts can be long (a script each, as left), so they are kept in the game's data rather than its cookies
-	private const string ScriptDraftsFile = "script_drafts.json";
-
 	/// <summary>The most shapes kept in My shapes.</summary>
 	internal const int MaxMyShapes = 50;
 
@@ -396,39 +393,6 @@ internal static class LocalPrefs
 			? (kept[ 0 ], kept[ 1 ], kept[ 2 ] != 0f)
 			: null;
 		set => Game.Cookies.Set( TestBarCookie, value is { } bar ? new[] { bar.Speed, bar.Slow, bar.Loop ? 1f : 0f } : null );
-	}
-
-	/// <summary>Counts up whenever a draft is kept or let go of: lists of them read them again when it changes.</summary>
-	internal static int ScriptDraftsRevision { get; private set; }
-
-	/// <summary>The scripts left as drafts, newest first (see <see cref="ScriptDraft"/>), each read within bounds.</summary>
-	internal static List<ScriptDraft> ScriptDrafts()
-	{
-		return ScriptDraft.Within( FileSystem.Data.ReadJson<List<ScriptDraft>>( ScriptDraftsFile, null ) );
-	}
-
-	/// <summary>
-	/// Keeps <paramref name="draft"/> (in place of one of its name, as edited now); gives the name of the oldest draft let
-	/// go to make room, or null.
-	/// </summary>
-	internal static string KeepScriptDraft( ScriptDraft draft )
-	{
-		draft.Edited = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-		var kept = ScriptDraft.Keep( ScriptDrafts(), draft, out var dropped );
-		FileSystem.Data.WriteJson( ScriptDraftsFile, kept );
-		ScriptDraftsRevision++;
-		return dropped;
-	}
-
-	/// <summary>Lets go of the draft named <paramref name="name"/> (finished, or deleted).</summary>
-	internal static void DeleteScriptDraft( string name )
-	{
-		var kept = ScriptDrafts();
-		if ( kept.RemoveAll( x => x.Name == name ) > 0 )
-		{
-			FileSystem.Data.WriteJson( ScriptDraftsFile, kept );
-			ScriptDraftsRevision++;
-		}
 	}
 
 	/// <summary>The starred models, in the order they were starred.</summary>

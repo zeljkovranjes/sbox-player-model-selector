@@ -36,7 +36,7 @@
         <div class="tool" Tooltip="Format: indent and space it the one way (Shift+Alt+F)" @onclick=@FormatSource>format_align_left</div>
         <div class="tool" Tooltip="Comment the lines out, or back in (Ctrl+/)" @onclick=@ToggleComment>code_off</div>
         <div class="separator"></div>
-        <div class="tool" Tooltip="Keep as draft: come back to it from My effects" @onclick=@KeepDraft>edit_note</div>
+        <div class="tool" Tooltip="Keep as draft: come back to it from My effects" @onclick=@(() => KeepDraft( false ))>edit_note</div>
         <div class="tool" Tooltip=@( Theme == CodeTheme.Dark ? "Light theme" : "Dark theme" ) @onclick=@ToggleTheme>@( Theme == CodeTheme.Dark ? "light_mode" : "dark_mode" )</div>
         <div class="tool" Tooltip="Reference: everything a script can use, with live examples (F1)" @onclick=@(() => OpenReference( null ))>help</div>
     </div>
@@ -218,6 +218,19 @@
         </div>
     }
 
+    @if ( _confirmDrop is { } oldest )
+    {
+        <div class="dialog-shade">
+            <div class="dialog">
+                <TextLabel class="dialog-text" Text=@( $"Drafts are full ({PlayerModels.Core.Draft.MaxPerKind}). Drop the oldest, \"{oldest.Name}\" ({oldest.EditedText( Drafts.Now )})?" )></TextLabel>
+                <div class="dialog-buttons">
+                    <div class="dialog-button primary" @onclick=@DropOldestDraft>Drop it</div>
+                    <div class="dialog-button" @onclick=@CancelDrop>Cancel</div>
+                </div>
+            </div>
+        </div>
+    }
+
     @if ( !_maximized )
     {
         <DragHandle class="edge left" Started=@StartResize Moved=@(( Vector2 d ) => Resize( d, -1, 0 )) Ended=@EndMove></DragHandle>
@@ -252,8 +265,8 @@
     /// <summary>Called once the window is closed.</summary>
     public Action Closed { get; init; }
 
-    /// <summary>A draft to open in place of the effect's script.</summary>
-    public ScriptDraft Draft { get; init; }
+    /// <summary>A script draft (or an example, with no id) to open in place of the effect's script.</summary>
+    public PlayerModels.Core.Draft Draft { get; init; }
 
     /// <summary>Where it opens the first time, when it never was opened before: beside the Advanced editor's options.</summary>
     public bool BesideOptions { get; init; }
@@ -284,7 +297,7 @@
 
     protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Theme, _maximized, IsDirty, _bar, _matches.Count, _match, _completions, _completionIndex ),
         HashCode.Combine( _completionTop, _signature, _hover, _picking, _showErrors, _errors, _lineNumbers, _position ),
-        HashCode.Combine( _storedBytes, _note, _autoApply, _closing, _name, _entry?.CanUndo, _entry?.CanRedo ) );
+        HashCode.Combine( _storedBytes, _note, _autoApply, _closing, _name, _entry?.CanUndo, _entry?.CanRedo, _confirmDrop ) );
 
     protected override void OnAfterTreeRender( bool firstTime )
     {

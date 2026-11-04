@@ -32,6 +32,11 @@ public partial class CodeEditor
 	private string _source = "";
 	private string _saved = "";
 	private string _drafted;
+
+	// The draft this script is kept as (see Drafts), once it is; and the oldest draft, when keeping one asks to drop it
+	private string _draftId;
+	private PlayerModels.Core.Draft _confirmDrop;
+	private bool _closeAfterDraft;
 	private string _name = "";
 	private bool _autoApply = true;
 	private MyLibrary _library;
@@ -65,9 +70,10 @@ public partial class CodeEditor
 		string text;
 		if ( Draft is { } draft )
 		{
-			text = draft.Script;
+			text = draft.Item;
 			_name = draft.Name;
 			_drafted = text;
+			_draftId = string.IsNullOrEmpty( draft.Id ) ? null : draft.Id;
 		}
 		else if ( effect?.Script is { } script )
 		{
@@ -292,11 +298,14 @@ public partial class CodeEditor
 			return false;
 		}
 
-		if ( Draft is not null || _drafted is not null )
+		// Finished: no longer a draft
+		if ( _draftId is not null )
 		{
-			LocalPrefs.DeleteScriptDraft( _name );
-			_drafted = null;
+			Drafts.Delete( PlayerModels.Core.Draft.Of.Script, _draftId );
+			_draftId = null;
 		}
+
+		_drafted = null;
 
 		_saved = _source;
 		_openedAs = _applied;
@@ -306,11 +315,45 @@ public partial class CodeEditor
 		return true;
 	}
 
-	private void KeepDraft()
+	// Keeps the text as it is, errors and all, as a script draft (the same one again once kept); when drafts are full it
+	// asks before dropping the oldest. True once kept
+	private bool KeepDraft( bool dropOldest )
 	{
-		var dropped = LocalPrefs.KeepScriptDraft( new ScriptDraft { Name = TitleText, Script = _source, EffectId = EffectId } );
+		_confirmDrop = null;
+		var draft = Drafts.Make( PlayerModels.Core.Draft.Of.Script, _draftId, TitleText, _source, EffectId );
+		if ( !Drafts.Save( draft, dropOldest, out var dropped ) )
+		{
+			if ( Drafts.Find( PlayerModels.Core.Draft.Of.Script, draft.Id ) is null && Drafts.Of( PlayerModels.Core.Draft.Of.Script ).Count >= PlayerModels.Core.Draft.MaxPerKind )
+				_confirmDrop = Drafts.Oldest( PlayerModels.Core.Draft.Of.Script );
+			else
+				_note = "This script is too long to keep as a draft";
+
+			StateHasChanged();
+			return false;
+		}
+
+		_draftId = draft.Id;
 		_drafted = _source;
-		_note = dropped is null ? "Kept as a draft: open it again from My effects" : $"Kept as a draft (the oldest, {dropped}, was let go)";
+		_note = dropped is null ? "Kept as a draft: open it again from My effects" : $"Kept as a draft (\"{dropped.Name}\" was dropped)";
+		StateHasChanged();
+		return true;
+	}
+
+	private void DropOldestDraft()
+	{
+		if ( KeepDraft( true ) && _closeAfterDraft )
+		{
+			PutBack();
+			Delete();
+		}
+
+		_closeAfterDraft = false;
+	}
+
+	private void CancelDrop()
+	{
+		_confirmDrop = null;
+		_closeAfterDraft = false;
 		StateHasChanged();
 	}
 
@@ -338,9 +381,15 @@ public partial class CodeEditor
 
 	private void DraftAndClose()
 	{
-		KeepDraft();
-		PutBack();
-		Delete();
+		_closing = false;
+		if ( KeepDraft( false ) )
+		{
+			PutBack();
+			Delete();
+			return;
+		}
+
+		_closeAfterDraft = _confirmDrop is not null;
 	}
 
 	// The effect as it was when opened (or last saved): Auto-apply's changes to the preview are let go

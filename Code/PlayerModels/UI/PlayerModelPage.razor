@@ -424,7 +424,8 @@
 
     void OpenCode( string effect ) => OpenCodeWith( effect, null );
 
-    void OpenScriptDraft( ScriptDraft draft ) => OpenCodeWith( draft.EffectId, draft );
+    // A script draft keeps the effect it was for as its state
+    void OpenScriptDraft( Draft draft ) => OpenCodeWith( draft.State, draft );
 
     // On the effect's line: open (or already open) on it, the caret there
     void OpenCodeAt( string effect, int line )
@@ -434,7 +435,7 @@
             _code.GoTo( line );
     }
 
-    void OpenCodeWith( string effect, ScriptDraft draft )
+    void OpenCodeWith( string effect, Draft draft )
     {
         if ( _look is null )
             return;
@@ -453,7 +454,7 @@
         _code = new CodeEditor
         {
             LookNow = () => _look,
-            EffectId = draft is not null && _look.Effects.All( x => x.Id != draft.EffectId ) ? null : effect,
+            EffectId = draft is not null && _look.Effects.All( x => x.Id != draft.State ) ? null : effect,
             Changed = LookChanged,
             Wear = ApplyLook,
             ShowReference = OpenReference,
@@ -491,7 +492,7 @@
         if ( _code.IsValid() )
             _code.Insert( script );
         else
-            OpenCodeWith( null, new ScriptDraft { Name = "Example", Script = script } );
+            OpenCodeWith( null, new Draft { Kind = nameof( Draft.Of.Script ), Name = "Example", Item = script } );
     }
 
     // The model whose Customize page shows its Workshop: another model's page opens on its options again

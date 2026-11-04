@@ -451,7 +451,7 @@ public sealed class ModelPreview : Panel
 		if ( Highlight?.BodyGroup is not { } group || _body.Renderer?.Model is not { } model )
 			return 0;
 
-		var part = model.BodyParts.FirstOrDefault( x => x.Name == group );
+		var part = model.Parts.All.FirstOrDefault( x => x.Name == group );
 		var choice = Highlight.Value.Choice;
 
 		return part is not null && choice >= 0 && choice < part.Choices.Count ? part.Choices[ choice ].Mask : 0;

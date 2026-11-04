@@ -445,7 +445,7 @@
         if ( Model is null )
             return Enumerable.Empty<Model.BodyPart>();
 
-        return Model.BodyParts.Where( x => ChoicesOf( x ).Count > 1 );
+        return Model.Parts.All.Where( x => ChoicesOf( x ).Count > 1 );
     }
 
     static List<ChoiceButton> ChoicesOf( Model.BodyPart part )

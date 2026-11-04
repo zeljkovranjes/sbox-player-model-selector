@@ -317,3 +317,33 @@ public class WeaponCompletionTests
 		Assert.Contains( "models/sbox_props/cola_can/cola_can.vmdl", At( "Weapon.AddProp( \"" ) );
 	}
 }
+
+/// <summary>The weapon panel's change to a design with a script, while its code isn't open, is written into the script.</summary>
+public class WeaponScriptFollowTests
+{
+	[Fact]
+	public void APanelChangeIsFollowedInTheScript()
+	{
+		var design = WeaponScriptTests.Rich();
+		design.Script = Minifier.Minify( "-- kept\n" + ScriptCodegen.Weapon( design ) );
+		var after = JsonSerializer.Deserialize<WeaponDesign>( JsonSerializer.Serialize( design ) );
+		after.Stickers[ 0 ].Size = 7;
+		after.Finish = "Copper";
+		var script = WeaponScripts.Follow( design.Script, design, after, ExampleRunner.Library );
+		Assert.NotNull( script );
+		Assert.Contains( "-- kept", script );
+		var built = WeaponScripts.Build( script, after, new ScriptCache(), ExampleRunner.Library ).Design;
+		Assert.Equal( 7, built.Stickers[ 0 ].Size );
+		Assert.Equal( "Copper", built.Finish );
+	}
+
+	[Fact]
+	public void AChangeOnlyCodeCanMakeLetsTheScriptGo()
+	{
+		var design = new WeaponDesign { Weapon = "models/weapons/w.vmdl", Script = "local size = 2\nlocal star = Weapon.AddSticker( Shapes.Star5 )\nstar.Size = size * 2" };
+		design.Stickers = new List<WeaponSticker> { new() { Picture = "Star5", Size = 4 } };
+		var after = JsonSerializer.Deserialize<WeaponDesign>( JsonSerializer.Serialize( design ) );
+		after.Stickers[ 0 ].Size = 9;
+		Assert.Null( WeaponScripts.Follow( design.Script, design, after, ExampleRunner.Library ) );
+	}
+}

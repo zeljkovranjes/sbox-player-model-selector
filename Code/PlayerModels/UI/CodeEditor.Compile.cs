@@ -68,7 +68,9 @@ public partial class CodeEditor
 		_applied = _openedAs;
 
 		string text;
-		if ( Draft is { } draft )
+		if ( Weapon is not null )
+			text = OpenWeapon( look );
+		else if ( Draft is { } draft )
 		{
 			text = draft.Item;
 			_name = draft.Name;
@@ -136,7 +138,7 @@ public partial class CodeEditor
 	private bool Compile( bool apply )
 	{
 		_pending = false;
-		var result = ScriptCompiler.Compile( _source, ScriptKind.Effect, _library );
+		var result = ScriptCompiler.Compile( _source, Kind, Names );
 		_storedBytes = result.StoredBytes;
 		_errors = result.Errors.ToList();
 		if ( result.Succeeded )
@@ -144,12 +146,14 @@ public partial class CodeEditor
 			_program = result.Program;
 			var machine = new ScriptMachine( result.Program );
 			var kept = machine.SetParameters( EffectOf( LookNow?.Invoke() )?.Parameters );
-			var build = machine.Build( _library, ScriptPrograms.Stack );
+			var build = machine.Build( Names, ScriptPrograms.Stack );
 			if ( build.Succeeded )
 			{
 				_build = build;
-				if ( apply )
+				if ( apply && Weapon is null )
 					Put( build, kept );
+				else if ( apply )
+					PutDesign( build );
 			}
 			else
 				_errors = new List<ScriptError> { build.Error };
@@ -204,6 +208,12 @@ public partial class CodeEditor
 	/// </summary>
 	public void Sync()
 	{
+		if ( Weapon is not null )
+		{
+			SyncDesign();
+			return;
+		}
+
 		var look = LookNow?.Invoke();
 		var effect = EffectOf( look );
 		if ( effect is null || _entry is null )
@@ -395,6 +405,12 @@ public partial class CodeEditor
 	// The effect as it was when opened (or last saved): Auto-apply's changes to the preview are let go
 	private void PutBack()
 	{
+		if ( Weapon is not null )
+		{
+			PutBackDesign();
+			return;
+		}
+
 		var look = LookNow?.Invoke();
 		var effect = EffectOf( look );
 		if ( effect is null )

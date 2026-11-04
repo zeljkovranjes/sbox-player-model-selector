@@ -36,7 +36,10 @@
         <div class="tool" Tooltip="Format: indent and space it the one way (Shift+Alt+F)" @onclick=@FormatSource>format_align_left</div>
         <div class="tool" Tooltip="Comment the lines out, or back in (Ctrl+/)" @onclick=@ToggleComment>code_off</div>
         <div class="separator"></div>
-        <div class="tool" Tooltip="Keep as draft: come back to it from My effects" @onclick=@(() => KeepDraft( false ))>edit_note</div>
+        @if ( Weapon is null )
+        {
+            <div class="tool" Tooltip="Keep as draft: come back to it from My effects" @onclick=@(() => KeepDraft( false ))>edit_note</div>
+        }
         <div class="tool" Tooltip=@( Theme == CodeTheme.Dark ? "Light theme" : "Dark theme" ) @onclick=@ToggleTheme>@( Theme == CodeTheme.Dark ? "light_mode" : "dark_mode" )</div>
         <div class="tool" Tooltip="Reference: everything a script can use, with live examples (F1)" @onclick=@(() => OpenReference( null ))>help</div>
     </div>
@@ -211,7 +214,10 @@
                 <div class="dialog-buttons">
                     <div class="dialog-button primary" @onclick=@SaveAndClose>Save</div>
                     <div class="dialog-button" @onclick=@DiscardAndClose>Discard</div>
-                    <div class="dialog-button" @onclick=@DraftAndClose>Keep as draft</div>
+                    @if ( Weapon is null )
+                    {
+                        <div class="dialog-button" @onclick=@DraftAndClose>Keep as draft</div>
+                    }
                     <div class="dialog-button" @onclick=@(() => SetClosing( false ))>Cancel</div>
                 </div>
             </div>

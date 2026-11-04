@@ -20,7 +20,11 @@ public static class WeaponScripts
 		private readonly IPlayerLibrary _inner;
 		private readonly IReadOnlyList<Effect> _carried;
 
-		public DesignLibrary( IPlayerLibrary inner, IReadOnlyList<Effect> carried )
+		/// <summary>
+		/// <paramref name="inner"/> with <paramref name="carried"/> first, and <paramref name="offered"/> too (the parts of the
+		/// weapon held and the stock props, which completion offers while typing).
+		/// </summary>
+		public DesignLibrary( IPlayerLibrary inner, IReadOnlyList<Effect> carried, IEnumerable<LibraryItem> offered = null )
 		{
 			_inner = inner;
 			_carried = carried ?? Array.Empty<Effect>();
@@ -29,6 +33,7 @@ public static class WeaponScripts
 				items.Add( new LibraryItem( effect.Name ?? "", LibraryItemKind.Effect, effect.Id ?? "" ) );
 
 			items.AddRange( inner?.Items ?? Array.Empty<LibraryItem>() );
+			items.AddRange( offered ?? Array.Empty<LibraryItem>() );
 			Items = items;
 		}
 
@@ -76,6 +81,23 @@ public static class WeaponScripts
 		copy.ForkedFrom = stored.ForkedFrom;
 		copy.Script = stored.Script;
 		return copy;
+	}
+
+	/// <summary>
+	/// <paramref name="script"/> (a design's, minified) changed so it builds <paramref name="after"/>, the design it built
+	/// being <paramref name="before"/>: the change written in place (see <see cref="ScriptEdit.ApplyWeapon"/>), minified;
+	/// null when the script no longer builds or the change can only be made in code (the design then keeps what it shows,
+	/// without a script). For the weapon panel's changes to a design with a script while its code isn't open.
+	/// </summary>
+	public static string Follow( string script, WeaponDesign before, WeaponDesign after, IPlayerLibrary library )
+	{
+		var source = Formatter.Format( script ) ?? script;
+		var build = Build( source, before, new ScriptCache(), library );
+		if ( !build.Succeeded || Shown( before, build ) is not { } built )
+			return null;
+
+		var edit = ScriptEdit.ApplyWeapon( source, build, built, after );
+		return edit.Succeeded ? Minifier.Minify( edit.Source ) : null;
 	}
 
 	/// <summary>

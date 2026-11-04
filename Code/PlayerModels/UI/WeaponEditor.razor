@@ -6,6 +6,7 @@
 @using Sandbox.UI
 @using PlayerModels.Components
 @using PlayerModels.Core
+@using PlayerModels.Core.Script
 @using PlayerModels.Engine
 @inherits Panel
 @namespace PlayerModels.UI
@@ -58,6 +59,7 @@
             <div class="tool @( _history.CanUndo ? "" : "disabled" )" Tooltip="Undo the last change to this weapon" @onclick=@Undo>undo</div>
             <div class="tool @( _history.CanRedo ? "" : "disabled" )" Tooltip="Redo" @onclick=@Redo>redo</div>
             <div class="reset workshop" Tooltip="Designs players shared for this weapon" @onclick=@(() => ShowWorkshop( true ))>@WorkshopLabel</div>
+            <div class="reset" Tooltip="Open this weapon's whole design as a script: the panel and the code stay in step" @onclick=@(() => OpenCode?.Invoke())>Edit as code</div>
             <div class="reset @( Design is null ? "disabled" : "" )" Tooltip="Take this weapon's design off" @onclick=@Reset>Reset weapon</div>
             <div class="reset @( Design is null ? "disabled" : "" )" Tooltip="Keep it unfinished, to come back to: it shows here, and isn't worn until you finish it" @onclick=@(() => KeepDraft( false ))>Save draft</div>
         </div>
@@ -267,7 +269,8 @@
         @for ( var i = 0; i < (Design?.Effects?.Count ?? 0); i++ )
         {
             var effect = Design.Effects[ i ];
-            <div class="row item @( _effect == effect.Id ? "selected" : "" )" @onclick=@(() => _effect = effect.Id)>
+            var place = i;
+            <div class="row item @( _effect == effect.Id ? "selected" : "" )" @onclick=@(() => PickEffect( effect, place ))>
                 <div class="switch @( effect.Off ? "" : "on" )" Tooltip=@( effect.Off ? "Turn on" : "Turn off" ) @onclick=@(( PanelEvent e ) => Act( e, () => Change( _ => effect.Off = !effect.Off ) ))>check</div>
                 <div class="item-name">@effect.Name</div>
                 <div class="icon-button" Tooltip="Remove" @onclick=@(( PanelEvent e ) => Act( e, () => Change( d => d.Effects.Remove( effect ) ) ))>delete</div>
@@ -363,6 +366,13 @@
     [Parameter] public bool Locked { get; set; }
     [Parameter] public bool PropsLocked { get; set; }
     [Parameter] public bool EffectsLocked { get; set; }
+
+    /// <summary>Opens this weapon's design in the code editor; and whether it is open on it now (it keeps the script in step itself).</summary>
+    [Parameter] public Action OpenCode { get; set; }
+    [Parameter] public Func<bool> CodeOpen { get; set; }
+
+    /// <summary>Called with the item selected on the panel (its kind and place), so the code editor shows its lines.</summary>
+    [Parameter] public Action<CodeEditor.WeaponItem, int> ItemPicked { get; set; }
 
     // The most prop pictures listed at once
     const int MostPropTiles = 40;
@@ -480,7 +490,14 @@
             return;
 
         Remember();
-        change( Own() );
+        var design = Own();
+        var before = design.Script is null || CodeOpen?.Invoke() == true ? null : JsonSerializer.Deserialize<WeaponDesign>( JsonSerializer.Serialize( design ) );
+        change( design );
+
+        // A design written as a script follows its change in the script too (the code editor does it itself while open on it)
+        if ( before is not null )
+            design.Script = WeaponScripts.Follow( before.Script, before, design, new MyLibrary( Look.DrawnShapes ) );
+
         Remember();
         Changed?.Invoke();
     }
@@ -671,7 +688,35 @@
         action();
     }
 
-    void Select( int index ) => Targets?.Select( index );
+    void Select( int index )
+    {
+        Targets?.Select( index );
+        if ( index >= 0 )
+            ItemPicked?.Invoke( index < PropCount ? CodeEditor.WeaponItem.Prop : CodeEditor.WeaponItem.Sticker, index < PropCount ? index : index - PropCount );
+    }
+
+    void PickEffect( Effect effect, int index )
+    {
+        _effect = effect.Id;
+        ItemPicked?.Invoke( CodeEditor.WeaponItem.Effect, index );
+    }
+
+    /// <summary>Selects item <paramref name="index"/> of <paramref name="kind"/> (the code editor's caret is in its lines), without telling the code back.</summary>
+    public void ShowItem( CodeEditor.WeaponItem kind, int index )
+    {
+        switch ( kind )
+        {
+            case CodeEditor.WeaponItem.Prop: Targets?.Select( index ); break;
+            case CodeEditor.WeaponItem.Sticker: Targets?.Select( PropCount + index ); break;
+            default:
+                if ( Design?.Effects is { } effects && index < effects.Count )
+                    _effect = effects[ index ].Id;
+
+                break;
+        }
+
+        StateHasChanged();
+    }
 
     static List<UIDropdown.Item> FinishChoices()
     {

@@ -52,7 +52,8 @@
                     <SlowScroll><Content>
                         <WeaponEditor @ref="_weaponPanel" Look=@_look Changed=@Changed Weapon=@_weaponPath WeaponModel=@_held?.Model Targets=@_weaponTargets DraftsOpen=@DraftsOpen
                                       PointAt=@PointPart HoveredPart=@( _pointedPart ?? _hoveredPart ) Locked=@WeaponsLocked PropsLocked=@WeaponPropsLocked
-                                      EffectsLocked=@WeaponEffectsLocked></WeaponEditor>
+                                      EffectsLocked=@WeaponEffectsLocked OpenCode=@(() => OpenWeaponCode?.Invoke( _weaponPath )) CodeOpen=@(() => WeaponCodeOpen?.Invoke( _weaponPath ) == true)
+                                      ItemPicked=@(( CodeEditor.WeaponItem kind, int index ) => WeaponItemPicked?.Invoke( _weaponPath, kind, index ))></WeaponEditor>
                     </Content></SlowScroll>
                 </Body>
             </UISettingsPane>
@@ -168,6 +169,14 @@
 
     /// <summary>Opens the code editor on an effect (by id) at a line.</summary>
     public Action<string, int> OpenCodeAt { get; init; }
+
+    /// <summary>Opens the code editor on a weapon's design (by its world model); and says which of its items the weapon panel selected.</summary>
+    public Action<string> OpenWeaponCode { get; init; }
+    public Func<string, bool> WeaponCodeOpen { get; init; }
+    public Action<string, CodeEditor.WeaponItem, int> WeaponItemPicked { get; init; }
+
+    /// <summary>Selects item <paramref name="index"/> of <paramref name="kind"/> on the weapon panel (the code editor's caret is in its lines).</summary>
+    public void ShowWeaponItem( CodeEditor.WeaponItem kind, int index ) => _weaponPanel?.ShowItem( kind, index );
 
     /// <summary>Selects layer <paramref name="layer"/> of effect <paramref name="effect"/> on the Effects tab (the code editor's caret is in it).</summary>
     public void ShowLayer( string effect, int layer )

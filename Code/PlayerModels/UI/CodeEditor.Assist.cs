@@ -147,14 +147,14 @@ public partial class CodeEditor
 		else
 			_completions = new List<CompletionItem>();
 
-		_signature = ScriptSignature.At( _source, caret, ScriptKind.Effect, _library );
+		_signature = ScriptSignature.At( _source, caret, Kind, Names );
 		_hover = null;
 	}
 
 	private void ShowCompletions( bool asked )
 	{
 		var caret = _entry.Caret;
-		var items = ScriptCompletion.At( _source, caret, ScriptKind.Effect, _library );
+		var items = ScriptCompletion.At( _source, caret, Kind, Names );
 		var start = caret;
 		while ( start > 0 && (char.IsLetterOrDigit( _source[ start - 1 ] ) || _source[ start - 1 ] == '_' || _source[ start - 1 ] is ' ' && InMine( start )) )
 			start--;
@@ -239,7 +239,10 @@ public partial class CodeEditor
 			if ( _completions.Count > 0 && (caret < _completionStart || caret > _source.Length) )
 				_completions = new List<CompletionItem>();
 
-			var layer = LayerAt( caret );
+			if ( Weapon is not null )
+				FollowCaretInDesign( caret );
+
+			var layer = Weapon is null ? LayerAt( caret ) : -1;
 			if ( layer >= 0 && layer != _caretLayer )
 			{
 				_caretLayer = layer;
@@ -272,7 +275,7 @@ public partial class CodeEditor
 			return;
 
 		_hoverShownAt = _hoverAt;
-		_hover = ScriptHover.At( _source, _hoverAt, ScriptKind.Effect, _library );
+		_hover = ScriptHover.At( _source, _hoverAt, Kind, Names );
 		StateHasChanged();
 	}
 

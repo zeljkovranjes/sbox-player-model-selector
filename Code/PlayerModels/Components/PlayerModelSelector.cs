@@ -484,7 +484,13 @@ public sealed partial class PlayerModelSelector : Component
 		PollEffectKeys();
 
 		if ( _sinceScan < ScanInterval )
+		{
+			// Bodies still waiting to be dressed (see PlayerBodies.Waiting) are looked at again each frame until they are
+			if ( _bodies.Waiting )
+				_bodies.Update( Scene, this );
+
 			return;
+		}
 
 		_sinceScan = 0;
 		TrackHost();

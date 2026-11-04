@@ -153,7 +153,7 @@ Scripts switch - the host can keep players' effects from running their scripts, 
 Zoom - scroll over the preview to zoom in towards the face
 # Performance
 Weapon skins - a moving skin is worked out 60 times a second on weapons near you, 30 at mid distance, 10 far away and not at all out of view (100 players, 50 different skins, all in view: 51 skin uploads a frame down to 32)
-Joining - weapons with skins of their own are dressed about 40 times faster, so a crowd coming in no longer stalls the game (100 players joining within a second: longest frame 627 ms down to 171 ms)
+Joining - a crowd coming into view is dressed a few bodies a frame (at most 3 ms of each), and weapons with skins of their own are dressed about 40 times faster, so it no longer stalls the game (100 players joining within a second: the longest frame 627 ms down to 171 ms with the skins, then frames over 50 ms 7 down to 3)
 ### Improved
 # Player Model Selector window
 Tab - the selector is a Custom Player Model tab in Sandbox's own window, after HUD and Physgun, shown while a selector is in the world, instead of a window next to Saves and Effects; it fits the screen it is on

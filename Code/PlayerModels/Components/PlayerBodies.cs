@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using PlayerModels.Core;
 using PlayerModels.Engine;
@@ -42,6 +43,7 @@ internal sealed class PlayerBodies
 	/// <summary>Puts each body in step with its owner's pick in <paramref name="selector"/>.</summary>
 	internal void Update( Scene scene, PlayerModelSelector selector )
 	{
+		Waiting = false;
 		foreach ( var player in scene.GetAll<Player>() )
 		{
 			NoteRespawn( player );
@@ -142,30 +144,21 @@ internal sealed class PlayerBodies
 		if ( body.IsValid() && ReferenceEquals( body.ShownLook, look ) )
 			return;
 
-		var pick = look.Model;
-		var bones = look.BonesKey();
-
-		if ( string.IsNullOrEmpty( pick ) || _unusable.Contains( UsableKey( pick, bones ) ) )
+		if ( Time.Now != _dressFrame )
 		{
-			if ( body.IsValid() )
-				body.TakeOff();
+			_dressFrame = Time.Now;
+			_dressedThisFrame = 0;
+		}
 
-			ShowCitizenEffects( citizen, look, owner, selector, player, corpse );
+		if ( _dressedThisFrame >= DressMillisecondsPerFrame )
+		{
+			Waiting = true;
 			return;
 		}
 
-		CitizenEffects.On( citizen )?.TakeOff();
-
-		// The same model posed the same way only needs the rest of the look; bones picked differently need a new pose plan
-		if ( body.IsValid() && body.ModelId == pick && body.BonesKey == bones )
-		{
-			body.ApplyLook( look, KeyShownFor( selector, owner ), WearerOf( player, corpse ) );
-			body.ShownLook = look;
-			return;
-		}
-
-		if ( _loading.Add( citizen ) )
-			_ = ShowAsync( citizen, look, owner, dressedAs ?? citizen );
+		var started = Stopwatch.GetTimestamp();
+		Dress( citizen, body, look, owner, selector, dressedAs, player, corpse );
+		_dressedThisFrame += Stopwatch.GetElapsedTime( started ).TotalMilliseconds;
 	}
 
 	// The citizen's own effects and weapon designs, for a player who picked no model (or one that can't be worn); none for
@@ -260,5 +253,50 @@ internal sealed class PlayerBodies
 		{
 			_loading.Remove( citizen );
 		}
+	}
+
+	// Added since the first version of this class, so last: hot reload finds the closures of the methods above
+	// (KeyShownFor, WearerOf) by their place in the class
+
+	/// <summary>
+	/// Whether a body is still waiting to be dressed because a frame's dressing time ran out (see
+	/// <see cref="DressMillisecondsPerFrame"/>): the selector looks again next frame rather than at its next scan.
+	/// </summary>
+	internal bool Waiting { get; private set; }
+
+	// Dressing a body (its pose plan, then its look: items, effects, weapon design) takes a few milliseconds; a frame does
+	// at most this much of it, so a crowd coming into view at once (joining a full server) is dressed over a few frames
+	// rather than in one long one. The first body of a frame always goes on
+	private const double DressMillisecondsPerFrame = 3.0;
+	private float _dressFrame;
+	private double _dressedThisFrame;
+
+	private void Dress( SkinnedModelRenderer citizen, ModelBody body, PlayerLook look, Connection owner, PlayerModelSelector selector, SkinnedModelRenderer dressedAs,
+		Player player, DeathCameraTarget corpse )
+	{
+		var pick = look.Model;
+		var bones = look.BonesKey();
+
+		if ( string.IsNullOrEmpty( pick ) || _unusable.Contains( UsableKey( pick, bones ) ) )
+		{
+			if ( body.IsValid() )
+				body.TakeOff();
+
+			ShowCitizenEffects( citizen, look, owner, selector, player, corpse );
+			return;
+		}
+
+		CitizenEffects.On( citizen )?.TakeOff();
+
+		// The same model posed the same way only needs the rest of the look; bones picked differently need a new pose plan
+		if ( body.IsValid() && body.ModelId == pick && body.BonesKey == bones )
+		{
+			body.ApplyLook( look, KeyShownFor( selector, owner ), WearerOf( player, corpse ) );
+			body.ShownLook = look;
+			return;
+		}
+
+		if ( _loading.Add( citizen ) )
+			_ = ShowAsync( citizen, look, owner, dressedAs ?? citizen );
 	}
 }

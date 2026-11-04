@@ -58,6 +58,60 @@
 		margin-top: 0px;
 	}
 
+	// the Workshop's header, with Top and New at its end: a small segmented strip like the body groups' choices
+	.sorted
+	{
+		flex-direction: row;
+		align-items: flex-end;
+		justify-content: space-between;
+	}
+
+	.sort
+	{
+		flex-direction: row;
+		flex-shrink: 0;
+		height: 18px;
+		border: 1px solid $ui-control-border;
+		background-color: $ui-control-bg;
+		text-transform: none;
+	}
+
+	// not .choice: the Customize page's body group strip styles those, and this panel sits inside it
+	.sort-choice
+	{
+		flex-shrink: 0;
+		padding: 0 8px;
+		white-space: nowrap;
+		align-items: center;
+		font-size: 11px;
+		font-weight: 700;
+		color: $ui-text-disabled;
+		cursor: pointer;
+
+		&:hover
+		{
+			color: $ui-text-disabled-hover;
+			sound-in: ui.hover;
+		}
+
+		&.active
+		{
+			@include ui-selected;
+			pointer-events: none;
+		}
+	}
+
+	// a share from a hidden player, listed while Show them is on
+	.hidden-author
+	{
+		opacity: 0.45;
+	}
+
+	.hidden-row
+	{
+		justify-content: space-between;
+	}
+
 	.row
 	{
 		flex-direction: row;

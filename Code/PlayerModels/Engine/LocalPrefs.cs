@@ -8,7 +8,8 @@ namespace PlayerModels.Engine;
 /// <summary>
 /// What this player keeps between sessions, on this machine: the model they wear, how they customised each model and the
 /// looks they saved, their favourites, their first-person arms, which grid headings they collapsed, the mounted games'
-/// folders they added, how they rated what others shared and, as a host, which models their server allows.
+/// folders they added, how they rated what others shared, how they sort it and whose they hid and, as a host, which
+/// models their server allows.
 /// </summary>
 internal static class LocalPrefs
 {
@@ -22,6 +23,8 @@ internal static class LocalPrefs
 	private const string ServerRulesCookie = "player_model_selector.server_rules";
 	private const string ModelFoldersCookie = "player_model_selector.model_folders";
 	private const string VotesCookie = "player_model_selector.votes";
+	private const string HiddenAuthorsCookie = "player_model_selector.hidden_authors";
+	private const string SharesByNewestCookie = "player_model_selector.shares_by_newest";
 
 	/// <summary>The model worn last, empty for the default citizen.</summary>
 	internal static string Pick
@@ -142,6 +145,31 @@ internal static class LocalPrefs
 			votes[ key ] = vote;
 
 		Game.Cookies.Set( VotesCookie, votes );
+	}
+
+	/// <summary>Whether the Workshops list what was shared newest first instead of the best rated first.</summary>
+	internal static bool SharesByNewest
+	{
+		get => Game.Cookies.Get( SharesByNewestCookie, false );
+		set => Game.Cookies.Set( SharesByNewestCookie, value );
+	}
+
+	/// <summary>The players (by Steam id) whose shares this player hid from their Workshops.</summary>
+	internal static HashSet<long> HiddenAuthors()
+	{
+		return new HashSet<long>( Game.Cookies.Get( HiddenAuthorsCookie, new List<long>() ) ?? new List<long>() );
+	}
+
+	/// <summary>Hides what <paramref name="author"/> shares from this player's Workshops, or shows it again.</summary>
+	internal static void SetHidden( long author, bool hidden )
+	{
+		var authors = HiddenAuthors();
+		if ( hidden )
+			authors.Add( author );
+		else
+			authors.Remove( author );
+
+		Game.Cookies.Set( HiddenAuthorsCookie, authors.ToList() );
 	}
 
 	/// <summary>The starred models, in the order they were starred.</summary>

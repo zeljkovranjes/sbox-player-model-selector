@@ -149,6 +149,12 @@
     <ToggleRow Label="Effects can light things up" Value=@( !selector.BlockEffectLights ) OnChanged=@AllowEffectLights></ToggleRow>
     <ToggleRow Label="Shapes players drew" Value=@( !selector.BlockDrawnShapes ) OnChanged=@AllowDrawnShapes></ToggleRow>
     <div class="note">Off, effects used or forked from the Workshop don't show, effects shine no light, or drawn shapes and stickers show as plain circles and glows: nothing is deleted, and it all comes back when you turn it on. Mute one player's effects in Players above, or block one share from the Workshop's details.</div>
+    <ToggleRow Label="Effects can run their scripts" Value=@( !selector.BlockScripts ) OnChanged=@AllowScripts></ToggleRow>
+    <div class="setting">
+        <div class="label">Longest script that runs</div>
+        <UIDropdown Items=@ScriptSizeChoices( selector.ScriptBytes ) Value=@selector.ScriptBytes ValueChanged=@SetScriptBytes Tokenize=@false></UIDropdown>
+    </div>
+    <div class="note">Off, or longer than this, an effect shows what its script made when it was saved, with nothing of it running: its moving, its events and its keys' scripts wait until you allow them. Nothing is deleted. Scripts are never run by the host; each player's machine runs them within their budget.</div>
 
     <div class="subheading">Blocked from the Workshop</div>
     @{ var blockedShares = BlockedShares(); }
@@ -318,7 +324,8 @@
     protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Selector?.BlockCloudModels, Selector?.BlockMountedModels, Selector?.BlockModelFolders,
             Selector?.BlockArmature, Selector?.BlockBodyGroups, Selector?.BlockAccessories, Selector?.BlockEffects, Selector?.EffectsBudget ),
         HashCode.Combine( Selector?.BlockWorkshopEffects, Selector?.BlockEffectLights, Selector?.BlockDrawnShapes,
-            HashCode.Combine( Selector?.BlockWeaponDesigns, Selector?.BlockWeaponProps, Selector?.BlockWeaponEffects ), string.Join( ";", Selector?.MutedEffects ?? Enumerable.Empty<long>() ),
+            HashCode.Combine( Selector?.BlockWeaponDesigns, Selector?.BlockWeaponProps, Selector?.BlockWeaponEffects, Selector?.BlockScripts, Selector?.ScriptBytes ),
+            string.Join( ";", Selector?.MutedEffects ?? Enumerable.Empty<long>() ),
             string.Join( ";", Selector?.BlockedShares ?? Enumerable.Empty<string>() ), _sharePage ),
         string.Join( ";", Selector?.BlockedModels ?? Enumerable.Empty<string>() ),
         string.Join( ";", Others().Select( x => $"{x.Id}={Selector?.PickOf( x )}{Selector?.IsPickedByHost( x )}" ) ),
@@ -436,6 +443,26 @@
     void AllowEffectLights( bool allow )
     {
         Selector?.SetAllowEffectLights( allow );
+        StateHasChanged();
+    }
+
+    void AllowScripts( bool allow )
+    {
+        Selector?.SetAllowScripts( allow );
+        StateHasChanged();
+    }
+
+    // The longest script that runs here, in KB: the hard cap (16 KB) and smaller ones a host may choose
+    static readonly int[] ScriptSizes = { 2, 4, 8, 12, 16 };
+
+    static List<UIDropdown.Item> ScriptSizeChoices( int current ) => ScriptSizes.Select( x => x * 1024 ).Append( current ).Distinct().OrderBy( x => x )
+        .Select( x => new UIDropdown.Item( x >= PlayerModels.Core.Script.ScriptLimits.MaxScriptBytes ? $"{x / 1024} KB (the most)" : $"{x / 1024.0:0.#} KB", x ) ).ToList();
+
+    void SetScriptBytes( object value )
+    {
+        if ( value is int bytes )
+            Selector?.SetMaxScriptBytes( bytes );
+
         StateHasChanged();
     }
 

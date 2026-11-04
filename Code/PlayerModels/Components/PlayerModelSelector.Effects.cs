@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using PlayerModels.Core;
+using PlayerModels.Core.Script;
 using PlayerModels.Engine;
 using Sandbox;
 
@@ -45,6 +46,18 @@ public sealed partial class PlayerModelSelector
 	/// </summary>
 	[Sync( SyncFlags.FromHost )] public bool BlockDrawnShapes { get; set; }
 
+	/// <summary>
+	/// Whether the scripts of effects players other than the host wear are kept from running: each shows what its script
+	/// built when it was saved. The host sets it on the Server page.
+	/// </summary>
+	[Sync( SyncFlags.FromHost )] public bool BlockScripts { get; set; }
+
+	/// <summary>
+	/// The longest script (minified, in UTF-8 bytes) that runs for players other than the host: at most
+	/// <see cref="ScriptLimits.MaxScriptBytes"/>. The host sets it on the Server page.
+	/// </summary>
+	[Sync( SyncFlags.FromHost )] public int ScriptBytes { get; set; } = ScriptLimits.MaxScriptBytes;
+
 	/// <summary>Players (by Steam id) whose effects nobody sees on this server. The host mutes them on the Server page.</summary>
 	[Sync( SyncFlags.FromHost )] public NetList<long> MutedEffects { get; set; } = new();
 
@@ -61,19 +74,25 @@ public sealed partial class PlayerModelSelector
 	private EffectBudget.Quality? _effectsQuality;
 	private HashSet<long> _hiddenEffects;
 
-	// Host: when each player last pressed an effect key, and for which effect. One press per player per cooldown,
-	// whichever of their effects it was for, so changing ids or keys gets around nothing
-	private Dictionary<Guid, (string Effect, RealTimeSince Since)> _hostTriggers;
+	// Host: when each player last started an effect with a key. One start per player per cooldown, whichever of their
+	// effects it was for, so changing ids or keys gets around nothing
+	private Dictionary<Guid, RealTimeSince> _hostStarts;
+
+	// Host: the effects showing on a key now, by player and effect id: since when, and whether only for a moment (a
+	// fired one) rather than until switched off. For players who join late
+	private Dictionary<(Guid Player, string Effect), (RealTimeSince Since, bool Timed)> _hostShown;
 
 	// Host: the players who asked for the effects showing on a key when they joined; each is told once
 	private HashSet<Guid> _toldShownKeys;
 
-	// Every machine: when the host last said each player's effect was triggered, by player and effect id
-	private Dictionary<(Guid Player, string Effect), RealTimeSince> _triggers;
+	// Every machine: the effects the host said show on a key, by player and effect id (since when, and whether only for
+	// a moment), and when each player last started one, to refuse starts inside the cooldown even from a host
+	private Dictionary<(Guid Player, string Effect), (RealTimeSince Since, bool Timed)> _keyShown;
+	private Dictionary<Guid, RealTimeSince> _keyStarts;
 
-	// This player: the keys of the effects they wear (key, effect id), read again when their look changes, and when they
-	// last pressed one
-	private List<(string Key, string Effect)> _ownKeys;
+	// This player: the keys of the effects they wear (key, effect id, what the key does), read again when their look
+	// changes, and when they last started one
+	private List<(string Key, string Effect, Effect.KeyAction Action)> _ownKeys;
 	private string _ownKeysFrom;
 	private RealTimeSince? _sinceOwnTrigger;
 
@@ -117,6 +136,18 @@ public sealed partial class PlayerModelSelector
 	public void SetAllowDrawnShapes( bool allow )
 	{
 		ChangeRules( rules => rules.AllowDrawnShapes = allow );
+	}
+
+	/// <summary>Lets the scripts of effects players other than the host wear run, or keeps them from running. Host only.</summary>
+	public void SetAllowScripts( bool allow )
+	{
+		ChangeRules( rules => rules.AllowScripts = allow );
+	}
+
+	/// <summary>Sets the longest script that runs, in bytes, within <see cref="ScriptLimits.MaxScriptBytes"/>. Host only.</summary>
+	public void SetMaxScriptBytes( int bytes )
+	{
+		ChangeRules( rules => rules.MaxScriptBytes = Math.Clamp( bytes, 0, ScriptLimits.MaxScriptBytes ) );
 	}
 
 	/// <summary>Whether the host muted <paramref name="connection"/>'s effects: nobody sees them.</summary>
@@ -199,13 +230,14 @@ public sealed partial class PlayerModelSelector
 		_hiddenEffects = LocalPrefs.HiddenEffects();
 	}
 
-	/// <summary>Seconds until this player may press an effect key again; 0 when they may now.</summary>
+	/// <summary>Seconds until this player may start an effect with a key again; 0 when they may now.</summary>
 	internal float TriggerWait()
 	{
 		return _sinceOwnTrigger is { } since ? Math.Max( 0f, Effect.TriggerCooldownSeconds - since ) : 0f;
 	}
 
-	// Every frame: an effect key pressed asks the host to show that effect, at most once per cooldown
+	// Every frame: an effect key pressed asks the host to start (or, for one switched on, stop) that effect. Starting is
+	// at most once per cooldown; stopping is always free, so nobody is stuck with an effect
 	private void PollEffectKeys()
 	{
 		var text = LookTextOf( KeyOf( Connection.Local ) );
@@ -217,54 +249,86 @@ public sealed partial class PlayerModelSelector
 			foreach ( var effect in PlayerLook.Parse( text ).Effects )
 			{
 				if ( effect.Key is not null && !effect.Off )
-					_ownKeys.Add( (effect.Key, effect.Id) );
+					_ownKeys.Add( (effect.Key, effect.Id, effect.KeyActionIs) );
 			}
 		}
 
-		if ( _ownKeys is not { Count: > 0 } || TriggerWait() > 0f )
+		if ( _ownKeys is not { Count: > 0 } )
 			return;
 
-		foreach ( var (key, effect) in _ownKeys )
+		foreach ( var (key, effect, action) in _ownKeys )
 		{
-			if ( !Input.Keyboard.Pressed( key ) )
+			var shown = IsKeyShown( Connection.Local, effect );
+			if ( action == Effect.KeyAction.Hold && shown && Input.Keyboard.Released( key ) || action == Effect.KeyAction.Toggle && shown && Input.Keyboard.Pressed( key ) )
+			{
+				KeyOnHost( effect, false );
+				continue;
+			}
+
+			if ( shown || TriggerWait() > 0f || !Input.Keyboard.Pressed( key ) )
 				continue;
 
 			_sinceOwnTrigger = 0;
-			TriggerOnHost( effect );
+			KeyOnHost( effect, true );
 			return;
 		}
 	}
 
-	// Host: shows the effect for everyone, if the caller wears it with a key and hasn't pressed one within the cooldown
+	// Host: starts the effect for everyone if the caller wears it with a key and hasn't started one within the cooldown,
+	// or stops one of theirs that shows until switched off (always allowed)
 	[Rpc.Host]
-	private void TriggerOnHost( string effect )
+	private void KeyOnHost( string effect, bool on )
 	{
 		if ( effect is null || effect.Length > Effect.MaxIdLength )
 			return;
 
 		var id = KeyOf( Rpc.Caller );
-		_hostTriggers ??= new();
-		if ( _hostTriggers.TryGetValue( id, out var last ) && last.Since < Effect.TriggerCooldownSeconds )
+		var worn = LookOf( Rpc.Caller ).Effects.Find( x => x.Id == effect && x.Key is not null && !x.Off );
+		_hostStarts ??= new();
+		_hostShown ??= new();
+		if ( !on )
+		{
+			if ( worn is not null && _hostShown.Remove( (id, effect) ) )
+				EffectKeyChanged( id, effect, false, 0f, false );
+
+			return;
+		}
+
+		if ( worn is null || _hostStarts.TryGetValue( id, out var last ) && last < Effect.TriggerCooldownSeconds )
 			return;
 
-		if ( !LookOf( Rpc.Caller ).Effects.Exists( x => x.Id == effect && x.Key is not null && !x.Off ) )
-			return;
-
-		_hostTriggers[ id ] = (effect, 0f);
-		EffectTriggered( id, effect, 0f );
+		var timed = worn.KeyActionIs == Effect.KeyAction.Fire;
+		_hostStarts[ id ] = 0f;
+		_hostShown[ (id, effect) ] = (0f, timed);
+		EffectKeyChanged( id, effect, true, 0f, timed );
 	}
 
-	// Shows player's effect with a key, already shown for elapsed seconds (a player who joined while it showed sees the
-	// rest of it). Every client holds anything not from the host, or out of range, for nothing
+	// Starts or stops player's effect with a key, started elapsed seconds ago (a player who joined while it showed sees
+	// the rest of it); timed is a fired one, which shows for a moment. Every client holds anything not from the host,
+	// out of range, or a start inside the player's cooldown, for nothing
 	[Rpc.Broadcast]
-	private void EffectTriggered( Guid player, string effect, float elapsed )
+	private void EffectKeyChanged( Guid player, string effect, bool on, float elapsed, bool timed )
 	{
-		if ( Rpc.Caller is not { IsHost: true } || effect is null || effect.Length > Effect.MaxIdLength || !float.IsFinite( elapsed )
-			|| elapsed < 0f || elapsed >= Effect.TriggerSeconds )
+		if ( Rpc.Caller is not { IsHost: true } || effect is null || effect.Length > Effect.MaxIdLength || !float.IsFinite( elapsed ) || elapsed < 0f
+			|| timed && elapsed >= Effect.TriggerSeconds )
 			return;
 
-		_triggers ??= new();
-		_triggers[ (player, effect) ] = elapsed;
+		_keyShown ??= new();
+		_keyStarts ??= new();
+		if ( !on )
+		{
+			_keyShown.Remove( (player, effect) );
+			return;
+		}
+
+		// A late joiner's catch-up names starts it never saw, so only fresh starts are held to the cooldown here
+		if ( elapsed == 0f && _keyStarts.TryGetValue( player, out var last ) && last < Effect.TriggerCooldownSeconds )
+			return;
+
+		if ( elapsed == 0f )
+			_keyStarts[ player ] = 0f;
+
+		_keyShown[ (player, effect) ] = (elapsed, timed);
 	}
 
 	// A client that just joined asks the host which effects with a key show now
@@ -279,27 +343,28 @@ public sealed partial class PlayerModelSelector
 	{
 		var caller = Rpc.Caller;
 		_toldShownKeys ??= new();
-		if ( caller is null || _hostTriggers is not { Count: > 0 } || !_toldShownKeys.Add( caller.Id ) )
+		if ( caller is null || _hostShown is not { Count: > 0 } || !_toldShownKeys.Add( caller.Id ) )
 			return;
 
 		using ( Rpc.FilterInclude( x => x == caller ) )
 		{
-			foreach ( var (player, last) in _hostTriggers )
+			foreach ( var ((player, effect), (since, timed)) in _hostShown )
 			{
-				if ( last.Since < Effect.TriggerSeconds )
-					EffectTriggered( player, last.Effect, last.Since );
+				if ( !timed || since < Effect.TriggerSeconds )
+					EffectKeyChanged( player, effect, true, Math.Max( since, float.Epsilon ), timed );
 			}
 		}
 	}
 
 	/// <summary>
-	/// Whether <paramref name="connection"/>'s effect with a key (by its id) shows now: its key was pressed within the
-	/// last <see cref="Effect.TriggerSeconds"/>, as the host said. Read for every such effect every frame: no allocations.
+	/// Whether <paramref name="connection"/>'s effect with a key (by its id) shows now, as the host said: a fired one for
+	/// <see cref="Effect.TriggerSeconds"/> after its key, a switched or held one until it is switched off or let go. Read
+	/// for every such effect every frame: no allocations.
 	/// </summary>
 	internal bool IsKeyShown( Connection connection, string effect )
 	{
-		return _triggers is { Count: > 0 } && effect is not null && _triggers.TryGetValue( (KeyOf( connection ), effect), out var since )
-			&& since < Effect.TriggerSeconds;
+		return _keyShown is { Count: > 0 } && effect is not null && _keyShown.TryGetValue( (KeyOf( connection ), effect), out var shown )
+			&& (!shown.Timed || shown.Since < Effect.TriggerSeconds);
 	}
 
 	// The budget this player sees connection's effects within: the server's, lowered to what they chose to see, and
@@ -315,7 +380,8 @@ public sealed partial class PlayerModelSelector
 	// they are muted, and which shares are blocked. Read for every player every scan: no allocations
 	private int EffectsRulesFor( Connection connection )
 	{
-		var rules = (BlockWorkshopEffects ? 1 : 0) | (BlockEffectLights ? 2 : 0) | (BlockDrawnShapes ? 4 : 0) | (IsEffectsMuted( connection ) ? 8 : 0);
+		var rules = (BlockWorkshopEffects ? 1 : 0) | (BlockEffectLights ? 2 : 0) | (BlockDrawnShapes ? 4 : 0) | (IsEffectsMuted( connection ) ? 8 : 0)
+			| (BlockScripts ? 16 : 0) | ScriptBytes << 5;
 		var blocked = 0;
 		for ( var i = 0; i < (BlockedShares?.Count ?? 0); i++ )
 			blocked = HashCode.Combine( blocked, BlockedShares[ i ] );
@@ -356,6 +422,8 @@ public sealed partial class PlayerModelSelector
 		rules.AllowWorkshopEffects = !BlockWorkshopEffects;
 		rules.AllowEffectLights = !BlockEffectLights;
 		rules.AllowDrawnShapes = !BlockDrawnShapes;
+		rules.AllowScripts = !BlockScripts;
+		rules.MaxScriptBytes = ScriptBytes;
 		rules.MutedEffects = new List<long>( MutedEffects ?? new NetList<long>() );
 
 		var names = LocalPrefs.ServerRules.BlockedShares ?? new();
@@ -376,6 +444,8 @@ public sealed partial class PlayerModelSelector
 		BlockWorkshopEffects = !rules.AllowWorkshopEffects;
 		BlockEffectLights = !rules.AllowEffectLights;
 		BlockDrawnShapes = !rules.AllowDrawnShapes;
+		BlockScripts = !rules.AllowScripts;
+		ScriptBytes = Math.Clamp( rules.MaxScriptBytes, 0, ScriptLimits.MaxScriptBytes );
 
 		MutedEffects ??= new();
 		MutedEffects.Clear();

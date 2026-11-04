@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -184,6 +185,8 @@ public sealed class WeaponDesign
 			effects.Add( kept );
 		}
 
+		Effect.HoldScriptsTo( effects, Script.ScriptLimits.MaxLookBytes );
+
 		var hidden = new List<string>();
 		foreach ( var part in HiddenParts ?? new() )
 		{
@@ -285,14 +288,8 @@ public sealed class WeaponDesign
 
 		foreach ( var effect in Effects ?? new() )
 		{
-			foreach ( var layer in effect.Layers )
-			{
-				if ( layer.DrawnFormation is { } formation )
-					yield return formation;
-
-				if ( layer.DrawnPicture is { } picture )
-					yield return picture;
-			}
+			foreach ( var id in effect.Layers.SelectMany( x => x.DrawnShapeIds() ) )
+				yield return id;
 		}
 	}
 }

@@ -1,11 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace PlayerModels.Core;
 
-/// <summary>What a layer of an effect is: sprites (flames, sparks, hearts), a light, or a trail left behind as it moves.</summary>
-public enum LayerKind { Sprite, Light, Trail }
+/// <summary>
+/// What a layer of an effect is: sprites (flames, sparks, hearts), a light, a trail left behind as it moves, a beam (a
+/// ribbon through points it keeps, like a bolt between the hands), or ghosts (see-through copies of the body, or of what
+/// the effect comes from, left behind as it moves: afterimages).
+/// </summary>
+public enum LayerKind { Sprite, Light, Trail, Beam, Ghost }
 
 /// <summary>
 /// Where a layer's sprites come from, around its place: one point, a ball, a flat ring, all around the body (an upright
@@ -23,10 +28,13 @@ public enum LayerShape { Point, Sphere, Ring, AroundBody, Box, Cone, Line, Shape
 public enum LayerPicture { Glow, Spark, Flame, Smoke, Sparkle, Heart, Snowflake, Droplet, Slash }
 
 /// <summary>
-/// Which way a layer's sprites face: the camera, as most do, or the plane a swing sweeps through (worked out from where
-/// the player aims and the way the weapon's tip moves when they swing), so a slash lies along the swing.
+/// Which way a layer's sprites face: the camera, as most do; the plane a swing sweeps through (worked out from where the
+/// player aims and the way the weapon's tip moves when they swing), so a slash lies along the swing; flat on the ground,
+/// turned the way the body faces (footprints, a circle under the feet); the way the layer faces (see
+/// <see cref="LayerFacing"/>: a portal's disc); or out from the layer's place, like tiles on a ball (a shield). A sprite's
+/// rotation turns it within that plane.
 /// </summary>
-public enum LayerAlign { Camera, Swing }
+public enum LayerAlign { Camera, Swing, Ground, Facing, Outward }
 
 /// <summary>
 /// How a layer changes over time: not at all, brighter and dimmer, flickering, through every colour, turning round its
@@ -41,20 +49,25 @@ public enum LayerRhythm { Steady, Pulse, Flicker, Rainbow, Spin, Jiggle }
 /// </summary>
 public enum LayerColorMode { Fixed, Rain, Cycl, Cyln, Mix }
 
-/// <summary>The way a layer faces from its joint: where a cone opens, a line runs and a shape looks.</summary>
-public enum LayerFacing { Forward, Up, Down, Back, Left, Right }
+/// <summary>
+/// The way a layer faces from its joint: where a cone opens, a line runs and a shape looks. Flat lays it on the ground
+/// whichever way its joint leans, turned the way the body faces (a shape lies flat, a magic circle under the feet);
+/// Camera turns it to face whoever looks at it (a word that is always readable).
+/// </summary>
+public enum LayerFacing { Forward, Up, Down, Back, Left, Right, Flat, Camera }
 
 /// <summary>
 /// When a layer shows: always; while its wearer moves, stands on the ground, is in the air, crouches or holds a weapon;
 /// or for a moment when something happens (the events effects share, by the names scripts will use): they jump, land,
 /// get hurt, start or stop moving, crouch or stand up, shoot or swing (attack), hit something hard, reload, draw a weapon
-/// or put it away, their shot or swing hits something, they die or spawn again, or a foot steps (on a foot, that foot).
+/// or put it away, their shot or swing hits something, they die or spawn again, a foot steps (on a foot, that foot), or
+/// someone they shot died a moment after (a kill).
 /// </summary>
 public enum LayerWhen
 {
 	Always, Moving, Grounded, InAir, Crouching, HoldingWeapon,
 	OnJump, OnLand, OnHurt, OnStartMoving, OnStopMoving, OnCrouch, OnUncrouch, OnShoot, OnImpact,
-	OnReload, OnEquip, OnHolster, OnHit, OnDeath, OnRespawn, OnFootstep,
+	OnReload, OnEquip, OnHolster, OnHit, OnDeath, OnRespawn, OnFootstep, OnKill,
 }
 
 /// <summary>
@@ -114,6 +127,24 @@ public sealed class EffectLayer
 	public const float MaxSlashWidth = 0.6f;
 	public const float SlashArc = 150f;
 	public const float SlashWidth = 0.25f;
+	/// <summary>The most sprites a layer keeps out all the time (see <see cref="Keep"/>).</summary>
+	public const float MaxKeep = 100f;
+
+	/// <summary>How many points a beam is drawn through: at least, at most, and unless it says.</summary>
+	public const float MinBeamPoints = 2f;
+	public const float MaxBeamPoints = 64f;
+	public const float BeamPoints = 16f;
+
+	/// <summary>
+	/// How many ghosts a layer leaves a second at most, how many are out at once at most, and how many sprites one counts
+	/// as in the budget (a copy of a body costs about as much to draw as a handful of sprites).
+	/// </summary>
+	public const float MaxGhostRate = 30f;
+	public const float MaxGhosts = 8f;
+	public const float GhostSprites = 10f;
+
+	/// <summary>The most pictures a layer's sprites take one each of (see <see cref="Pictures"/>).</summary>
+	public const int MaxPictures = 16;
 
 	private const string White = "#ffffff";
 
@@ -276,6 +307,15 @@ public sealed class EffectLayer
 	[JsonPropertyName( "ah" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public bool AtHit { get; set; }
 
+	/// <summary>
+	/// How many sprites it keeps out all the time, each with its own index from 0 and spread evenly along its shape in that
+	/// order, never fading with age (their life loops every <see cref="Lifetime"/>): a formation its particle function
+	/// moves. 0 for sprites that only come and go by <see cref="Amount"/> and <see cref="Lifetime"/>. For a beam, the points
+	/// it is drawn through.
+	/// </summary>
+	[JsonPropertyName( "kp" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public float Keep { get; set; }
+
 	/// <summary>Its <see cref="LayerAlign"/> by name; null for facing the camera.</summary>
 	[JsonPropertyName( "al" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public string Align { get; set; }
@@ -299,6 +339,30 @@ public sealed class EffectLayer
 	/// <summary>A slash's reach and thickness as drawn: its own, or the usual ones.</summary>
 	[JsonIgnore]
 	public (float Arc, float Width) SlashShape => (SlashArcDegrees > 0f ? SlashArcDegrees : SlashArc, SlashThickness > 0f ? SlashThickness : SlashWidth);
+	/// <summary>
+	/// The pictures its sprites take, one each (in turn as they appear, unless its particle function picks): each a
+	/// <see cref="LayerPicture"/> or <see cref="StandardShape"/> by name, or a drawn shape the look carries; null for every
+	/// sprite looking like <see cref="Picture"/>.
+	/// </summary>
+	[JsonPropertyName( "ps" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public List<string> Pictures { get; set; }
+
+	/// <summary>
+	/// Which layer of its effect's script it is, as built on this client (see <see cref="Effect.Script"/>), for the
+	/// script's functions to drive it while it runs; -1 for one no script drives. Never saved: worked out again each time.
+	/// </summary>
+	[JsonIgnore]
+	public int ScriptLayer { get; set; } = -1;
+
+	/// <summary>The ids of the drawn shapes it names: as its formation, its picture or one of its pictures.</summary>
+	public IEnumerable<string> DrawnShapeIds()
+	{
+		foreach ( var name in Pictures is null ? new[] { Formation, Picture } : new[] { Formation, Picture }.Concat( Pictures ) )
+		{
+			if ( DrawnShape.IsReference( name ) )
+				yield return name[ 1.. ];
+		}
+	}
 
 	/// <summary>What the layer is; only right on a layer within bounds (see <see cref="Sanitized"/>).</summary>
 	[JsonIgnore]
@@ -364,14 +428,22 @@ public sealed class EffectLayer
 
 	/// <summary>
 	/// How many of its sprites are out at once at most, at <paramref name="amount"/> times its own amount: what it makes
-	/// over a lifetime, and a moment's burst on top; a light, a trail or a layer switched off has none.
+	/// over a lifetime, and a moment's burst on top, and those it keeps (whatever the amount: a formation stays whole); a
+	/// beam its points, ghosts what they cost; a light, a trail or a layer switched off has none.
 	/// </summary>
-	public float LiveSprites( float amount = 1f ) => KindIs == LayerKind.Sprite && !Off ? (Amount * Lifetime + Burst) * amount : 0f;
+	public float LiveSprites( float amount = 1f ) => Off ? 0f : KindIs switch
+	{
+		LayerKind.Sprite => (Amount * Lifetime + Burst) * amount + Keep,
+		LayerKind.Beam => Keep,
+		LayerKind.Ghost => MathF.Min( Amount * Lifetime, MaxGhosts ) * GhostSprites,
+		_ => 0f,
+	};
 
 	/// <summary>
-	/// A copy within bounds, or null for a layer of a kind (or from a joint, shape, picture, rhythm, colour mode, facing or
-	/// moment) this version doesn't know: numbers finite and limited, colours valid hex colours (a palette keeps only those,
-	/// at most <see cref="MaxPalette"/>), and what is at its default left out. A drawn shape it names is named as
+	/// A copy within bounds, or null for a layer of a kind (or from a joint, shape, picture, rhythm, colour mode, facing,
+	/// moment or alignment) this version doesn't know: numbers finite and limited, colours valid hex colours (a palette keeps
+	/// only those, at most <see cref="MaxPalette"/>), at most <see cref="MaxPictures"/> pictures, the sprites it keeps whole
+	/// and within their cap, and what is at its default left out. A drawn shape it names is named as
 	/// <paramref name="drawn"/> says the look carries it; one the look doesn't carry (or with no <paramref name="drawn"/>)
 	/// is a shape it doesn't know.
 	/// </summary>
@@ -388,6 +460,9 @@ public sealed class EffectLayer
 			|| Facing is not null && !Known<LayerFacing>( Facing ) || ToJoint is not null && !Known<Effect.Joint>( ToJoint )
 			|| formation is not null && !Known<StandardShape>( formation ) && !DrawnShape.IsReference( formation )
 			|| When is not null && !Known<LayerWhen>( When ) || Align is not null && !Known<LayerAlign>( Align ) )
+			return null;
+
+		if ( !TryPictures( drawn, out var pictures ) )
 			return null;
 
 		var palette = new List<string>();
@@ -429,9 +504,10 @@ public sealed class EffectLayer
 			Speed = Limited( Speed, 0f, MaxSpeed, 0f ),
 			Gravity = Limited( Gravity, -MaxGravity, MaxGravity, 0f ),
 			Lifetime = Limited( Lifetime, MinLifetime, MaxLifetime, 1f ),
-			Amount = isLight ? Limited( Amount, 0f, MaxBrightness, 1f ) : Limited( Amount, 0f, MaxRate, 0f ),
+			Amount = isLight ? Limited( Amount, 0f, MaxBrightness, 1f ) : Limited( Amount, 0f, Kind == nameof( LayerKind.Ghost ) ? MaxGhostRate : MaxRate, 0f ),
 			Follow = Follow,
-			Drag = Follow ? Limited( Drag, 0f, 1f, 0f ) : 0f,
+			// Kept while sprites don't follow (it counts only while they do): following again keeps it
+			Drag = Limited( Drag, 0f, 1f, 0f ),
 			Solid = Solid,
 			Rhythm = Rhythm == nameof( LayerRhythm.Steady ) ? null : Rhythm,
 			RhythmSpeed = Limited( RhythmSpeed, 0f, MaxRhythmSpeed, 0f ),
@@ -441,11 +517,42 @@ public sealed class EffectLayer
 			ShowFor = isMoment ? Limited( ShowFor, 0f, MaxShowFor, 0f ) : 0f,
 			FadeWithSpeed = FadeWithSpeed,
 			AtHit = AtHit && When is nameof( LayerWhen.OnShoot ) or nameof( LayerWhen.OnHit ),
-			Align = Align == nameof( LayerAlign.Camera ) ? null : Align,
 			Sweep = Limited( Sweep, -MaxSweep, MaxSweep, 0f ),
 			SlashArcDegrees = picture == nameof( LayerPicture.Slash ) && SlashArcDegrees != 0f ? Limited( SlashArcDegrees, MinSlashArc, MaxSlashArc, SlashArc ) : 0f,
 			SlashThickness = picture == nameof( LayerPicture.Slash ) && SlashThickness != 0f ? Limited( SlashThickness, MinSlashWidth, MaxSlashWidth, SlashWidth ) : 0f,
+			Keep = Kind switch
+			{
+				nameof( LayerKind.Sprite ) => MathF.Round( Limited( Keep, 0f, MaxKeep, 0f ) ),
+				nameof( LayerKind.Beam ) => Keep == 0f ? BeamPoints : MathF.Round( Limited( Keep, MinBeamPoints, MaxBeamPoints, BeamPoints ) ),
+				_ => 0f,
+			},
+			Align = Align == nameof( LayerAlign.Camera ) ? null : Align,
+			Pictures = pictures,
+			ScriptLayer = ScriptLayer,
 		};
+	}
+
+	// Its pictures as the look names them (at most MaxPictures; none for none); false when one isn't a picture it can show
+	private bool TryPictures( Func<string, string> drawn, out List<string> pictures )
+	{
+		pictures = null;
+		if ( Pictures is not { Count: > 0 } )
+			return true;
+
+		pictures = new List<string>();
+		foreach ( var name in Pictures )
+		{
+			if ( pictures.Count >= MaxPictures )
+				break;
+
+			var resolved = DrawnShape.IsReference( name ) ? drawn?.Invoke( name ) : name;
+			if ( resolved is null || !Known<LayerPicture>( resolved ) && !Known<StandardShape>( resolved ) && !DrawnShape.IsReference( resolved ) )
+				return false;
+
+			pictures.Add( resolved );
+		}
+
+		return true;
 	}
 
 	private static bool Known<TEnum>( string name ) where TEnum : struct, Enum

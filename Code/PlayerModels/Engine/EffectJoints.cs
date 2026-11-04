@@ -146,6 +146,9 @@ internal sealed class EffectJoints
 	private bool Find( int joint, SkinnedModelRenderer citizen, SkinnedModelRenderer model, PoseTransfer transfer, out Transform placed )
 	{
 		var scale = model.WorldScale.x * BodyScale;
+		if ( joint == (int)Effect.Joint.Ground )
+			return Ground( citizen, model, transfer, scale, out placed );
+
 		if ( !TryBone( joint, citizen, model, transfer, out var position, out var heading ) )
 			return StandIn( joint, citizen, model, transfer, scale, out placed );
 
@@ -211,6 +214,14 @@ internal sealed class EffectJoints
 			return false;
 
 		position = marked.PointToWorld( _pointOffsets[ joint ] );
+		return true;
+	}
+
+	// The ground under the body: below its hips at its feet's height (where the body stands), turned the way it faces
+	private bool Ground( SkinnedModelRenderer citizen, SkinnedModelRenderer model, PoseTransfer transfer, float scale, out Transform placed )
+	{
+		var under = TryGet( (int)Effect.Joint.Hips, citizen, model, transfer, out var hips ) ? hips.Position : model.WorldPosition;
+		placed = new Transform( under.WithZ( model.WorldPosition.z ), Rotation.FromYaw( model.WorldRotation.Yaw() ), scale );
 		return true;
 	}
 

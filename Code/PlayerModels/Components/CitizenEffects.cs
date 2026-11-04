@@ -101,7 +101,8 @@ public sealed class CitizenEffects : Component
 			return;
 		}
 
-		if ( _sinceFound > FindInterval )
+		// A weapon drawn, put away or swapped is dressed the frame it is noticed, not at the next look round
+		if ( _sinceFound > FindInterval || _held?.MayHaveChanged() == true )
 		{
 			_sinceFound = 0;
 			_held?.Find( Source, null, GameObject );

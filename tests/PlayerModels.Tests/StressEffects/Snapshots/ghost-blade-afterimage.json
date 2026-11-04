@@ -1,0 +1,30 @@
+{
+  "id": "",
+  "n": "Ghost blade",
+  "a": {
+    "j": "RightHand",
+    "k": "HeldWeapon"
+  },
+  "l": [
+    {
+      "k": "Ghost",
+      "c": "#5ae0ff",
+      "c2": "#8a3aff",
+      "a": 2,
+      "t": 0.25,
+      "n": 24,
+      "wh": "OnShoot",
+      "sf": 0.35
+    },
+    {
+      "k": "Trail",
+      "c": "#ffffff",
+      "c2": "#5ae0ff",
+      "a": 1.5,
+      "b": 0.2,
+      "t": 0.2,
+      "n": 10,
+      "fs": true
+    }
+  ]
+}

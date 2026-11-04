@@ -1,0 +1,30 @@
+{
+  "id": "",
+  "n": "Ghost trail",
+  "a": {
+    "j": "Hips"
+  },
+  "l": [
+    {
+      "k": "Ghost",
+      "c": "#7ad8ff",
+      "c2": "#7a3aff",
+      "a": 2,
+      "t": 0.35,
+      "n": 0,
+      "fs": true
+    },
+    {
+      "k": "Sprite",
+      "s": "AroundBody",
+      "r": 10,
+      "c": "#7ad8ff",
+      "c2": "#7a3aff",
+      "a": 6,
+      "b": 2,
+      "t": 0.3,
+      "n": 0,
+      "fs": true
+    }
+  ]
+}

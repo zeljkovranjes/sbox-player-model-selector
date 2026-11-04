@@ -1,0 +1,82 @@
+{
+  "id": "",
+  "n": "Rune circle",
+  "a": {
+    "j": "Ground"
+  },
+  "l": [
+    {
+      "k": "Sprite",
+      "u": 0.5,
+      "p": "@369f4f3bd7761a1d",
+      "c": "#7ad8ff",
+      "a": 44,
+      "t": 1,
+      "n": 0,
+      "fo": true,
+      "kp": 1,
+      "al": "Ground"
+    },
+    {
+      "k": "Sprite",
+      "s": "Ring",
+      "r": 19.8,
+      "p": "Sparkle",
+      "c": "#7ad8ff",
+      "a": 1.2,
+      "b": 0.2,
+      "g": -40,
+      "t": 1.2,
+      "n": 20
+    },
+    {
+      "k": "Light",
+      "u": 4,
+      "c": "#7ad8ff",
+      "a": 90,
+      "t": 1,
+      "n": 0.8,
+      "rh": "Pulse",
+      "rs": 0.5,
+      "ra": 0.3
+    }
+  ],
+  "sh": [
+    {
+      "id": "369f4f3bd7761a1d",
+      "n": "Rune circle",
+      "s": [
+        "o-ZgA-Ij99Wn38Fro6UvM4Hyg1f1fyg4HvM6Uro8Fn39Wj9-IgA-ZcC-IYI9WUX8FQz6UNf4HKg1fH4ygFrvMD6roCpn3B3j9BmgAB3cCCpYID6UXFrQzH4NfKgKgNfH4QzFrUXD6YICpcCB3gABmj9B3n3CproD6vMFrygH41fKg4HNf6UQz8FUX9WYI-IcC-ZgA",
+        "o3CgA21jA2Pl91Ro0z8rhyRuBwSwSuByRrhz8o01Rl92PjA21gA3Cc_21aC2PXL1RUez8R-yRPtwSNuuBMDrhKuo0Jwl9JKjAI9gAJKc_JwaCKuXLMDUeNuR-PtPtR-NuUeMDXLKuaCJwc_JKgAI9jAJKl9Jwo0KurhMDuBNuwSPtyRR-z8Ue1RXL2PaC21c_3CgA",
+        "ogA3CMDUez8UegA3C",
+        "oMDrhgAI9z8rhMDrh",
+        "o9BgA4ahw",
+        "o9BgA4aeP",
+        "o58hG58e5",
+        "o4Yv0y2vl",
+        "o2kyT4Yv0",
+        "oy2vl0ptG",
+        "ong8EmF3s",
+        "ong8EpY7dp87DqF6xqJ6SqB53pr5hpZ5Yot5Xm15_",
+        "ooS5gpA2v",
+        "oVk7HW_2v",
+        "oYf8EWh4M",
+        "oXO5lZ63s",
+        "oIhxDMQuW",
+        "oHnv0JbyT",
+        "oC-ePHleP",
+        "oC-ePHlgA",
+        "oC-hwHlgA",
+        "oC-hwHlhw",
+        "oJbNsLWS5",
+        "oHnQLNJQa",
+        "oVxFgWDE8WnEiXcERYJERYsEjY1E-YwFdYnFuYRGEXJG5WzHPWqHhWlIAWyIoXWI6YCI6Y3IpZbIPZtHr",
+        "oqbE4pAJQ",
+        "oqbE4mFIT",
+        "ongD7mFIT",
+        "o4gQXzvRp",
+        "o2cNhzvRp"
+      ]
+    }
+  ]
+}

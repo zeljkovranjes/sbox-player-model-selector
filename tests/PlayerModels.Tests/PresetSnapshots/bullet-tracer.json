@@ -1,0 +1,1 @@
+{"id":"","n":"Bullet tracer","a":{"j":"RightHand","k":"HeldWeapon"},"l":[{"k":"Sprite","s":"Shot","c":"#fff6c8","c2":"#ffb040","a":2.4,"b":0.6,"v":200,"t":0.16,"n":0,"wh":"OnShoot","bu":100}]}

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
 using PlayerModels.Core;
+using PlayerModels.Core.Script;
 using Sandbox;
 
 namespace PlayerModels.Engine;
@@ -25,10 +26,6 @@ internal sealed class WeaponDresser
 	// the skin draws it only on the side it is pressed onto, and only on the weapon
 	private const float StickerDepth = 2.5f;
 
-	// A sticker's moving colour: a rainbow turns round the wheel this often a second, a pulse beats this often and deep
-	private const float RainbowTurns = 0.5f;
-	private const float PulseBeats = 1f;
-	private const float PulseDepth = 0.5f;
 	private const float MillisecondsPerSecond = 1000f;
 
 	private sealed class Stuck
@@ -36,12 +33,10 @@ internal sealed class WeaponDresser
 		public WeaponSticker Sticker;
 		public DrawnShape Drawn;
 		public int Generation = -1;
-		public Color[] Palette;
 		public DrawnShape Second;
 
-		// Read once when stuck, not each frame: reading the motion from its name boxes it
-		public Sticker.Motion Motion;
-		public Color Own;
+		// How its fill moves, worked out by its motion's script (see PresetScripts.StickerMotionScript); null for still
+		public MovingColour Colour;
 	}
 
 	private IReadOnlyList<WeaponDesign> _designs = Array.Empty<WeaponDesign>();
@@ -134,6 +129,7 @@ internal sealed class WeaponDresser
 
 		_designsKey = key;
 		_changed = true;
+		_ = WeaponPrewarm.WarmAsync( designs, shapes );
 	}
 
 	/// <summary>
@@ -192,11 +188,19 @@ internal sealed class WeaponDresser
 		if ( !_renderer.IsValid() )
 			return;
 
+		// What is added shows as the weapon does: a view model kept dressed unseen in third person hides it all
 		var shadows = _renderer.RenderType;
+		var drawn = _renderer.Enabled;
 		for ( var i = 0; i < _props.Count; i++ )
 		{
-			if ( _props[ i ].IsValid() && _props[ i ].RenderType != shadows )
+			if ( !_props[ i ].IsValid() )
+				continue;
+
+			if ( _props[ i ].RenderType != shadows )
 				_props[ i ].RenderType = shadows;
+
+			if ( _props[ i ].Enabled != drawn )
+				_props[ i ].Enabled = drawn;
 		}
 
 		var ms = (long)((RealTime.Now - _startedAt) * MillisecondsPerSecond);
@@ -206,10 +210,13 @@ internal sealed class WeaponDresser
 			if ( stuck.Drawn is not null && stuck.Generation != ShapeTextures.Generation )
 				UseDrawn( stuck, i );
 
-			if ( stuck.Motion == Sticker.Motion.None )
+			// World at War's clan tag colourings count the stickers as their elements, so stickers along a weapon wipe and
+			// scroll in turn
+			if ( stuck.Colour is not { } moving )
 				continue;
 
-			var colour = ColourOf( stuck, ms, i );
+			var (r, g, b) = moving.At( (long)(ms * stuck.Sticker.Speed), i, _stickers.Count );
+			var colour = new Color( r, g, b, 1f );
 			for ( var m = 0; m < _skinned.Count; m++ )
 				WeaponSkins.Tint( _skinned[ m ], i, colour );
 		}
@@ -341,7 +348,8 @@ internal sealed class WeaponDresser
 			if ( !PropCatalog.IsStock( prop.Model ) )
 				continue;
 
-			var model = await ModelLoader.LoadAsync( prop.Model );
+			// Loaded ahead (see WeaponPrewarm), it goes on in the frame the weapon is dressed
+			var model = WeaponPrewarm.PropModel( prop.Model ) ?? await ModelLoader.LoadAsync( prop.Model );
 			if ( request != _request || !renderer.IsValid() )
 				return;
 
@@ -409,12 +417,15 @@ internal sealed class WeaponDresser
 			if ( mapping is { } map )
 				place = map.FromWorldModel.ToWorld( place );
 
-			var stuck = new Stuck { Sticker = fitted, Drawn = Find( fitted.DrawnPicture ), Motion = fitted.AnimationIs, Own = Color.Parse( fitted.Color ?? "" ) ?? Color.White };
-			stuck.Palette = PaletteOf( fitted );
+			var stuck = new Stuck
+			{
+				Sticker = fitted, Drawn = Find( fitted.DrawnPicture ),
+				Colour = MovingColour.OfSticker( fitted.AnimationIs, fitted.CycleColours(), fitted.Color, ScriptPrograms.Cache, ScriptPrograms.Stack ),
+			};
 			var size = fitted.Size * scale;
 			var depth = MathF.Max( StickerDepth * scale, size );
 			var finish = fitted.Finish is null ? stuck.Drawn?.FinishIs ?? StickerFinish.Paper : StickerFinishes.Of( fitted.Finish );
-			var tint = stuck.Drawn?.HasOwnColours == true ? Color.White : stuck.Own;
+			var tint = stuck.Drawn?.HasOwnColours == true ? Color.White : Color.Parse( fitted.Color ?? "" ) ?? Color.White;
 			if ( stuck.Drawn is not null )
 				_drawnStickers.Add( stuck.Drawn );
 
@@ -471,48 +482,6 @@ internal sealed class WeaponDresser
 		var second = SecondTextureOf( stuck );
 		for ( var m = 0; m < _skinned.Count; m++ )
 			WeaponSkins.Retexture( _skinned[ m ], index, first, second );
-	}
-
-	private static Color[] PaletteOf( WeaponSticker sticker )
-	{
-		var colours = sticker.CycleColours();
-		var palette = new Color[ colours.Count ];
-		for ( var i = 0; i < colours.Count; i++ )
-			palette[ i ] = Color.Parse( colours[ i ] ) ?? Color.White;
-
-		return palette;
-	}
-
-	// A moving sticker's colour ms milliseconds in, the i-th sticker of the weapon: World at War's clan tag colourings
-	// count the stickers as their elements, so stickers along a weapon wipe and scroll in turn
-	private Color ColourOf( Stuck stuck, long ms, int i )
-	{
-		var sticker = stuck.Sticker;
-		var scaled = (long)(ms * sticker.Speed);
-		var palette = stuck.Palette;
-		var count = _stickers.Count;
-		switch ( stuck.Motion )
-		{
-			case Sticker.Motion.Rainbow:
-				return new ColorHsv( (scaled / MillisecondsPerSecond * RainbowTurns + i / (float)count) % 1f * 360f, 1f, 1f, 1f ).ToColor();
-
-			case Sticker.Motion.Pulse:
-			{
-				var own = stuck.Own;
-				var level = 1f - PulseDepth * (0.5f - 0.5f * MathF.Cos( scaled / MillisecondsPerSecond * PulseBeats * MathF.Tau ));
-				return new Color( own.r * level, own.g * level, own.b * level, 1f );
-			}
-
-			case Sticker.Motion.Cyln:
-				return palette.Length >= 2 && ColorCycle.IsScannerHighlight( scaled, i, count ) ? palette[ 0 ] : palette[ ^1 ];
-
-			default:
-			{
-				var kind = stuck.Motion == Sticker.Motion.Cycl ? ColorCycle.Kind.Cycl : ColorCycle.Kind.Rain;
-				var index = ColorCycle.PaletteIndex( kind, scaled, i, count, palette.Length );
-				return index >= 0 ? palette[ index ] : Color.White;
-			}
-		}
 	}
 
 	private void Undress()

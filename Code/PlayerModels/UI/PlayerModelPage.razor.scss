@@ -270,6 +270,15 @@ PlayerModelPage
 		flex-shrink: 0;
 		padding: 0px;
 
+		// the test bar under the preview on the Effects tab: actions that play their effects here
+		.preview-tests
+		{
+			position: absolute;
+			left: 2px;
+			right: 2px;
+			bottom: 2px;
+		}
+
 		.settings-body
 		{
 			padding: 0px;

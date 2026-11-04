@@ -34,6 +34,11 @@
         <div class="tool" Tooltip="Home" @onclick=@(() => _viewport?.FrameAll())>Frame all</div>
     </div>
 
+    @if ( ShownTab == Tab.Effects )
+    {
+        <TestBar class="tests" Stage=@Stage></TestBar>
+    }
+
     @if ( !string.IsNullOrEmpty( _viewport?.Status ) )
     {
         <div class="status">@_viewport.Status</div>
@@ -69,7 +74,8 @@
                     else if ( ShownTab == Tab.Effects )
                     {
                         <LayerEditor @ref="_layerPanel" Look=@_look Changed=@Changed Stage=@Stage Locked=@EffectsLocked EffectId=@EffectId History=@History Undo=@Undo Redo=@Redo
-                                     StartShape=@StartShape StartCreator=@StartCreator StartSticker=@StartSticker StartDraft=@StartDraft DraftsOpen=@DraftsOpen></LayerEditor>
+                                     StartShape=@StartShape StartCreator=@StartCreator StartSticker=@StartSticker StartDraft=@StartDraft DraftsOpen=@DraftsOpen
+                                     OpenCode=@OpenCode LayerPicked=@LayerPicked OpenCodeAt=@OpenCodeAt></LayerEditor>
                     }
                     else
                     {
@@ -155,6 +161,20 @@
 
     /// <summary>The look worn now, as everyone sees it: what a change is told from.</summary>
     public Func<PlayerLook> WornNow { get; init; }
+
+    /// <summary>Opens the code editor on an effect, by id; and says which layer of which effect was picked on the Effects tab.</summary>
+    public Action<string> OpenCode { get; init; }
+    public Action<string, int> LayerPicked { get; init; }
+
+    /// <summary>Opens the code editor on an effect (by id) at a line.</summary>
+    public Action<string, int> OpenCodeAt { get; init; }
+
+    /// <summary>Selects layer <paramref name="layer"/> of effect <paramref name="effect"/> on the Effects tab (the code editor's caret is in it).</summary>
+    public void ShowLayer( string effect, int layer )
+    {
+        if ( ShownTab == Tab.Effects && _layerPanel is not null && _layerPanel.IsValid() )
+            _layerPanel.ShowLayer( effect, layer );
+    }
 
     // The tabs of options down the right
     enum Tab { Look, Accessories, Effects }

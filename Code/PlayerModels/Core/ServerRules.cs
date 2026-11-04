@@ -50,6 +50,18 @@ public sealed class ServerRules
 	/// <summary>Whether those designs' effects show.</summary>
 	public bool AllowWeaponEffects { get; set; } = true;
 
+	/// <summary>
+	/// Whether effects run their scripts (see <see cref="Effect.Script"/>); off, each shows what its script built when it
+	/// was saved, with nothing of it running.
+	/// </summary>
+	public bool AllowScripts { get; set; } = true;
+
+	/// <summary>
+	/// The most a script runs at, in UTF-8 bytes minified: at most <see cref="Script.ScriptLimits.MaxScriptBytes"/>, which
+	/// it can only lower. A longer one shows what it built, as with scripts off.
+	/// </summary>
+	public int MaxScriptBytes { get; set; } = Script.ScriptLimits.MaxScriptBytes;
+
 	/// <summary>Players (by Steam id) whose effects nobody sees here.</summary>
 	public List<long> MutedEffects { get; set; } = new();
 

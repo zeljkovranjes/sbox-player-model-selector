@@ -1,0 +1,54 @@
+{
+  "id": "",
+  "n": "Classic slash",
+  "a": {
+    "j": "RightHand",
+    "k": "HeldWeapon"
+  },
+  "l": [
+    {
+      "k": "Sprite",
+      "j": "Chest",
+      "f": 6,
+      "p": "@ded97f8497146686",
+      "c": "#ffd27a",
+      "a": 44,
+      "t": 0.25,
+      "n": 0,
+      "fo": true,
+      "al": "Swing"
+    },
+    {
+      "k": "Sprite",
+      "j": "Chest",
+      "f": 6,
+      "p": "@2a5db696defe3d47",
+      "c": "#ffffff",
+      "a": 44,
+      "t": 0.25,
+      "n": 0,
+      "fo": true,
+      "al": "Swing"
+    }
+  ],
+  "sh": [
+    {
+      "id": "ded97f8497146686",
+      "n": "Slash",
+      "s": [
+        "cvMFrw4GuygH40CJJ1fKg22L94HNf5RPH6UQz7QSj8FUX8xWO9WYI9zaE-IcC-UeA-ZgA-Uh_-Ij99zl79Wn38xpx8Fro7Qtc6UvM5Rw44Hyg220C1f1f0C22yg4Hw45RvM6Utc7Qro8Fpx8xn39Wl79zj9-Ih_-UgA-ZgA-Zh89ujz89ll8EnQ7Fo16BqT45rr3ss92cuJ1KvOz2wOygxJxJx-vxyvuYzbs_0Erl0oqL1Jow1mnV2Bl52Ykc2si_29hg3KgA3Uee3ac63dbV3aZu3TYF3HWb21Uv2cTC1-RU1YPm0qN4z1MKy3KexxI1wjHOvMFr"
+      ],
+      "fa": 300,
+      "fr": 150
+    },
+    {
+      "id": "2a5db696defe3d47",
+      "n": "Slash edge",
+      "s": [
+        "cvMFrw4GuygH40CJJ1fKg22L94HNf5RPH6UQz7QSj8FUX8xWO9WYI9zaE-IcC-UeA-ZgA-Uh_-Ij99zl79Wn38xpx8Fro7Qtc6UvM5Rw44Hyg220C1f1f0C22yg4Hw45RvM6Utc7Qro8Fpx8xn39Wl79zj9-Ih_-UgA-ZgA-Zh--Jj69xl09Snr8rpf79rP7Hs66Muh5KwE4Cxh21y51j0L0L1Yyw2gxQ3hvt4cuH5Rsd5_qx6opC7JnR7llf75jr8Hh18OgA8OeJ8HcT75ac7kYn7IWy6lU_57TN5KRe4RPx3SOI2MMi0_LAzsJjySIKwyG4vMFr"
+      ],
+      "fa": 300,
+      "fr": 150
+    }
+  ]
+}

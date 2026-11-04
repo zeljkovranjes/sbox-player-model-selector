@@ -6,6 +6,7 @@
 @using Sandbox.UI
 @using PlayerModels.Components
 @using PlayerModels.Core
+@using PlayerModels.Core.Script
 @using PlayerModels.Engine
 @inherits Panel
 @namespace PlayerModels.UI
@@ -44,6 +45,10 @@
             <Body>
                 <ModelPreview @ref="Preview" class="@( _viewModel && !_server ? "hidden" : "" )" />
                 <ViewModelPreview @ref="ArmsPreview" class="@( _viewModel && !_server ? "" : "hidden" )" />
+                @if ( _pane == Pane.Effects && !_viewModel && !_server )
+                {
+                    <TestBar class="preview-tests" Stage=@Preview Compact=@true></TestBar>
+                }
             </Body>
         </UISettingsPane>
 
@@ -75,7 +80,7 @@
                     <SlowScroll class="@( _effectsWorkshop ? "fill" : "" )"><Content>
                         <EffectsEditor Look=@_look Changed=@LookChanged Locked=@EffectsLocked OpenAdvanced=@OpenAdvancedOn OpenCreator=@OpenCreator DraftsOpen=@_openDrafts
                                        Workshop=@_effectsWorkshop ShowWorkshop=@ShowEffectsWorkshop
-                                       History=@_effectHistory Undo=@UndoEffects Redo=@RedoEffects></EffectsEditor>
+                                       History=@_effectHistory Undo=@UndoEffects Redo=@RedoEffects OpenCode=@OpenCode OpenScriptDraft=@OpenScriptDraft></EffectsEditor>
                     </Content></SlowScroll>
                 </Body>
             </UISettingsPane>
@@ -402,9 +407,87 @@
             StartDraft = draft,
             DraftsOpen = _openDrafts,
             WornNow = () => Selector?.LookOf( Connection.Local ),
+            OpenCode = OpenCode,
+            OpenCodeAt = OpenCodeAt,
+            LayerPicked = ( id, layer ) =>
+            {
+                if ( _code.IsValid() && _code.EffectId == id )
+                    _code.ShowLayer( layer );
+            },
         };
 
         _advanced.Parent = SpawnMenuHost.ModalLayer ?? FindPopupPanel();
+    }
+
+    // The code editor, while it is open: a window over everything, on one worn effect (or a draft) at a time
+    CodeEditor _code;
+
+    void OpenCode( string effect ) => OpenCodeWith( effect, null );
+
+    void OpenScriptDraft( ScriptDraft draft ) => OpenCodeWith( draft.EffectId, draft );
+
+    // On the effect's line: open (or already open) on it, the caret there
+    void OpenCodeAt( string effect, int line )
+    {
+        OpenCode( effect );
+        if ( _code.IsValid() && _code.EffectId == effect )
+            _code.GoTo( line );
+    }
+
+    void OpenCodeWith( string effect, ScriptDraft draft )
+    {
+        if ( _look is null )
+            return;
+
+        if ( _code.IsValid() )
+        {
+            if ( _code.EffectId == effect && draft is null )
+                return;
+
+            // One script at a time: the open one is closed first (asking what to do with its changes)
+            _code.RequestClose();
+            if ( _code.IsValid() )
+                return;
+        }
+
+        _code = new CodeEditor
+        {
+            LookNow = () => _look,
+            EffectId = draft is not null && _look.Effects.All( x => x.Id != draft.EffectId ) ? null : effect,
+            Changed = LookChanged,
+            Wear = ApplyLook,
+            ShowReference = OpenReference,
+            CaretInLayer = layer => _advanced?.ShowLayer( _code?.EffectId, layer ),
+            Closed = () => _code = null,
+            Draft = draft,
+            BesideOptions = _advanced.IsValid(),
+        };
+
+        _code.Parent = SpawnMenuHost.ModalLayer ?? FindPopupPanel();
+    }
+
+    // The scripting reference, opened on an entry (or its start): one at a time, over everything
+    ScriptReferencePanel _reference;
+
+    void OpenReference( string entry )
+    {
+        if ( _reference.IsValid() )
+        {
+            _reference.Show( entry );
+            return;
+        }
+
+        _reference = new ScriptReferencePanel { Entry = entry, CopyInto = CopyExample };
+        _reference.Parent = SpawnMenuHost.ModalLayer ?? FindPopupPanel();
+    }
+
+    // An example copied into the effect being edited in code (or a new effect written in code)
+    void CopyExample( string script )
+    {
+        if ( _code.IsValid() )
+            _code.Insert( script );
+        else
+            OpenCodeWith( null, new ScriptDraft { Name = "Example", Script = script } );
     }
 
     // The model whose Customize page shows its Workshop: another model's page opens on its options again
@@ -1001,6 +1084,7 @@
     {
         _lookDirty = true;
         RecordEffects();
+        _code?.Sync();
         StateHasChanged();
     }
 
@@ -1028,6 +1112,7 @@
         _look.Effects = restored.Effects;
         _look.DrawnShapes = restored.DrawnShapes;
         _lookDirty = true;
+        _code?.Sync();
         StateHasChanged();
     }
 

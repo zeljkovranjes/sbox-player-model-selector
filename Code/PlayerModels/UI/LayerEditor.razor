@@ -51,6 +51,7 @@
             <div class="reset @( CanStart ? "" : "disabled" )" Tooltip=@( CanStart ? "An effect of your own, from scratch" : $"A look wears up to {Effect.MaxWorn} effects and {Effect.MaxLookLayers} layers" )
                  @onclick=@NewEffect>New effect</div>
             <div class="reset" Tooltip="Keep it unfinished, to come back to from My effects: it shows here, and isn't worn until you finish it" @onclick=@(() => SaveDraft( effect, false ))>Save draft</div>
+            <div class="reset" Tooltip="Open it in the code editor: the script it is (or would be), changed here and there alike" @onclick=@(() => OpenCode?.Invoke( effect.Id ))>Edit as code</div>
         </div>
         @if ( DraftsOpen?.Effects.ContainsKey( effect.Id ) == true )
         {
@@ -67,6 +68,11 @@
                 <div class="reset" @onclick=@(() => SaveDraft( effect, true ))>Drop it</div>
                 <div class="reset" @onclick=@CancelDrop>Cancel</div>
             </div>
+        }
+        @if ( effect.Script is not null )
+        {
+            <div class="note">Written in code: what its script works out (in a loop, a function, from a parameter) changes only in code or with the parameter; the rest changes here and the script follows.</div>
+            <ScriptParameters Look=@Look Effect=@effect Changed=@Changed></ScriptParameters>
         }
         <div class="row">
             <div class="label">Comes from</div>
@@ -113,6 +119,10 @@
             var kind = ChosenKind();
             var chosen = Chosen().Count;
             <div class="section-header">@( chosen > 1 ? $"{chosen} layers" : NameOf( selected ) )</div>
+            @if ( effect.Script is not null && chosen == 1 )
+            {
+                <ScriptFieldsNote Look=@Look Effect=@effect Layer=@_layer OpenCodeAt=@OpenCodeAt></ScriptFieldsNote>
+            }
             @if ( chosen > 1 )
             {
                 <div class="note">@( kind is null ? $"Changes go to all {chosen}. They aren't all the same kind, so only what every layer has shows." : $"Changes go to all {chosen}." ) Ctrl+click a layer to add or drop it, Shift+click for a run of them.</div>
@@ -155,6 +165,10 @@
                     </div>
                     <ToggleRow Label=@( selected.DrawnFormation is null && StandardShapes.IsSolid( selected.FormationIs ) ? "All through it (not just its surface)" : "All over it (not just its outline)" )
                                Value=@selected.Fill OnChanged=@(( bool v ) => SetAll( l => l.Fill = v ))></ToggleRow>
+                    <div class="row">
+                        <div class="label">Shape lies</div>
+                        <UIDropdown Items=@ShapeLiesChoices() Value=@ShapeLies( selected ) ValueChanged=@(( object v ) => SetAll( l => l.Facing = (string)v )) Tokenize=@false></UIDropdown>
+                    </div>
                 }
                 <div class="row">
                     <div class="label">Looks like</div>
@@ -321,6 +335,27 @@
     [Parameter] public EditHistory History { get; set; }
     [Parameter] public Action Undo { get; set; }
     [Parameter] public Action Redo { get; set; }
+
+    /// <summary>Opens the code editor on an effect, by id; and is told which layer of which effect is picked here.</summary>
+    [Parameter] public Action<string> OpenCode { get; set; }
+    [Parameter] public Action<string, int> LayerPicked { get; set; }
+
+    /// <summary>Opens the code editor on an effect (by id) at a line: a field its script sets.</summary>
+    [Parameter] public Action<string, int> OpenCodeAt { get; set; }
+
+    /// <summary>Picks layer <paramref name="layer"/> of effect <paramref name="effect"/> alone (the code editor's caret is in it).</summary>
+    public void ShowLayer( string effect, int layer )
+    {
+        if ( effect is null || Look?.Effects.Find( x => x.Id == effect ) is not { } shown || layer < 0 || layer >= shown.Layers.Count )
+            return;
+
+        if ( _effect == effect && _layer == layer && _chosen.Count == 0 )
+            return;
+
+        _effect = effect;
+        ChooseOnly( layer );
+        StateHasChanged();
+    }
 
     // The layer selected, by its place in the effect (its settings are the ones shown), and any others chosen with it
     // (Ctrl or Shift), which every change goes to as well; whether everything else about it shows; and whether an effect
@@ -659,6 +694,7 @@
             ChooseOnly( index );
         }
 
+        LayerPicked?.Invoke( Effect?.Id, _layer );
         StateHasChanged();
     }
 
@@ -990,6 +1026,7 @@
         Effect.Joint.RightHand => "Right hand",
         Effect.Joint.LeftFoot => "Left foot",
         Effect.Joint.RightFoot => "Right foot",
+        Effect.Joint.Ground => "Ground (under the feet)",
         _ => joint.ToString(),
     };
 
@@ -1061,13 +1098,8 @@
         LayerWhen.OnDeath => "On dying",
         LayerWhen.OnRespawn => "On spawning again",
         LayerWhen.OnFootstep => "On each footstep",
+        LayerWhen.OnKill => "On a kill (someone they shot dies)",
         _ => "Always",
-    };
-
-    static List<UIDropdown.Item> AlignChoices() => new()
-    {
-        new( "The camera", nameof( LayerAlign.Camera ) ),
-        new( "Along the swing", nameof( LayerAlign.Swing ) ),
     };
 
     static List<UIDropdown.Item> RhythmChoices() => new()
@@ -1080,7 +1112,32 @@
         new( "Jiggle", nameof( LayerRhythm.Jiggle ) ),
     };
 
-    static List<UIDropdown.Item> FacingChoices() => Enum.GetValues<LayerFacing>().Select( x => new UIDropdown.Item( x.ToString(), x.ToString() ) ).ToList();
+    static List<UIDropdown.Item> FacingChoices() => Enum.GetValues<LayerFacing>().Select( x => new UIDropdown.Item( x switch
+    {
+        LayerFacing.Flat => "Flat on the ground",
+        LayerFacing.Camera => "The camera",
+        _ => x.ToString(),
+    }, x.ToString() ) ).ToList();
+
+    // How a shape the sprites come from lies: up like a sign, flat on the ground (a magic circle), or facing whoever looks
+    static List<UIDropdown.Item> ShapeLiesChoices() => new()
+    {
+        new( "Upright", nameof( LayerFacing.Forward ) ),
+        new( "Flat on the ground", nameof( LayerFacing.Flat ) ),
+        new( "Facing the camera", nameof( LayerFacing.Camera ) ),
+    };
+
+    static string ShapeLies( EffectLayer layer ) => layer.FacingIs is LayerFacing.Flat or LayerFacing.Camera ? layer.FacingIs.ToString() : nameof( LayerFacing.Forward );
+
+    // Which way each sprite lies
+    static List<UIDropdown.Item> AlignChoices() => new()
+    {
+        new( "Facing the camera", nameof( LayerAlign.Camera ) ),
+        new( "Along the swing", nameof( LayerAlign.Swing ) ),
+        new( "Flat on the ground", nameof( LayerAlign.Ground ) ),
+        new( "The way the layer faces", nameof( LayerAlign.Facing ) ),
+        new( "Out from the middle", nameof( LayerAlign.Outward ) ),
+    };
 
     static List<UIDropdown.Item> ColourModeChoices() => new()
     {

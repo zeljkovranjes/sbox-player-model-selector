@@ -1,0 +1,51 @@
+{
+  "id": "",
+  "n": "Ink splatter",
+  "a": {
+    "j": "Chest"
+  },
+  "l": [
+    {
+      "k": "Sprite",
+      "s": "Sphere",
+      "r": 4,
+      "p": "Droplet",
+      "c": "#ff3aa8",
+      "a": 1.6,
+      "b": 0.8,
+      "v": 90,
+      "g": 320,
+      "t": 0.6,
+      "n": 0,
+      "so": true
+    },
+    {
+      "k": "Sprite",
+      "j": "Ground",
+      "s": "Ring",
+      "r": 14,
+      "u": 0.3,
+      "p": "@72a94b4b14a9ec34",
+      "c": "#ff3aa8",
+      "a": 6,
+      "t": 4,
+      "n": 0,
+      "so": true,
+      "al": "Ground"
+    }
+  ],
+  "sh": [
+    {
+      "id": "72a94b4b14a9ec34",
+      "n": "Blot",
+      "s": [
+        "cxOgA0JkA3bps1EuFwDwDsGyHoj0pku3xgA5aa-5PWM3rTCzZSIt3R2pcPam3L8j_KBgAMucKQ2ZuRwWfSCSCVqQiZWP7crPSgAPBj-L-pxIauVKjvaQlumWPu2Z2wTcw",
+        "c3lNz3jOP3dOr3UPF3IPf24P22lQM2QQe15Qu1fQ61FRE0pRJ0NRLzwRJzVREy6Q6yhQuyJQex0QMxhP2xSPfxFPFw8Orw2OPw1Nzw2NXw8M7xFMgxSMHxhLvx0LayJLHyhK4y6KrzVKizwKd0NKb0pKd1FKi1fKr15K42QLH2lLa24Lv3IMH3UMg3dM73jNX",
+        "cInaJImajIga9IYbXIMbuH9cFHscZHYcqHCc5GqdFGRdNF2dSFcdUFBdSEndNEOdFD2c5DgcqDMcZC7cFCsbuCgbXCYa9CSajCRaJCSZuCYZUCgY7CsYjC7YNDMX5DgXnD2XZEOXNEnXEFBW_FcW9F2W_GRXEGqXNHCXZHYXnHsX5H9YNIMYjIYY7IgZUImZu",
+        "c9kgc9jgw9fhD9ZhW9Qho9Fh584iI8piV8Yig8Gip7ziv7giz7Mi164iz6kiv6Rip5_ig5viV5giI5Sh55Hho4_hW44hD40gw4zgc40gI44f04_fh5HfQ5Se_5gew5vej5_eY6ReP6keI64eE7MeD7geE7zeI8GeP8YeY8pej84ew9Fe_9QfQ9Zfh9ff09jgI",
+        "cHIlVHHlkHElzG_mBG4mPGwmbGmmmGbmwGOm5GBm_FznEFknHFVnIFGnHE3nEEpm_Ecm5EPmwEEmmD6mbDymPDrmBDmlzDklkDjlVDklGDmk4DrkqDykcD6kQEEkEEPj7EcjyEpjsE3jnFGjkFVjjFkjkFzjnGBjsGOjyGbj7GmkEGwkQG4kcG_kqHEk4HHlG",
+        "cHkibHiixHejGHXjbHNjvHAkCGykSGhkhGPktF7k3Fmk-FQlDE6lEEklDEOk-D5k3DlktDTkhDCkSC0kCCnjvCdjbCWjGCSixCRibCSiECWhvCdhaCnhGC0gzDCgjDTgUDlgID5f-EOf3EkfyE6fxFQfyFmf3F7f-GPgIGhgUGygjHAgzHNhGHXhaHehvHiiE"
+      ]
+    }
+  ]
+}

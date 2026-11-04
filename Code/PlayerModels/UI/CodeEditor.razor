@@ -1,0 +1,346 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Core
+@using PlayerModels.Core.Script
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root class="@Theme.Name @( _maximized ? "maximized" : "" )">
+    <div class="titlebar">
+        <DragHandle class="title-drag" Started=@StartMove Moved=@Move Ended=@EndMove DoubleClicked=@ToggleMaximize></DragHandle>
+        <div class="title-icon">code</div>
+        <TextLabel class="title" Text=@( TitleText )></TextLabel>
+        @if ( IsDirty )
+        {
+            <div class="dirty"></div>
+        }
+        <div class="spacer"></div>
+        <div class="window-button" Tooltip=@( _maximized ? "Restore (double-click the title)" : "Maximize (double-click the title)" ) @onclick=@ToggleMaximize>@( _maximized ? "filter_none" : "crop_square" )</div>
+        <div class="window-button close" Tooltip="Close" @onclick=@RequestClose>close</div>
+    </div>
+
+    <div class="toolbar">
+        <div class="tool" Tooltip="Save: apply and wear it (Ctrl+S)" @onclick=@Save>save</div>
+        <div class="tool @( _autoApply ? "on" : "" )" Tooltip=@( _autoApply ? "Auto-apply is on: the preview follows as you type. Click to apply only on Save" : "Auto-apply is off: nothing changes until Save. Click to follow as you type" )
+             @onclick=@ToggleAutoApply>@( _autoApply ? "bolt" : "flash_off" )</div>
+        <div class="separator"></div>
+        <div class="tool @( _entry?.CanUndo == true ? "" : "disabled" )" Tooltip="Undo (Ctrl+Z)" @onclick=@(() => _entry?.Undo())>undo</div>
+        <div class="tool @( _entry?.CanRedo == true ? "" : "disabled" )" Tooltip="Redo (Ctrl+Y or Ctrl+Shift+Z)" @onclick=@(() => _entry?.Redo())>redo</div>
+        <div class="separator"></div>
+        <div class="tool" Tooltip="Find (Ctrl+F), replace (Ctrl+H)" @onclick=@(() => OpenFind( false ))>search</div>
+        <div class="tool" Tooltip="Go to line (Ctrl+G)" @onclick=@OpenGoTo>format_list_numbered</div>
+        <div class="tool" Tooltip="Format: indent and space it the one way (Shift+Alt+F)" @onclick=@FormatSource>format_align_left</div>
+        <div class="tool" Tooltip="Comment the lines out, or back in (Ctrl+/)" @onclick=@ToggleComment>code_off</div>
+        <div class="separator"></div>
+        <div class="tool" Tooltip="Keep as draft: come back to it from My effects" @onclick=@KeepDraft>edit_note</div>
+        <div class="tool" Tooltip=@( Theme == CodeTheme.Dark ? "Light theme" : "Dark theme" ) @onclick=@ToggleTheme>@( Theme == CodeTheme.Dark ? "light_mode" : "dark_mode" )</div>
+        <div class="tool" Tooltip="Reference: everything a script can use, with live examples (F1)" @onclick=@(() => OpenReference( null ))>help</div>
+    </div>
+
+    @if ( _bar != Bar.None )
+    {
+        <div class="findbar">
+            @if ( _bar == Bar.GoTo )
+            {
+                <div class="find-label">Go to line</div>
+                <TextEntry @ref="_barEntry" class="find-entry" Placeholder=@( $"1 to {CodeText.LineCount( _source )}" ) Value:bind=@GoToText @onsubmit=@GoToLine></TextEntry>
+                <div class="find-button" Tooltip="Go (Enter)" @onclick=@GoToLine>keyboard_return</div>
+            }
+            else
+            {
+                <div class="find-rows">
+                    <div class="find-row">
+                        <TextEntry @ref="_barEntry" class="find-entry" Placeholder="Find" Value:bind=@FindText @onsubmit=@(() => FindNext( 1 ))></TextEntry>
+                        <div class="find-toggle @( _matchCase ? "on" : "" )" Tooltip="Match case" @onclick=@(() => SetFindOption( !_matchCase, _wholeWord ))>Aa</div>
+                        <div class="find-toggle @( _wholeWord ? "on" : "" )" Tooltip="Whole word" @onclick=@(() => SetFindOption( _matchCase, !_wholeWord ))>ab</div>
+                        <TextLabel class="find-count" Text=@( FindCount )></TextLabel>
+                        <div class="find-button" Tooltip="Previous (Shift+Enter)" @onclick=@(() => FindNext( -1 ))>arrow_upward</div>
+                        <div class="find-button" Tooltip="Next (Enter)" @onclick=@(() => FindNext( 1 ))>arrow_downward</div>
+                    </div>
+                    @if ( _bar == Bar.Replace )
+                    {
+                        <div class="find-row">
+                            <TextEntry class="find-entry" Placeholder="Replace" Value:bind=@_replaceText @onsubmit=@ReplaceOne></TextEntry>
+                            <div class="find-button" Tooltip="Replace this one" @onclick=@ReplaceOne>find_replace</div>
+                            <div class="find-button" Tooltip="Replace all" @onclick=@ReplaceAll>done_all</div>
+                        </div>
+                    }
+                </div>
+                <div class="find-button" Tooltip=@( _bar == Bar.Replace ? "Hide replace" : "Replace (Ctrl+H)" ) @onclick=@(() => OpenFind( _bar != Bar.Replace ))>@( _bar == Bar.Replace ? "unfold_less" : "unfold_more" )</div>
+            }
+            <div class="find-button" Tooltip="Close (Esc)" @onclick=@CloseBar>close</div>
+        </div>
+    }
+
+    <div class="body" @ref="_body">
+        <div class="gutter"><TextLabel @ref="_numbers" class="numbers" Text=@( _lineNumbers )></TextLabel></div>
+        <CodeEntry @ref="_entry" Theme=@Theme Edited=@TextEdited Shortcut=@Key Hovered=@Hover></CodeEntry>
+
+        @if ( _completions.Count > 0 )
+        {
+            <div @ref="_completionPanel" class="popup completion">
+                @for ( var i = _completionTop; i < Math.Min( _completions.Count, _completionTop + CompletionRows ); i++ )
+                {
+                    var index = i;
+                    var item = _completions[ index ];
+                    @if ( item.Group is not null && (index == _completionTop || _completions[ index - 1 ].Group != item.Group) )
+                    {
+                        <TextLabel class="completion-group" Text=@( item.Group )></TextLabel>
+                    }
+                    <div class="completion-row @( index == _completionIndex ? "selected" : "" )" @onclick=@(() => AcceptCompletion( index ))>
+                        @if ( item.Icon is { } icon && icon.StartsWith( "key:" ) )
+                        {
+                            <KeyGlyph class="completion-picture" Key=@icon[ 4.. ]></KeyGlyph>
+                        }
+                        else if ( item.Icon is { } colour && colour.StartsWith( "color:" ) )
+                        {
+                            <div class="completion-swatch" style="background-color: @SafeColour( colour[ 6.. ] )"></div>
+                        }
+                        else if ( StockShapeOf( item ) is { } stock )
+                        {
+                            <ShapePicture class="completion-picture" Shape=@stock></ShapePicture>
+                        }
+                        else if ( DrawnOf( item ) is { } drawn )
+                        {
+                            <ShapeIcon class="completion-picture" Shape=@drawn></ShapeIcon>
+                        }
+                        else
+                        {
+                            <div class="completion-icon @item.Kind.ToString().ToLowerInvariant()">@IconOf( item.Kind )</div>
+                        }
+                        <TextLabel class="completion-label" Text=@( item.Label )></TextLabel>
+                        <TextLabel class="completion-detail" Text=@( Short( item.Detail ) )></TextLabel>
+                    </div>
+                }
+                @if ( _completions[ _completionIndex ].Doc is { Length: > 0 } doc )
+                {
+                    <TextLabel class="completion-doc" Text=@( Short( doc, 160 ) )></TextLabel>
+                }
+            </div>
+        }
+        else if ( _signature is { } signature )
+        {
+            <div @ref="_signaturePanel" class="popup signature">
+                <div class="signature-line">
+                    @for ( var i = 0; i < SignatureParts( signature ).Count; i++ )
+                    {
+                        var part = SignatureParts( signature )[ i ];
+                        <TextLabel class="signature-part @( part.Active ? "active" : "" )" Text=@( part.Text )></TextLabel>
+                    }
+                </div>
+                @if ( signature.Doc is { Length: > 0 } )
+                {
+                    <TextLabel class="signature-doc" Text=@( Short( signature.Doc, 160 ) )></TextLabel>
+                }
+            </div>
+        }
+
+        @if ( _hover is { } hover )
+        {
+            <div @ref="_hoverPanel" class="popup hover" @onmouseover=@(() => _overHover = true) @onmouseout=@(() => _overHover = false)>
+                <div class="hover-top">
+                    @if ( hover.Key is { } key )
+                    {
+                        <KeyGlyph class="hover-key" Key=@key></KeyGlyph>
+                    }
+                    @if ( hover.Color is { } swatch )
+                    {
+                        <div class="hover-swatch" style="background-color: @SafeColour( swatch )"></div>
+                    }
+                    <TextLabel class="hover-title" Text=@( Short( hover.Title, 120 ) )></TextLabel>
+                </div>
+                @if ( hover.Doc is { Length: > 0 } )
+                {
+                    <TextLabel class="hover-doc" Text=@( Short( hover.Doc, 400 ) )></TextLabel>
+                }
+                @if ( hover.Example is { Length: > 0 } )
+                {
+                    <TextLabel class="hover-example" Text=@( Short( hover.Example, 400 ) )></TextLabel>
+                }
+                <div class="hover-more" @onclick=@(() => OpenReference( hover.Title ))>More…</div>
+            </div>
+        }
+
+        @if ( _picking is { } picking )
+        {
+            <div @ref="_pickerPanel" class="popup picker">
+                <ColorRow Label="Color" Hex=@picking.Hex OnChanged=@PickColour ResetLabel="Done" CanReset=@true></ColorRow>
+            </div>
+        }
+    </div>
+
+    @if ( _showErrors && _errors.Count > 0 )
+    {
+        <div class="errors">
+            @foreach ( var error in _errors.Take( ScriptLimits.MaxErrors ) )
+            {
+                var shown = error;
+                <div class="error-row" @onclick=@(() => JumpTo( shown.Start ))>
+                    <div class="error-icon">error</div>
+                    <TextLabel class="error-place" Text=@( $"{shown.Line}:{shown.Column}" )></TextLabel>
+                    <TextLabel class="error-text" Text=@( Short( shown.Message, 200 ) )></TextLabel>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="statusbar">
+        <TextLabel class="status-item" Text=@( _position )></TextLabel>
+        <TextLabel class="status-item @( _storedBytes > ScriptLimits.MaxScriptBytes ? "over" : "" )" Text=@( ScriptLimits.Describe( _storedBytes, ScriptLimits.MaxScriptBytes ) )></TextLabel>
+        <div class="status-item errors-count @( _errors.Count > 0 ? "has" : "" )" Tooltip="Show or hide the list of errors" @onclick=@ToggleErrors>
+            <div class="status-icon">@( _errors.Count > 0 ? "error" : "check_circle" )</div>
+            <TextLabel Text=@( ErrorsText )></TextLabel>
+        </div>
+        <div class="spacer"></div>
+        @if ( _note is not null )
+        {
+            <TextLabel class="status-item note" Text=@( _note )></TextLabel>
+        }
+        <TextLabel class="status-item" Text=@( _autoApply ? "Auto-apply" : "Applies on Save" )></TextLabel>
+    </div>
+
+    @if ( _closing )
+    {
+        <div class="dialog-shade">
+            <div class="dialog">
+                <TextLabel class="dialog-text" Text=@( $"{TitleText} has changes that aren't saved." )></TextLabel>
+                <div class="dialog-buttons">
+                    <div class="dialog-button primary" @onclick=@SaveAndClose>Save</div>
+                    <div class="dialog-button" @onclick=@DiscardAndClose>Discard</div>
+                    <div class="dialog-button" @onclick=@DraftAndClose>Keep as draft</div>
+                    <div class="dialog-button" @onclick=@(() => SetClosing( false ))>Cancel</div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if ( !_maximized )
+    {
+        <DragHandle class="edge left" Started=@StartResize Moved=@(( Vector2 d ) => Resize( d, -1, 0 )) Ended=@EndMove></DragHandle>
+        <DragHandle class="edge right" Started=@StartResize Moved=@(( Vector2 d ) => Resize( d, 1, 0 )) Ended=@EndMove></DragHandle>
+        <DragHandle class="edge top" Started=@StartResize Moved=@(( Vector2 d ) => Resize( d, 0, -1 )) Ended=@EndMove></DragHandle>
+        <DragHandle class="edge bottom" Started=@StartResize Moved=@(( Vector2 d ) => Resize( d, 0, 1 )) Ended=@EndMove></DragHandle>
+        <DragHandle class="corner" Started=@StartResize Moved=@(( Vector2 d ) => Resize( d, 1, 1 )) Ended=@EndMove></DragHandle>
+    }
+</root>
+
+@code
+{
+    /// <summary>The look being edited (the page's): the effect edited is one of its effects.</summary>
+    public Func<PlayerLook> LookNow { get; init; }
+
+    /// <summary>The effect edited, by id; it is made (from the script) when it isn't worn.</summary>
+    public string EffectId { get; set; }
+
+    /// <summary>Called after every change to the look (the preview follows); and to wear it (Save).</summary>
+    public Action Changed { get; init; }
+    public Action Wear { get; init; }
+
+    /// <summary>Opens the reference ("?") on the entry named, or at its start for none.</summary>
+    public Action<string> ShowReference { get; init; }
+
+    /// <summary>Called with the layer the caret is in (by its place in the effect) as it moves into one.</summary>
+    public Action<int> CaretInLayer { get; init; }
+
+    /// <summary>Called once the window is closed.</summary>
+    public Action Closed { get; init; }
+
+    /// <summary>A draft to open in place of the effect's script.</summary>
+    public ScriptDraft Draft { get; init; }
+
+    /// <summary>Where it opens the first time, when it never was opened before: beside the Advanced editor's options.</summary>
+    public bool BesideOptions { get; init; }
+
+    enum Bar { None, Find, Replace, GoTo }
+
+    CodeEntry _entry;
+    Panel _body;
+    TextLabel _numbers;
+    TextEntry _barEntry;
+    Panel _completionPanel;
+    Panel _signaturePanel;
+    Panel _hoverPanel;
+    Panel _pickerPanel;
+
+    CodeTheme Theme => CodeTheme.Of( LocalPrefs.CodeLight );
+    string _lineNumbers = "1";
+    int _lineCount = 1;
+    string _position = "Ln 1, Col 1";
+    string _note;
+    bool _showErrors;
+    bool _closing;
+    Bar _bar;
+
+    string TitleText => string.IsNullOrEmpty( _name ) ? "Script" : _name;
+
+    string ErrorsText => _errors.Count == 0 ? "No errors" : _errors.Count == 1 ? "1 error" : $"{_errors.Count} errors";
+
+    protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Theme, _maximized, IsDirty, _bar, _matches.Count, _match, _completions, _completionIndex ),
+        HashCode.Combine( _completionTop, _signature, _hover, _picking, _showErrors, _errors, _lineNumbers, _position ),
+        HashCode.Combine( _storedBytes, _note, _autoApply, _closing, _name, _entry?.CanUndo, _entry?.CanRedo ) );
+
+    protected override void OnAfterTreeRender( bool firstTime )
+    {
+        base.OnAfterTreeRender( firstTime );
+        if ( !firstTime )
+            return;
+
+        PlaceWindow();
+        Open();
+    }
+
+    public override void Tick()
+    {
+        base.Tick();
+        if ( _entry is null )
+            return;
+
+        TickCompile();
+        TickCaret();
+        TickOverlays();
+    }
+
+    void SetClosing( bool closing )
+    {
+        _closing = closing;
+        StateHasChanged();
+    }
+
+    void ToggleErrors()
+    {
+        _showErrors = !_showErrors;
+        StateHasChanged();
+    }
+
+    void ToggleTheme()
+    {
+        LocalPrefs.CodeLight = Theme == CodeTheme.Dark;
+        if ( _entry is not null )
+            _entry.Theme = Theme;
+
+        Restyle();
+        StateHasChanged();
+    }
+
+    void ToggleAutoApply()
+    {
+        _autoApply = !_autoApply;
+        LocalPrefs.CodeAutoApply = _autoApply;
+        StateHasChanged();
+    }
+
+    // Text shown in popups and lists is cut short and only ever plain text
+    static string Short( string text, int most = 48 ) => text is null ? "" : text.Length <= most ? text : text[ ..(most - 1) ] + "…";
+
+    static string SafeColour( string hex ) => Color.Parse( hex ) is { } colour ? colour.Hex : "#ffffff";
+
+    public override void OnDeleted()
+    {
+        base.OnDeleted();
+        Closed?.Invoke();
+    }
+}

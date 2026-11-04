@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using PlayerModels.Core.Script;
 
 namespace PlayerModels.Core;
 
@@ -16,10 +17,18 @@ namespace PlayerModels.Core;
 public sealed class Effect
 {
 	/// <summary>
-	/// The joints an effect can come from: those an item can be pinned to, the eyes (between them, and each one), the top
-	/// of the head (the crown, however high over its head bone a model's head reaches) and the feet.
+	/// What its key does (see <see cref="Key"/>): shows it for <see cref="TriggerSeconds"/> each press (and fires its
+	/// script's <c>OnKey</c>), switches it on and off, or shows it while the key is held. Only starting it counts toward
+	/// <see cref="TriggerCooldownSeconds"/>; switching it off or letting go is always free.
 	/// </summary>
-	public enum Joint { Head, Eyes, LeftEye, RightEye, Crown, Neck, Chest, Hips, LeftHand, RightHand, LeftFoot, RightFoot }
+	public enum KeyAction { Fire, Toggle, Hold }
+
+	/// <summary>
+	/// The joints an effect can come from: those an item can be pinned to, the eyes (between them, and each one), the top
+	/// of the head (the crown, however high over its head bone a model's head reaches), the feet, and the ground under the
+	/// body (below its hips at its feet's height, turned the way it faces: a circle under the feet).
+	/// </summary>
+	public enum Joint { Head, Eyes, LeftEye, RightEye, Crown, Neck, Chest, Hips, LeftHand, RightHand, LeftFoot, RightFoot, Ground }
 
 	/// <summary>The most effects one look wears, the most layers one effect has, and the most layers all of them have.</summary>
 	public const int MaxWorn = 8;
@@ -68,6 +77,16 @@ public sealed class Effect
 	/// </summary>
 	public static IReadOnlyList<string> Keys { get; } = KeyNames();
 
+	/// <summary>What its key does, a <see cref="KeyAction"/> by name; null to fire (show it for a moment each press).</summary>
+	[JsonPropertyName( "km" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public string KeyMode { get; set; }
+
+	/// <summary>What its key does.</summary>
+	[JsonIgnore]
+	public KeyAction KeyActionIs => KeyMode is not null && Enum.TryParse<KeyAction>( KeyMode, false, out var action ) && Enum.IsDefined( typeof( KeyAction ), action )
+		? action
+		: KeyAction.Fire;
+
 	/// <summary>Whether it is switched off: kept with the look, but not shown.</summary>
 	[JsonPropertyName( "off" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public bool Off { get; set; }
@@ -103,6 +122,24 @@ public sealed class Effect
 	/// </summary>
 	[JsonPropertyName( "sh" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public List<DrawnShape> Shapes { get; set; }
+
+	/// <summary>
+	/// The script it is written in (see <see cref="ScriptCompiler"/>), minified as it is stored and sent; null for
+	/// one only the visual editor made. Its layers and fields are what the script built, kept so a server with scripts
+	/// switched off (or a script that doesn't compile) still shows them; a client that runs scripts builds it again.
+	/// </summary>
+	[JsonPropertyName( "sc" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public string Script { get; set; }
+
+	/// <summary>
+	/// The values chosen for its script's <c>[Parameter]</c> options, as text by parameter name (see
+	/// <see cref="ScriptParameter.TryRead"/>); null for the script's own. Each client holds them to their parameter.
+	/// </summary>
+	[JsonPropertyName( "pm" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public Dictionary<string, string> Parameters { get; set; }
+
+	/// <summary>The longest text a parameter's value is kept with: a palette of 32 colours fits.</summary>
+	public const int MaxParameterLength = 512;
 
 	/// <summary>The Workshop share it was used or forked from (see <see cref="ShareOrigin"/>); null for one made here.</summary>
 	[JsonPropertyName( "ff" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
@@ -202,6 +239,7 @@ public sealed class Effect
 			Name = name.Length <= MaxNameLength ? name : name[ ..MaxNameLength ],
 			Off = Off,
 			Key = KeyNamed( Key ),
+			KeyMode = KeyMode is not null && KeyActionIs != KeyAction.Fire ? KeyActionIs.ToString() : null,
 			Anchor = (Anchor ?? new EffectAnchor()).Sanitized(),
 			Layers = kept,
 			Hue = float.IsFinite( Hue ) ? Hue - MathF.Floor( Hue ) : 0f,
@@ -209,7 +247,29 @@ public sealed class Effect
 			Amount = Slider( Amount ),
 			Speed = Slider( Speed ),
 			ForkedFrom = ForkedFrom?.Sanitized(),
+			Script = Script is not null && ScriptLimits.Fits( Script ) ? Script : null,
+			Parameters = Script is not null && ScriptLimits.Fits( Script ) ? SanitizedParameters( Parameters ) : null,
 		};
+	}
+
+	// The parameter values kept with a script: by their lengths only (a client holds each to its parameter once the
+	// script compiles), at most as many as a script has parameters; null for none
+	private static Dictionary<string, string> SanitizedParameters( Dictionary<string, string> values )
+	{
+		if ( values is not { Count: > 0 } )
+			return null;
+
+		var kept = new Dictionary<string, string>();
+		foreach ( var (name, value) in values )
+		{
+			if ( kept.Count >= ScriptParameter.MaxPerScript )
+				break;
+
+			if ( !string.IsNullOrEmpty( name ) && name.Length <= Lexer.MaxNameLength && value is not null && value.Length <= MaxParameterLength )
+				kept[ name ] = value;
+		}
+
+		return kept.Count > 0 ? kept : null;
 	}
 
 	/// <summary>
@@ -236,7 +296,32 @@ public sealed class Effect
 			kept.Add( sanitized );
 		}
 
+		HoldScriptsTo( kept, ScriptLimits.MaxLookBytes );
 		return kept;
+	}
+
+	/// <summary>
+	/// Lets go of the scripts of <paramref name="effects"/> past <paramref name="bytes"/> together (stored, minified, in
+	/// order): those effects keep what their scripts built, as if scripts were off.
+	/// </summary>
+	internal static void HoldScriptsTo( List<Effect> effects, int bytes )
+	{
+		var total = 0;
+		foreach ( var effect in effects )
+		{
+			if ( effect.Script is null )
+				continue;
+
+			var size = ScriptLimits.Utf8Bytes( effect.Script );
+			if ( total + size <= bytes )
+			{
+				total += size;
+				continue;
+			}
+
+			effect.Script = null;
+			effect.Parameters = null;
+		}
 	}
 
 	/// <summary>The longest effect read from the Workshop or a code, as JSON: far past any real one.</summary>
@@ -291,6 +376,7 @@ public sealed class Effect
 		copy.Name = "";
 		copy.Off = false;
 		copy.Key = null;
+		copy.KeyMode = null;
 		copy.ForkedFrom = null;
 		copy.Shapes = null;
 		return JsonSerializer.Serialize( copy );

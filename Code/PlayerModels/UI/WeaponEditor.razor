@@ -774,7 +774,8 @@
         if ( Weapon is not null )
             known.Add( Weapon );
 
-        foreach ( var weapon in Game.ActiveScene?.GetAll<BaseCombatWeapon>() ?? Enumerable.Empty<BaseCombatWeapon>() )
+        // Put away, a weapon's object is off: found with those that are on
+        foreach ( var weapon in Game.ActiveScene?.Components.GetAll<BaseCombatWeapon>( FindMode.EverythingInSelfAndDescendants ) ?? Enumerable.Empty<BaseCombatWeapon>() )
         {
             var renderer = weapon.WorldModelPrefab?.Components.Get<ModelRenderer>( FindMode.EverythingInSelfAndDescendants );
             if ( renderer?.Model?.ResourcePath is { } path && WeaponProp.IsModelPath( path ) && !known.Contains( path ) )

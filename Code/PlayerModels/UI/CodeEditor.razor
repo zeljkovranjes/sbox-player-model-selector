@@ -24,7 +24,7 @@
     </div>
 
     <div class="toolbar">
-        <div class="tool" Tooltip="Save: apply and wear it (Ctrl+S)" @onclick=@Save>save</div>
+        <div class="tool" Tooltip="Save: apply and wear it (Ctrl+S)" @onclick=@(() => Save())>save</div>
         <div class="tool @( _autoApply ? "on" : "" )" Tooltip=@( _autoApply ? "Auto-apply is on: the preview follows as you type. Click to apply only on Save" : "Auto-apply is off: nothing changes until Save. Click to follow as you type" )
              @onclick=@ToggleAutoApply>@( _autoApply ? "bolt" : "flash_off" )</div>
         <div class="separator"></div>

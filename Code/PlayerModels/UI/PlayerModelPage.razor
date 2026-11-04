@@ -26,7 +26,7 @@
             <div class="pane-views">
                 @if ( _pane != Pane.Models )
                 {
-                    <div class="action @( _lookDirty ? "" : "disabled" )" Tooltip="Back to what you wear" @onclick=@RevertLook>Revert</div>
+                    <div class="action icon @( _lookDirty ? "" : "disabled" )" Tooltip="Revert: back to what you wear" @onclick=@RevertLook>undo</div>
                     <div class="action apply @( _lookDirty ? "" : "disabled" )" Tooltip="Wear your changes" @onclick=@ApplyLook>Apply</div>
                     <div class="gap"></div>
                 }

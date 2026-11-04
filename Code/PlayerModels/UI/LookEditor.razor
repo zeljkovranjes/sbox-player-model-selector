@@ -54,9 +54,15 @@
             <div class="top">
                 <div class="intro">Change how it looks; Apply wears it.</div>
                 <div class="buttons">
-                    <div class="reset @( Look.IsCustomised ? "" : "disabled" )" @onclick=@ResetAll>Reset everything</div>
-                    <div class="reset" Tooltip="Every option, with the model in the middle of the screen" @onclick=@(() => OpenAdvanced?.Invoke())>Advanced editor</div>
-                    <div class="reset workshop" Tooltip="Looks players shared for this model" @onclick=@(() => ShowWorkshop?.Invoke( true ))>@WorkshopLabel</div>
+                    <div class="tool @( Look.IsCustomised ? "" : "disabled" )" Tooltip="Reset everything" @onclick=@ResetAll>refresh</div>
+                    <div class="tool workshop" Tooltip=@WorkshopTip @onclick=@(() => ShowWorkshop?.Invoke( true ))>
+                        <div class="glyph">storefront</div>
+                        @if ( WorkshopCount > 0 )
+                        {
+                            <div class="count">@WorkshopCount</div>
+                        }
+                    </div>
+                    <div class="reset" Tooltip="Every option, with the model in the middle of the screen" @onclick=@(() => OpenAdvanced?.Invoke())><div class="glyph">tune</div>Advanced editor</div>
                 </div>
             </div>
 
@@ -224,7 +230,9 @@
     // The look as it is shared or copied, without the armature; none when nothing is customised
     PlayerLook CurrentLook => Look.IsCustomised ? Look.Customisation() : null;
 
-    string WorkshopLabel => Shared.Looks.CountOf( Look.Model ) is > 0 and var count ? $"Workshop ({count})" : "Workshop";
+    long WorkshopCount => Shared.Looks.CountOf( Look.Model );
+
+    string WorkshopTip => WorkshopCount > 0 ? $"Workshop: the {WorkshopCount} looks players shared for this model" : "Workshop: looks players shared for this model";
 
     // Where each group's folding is kept: the page, the Advanced editor and an item's options each keep their own
     string FoldKey( string group ) => $"{(Compact ? "Item" : Advanced ? "Advanced" : "Customize")}/{group}";

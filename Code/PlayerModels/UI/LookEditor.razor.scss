@@ -157,10 +157,41 @@ LookEditor
 		font-weight: 600;
 	}
 
-	// what the page is for, with Reset everything and Workshop beside it
+	// what the page is for, with Reset everything and Workshop beside it as icons named in their tooltips, and the way
+	// into the Advanced editor in words after its icon
 	.top
 	{
 		@include ui-top-row;
+	}
+
+	.top .tool
+	{
+		@include ui-button;
+		flex-shrink: 0;
+		min-width: 28px;
+		padding: 0 6px;
+		font-family: "Material Icons";
+		font-size: 16px;
+		text-transform: none;
+
+		// how many looks the Workshop has for the model, beside its icon
+		> .count
+		{
+			font-family: $body-font;
+			font-size: 12px;
+		}
+	}
+
+	.top .reset > .glyph, .top .tool > .glyph
+	{
+		font-family: "Material Icons";
+		font-size: 15px;
+		text-transform: none;
+	}
+
+	.top .reset > .glyph
+	{
+		color: $ui-blue;
 	}
 
 	// the Workshop fills the pane, which doesn't scroll then (see .fit-pane): its padding includes the pane's 4px

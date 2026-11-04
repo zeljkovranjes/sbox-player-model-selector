@@ -80,6 +80,16 @@ PlayerModelPage
 			background-image: none;
 			border-color: $ui-blue;
 		}
+
+		// Revert, an icon named in its tooltip beside Apply's word
+		&.icon
+		{
+			width: 28px;
+			padding: 0;
+			font-family: "Material Icons";
+			font-size: 16px;
+			text-transform: none;
+		}
 	}
 
 	> .page

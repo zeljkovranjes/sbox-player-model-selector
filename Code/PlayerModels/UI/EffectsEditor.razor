@@ -62,7 +62,7 @@
         <div class="top">
             <div class="intro" Tooltip="Shapes sprites come from or look like: the standard ones, and yours to draw, write and erase">Click a shape to change it in the creator.</div>
             <div class="buttons">
-                <div class="reset" Tooltip="Shapes players shared" @onclick=@(() => ShowWorkshop?.Invoke( true ))>Workshop</div>
+                <div class="tool" Tooltip="Workshop: shapes players shared" @onclick=@(() => ShowWorkshop?.Invoke( true ))>storefront</div>
             </div>
         </div>
         <div class="section-header">My Shapes</div>
@@ -98,7 +98,7 @@
         <div class="top">
             <div class="intro" Tooltip="Stickers are layers of shapes, text and drawings in colors of their own, for sprites and weapons">Click a sticker to change it in the creator.</div>
             <div class="buttons">
-                <div class="reset" Tooltip="Stickers players shared" @onclick=@(() => ShowWorkshop?.Invoke( true ))>Workshop</div>
+                <div class="tool" Tooltip="Workshop: stickers players shared" @onclick=@(() => ShowWorkshop?.Invoke( true ))>storefront</div>
             </div>
         </div>
         <div class="section-header">My Stickers</div>
@@ -120,13 +120,13 @@
             <div class="intro">Click an effect to try it on; Apply wears it.</div>
             <div class="buttons">
                 <div class="tool @( History?.CanUndo == true ? "" : "disabled" )" Tooltip="Undo the last change to your effects" @onclick=@(() => Undo?.Invoke())>undo</div>
-                <div class="tool @( History?.CanRedo == true ? "" : "disabled" )" Tooltip="Redo" @onclick=@(() => Redo?.Invoke())>redo</div>
-                <div class="reset" Tooltip="What each part of an effect is, and how to do the harder things" @onclick=@(() => ShowGuides( true ))>Guides</div>
-                <div class="reset" Tooltip="Effects players shared" @onclick=@(() => ShowWorkshop?.Invoke( true ))>Workshop</div>
-                <div class="reset @( Selected is null ? "disabled" : "" )" Tooltip=@( Selected is null ? "Select an effect you wear first" : "Every layer of it, placed by hand" )
-                     @onclick=@(() => OpenAdvanced?.Invoke( Selected?.Id ))>Edit in Advanced editor</div>
+                <div class="tool @( History?.CanRedo == true ? "" : "disabled" )" Tooltip="Redo the change undone" @onclick=@(() => Redo?.Invoke())>redo</div>
+                <div class="tool" Tooltip="Guides: what each part of an effect is, and how to do the harder things" @onclick=@(() => ShowGuides( true ))>menu_book</div>
+                <div class="tool" Tooltip="Workshop: effects players shared" @onclick=@(() => ShowWorkshop?.Invoke( true ))>storefront</div>
+                <div class="reset @( Selected is null ? "disabled" : "" )" Tooltip=@( Selected is null ? "Edit in Advanced editor: select an effect you wear first" : "Edit in Advanced editor: every layer of it, placed by hand" )
+                     @onclick=@(() => OpenAdvanced?.Invoke( Selected?.Id ))><div class="glyph">tune</div>Advanced editor</div>
                 <div class="reset" Tooltip=@( Selected is null ? "Write a new effect in code" : "Open it in the code editor: the script it is (or would be)" )
-                     @onclick=@(() => OpenCode?.Invoke( Selected?.Id ))>Edit as code</div>
+                     @onclick=@(() => OpenCode?.Invoke( Selected?.Id ))><div class="glyph">code</div>Edit as code</div>
             </div>
         </div>
 

@@ -141,7 +141,7 @@ EffectsEditor
 		}
 	}
 
-	// undo and redo, beside the page's buttons
+	// the page's secondary buttons (undo, redo, Guides, Workshop) as icons named in their tooltips
 	.top .tool
 	{
 		@include ui-button;
@@ -151,6 +151,15 @@ EffectsEditor
 		font-family: "Material Icons";
 		font-size: 16px;
 		text-transform: none;
+	}
+
+	// the ways into the Advanced editor and the code editor keep their words, after an icon
+	.top .reset > .glyph
+	{
+		font-family: "Material Icons";
+		font-size: 15px;
+		text-transform: none;
+		color: $ui-blue;
 	}
 
 	// the tiles that make a new effect and a surprise: a plus and a die where the pictures go

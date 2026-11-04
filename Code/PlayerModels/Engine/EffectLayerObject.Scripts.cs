@@ -321,7 +321,7 @@ internal sealed partial class EffectLayerObject
 		io.Set( ScriptInput.Count, count );
 		io.Set( ScriptInput.Age, p.Age );
 		io.Set( ScriptInput.Life, life );
-		io.Set( ScriptInput.Seed, p.Random01 );
+		io.Set( ScriptInput.Seed, p.Rand() );
 		io.Set( ScriptInput.OriginX, origin.x, origin.y, origin.z );
 		var outputs = io.Outputs;
 		(outputs[ 0 ], outputs[ 1 ], outputs[ 2 ], outputs[ 3 ]) = (p.Color.r, p.Color.g, p.Color.b, p.Color.a);

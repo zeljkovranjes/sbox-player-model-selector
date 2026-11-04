@@ -5,6 +5,7 @@
 @using Sandbox.UI
 @using PlayerModels.Components
 @using PlayerModels.Core
+@using PlayerModels.Engine
 @inherits Panel
 @namespace PlayerModels.UI
 
@@ -53,6 +54,34 @@
             <div class="note">You wear as many effects as a look can (@Effect.MaxWorn). Remove one to put on another.</div>
         }
 
+        <div class="section-header">My Effects</div>
+        @if ( Mine.Count == 0 )
+        {
+            <div class="note">Effects you keep show here, to put on again. Select one you wear and save it below its sliders.</div>
+        }
+        else
+        {
+            <div class="grid">
+                @foreach ( var kept in Mine )
+                {
+                    var shown = kept;
+                    <div class="tile effect @( IsFull ? "disabled" : "" )" Tooltip=@KeptTooltip( shown ) @onclick=@(() => Add( shown ))>
+                        <EffectIcon class="thumb" Effect=@shown></EffectIcon>
+                        <div class="title">@shown.Name</div>
+                        <div class="forget" Tooltip="Delete from My effects" @onclick=@(( PanelEvent e ) => Forget( shown, e ))>delete</div>
+                    </div>
+                }
+                @for ( var i = 0; i < FillersFor( Mine.Count ); i++ )
+                {
+                    <div class="tile-filler"></div>
+                }
+            </div>
+        }
+        @if ( _status is not null )
+        {
+            <div class="note status">@_status</div>
+        }
+
         @if ( Look.Effects.Count > 0 )
         {
             <div class="section-header">Wearing</div>
@@ -85,6 +114,12 @@
             <SliderRow Label="Speed" Signed=@true Value=@selected.Speed OnChanged=@(( float value ) => Set( () => selected.Speed = value ))></SliderRow>
             <div class="row">
                 <div class="reset @( IsAsMade( selected ) ? "disabled" : "" )" @onclick=@(() => ResetSliders( selected ))>Reset sliders</div>
+            </div>
+            <div class="row">
+                <div class="label">Keep it</div>
+                <TextEntry class="key-entry" Placeholder=@( string.IsNullOrEmpty( selected.Name ) ? "Its name" : selected.Name ) MaxLength=@Effect.MaxNameLength
+                           Value:bind=@_keepName @onsubmit=@(() => Keep( selected ))></TextEntry>
+                <div class="reset @( Mine.Count >= LocalPrefs.MaxMyEffects ? "disabled" : "" )" @onclick=@(() => Keep( selected ))>Save to My effects</div>
             </div>
 
             <div class="row">
@@ -178,19 +213,60 @@
 
     protected override int BuildHash() => HashCode.Combine( Look?.Serialize(), _selected, _guides, Locked, Selector?.EffectsBudget, Selector?.EffectsQuality,
         string.Join( ";", Others().Select( x => $"{x.Id}{Selector?.HidesEffectsOf( x )}" ) ),
-        HashCode.Combine( (int)(Selector?.TriggerWait() ?? 0f), History?.CanUndo, History?.CanRedo ) );
+        HashCode.Combine( (int)(Selector?.TriggerWait() ?? 0f), History?.CanUndo, History?.CanRedo, _mineRevision, _status ) );
 
-    // A copy of the preset, selected for its sliders
+    // My effects, read once and again after each change to them
+    List<Effect> _mine;
+    int _mineRevision;
+    string _keepName;
+    string _status;
+
+    List<Effect> Mine => _mine ??= LocalPrefs.MyEffects();
+
+    // A copy of the preset (or of one kept in My effects), selected for its sliders
     void Add( Effect preset )
     {
         if ( IsFull )
             return;
 
         var effect = EffectPresets.Copy( preset, Look.Effects );
-        Look.Effects.Add( effect );
+        if ( !Look.Adopt( effect ) )
+        {
+            _status = $"A look carries up to {DrawnShape.MaxPerLook} drawn shapes, and this would take it past that. Remove an effect with drawn shapes first.";
+            StateHasChanged();
+            return;
+        }
+
         _selected = effect.Id;
+        _status = null;
         Changed?.Invoke();
     }
+
+    // Keeps the selected effect in My effects, under the name typed (its own name when none is)
+    void Keep( Effect effect )
+    {
+        var name = string.IsNullOrWhiteSpace( _keepName ) ? effect.Name : _keepName.Trim();
+        var kept = Look.Standalone( effect ) ?? effect;
+        kept.Name = name;
+        _status = LocalPrefs.SaveMyEffect( kept ) ? $"Saved to My effects as \"{kept.Sanitized()?.Name}\"."
+            : string.IsNullOrWhiteSpace( name ) ? "Give it a name first." : $"My effects is full ({LocalPrefs.MaxMyEffects}). Delete one first.";
+        _keepName = null;
+        _mine = null;
+        _mineRevision++;
+        StateHasChanged();
+    }
+
+    void Forget( Effect kept, PanelEvent e )
+    {
+        e.StopPropagation();
+        LocalPrefs.DeleteMyEffect( kept.Name );
+        _status = $"\"{kept.Name}\" is deleted from My effects.";
+        _mine = null;
+        _mineRevision++;
+        StateHasChanged();
+    }
+
+    static string KeptTooltip( Effect kept ) => $"{kept.Layers.Count} {(kept.Layers.Count == 1 ? "layer" : "layers")}: click to put it on";
 
     void Select( Effect effect )
     {

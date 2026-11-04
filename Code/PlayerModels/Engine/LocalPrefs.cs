@@ -10,7 +10,8 @@ namespace PlayerModels.Engine;
 /// What this player keeps between sessions, on this machine: the model they wear, how they customised each model and the
 /// looks they saved, their favourites, their first-person arms, which grid headings they collapsed, the mounted games'
 /// folders they added, how they rated what others shared, how they sort it and whose they hid, how much of others'
-/// effects they see and whose they hid and, as a host, which models their server allows.
+/// effects they see and whose they hid, the effects they keep to put on again ("My effects") and, as a host, which models
+/// their server allows.
 /// </summary>
 internal static class LocalPrefs
 {
@@ -28,6 +29,10 @@ internal static class LocalPrefs
 	private const string SharesByNewestCookie = "player_model_selector.shares_by_newest";
 	private const string EffectsQualityCookie = "player_model_selector.effects_quality";
 	private const string HiddenEffectsCookie = "player_model_selector.hidden_effects";
+	private const string MyEffectsCookie = "player_model_selector.my_effects";
+
+	/// <summary>The most effects kept in My effects.</summary>
+	internal const int MaxMyEffects = 50;
 
 	/// <summary>The model worn last, empty for the default citizen.</summary>
 	internal static string Pick
@@ -206,6 +211,48 @@ internal static class LocalPrefs
 			players.Remove( player );
 
 		Game.Cookies.Set( HiddenEffectsCookie, players.ToList() );
+	}
+
+	/// <summary>
+	/// The effects (and single layers) this player kept to put on again, in the order they were kept, each read within
+	/// bounds; one that no longer reads is left out.
+	/// </summary>
+	internal static List<Effect> MyEffects()
+	{
+		var kept = Game.Cookies.Get( MyEffectsCookie, new List<Effect>() ) ?? new List<Effect>();
+		return kept.Select( x => x?.Sanitized() ).Where( x => x is not null && !string.IsNullOrWhiteSpace( x.Name ) ).Take( MaxMyEffects ).ToList();
+	}
+
+	/// <summary>
+	/// Keeps <paramref name="effect"/> (within bounds, as it would be shared) in My effects under its name, in place of one
+	/// kept under that name. False when it has no name, or My effects is full.
+	/// </summary>
+	internal static bool SaveMyEffect( Effect effect )
+	{
+		var kept = MyEffects();
+		var saved = effect?.Sanitized();
+		if ( saved is null || string.IsNullOrWhiteSpace( saved.Name ) )
+			return false;
+
+		saved.Off = false;
+		var index = kept.FindIndex( x => x.Name == saved.Name );
+		if ( index >= 0 )
+			kept[ index ] = saved;
+		else if ( kept.Count >= MaxMyEffects )
+			return false;
+		else
+			kept.Add( saved );
+
+		Game.Cookies.Set( MyEffectsCookie, kept );
+		return true;
+	}
+
+	/// <summary>Takes the effect kept as <paramref name="name"/> out of My effects.</summary>
+	internal static void DeleteMyEffect( string name )
+	{
+		var kept = MyEffects();
+		if ( kept.RemoveAll( x => x.Name == name ) > 0 )
+			Game.Cookies.Set( MyEffectsCookie, kept );
 	}
 
 	/// <summary>The starred models, in the order they were starred.</summary>

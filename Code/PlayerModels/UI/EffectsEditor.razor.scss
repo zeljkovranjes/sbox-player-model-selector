@@ -127,6 +127,38 @@ EffectsEditor
 		text-transform: none;
 	}
 
+	// a kept effect's delete button, in its tile's corner on hover
+	.tile .forget
+	{
+		position: absolute;
+		top: 2px;
+		right: 2px;
+		font-family: "Material Icons";
+		font-size: 18px;
+		color: white;
+		text-shadow: 0px 1px 2px rgba( 0, 0, 0, 0.8 );
+		text-transform: none;
+		opacity: 0;
+		cursor: pointer;
+		transition: opacity 0.15s ease-out, color 0.2s ease-out;
+
+		&:hover
+		{
+			color: $ui-danger;
+		}
+	}
+
+	.tile:hover .forget
+	{
+		opacity: 1;
+	}
+
+	// what just happened, said under where it happened
+	.note.status
+	{
+		color: $ui-text;
+	}
+
 	// an effect tile: its pictures moving on a dark ground, so glows show as they do in the world
 	.tile.effect
 	{

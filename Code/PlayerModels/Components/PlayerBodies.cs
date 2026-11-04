@@ -110,6 +110,11 @@ internal sealed class PlayerBodies
 	private void Show( SkinnedModelRenderer citizen, PlayerLook look, Connection owner, SkinnedModelRenderer dressedAs = null )
 	{
 		var body = ModelBody.On( citizen );
+
+		// The selector hands out the same look until it changes: one already on needs nothing worked out again
+		if ( body.IsValid() && ReferenceEquals( body.ShownLook, look ) )
+			return;
+
 		var pick = look.Model;
 		var bones = look.BonesKey();
 
@@ -125,6 +130,7 @@ internal sealed class PlayerBodies
 		if ( body.IsValid() && body.ModelId == pick && body.BonesKey == bones )
 		{
 			body.ApplyLook( look );
+			body.ShownLook = look;
 			return;
 		}
 

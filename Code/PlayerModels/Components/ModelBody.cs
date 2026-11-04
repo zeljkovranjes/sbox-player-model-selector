@@ -32,6 +32,12 @@ public sealed class ModelBody : Component
 	/// <summary>The bones picked by hand it was posed with (see <see cref="PlayerLook.BonesKey"/>).</summary>
 	internal string BonesKey { get; private set; } = "";
 
+	/// <summary>
+	/// The look <see cref="PlayerBodies"/> put on last, the very object the selector handed out (the same until it
+	/// changes), so a body already wearing it is passed over. Null once something else changed what shows.
+	/// </summary>
+	internal PlayerLook ShownLook { get; set; }
+
 	/// <summary>The items it wears; null before its look is first put on.</summary>
 	internal AccessoryRack Accessories => _accessories;
 
@@ -112,8 +118,11 @@ public sealed class ModelBody : Component
 	/// </summary>
 	internal static ModelBody On( SkinnedModelRenderer source )
 	{
+		// Asked for every body each scan and for stand-ins every frame, so the children aren't copied; the rare extras are
+		// taken off after the loop, as taking one off changes the children
 		ModelBody shown = null;
-		foreach ( var child in source.GameObject.Children.ToList() )
+		List<ModelBody> extras = null;
+		foreach ( var child in source.GameObject.Children )
 		{
 			if ( child.Components.Get<ModelBody>() is not { } body )
 				continue;
@@ -121,6 +130,12 @@ public sealed class ModelBody : Component
 			if ( shown is null && body.Source == source )
 				shown = body;
 			else
+				(extras ??= new()).Add( body );
+		}
+
+		if ( extras is not null )
+		{
+			foreach ( var body in extras )
 				body.TakeOff();
 		}
 
@@ -227,6 +242,7 @@ public sealed class ModelBody : Component
 
 			// The dresser sets body groups of its own; the look goes on again over them
 			_painter?.Forget();
+			ShownLook = null;
 		}
 		catch ( OperationCanceledException )
 		{

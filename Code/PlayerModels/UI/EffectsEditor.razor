@@ -1202,7 +1202,7 @@
     static EffectBudget Budget => Selector?.EffectsBudget ?? EffectBudget.Normal;
 
     // Why an effect worn doesn't show whole, for its row
-    static string WaitingText( Effect effect, int waiting ) => waiting == 0 ? null
+    static string WaitingText( Effect effect, int waiting ) => waiting == 0 ? ""
         : waiting == effect.LayersOn()
             ? "Over this server's budget: it doesn't show until effects before it are removed or switched off."
             : $"Over this server's budget: {waiting} of its layers don't show until effects before it are removed or switched off.";

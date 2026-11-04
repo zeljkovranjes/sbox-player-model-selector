@@ -92,7 +92,7 @@
             var index = i;
             var layer = effect.Layers[ index ];
             <div class="row layer @( IsChosen( index ) ? "selected" : "" ) @( held[ index ] ? "over" : "" )"
-                 Tooltip=@( held[ index ] ? "Over this server's budget: it doesn't show until layers before it are removed or switched off" : null )
+                 Tooltip=@( held[ index ] ? "Over this server's budget: it doesn't show until layers before it are removed or switched off" : "" )
                  @onclick=@(() => SelectLayer( index )) @onrightclick=@(() => LayerMenu( index ))>
                 <div class="switch @( layer.Off ? "" : "on" )" Tooltip=@( layer.Off ? "Turn on" : "Turn off" )
                      @onclick=@(( PanelEvent e ) => ToggleLayer( layer, e ))>check</div>

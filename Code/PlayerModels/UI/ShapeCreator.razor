@@ -24,7 +24,7 @@
         <div class="confirm">
             <div class="note">This shape has changes you haven't saved.</div>
             <div class="row">
-                <div class="reset @( Named is null ? "disabled" : "" )" Tooltip=@( Named is null ? "Give it a name first" : null ) @onclick=@SaveAndLeave>Save</div>
+                <div class="reset @( Named is null ? "disabled" : "" )" Tooltip=@( Named is null ? "Give it a name first" : "" ) @onclick=@SaveAndLeave>Save</div>
                 <div class="reset @( Current is null ? "disabled" : "" )" @onclick=@DraftAndLeave>Keep as draft</div>
                 <div class="reset" @onclick=@(() => Back?.Invoke())>Discard</div>
                 <div class="reset" @onclick=@CancelLeave>Cancel</div>
@@ -107,7 +107,7 @@
         <TextEntry class="entry" Placeholder="What to call it" MaxLength=@DrawnShape.MaxNameLength Value:bind=@_name></TextEntry>
     </div>
     <div class="row">
-        <div class="reset @( Named is null ? "disabled" : "" )" Tooltip=@( Named is null ? "Draw something and name it first" : _draft is null ? null : "Finish the draft: keep it in My shapes" ) @onclick=@Save>@( _draft is null ? "Save to My shapes" : "Finish (save to My shapes)" )</div>
+        <div class="reset @( Named is null ? "disabled" : "" )" Tooltip=@( Named is null ? "Draw something and name it first" : _draft is null ? "" : "Finish the draft: keep it in My shapes" ) @onclick=@Save>@( _draft is null ? "Save to My shapes" : "Finish (save to My shapes)" )</div>
         <div class="reset @( Current is null ? "disabled" : "" )" Tooltip="Keep it unfinished, to come back to: it isn't used or shared until you finish it" @onclick=@(() => SaveDraft( false ))>Save draft</div>
     </div>
     @if ( _confirmDrop is { } oldest )

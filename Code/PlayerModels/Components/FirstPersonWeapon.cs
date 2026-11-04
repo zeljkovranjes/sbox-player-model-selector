@@ -103,8 +103,13 @@ internal sealed class FirstPersonWeapon
 	/// </summary>
 	internal void Place()
 	{
+		// The body dresses the weapon it holds first, whichever of them the frame gets to first, so the first-person weapon
+		// never takes the design of the one put away
+		if ( _citizen.IsValid() )
+			FollowHeld( _citizen );
+
 		var thirdPerson = _player.IsValid() && _player.Controller.IsValid() && _player.Controller.ThirdPerson;
-		if ( _scene.IsValid() && (_worn is not null && _worn.Weapon != _wornWeapon || _player.IsValid() && thirdPerson != _thirdPerson) )
+		if ( _scene.IsValid() && (_worn is not null && _worn.Weapon != _wornWeapon || _player.IsValid() && thirdPerson != _thirdPerson || ViewModelChanged()) )
 			Update( _scene, _lastLook, _lastExtras );
 
 		if ( !_viewModel.IsValid() )
@@ -161,6 +166,40 @@ internal sealed class FirstPersonWeapon
 		}
 
 		return onWeapon;
+	}
+
+	// A view model made since it last looked (Sandbox makes one for each weapon drawn): dressed before it is first drawn
+	private static readonly List<ViewModel> ViewModels = new();
+	private GameObject _seenViewModel;
+
+	private bool ViewModelChanged()
+	{
+		ViewModels.Clear();
+		_scene.GetAll( ViewModels );
+		GameObject active = null;
+		foreach ( var viewModel in ViewModels )
+		{
+			if ( viewModel.IsValid() && viewModel.GameObject.Active )
+			{
+				active = viewModel.GameObject;
+				break;
+			}
+		}
+
+		ViewModels.Clear();
+		if ( active == _seenViewModel )
+			return false;
+
+		_seenViewModel = active;
+		return true;
+	}
+
+	private static void FollowHeld( SkinnedModelRenderer citizen )
+	{
+		if ( ModelBody.On( citizen ) is { } body && body.IsValid() )
+			body.FollowHeld();
+		else if ( CitizenEffects.On( citizen ) is { } worn && worn.IsValid() )
+			worn.FollowHeld();
 	}
 
 	// The local player's body's dresser (which knows the world model held) and effects

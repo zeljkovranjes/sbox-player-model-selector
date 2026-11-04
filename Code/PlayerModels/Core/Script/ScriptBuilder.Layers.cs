@@ -43,6 +43,11 @@ internal sealed partial class ScriptBuilder
 			case PropertyId.LayerKeep: into[ at ] = layer.Keep; break;
 			case PropertyId.LayerAlign: into[ at ] = (int)layer.AlignIs; break;
 			case PropertyId.LayerPictures: return WritePictures( layer.Pictures, into, at );
+			case PropertyId.LayerDrag: into[ at ] = layer.Drag; break;
+			case PropertyId.LayerAtHit: into[ at ] = Flag( layer.AtHit ); break;
+			case PropertyId.LayerSweep: into[ at ] = layer.Sweep; break;
+			case PropertyId.LayerSlashArc: into[ at ] = layer.SlashShape.Arc; break;
+			case PropertyId.LayerSlashThickness: into[ at ] = layer.SlashShape.Width; break;
 			case PropertyId.LayerParticle: into[ at ] = _particles[ index ]; break;
 		}
 
@@ -88,6 +93,11 @@ internal sealed partial class ScriptBuilder
 			case PropertyId.LayerKeep: layer.Keep = number; break;
 			case PropertyId.LayerAlign: return Named( ScriptEnums.Align, from[ at ], out var align ) && Assign( () => layer.Align = align );
 			case PropertyId.LayerPictures: return ReadPictures( from, at, out var pictures ) && Assign( () => layer.Pictures = pictures );
+			case PropertyId.LayerDrag: layer.Drag = number; break;
+			case PropertyId.LayerAtHit: layer.AtHit = flag; break;
+			case PropertyId.LayerSweep: layer.Sweep = number; break;
+			case PropertyId.LayerSlashArc: layer.SlashArcDegrees = number; break;
+			case PropertyId.LayerSlashThickness: layer.SlashThickness = number; break;
 			case PropertyId.LayerParticle: _particles[ index ] = (int)from[ at ]; break;
 			default: return Fail( "That can't be changed" ) >= 0;
 		}

@@ -135,4 +135,25 @@ public class LayerFieldTests
 		Assert.Equal( Effect.Joint.Ground, effect.JointOf( effect.Layers[ 0 ] ) );
 		ScriptKit.SameEffect( effect, ScriptKit.BuildEffect( ScriptCodegen.Effect( effect ) ) );
 	}
+
+	[Fact]
+	public void AWeaponsSlashLiesAlongTheSwingAndSweepsRound()
+	{
+		var layer = RoundTrip( "local slash = Sprite()\nslash.LooksLike = Picture.Slash\nslash.Align = Align.Swing\nslash.Sweep = 110\nslash.SlashArc = 160\nslash.SlashThickness = 0.3" );
+		Assert.Equal( (LayerAlign.Swing, 110f, 160f, 0.3f), (layer.AlignIs, layer.Sweep, layer.SlashShape.Arc, layer.SlashShape.Width) );
+		Assert.Equal( (EffectLayer.SlashArc, EffectLayer.SlashWidth), RoundTrip( "local slash = Sprite()\nslash.LooksLike = Picture.Slash" ).SlashShape );
+		Assert.Equal( EffectLayer.MaxSweep, RoundTrip( "local slash = Sprite()\nslash.Sweep = 5000" ).Sweep );
+	}
+
+	[Fact]
+	public void SparksShowWhereAShotHitAndFollowersLag()
+	{
+		var sparks = RoundTrip( "local sparks = Sprite()\nsparks.When = When.OnHit\nsparks.AtHit = true" );
+		Assert.True( sparks.AtHit );
+		Assert.False( RoundTrip( "local sparks = Sprite()\nsparks.AtHit = true" ).AtHit );
+
+		var snow = RoundTrip( "local snow = Sprite()\nsnow.Follow = true\nsnow.Drag = 0.4" );
+		Assert.Equal( 0.6f, snow.StaysWithBody, 3 );
+		Assert.Equal( 0f, RoundTrip( "local snow = Sprite()\nsnow.Drag = 0.4" ).Drag );
+	}
 }

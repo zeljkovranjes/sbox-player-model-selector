@@ -10,6 +10,7 @@ public enum PropertyId
 	LayerFormation, LayerFill, LayerLooksLike, LayerColor, LayerColorEnd, LayerColorMode, LayerPalette, LayerSize,
 	LayerSizeEnd, LayerSpeed, LayerGravity, LayerLifetime, LayerAmount, LayerFollow, LayerSolid, LayerRhythm,
 	LayerRhythmSpeed, LayerRhythmAmount, LayerWhen, LayerBurst, LayerShowFor, LayerFadeWithSpeed, LayerKeep, LayerAlign, LayerPictures,
+	LayerDrag, LayerAtHit, LayerSweep, LayerSlashArc, LayerSlashThickness,
 	LayerParticle,
 
 	EffectName, EffectKey, EffectOff, EffectAnchor, EffectJoint, EffectItem, EffectOffset, EffectHue, EffectSize,

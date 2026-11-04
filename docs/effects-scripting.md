@@ -2219,6 +2219,66 @@ glow.Pictures = { Picture.Heart, Shapes.Star5 }
 local value = glow.Pictures --> { Picture.Heart, Shapes.Star5 }
 ```
 
+#### `Layer.Drag: number  (0 to 1)`
+
+While its sprites follow the body (Follow), how far they lag behind it: 0 right on it, 1 left behind as a trail is, between a little behind (snow that stays on a runner yet drifts).
+
+Set: while the effect is built (at the top of the script).
+
+```lua effect
+local glow = Sprite()
+glow.Drag = 0.4
+local value = glow.Drag --> 0.4
+```
+
+#### `Layer.AtHit: bool`
+
+Whether it shows where the last shot or swing hit, facing out of what it hit (impact sparks), rather than at its place: for a layer shown When.OnShoot or When.OnHit.
+
+Set: while the effect is built (at the top of the script).
+
+```lua effect
+local glow = Sprite()
+glow.AtHit = true
+local value = glow.AtHit --> true
+```
+
+#### `Layer.Sweep: number  (-720 to 720)`
+
+How far each sprite turns over its life, in degrees, negative the other way: a slash sweeping round with the swing.
+
+Set: while the effect is built (at the top of the script).
+
+```lua effect
+local glow = Sprite()
+glow.Sweep = 120
+local value = glow.Sweep --> 120
+```
+
+#### `Layer.SlashArc: number  (30 to 330)`
+
+How far round a slash (Picture.Slash) reaches, in degrees.
+
+Set: while the effect is built (at the top of the script).
+
+```lua effect
+local glow = Sprite()
+glow.SlashArc = 160
+local value = glow.SlashArc --> 160
+```
+
+#### `Layer.SlashThickness: number  (0.05 to 0.6)`
+
+How thick a slash (Picture.Slash) is at its middle, a share of its radius.
+
+Set: while the effect is built (at the top of the script).
+
+```lua effect
+local glow = Sprite()
+glow.SlashThickness = 0.3
+local value = glow.SlashThickness --> 0.3
+```
+
 #### `Layer.Particle: (Particle) -> nothing`
 
 The function run for each of its sprites (a beam's points) each frame: function layer.Particle( p ) ... end.

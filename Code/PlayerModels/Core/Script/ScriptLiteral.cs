@@ -79,6 +79,11 @@ public static class ScriptLiteral
 		PropertyId.LayerKeep => Number( layer.Keep ),
 		PropertyId.LayerAlign => Choice( "Align", layer.Align ?? nameof( LayerAlign.Camera ) ),
 		PropertyId.LayerPictures => layer.Pictures is null ? null : Pictures( layer.Pictures, shapeName ),
+		PropertyId.LayerDrag => Number( layer.Drag ),
+		PropertyId.LayerAtHit => Bool( layer.AtHit ),
+		PropertyId.LayerSweep => Number( layer.Sweep ),
+		PropertyId.LayerSlashArc => layer.SlashArcDegrees > 0f ? Number( layer.SlashArcDegrees ) : null,
+		PropertyId.LayerSlashThickness => layer.SlashThickness > 0f ? Number( layer.SlashThickness ) : null,
 		_ => null,
 	};
 

@@ -10,7 +10,7 @@
 @inherits Panel
 @namespace PlayerModels.UI
 
-<root>
+<root class="menu-window">
 
     <div class="views">
         <div class="view @( _viewModel && !_server ? "active" : "" )" @onclick=@(() => SetViewModel( true ))>View Model</div>

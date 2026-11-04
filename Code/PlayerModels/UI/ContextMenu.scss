@@ -1,3 +1,16 @@
+// Under an open menu, over everything else: invisible, it takes the click that closes the menu
+.context-backdrop
+{
+	position: absolute;
+	left: 0px;
+	top: 0px;
+	right: 0px;
+	bottom: 0px;
+	z-index: 999;
+	pointer-events: all;
+	background-color: transparent;
+}
+
 // The right-click menu: a small light panel of rows at the cursor, over everything
 ContextMenu
 {

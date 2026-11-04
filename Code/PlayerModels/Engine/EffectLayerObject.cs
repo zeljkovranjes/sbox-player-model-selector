@@ -12,7 +12,7 @@ namespace PlayerModels.Engine;
 /// its rhythm, shows only when its layer says (see <see cref="LayerWhen"/>), fades with its key and with how fast its
 /// place moves, and a colour cycle colours each of its sprites (see <see cref="ColorCycle"/>), all without allocating.
 /// </summary>
-internal sealed class EffectLayerObject
+internal sealed partial class EffectLayerObject
 {
 	// All around the body: an upright ball, this much narrower than it is tall
 	private static readonly Vector3 AroundBodyBias = new( 0.35f, 0.35f, 1f );
@@ -34,9 +34,6 @@ internal sealed class EffectLayerObject
 	private const float PhaseStep = 0.618f;
 
 	private const float MillisecondsPerSecond = 1000f;
-
-	// A jiggle wobbles this far at its fullest, in the citizen's units
-	private const float JiggleReach = 4f;
 
 	// A light switching on or off for its moment, or its key, takes this long to fade
 	private const float FadeSeconds = 0.3f;
@@ -98,6 +95,8 @@ internal sealed class EffectLayerObject
 	// sprites it makes a second, the part of them this client shows and how many it may have out
 	private Vector3 _offset;
 	private Rotation _facing = Rotation.Identity;
+	private LayerFacing _facingIs;
+	private Rotation _flatTurn = Rotation.Identity;
 	private LayerRhythm _rhythm;
 	private float _beatSpeed;
 	private float _beatAmount;
@@ -107,6 +106,12 @@ internal sealed class EffectLayerObject
 	private float _share = 1f;
 	private int _most;
 	private float _motion = 1f;
+
+	// The effect's sliders, as set up last: what a script's live changes are turned, sized and sped by
+	private float _hue;
+	private float _sizeFactor = 1f;
+	private float _amountFactor = 1f;
+	private float _speedFactor = 1f;
 
 	// When it shows: the moment's burst and how long it shows after, when the last moment ends, whether it is sending
 	// sprites (or drawing its trail) now, a light's level as it fades, and whether it fades with speed
@@ -134,20 +139,6 @@ internal sealed class EffectLayerObject
 	private DrawnShape _drawn;
 	private int _drawnGeneration = -1;
 
-	// A colour cycle: which (none for fixed colours), whether it is a mix (each sprite one colour for life), its colours,
-	// how many sprites it counts through, when it started and how fast it runs, how far it is this frame, the rhythm's
-	// light or dark over it, and the next sprite's place in the count. The particle threads colour the sprites from these,
-	// so only the main thread writes them, before they step
-	private ColorCycle.Kind? _cycle;
-	private bool _mix;
-	private Color[] _palette = Array.Empty<Color>();
-	private int _cycleCount = 1;
-	private float _cycleStart;
-	private float _cycleSpeed = 1f;
-	private long _cycleMs;
-	private Color _tint = Color.White;
-	private int _spawned;
-
 	private EffectLayerObject( GameObject root, LayerKind kind )
 	{
 		Root = root;
@@ -161,6 +152,14 @@ internal sealed class EffectLayerObject
 
 			case LayerKind.Trail:
 				_trail = root.AddComponent<TrailRenderer>();
+				return;
+
+			case LayerKind.Beam:
+				_beam = root.AddComponent<EffectBeam>();
+				return;
+
+			case LayerKind.Ghost:
+				_ghosts = root.AddComponent<EffectGhosts>();
 				return;
 		}
 
@@ -176,7 +175,10 @@ internal sealed class EffectLayerObject
 	/// <summary>A new object of <paramref name="kind"/>, in the scene pushed now, switched off for <see cref="Configure"/> to set up.</summary>
 	internal static EffectLayerObject Make( LayerKind kind )
 	{
-		var root = new GameObject( false, kind switch { LayerKind.Light => "Effect light", LayerKind.Trail => "Effect trail", _ => "Effect sprites" } );
+		var root = new GameObject( false, kind switch
+		{
+			LayerKind.Light => "Effect light", LayerKind.Trail => "Effect trail", LayerKind.Beam => "Effect beam", LayerKind.Ghost => "Effect ghosts", _ => "Effect sprites",
+		} );
 		root.NetworkMode = NetworkMode.Never;
 		root.Flags |= GameObjectFlags.NotSaved;
 		return new EffectLayerObject( root, kind );
@@ -185,10 +187,11 @@ internal sealed class EffectLayerObject
 	/// <summary>
 	/// Sets it up as <paramref name="data"/> of <paramref name="effect"/> says, as the <paramref name="index"/>th layer of
 	/// the body and of its <paramref name="effectIndex"/>th effect shown; <paramref name="motion"/> is how many world units
-	/// a citizen's unit is on this body, and <paramref name="shapes"/> the drawn shapes its look carries. Runs when the look
-	/// changes: what it works out (a formation's points) is kept.
+	/// a citizen's unit is on this body, and <paramref name="shapes"/> the drawn shapes its look carries;
+	/// <paramref name="run"/> is its effect's script, which drives it (null for none). Runs when the look changes: what it
+	/// works out (a formation's points) is kept.
 	/// </summary>
-	internal void Configure( Effect effect, int effectIndex, EffectLayer data, int index, float motion, IReadOnlyList<DrawnShape> shapes )
+	internal void Configure( Effect effect, int effectIndex, EffectLayer data, int index, float motion, IReadOnlyList<DrawnShape> shapes, EffectScriptRun run = null )
 	{
 		_drawn = Kind == LayerKind.Sprite ? Find( shapes, data.DrawnPicture ) : null;
 		_drawnGeneration = -1;
@@ -200,11 +203,17 @@ internal sealed class EffectLayerObject
 		ToJoint = data.ShapeIs == LayerShape.Line && data.ToJoint is not null && Enum.TryParse<Effect.Joint>( data.ToJoint, out var to ) ? (int)to : -1;
 		_offset = new Vector3( data.Forward, data.Left, data.Up );
 		_facing = FacingOf( data.FacingIs );
+		_facingIs = data.FacingIs;
+		_flatTurn = data.ShapeIs is LayerShape.Shape or LayerShape.Line ? Rotation.FromPitch( -90f ) : Rotation.Identity;
 		_rhythm = data.RhythmIs;
 		_beatSpeed = data.RhythmSpeed * effect.SpeedFactor;
 		_beatAmount = data.RhythmAmount;
 		_phase = index * PhaseStep;
 		_motion = motion;
+		_hue = effect.Hue;
+		_sizeFactor = effect.SizeFactor;
+		_amountFactor = effect.AmountFactor;
+		_speedFactor = effect.SpeedFactor;
 		_when = data.WhenIs;
 		_burst = data.Burst * effect.AmountFactor;
 		_showFor = data.ShowFor;
@@ -215,7 +224,7 @@ internal sealed class EffectLayerObject
 		_speed = 0f;
 		_lastShown = -1f;
 		_level = _when == LayerWhen.Always ? 1f : 0f;
-		UseCycle( effect, data );
+		UseScripts( effect, data, run );
 		if ( _drawn?.Sticker is { IsAnimated: true } animated && data.ColorModeIs != LayerColorMode.Fixed )
 			_cycleSpeed *= animated.Speed;
 
@@ -236,7 +245,7 @@ internal sealed class EffectLayerObject
 			{
 				// A light in a cycle takes its colours from it
 				var brightness = data.Amount * effect.AmountFactor;
-				colour = _cycle is null && !_mix ? colour : Color.White;
+				colour = _colours is null ? colour : Color.White;
 				_colour = new Color( colour.r * brightness, colour.g * brightness, colour.b * brightness, 1f );
 				_light.LightColor = _colour * _level;
 				_light.Radius = data.Size * effect.SizeFactor * motion;
@@ -246,6 +255,14 @@ internal sealed class EffectLayerObject
 
 			case LayerKind.Trail:
 				ConfigureTrail( effect, data, colour, colourEnd, motion );
+				return;
+
+			case LayerKind.Beam:
+				_beam.Configure( data, colour, colourEnd, effect.SizeFactor * motion, Formation( shapes, data ) );
+				return;
+
+			case LayerKind.Ghost:
+				_ghosts.Configure( data, colour, effect.AmountFactor, effect.SpeedFactor );
 				return;
 
 			default:
@@ -284,6 +301,14 @@ internal sealed class EffectLayerObject
 			case LayerKind.Trail:
 				_trail.Enabled = share > 0f;
 				return;
+
+			case LayerKind.Beam:
+				_beam.Share( share );
+				return;
+
+			case LayerKind.Ghost:
+				_ghosts.Share( share );
+				return;
 		}
 
 		_particles.Paused = paused;
@@ -304,24 +329,27 @@ internal sealed class EffectLayerObject
 	internal void Place( Transform from, Vector3 lineEnd, float now, float delta, EffectSignals signals, float gate )
 	{
 		var beat = now * _beatSpeed + _phase;
-		if ( _cycle is not null )
+		if ( _colours is not null )
 			_cycleMs = (long)((now - _cycleStart) * MillisecondsPerSecond * _cycleSpeed);
 
-		// Turning carries its offset round with it, so a layer set off from its place circles it
-		var turn = _rhythm == LayerRhythm.Spin ? Rotation.FromAxis( Vector3.Up, beat % 1f * 360f ) : Rotation.Identity;
-		var offset = turn * _offset;
-		if ( _rhythm == LayerRhythm.Jiggle )
-			offset += Wobble( beat ) * (_beatAmount * JiggleReach);
+		// The rhythm's script says how it turns, wobbles or shades it now. Turning carries its offset round with it, so a
+		// layer set off from its place circles it
+		var (tint, spin, wobble) = Rhythm( beat );
+		var turn = spin != 0f ? Rotation.FromAxis( Vector3.Up, spin ) : Rotation.Identity;
+		var offset = turn * _offset + wobble;
 
 		var placed = from.ToWorld( new Transform( offset, turn * _facing ) );
+		if ( _facingIs is LayerFacing.Flat or LayerFacing.Camera )
+			placed = placed.WithRotation( Laid( from.Rotation, placed.Position ) * turn );
 		Root.WorldTransform = placed;
+		_place = placed;
 		if ( _drawn is not null && _drawnGeneration != ShapeTextures.Generation )
 			UseDrawn();
-		if ( ToJoint >= 0 )
+		if ( ToJoint >= 0 && _points is not null )
 			_points.LineEnd = placed.PointToLocal( lineEnd );
 
 		FollowSpeed( placed.Position, delta );
-		var wanted = gate > 0f && Wants( signals, now );
+		var wanted = gate > 0f && !_scriptOff && Wants( signals, now );
 		_level = Approach( _level, wanted ? 1f : 0f, delta / FadeSeconds );
 
 		var shown = gate * (_fadesWithSpeed ? Math.Clamp( _speed / (FullSpeed * _motion), 0f, 1f ) : 1f);
@@ -329,7 +357,19 @@ internal sealed class EffectLayerObject
 		if ( _bursting )
 			Burst();
 
-		Beat( beat, shown );
+		Beat( tint, shown );
+		switch ( Kind )
+		{
+			case LayerKind.Sprite:
+				(_lineEnd, _now, _visible) = (lineEnd, now, shown * _level);
+				break;
+			case LayerKind.Beam:
+				_beam.Place( placed, lineEnd, now, shown * _level, _run, _scriptLayer );
+				break;
+			case LayerKind.Ghost:
+				_ghosts.Place( placed, now, wanted, shown, _ghostOf );
+				break;
+		}
 	}
 
 	// Whether its layer wants to show now: always, while something is so, or for a moment after it happens, which bursts
@@ -432,11 +472,11 @@ internal sealed class EffectLayerObject
 		particles.TimeScale = effect.SpeedFactor;
 		particles.LocalSpace = data.Follow ? 1f : 0f;
 
-		// A cycle or a mix colours each sprite itself, on the particle threads
-		var colours = _cycle is not null || _mix;
-		particles.ApplyColor = !colours;
-		particles.OnStep = colours ? ColourInCycle : null;
-		particles.OnParticleCreated = colours ? CountInCycle : null;
+		// A colour mode's script colours each sprite itself (see PlaceSprites); every sprite is counted as it appears
+		particles.ApplyColor = _colours is null;
+		particles.OnStep = null;
+		particles.OnParticleCreated = Created;
+		particles.OnPostStep = AfterStep;
 		particles.Collision = false;
 		particles.Gradient = new ParticleGradient
 		{
@@ -533,8 +573,8 @@ internal sealed class EffectLayerObject
 		_share = 1f;
 		_emitting = _when == LayerWhen.Always;
 		_most = (int)MathF.Ceiling( _rate * data.Lifetime * (1f + LifetimeSpread) + _burst ) + 1;
-		_cycleCount = Math.Max( 1, _most );
 		_colour = Color.White;
+		ConfigureKept( data, size, shapes );
 		WantedSprites = data.LiveSprites( effect.AmountFactor );
 
 		// A sticker has colours of its own and covers what is behind it; it shows a plain circle until it is drawn
@@ -580,30 +620,13 @@ internal sealed class EffectLayerObject
 	}
 
 	// Runs every frame for every layer: no allocations
-	private void Beat( float beat, float shown )
+	private void Beat( Color tint, float shown )
 	{
-		Color tint;
-		switch ( _rhythm )
-		{
-			case LayerRhythm.Pulse:
-				tint = Level( 1f - _beatAmount * (0.5f - 0.5f * MathF.Cos( beat * MathF.Tau )) );
-				break;
-			case LayerRhythm.Flicker:
-				tint = Level( 1f - _beatAmount * Flicker( beat ) );
-				break;
-			case LayerRhythm.Rainbow:
-				tint = new ColorHsv( beat % 1f * 360f, 1f, 1f, 1f ).ToColor();
-				break;
-			default:
-				tint = Color.White;
-				break;
-		}
-
 		switch ( Kind )
 		{
 			case LayerKind.Light:
 			{
-				var light = (_cycle is not null || _mix ? Times( _colour, ColourAt( 0 ) ) : _colour) * (_level * shown);
+				var light = (_colours is not null ? Times( _colour, ColourOf( 0, 0f ) ) : _colour) * (_level * shown);
 				_light.LightColor = Times( light, tint );
 				break;
 			}
@@ -611,14 +634,9 @@ internal sealed class EffectLayerObject
 			case LayerKind.Sprite:
 			{
 				var faded = tint.WithAlpha( shown );
-				if ( _cycle is not null || _mix )
-				{
-					_tint = faded;
-				}
-				else if ( _rhythm != LayerRhythm.Steady || shown != _lastShown )
-				{
+				_tint = faded;
+				if ( _rhythm != LayerRhythm.Steady || shown != _lastShown )
 					_particles.Tint = faded;
-				}
 
 				_lastShown = shown;
 				break;
@@ -626,65 +644,14 @@ internal sealed class EffectLayerObject
 		}
 	}
 
-	// Its colour cycle from the layer's colour mode: the colours turned with the effect's, at the effect's speed
-	private void UseCycle( Effect effect, EffectLayer data )
+	// A layer laid flat (turned the way its place faces, round the up only) or facing the camera, wherever its joint leans
+	private Rotation Laid( Rotation from, Vector3 position )
 	{
-		var mode = data.ColorModeIs;
-		_cycle = mode switch
-		{
-			LayerColorMode.Rain => ColorCycle.Kind.Rain,
-			LayerColorMode.Cycl => ColorCycle.Kind.Cycl,
-			LayerColorMode.Cyln => ColorCycle.Kind.Cyln,
-			_ => null,
-		};
+		if ( _facingIs == LayerFacing.Flat )
+			return Rotation.FromYaw( from.Yaw() ) * _flatTurn;
 
-		_mix = mode == LayerColorMode.Mix;
-		_tint = Color.White;
-		_spawned = 0;
-		_cycleCount = 1;
-		if ( _cycle is null && !_mix )
-			return;
-
-		var colours = data.CycleColours();
-		_palette = new Color[ colours.Count ];
-		for ( var i = 0; i < colours.Count; i++ )
-			_palette[ i ] = Hued( colours[ i ], effect.Hue );
-
-		_cycleStart = RealTime.Now;
-		_cycleSpeed = effect.SpeedFactor;
-		_cycleMs = 0;
-	}
-
-	// Colours a sprite as the cycle has it now. Runs on the particle threads for every sprite as it steps
-	private void ColourInCycle( Particle particle, float age )
-	{
-		particle.Color = Times( ColourAt( (int)particle.Radius ), _tint );
-	}
-
-	// Gives a sprite its place in the cycle's count as it appears, kept in its collision radius, which effects never use
-	// (they don't collide). On the main thread
-	private void CountInCycle( Particle particle )
-	{
-		particle.Radius = _spawned;
-		_spawned = (_spawned + 1) % Math.Max( 1, _mix ? _palette.Length : _cycleCount );
-	}
-
-	// The colour the cycle gives element i (a sprite's place in the count) this frame: reads only what the main thread
-	// set before the particles step, and allocates nothing
-	private Color ColourAt( int i )
-	{
-		var palette = _palette;
-		if ( palette.Length == 0 )
-			return Color.White;
-
-		if ( _mix )
-			return palette[ i % palette.Length ];
-
-		if ( _cycle == ColorCycle.Kind.Cyln )
-			return ColorCycle.IsScannerHighlight( _cycleMs, i, _cycleCount ) ? palette[ 0 ] : palette[ 1 ];
-
-		var index = ColorCycle.PaletteIndex( _cycle.GetValueOrDefault(), _cycleMs, i, _cycleCount, palette.Length );
-		return index >= 0 ? palette[ index ] : Color.White;
+		var camera = Root.Scene?.Camera;
+		return camera.IsValid() && !(camera.WorldPosition - position).IsNearlyZero() ? Rotation.LookAt( camera.WorldPosition - position, Vector3.Up ) : from;
 	}
 
 	// The way a layer faces as a turn from forwards: a cone opens, a line runs and a shape looks along its forward
@@ -698,13 +665,6 @@ internal sealed class EffectLayerObject
 		_ => Rotation.Identity,
 	};
 
-	// A smooth wander, each way out of step with the others, within a ball of 1
-	private static Vector3 Wobble( float beat )
-	{
-		var t = beat * MathF.Tau;
-		return new Vector3( MathF.Sin( t ) * 0.6f, MathF.Sin( t * 1.3f + 1.7f ) * 0.6f, MathF.Sin( t * 0.7f + 0.4f ) * 0.5f );
-	}
-
 	private static float Approach( float value, float target, float step )
 	{
 		return value < target ? MathF.Min( value + step, target ) : MathF.Max( value - step, target );
@@ -712,15 +672,6 @@ internal sealed class EffectLayerObject
 
 	// Colours times each other, keeping the second's opacity (a fade's)
 	private static Color Times( Color a, Color b ) => new( a.r * b.r, a.g * b.g, a.b * b.b, b.a );
-
-	private static Color Level( float level ) => new( level, level, level, 1f );
-
-	// Uneven, 0 to 1: three waves out of step, like a flame
-	private static float Flicker( float beat )
-	{
-		var wave = 0.5f * MathF.Sin( beat * MathF.Tau ) + 0.3f * MathF.Sin( beat * MathF.Tau * 2.3f + 1.3f ) + 0.2f * MathF.Sin( beat * MathF.Tau * 5.1f + 0.7f );
-		return 0.5f + 0.5f * wave;
-	}
 
 	// A colour turned round the colour wheel by hue (0 to 1)
 	private static Color Hued( string hex, float hue )

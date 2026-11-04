@@ -17,6 +17,12 @@ public sealed partial class ScriptMachine
 	/// <summary>Why the last run stopped early; none when it finished.</summary>
 	public ScriptFault Fault;
 
+	/// <summary>
+	/// How much of its budget the last run left: what it cost is the budget less this (a run that faulted left none). For
+	/// a host holding many runs to one budget a frame.
+	/// </summary>
+	public int InstructionsLeft;
+
 	internal readonly double[] Globals;
 	internal string[] Strings;
 	private double[][] _parameterValues;

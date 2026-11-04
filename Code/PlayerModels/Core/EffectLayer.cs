@@ -48,18 +48,23 @@ public enum LayerRhythm { Steady, Pulse, Flicker, Rainbow, Spin, Jiggle }
 /// </summary>
 public enum LayerColorMode { Fixed, Rain, Cycl, Cyln, Mix }
 
-/// <summary>The way a layer faces from its joint: where a cone opens, a line runs and a shape looks.</summary>
-public enum LayerFacing { Forward, Up, Down, Back, Left, Right }
+/// <summary>
+/// The way a layer faces from its joint: where a cone opens, a line runs and a shape looks. Flat lays it on the ground
+/// whichever way its joint leans, turned the way the body faces (a shape lies flat, a magic circle under the feet);
+/// Camera turns it to face whoever looks at it (a word that is always readable).
+/// </summary>
+public enum LayerFacing { Forward, Up, Down, Back, Left, Right, Flat, Camera }
 
 /// <summary>
 /// When a layer shows: always; while its wearer moves, stands on the ground, is in the air, crouches or holds a weapon;
 /// or for a moment when something happens (the events effects share, by the names scripts will use): they jump, land,
-/// get hurt, start or stop moving, crouch or stand up, shoot or swing (attack), or hit something hard.
+/// get hurt, start or stop moving, crouch or stand up, shoot or swing (attack), hit something hard, or someone they shot
+/// died a moment after (a kill).
 /// </summary>
 public enum LayerWhen
 {
 	Always, Moving, Grounded, InAir, Crouching, HoldingWeapon,
-	OnJump, OnLand, OnHurt, OnStartMoving, OnStopMoving, OnCrouch, OnUncrouch, OnShoot, OnImpact,
+	OnJump, OnLand, OnHurt, OnStartMoving, OnStopMoving, OnCrouch, OnUncrouch, OnShoot, OnImpact, OnKill,
 }
 
 /// <summary>

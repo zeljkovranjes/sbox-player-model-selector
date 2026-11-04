@@ -9,6 +9,7 @@ public sealed partial class ScriptMachine
 	private bool Execute( int function, ScriptStack stack, int budget )
 	{
 		Fault = default;
+		InstructionsLeft = 0;
 		stack ??= _ownStack ??= new ScriptStack( Math.Max( Program.StackSlots, 64 ) );
 		var s = stack.Slots;
 		var frames = stack.Frames;
@@ -38,6 +39,7 @@ public sealed partial class ScriptMachine
 				switch ( (OpCode)code[ pc++ ] )
 				{
 					case OpCode.Halt:
+						InstructionsLeft = budget;
 						return true;
 					case OpCode.Const:
 					{
@@ -281,7 +283,10 @@ public sealed partial class ScriptMachine
 					{
 						var width = code[ pc++ ];
 						if ( depth == 0 )
+						{
+							InstructionsLeft = budget;
 							return true;
+						}
 
 						for ( var i = 0; i < width; i++ )
 							s[ fp + i ] = s[ sp - width + i ];

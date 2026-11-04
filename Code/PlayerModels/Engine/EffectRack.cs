@@ -15,7 +15,7 @@ namespace PlayerModels.Engine;
 /// <see cref="EffectSignals"/>), an effect with a key fades in or out as its key shows it, and each layer is placed
 /// without allocating.
 /// </summary>
-internal sealed class EffectRack
+internal sealed partial class EffectRack
 {
 	// The share of sprites shown changes in steps this fine: smaller changes aren't worth starting the emitters again
 	private const float ShareSteps = 20f;
@@ -141,6 +141,8 @@ internal sealed class EffectRack
 			_from[ e ] = Anchored( e, citizen, model, transfer );
 		}
 
+		RunScripts( citizen, model, delta );
+
 		for ( var i = 0; i < _layers.Count; i++ )
 		{
 			var layer = _layers[ i ];
@@ -154,6 +156,9 @@ internal sealed class EffectRack
 			var lineEnd = from.Position;
 			if ( layer.ToJoint >= 0 && _joints.TryGet( layer.ToJoint, citizen, model, transfer, out var end ) )
 				lineEnd = end.Position;
+
+			if ( layer.Kind == LayerKind.Ghost )
+				layer.GhostOf = GhostOf( layer.Effect, model );
 
 			layer.Place( from, lineEnd, now, delta, _signals, _gates[ layer.Effect ] );
 		}
@@ -292,6 +297,7 @@ internal sealed class EffectRack
 
 		_layers.Clear();
 		_effects = 0;
+		ForgetRuns();
 		WantedSprites = 0f;
 		WantedLights = 0;
 		schedule?.TakeOff( this );
@@ -321,16 +327,20 @@ internal sealed class EffectRack
 				_anchorJoints[ shown ] = JointOf( _anchors[ shown ] );
 				_keyed[ shown ] = effect.Key is not null;
 				_gates[ shown ] = _keyed[ shown ] ? 0f : 1f;
+				var run = _runs[ shown ] = RunFor( effect, shown );
 
 				foreach ( var data in effect.Layers )
 				{
 					if ( data.Off )
 						continue;
 
+					_wantsShots |= ShowsOnKill( data );
+
 					var kind = data.KindIs;
 					var layer = schedule?.Take( kind ) ?? EffectLayerObject.Make( kind );
 					layer.Root.SetParent( _parent, false );
-					layer.Configure( effect, shown, data, index++, motion, _shapes );
+					layer.Configure( effect, shown, data, index++, motion, _shapes, run );
+					run?.Drive( data.ScriptLayer, layer );
 					layer.Root.Enabled = true;
 					_layers.Add( layer );
 
@@ -359,6 +369,9 @@ internal sealed class EffectRack
 		_keyed = new bool[ effects ];
 		_gates = new float[ effects ];
 		_from = new Transform[ effects ];
+		_runs = new EffectScriptRun[ effects ];
+		_anchorWas = new Vector3[ effects ];
+		_anchorSpeeds = new float[ effects ];
 	}
 
 	// Where effect e comes from this frame, its offset included

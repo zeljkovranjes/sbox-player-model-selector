@@ -15,7 +15,7 @@ namespace PlayerModels.Engine;
 /// one more <see cref="LayerWhen"/> and the line in <see cref="Read"/> that notices it. Runs every frame for every body
 /// wearing effects: no allocations.
 /// </summary>
-internal sealed class EffectSignals
+internal sealed partial class EffectSignals
 {
 	/// <summary>How often a shot or swing can count, and any other moment, a second.</summary>
 	internal const float ShotsPerSecond = 20f;
@@ -82,6 +82,9 @@ internal sealed class EffectSignals
 	/// <summary>How fast it moves, in units a second.</summary>
 	internal float Speed { get; private set; }
 
+	/// <summary>Which way and how fast it moves, in the world, in units a second.</summary>
+	internal Vector3 Velocity => _velocity;
+
 	/// <summary>Where it reads its health from: a player's own, or nothing for a body without (it is never hurt).</summary>
 	internal Func<float> Health { get; set; }
 
@@ -127,9 +130,11 @@ internal sealed class EffectSignals
 
 		// The fastest it went lately, falling away only as fast as a body slows down by itself
 		var speed = _velocity.Length;
-		var impact = _peakSpeed - speed >= ImpactSpeedLost;
+		_impactLost = _peakSpeed - speed;
+		var impact = _impactLost >= ImpactSpeedLost;
 		_peakSpeed = impact ? speed : MathF.Max( speed, _peakSpeed - SlowingDown * delta );
 
+		_fallSpeed = IsGrounded ? _fallSpeed : MathF.Max( _fallSpeed, -_velocity.z );
 		var inAirBefore = _inAir;
 		_inAir = IsGrounded ? 0f : _inAir + delta;
 		_jumpWindow = wasGrounded && !IsGrounded ? JumpWindow : MathF.Max( 0f, _jumpWindow - delta );
@@ -142,18 +147,27 @@ internal sealed class EffectSignals
 			return;
 
 		Happened( LayerWhen.OnJump, jumped, now );
-		Happened( LayerWhen.OnLand, IsGrounded && !wasGrounded && inAirBefore >= LandAfter, now );
+		if ( Happened( LayerWhen.OnLand, IsGrounded && !wasGrounded && inAirBefore >= LandAfter, now ) )
+			_landSpeed = _fallSpeed;
+
+		if ( IsGrounded )
+			_fallSpeed = 0f;
+
 		Happened( LayerWhen.OnStartMoving, IsMoving && !wasMoving, now );
 		Happened( LayerWhen.OnStopMoving, !IsMoving && wasMoving, now );
 		Happened( LayerWhen.OnCrouch, IsCrouching && !wasCrouching, now );
 		Happened( LayerWhen.OnUncrouch, !IsCrouching && wasCrouching, now );
 		Happened( LayerWhen.OnShoot, citizen.GetBool( AttackParameter ), now );
-		Happened( LayerWhen.OnImpact, impact, now );
+		if ( Happened( LayerWhen.OnImpact, impact, now ) )
+			_impactSpeed = _impactLost;
+
 
 		if ( Health is { } health )
 		{
 			var left = health();
-			Happened( LayerWhen.OnHurt, left <= _health - HurtFrom, now );
+			if ( Happened( LayerWhen.OnHurt, left <= _health - HurtFrom, now ) )
+				_damage = _health - left;
+
 			_health = left;
 		}
 	}
@@ -176,19 +190,20 @@ internal sealed class EffectSignals
 		_moments = 0;
 	}
 
-	// A moment counts unless it already did too recently for its rate
-	private void Happened( LayerWhen when, bool happened, float now )
+	// A moment counts unless it already did too recently for its rate; true when it counted
+	private bool Happened( LayerWhen when, bool happened, float now )
 	{
 		if ( !happened )
-			return;
+			return false;
 
 		var most = when == LayerWhen.OnShoot ? ShotsPerSecond : MomentsPerSecond;
 		ref var last = ref _lastMoment[ (int)when ];
 		if ( last > 0f && now - last < 1f / most )
-			return;
+			return false;
 
 		last = now;
 		_moments |= Bit( when );
+		return true;
 	}
 
 	private static int Bit( LayerWhen when ) => 1 << (int)when;

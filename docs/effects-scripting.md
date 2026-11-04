@@ -3463,7 +3463,7 @@ local picked = ComesFrom.Sphere --> ComesFrom.Sphere
 
 The way a layer faces from its joint: where a cone opens, a line runs, a shape looks.
 
-`Facing.Forward`, `Facing.Up`, `Facing.Down`, `Facing.Back`, `Facing.Left`, `Facing.Right`
+`Facing.Forward`, `Facing.Up`, `Facing.Down`, `Facing.Back`, `Facing.Left`, `Facing.Right`, `Facing.Flat`, `Facing.Camera`
 
 ```lua sticker
 local picked = Facing.Up --> Facing.Up
@@ -3493,7 +3493,7 @@ local picked = Rhythm.Pulse --> Rhythm.Pulse
 
 When a layer shows: always, while something is so, or for a moment when something happens.
 
-`When.Always`, `When.Moving`, `When.Grounded`, `When.InAir`, `When.Crouching`, `When.HoldingWeapon`, `When.OnJump`, `When.OnLand`, `When.OnHurt`, `When.OnStartMoving`, `When.OnStopMoving`, `When.OnCrouch`, `When.OnUncrouch`, `When.OnShoot`, `When.OnImpact`
+`When.Always`, `When.Moving`, `When.Grounded`, `When.InAir`, `When.Crouching`, `When.HoldingWeapon`, `When.OnJump`, `When.OnLand`, `When.OnHurt`, `When.OnStartMoving`, `When.OnStopMoving`, `When.OnCrouch`, `When.OnUncrouch`, `When.OnShoot`, `When.OnImpact`, `When.OnKill`
 
 ```lua sticker
 local picked = When.Moving --> When.Moving

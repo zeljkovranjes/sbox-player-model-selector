@@ -18,6 +18,8 @@ public static partial class ScriptLibrary
 		entries.Add( Function( "Sprite", Intrinsic.Sprite, ScriptType.Layer, layer, "Adds a layer of sprites (flames, sparks, hearts) to the effect: at most 8 layers.", "local glow = Sprite()\nlocal kind = glow.Kind --> Kind.Sprite", build ) );
 		entries.Add( Function( "Light", Intrinsic.Light, ScriptType.Layer, layer, "Adds a light to the effect: its Size is how far it reaches, its Amount how bright.", "local lamp = Light()\nlocal kind = lamp.Kind --> Kind.Light", build ) );
 		entries.Add( Function( "Trail", Intrinsic.Trail, ScriptType.Layer, layer, "Adds a trail left behind as its place moves.", "local streak = Trail()\nlocal kind = streak.Kind --> Kind.Trail", build ) );
+		entries.Add( Function( "Beam", Intrinsic.Beam, ScriptType.Layer, layer, "Adds a beam: a glowing ribbon through its points in order (Keep of them, 16 unless set, 2 to 64), laid evenly along where it comes from (to ToJoint for ComesFrom.Line) and moved by its particle function: bolts, lasers, ropes. Size is its width; its colour runs from Color to ColorEnd along it.",
+			"local bolt = Beam()\nbolt.ComesFrom = ComesFrom.Line\nbolt.ToJoint = Joint.RightHand\nlocal kind = bolt.Kind --> Kind.Beam\nlocal points = bolt.Keep --> 16", build ) );
 		entries.Add( Space( "Effects", effect, "Whole effects to include in this one: the player's own (\"My effects\") and the presets." ) );
 		entries.Add( Function( "Effects.Mine", Intrinsic.EffectsMine, ScriptType.Effect, effect, "One of the player's saved effects, by name, to include.", "Effect.Include( Effects.Mine( \"Fire hands\" ) )", build,
 			P( "name", name, "Its name in My effects" ) ) );

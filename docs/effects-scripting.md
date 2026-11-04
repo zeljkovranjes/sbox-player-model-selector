@@ -415,6 +415,7 @@ for everyone.
 | Parameters | 32 |
 | Layers | 8 per effect |
 | Kept sprites | 100 per layer |
+| Beam points | 64 per beam |
 | Shape points | 500 per shape |
 | Emblem layers | 32 |
 | Palette | 32 colours |
@@ -687,7 +688,7 @@ local look: Picture = Picture.Flame --> Picture.Flame
 
 #### `Layer`
 
-A layer of the effect, made by Sprite(), Light() or Trail().
+A layer of the effect, made by Sprite(), Light(), Trail() or Beam().
 
 ```lua effect
 local glow: Layer = Sprite()
@@ -1704,6 +1705,18 @@ local streak = Trail()
 local kind = streak.Kind --> Kind.Trail
 ```
 
+#### `Beam(): Layer`
+
+Adds a beam: a glowing ribbon through its points in order (Keep of them, 16 unless set, 2 to 64), laid evenly along where it comes from (to ToJoint for ComesFrom.Line) and moved by its particle function: bolts, lasers, ropes. Size is its width; its colour runs from Color to ColorEnd along it.
+
+```lua effect
+local bolt = Beam()
+bolt.ComesFrom = ComesFrom.Line
+bolt.ToJoint = Joint.RightHand
+local kind = bolt.Kind --> Kind.Beam
+local points = bolt.Keep --> 16
+```
+
 #### `Layer.Emit( count: number )`
 
 Sends out count sprites of the layer at once, where it is (within the budget).
@@ -1739,7 +1752,7 @@ end
 
 #### `Layer.Kind: Kind  (read only)`
 
-What the layer is: Sprite(), Light() or Trail() made it.
+What the layer is: Sprite(), Light(), Trail() or Beam() made it.
 
 Set: read only.
 
@@ -2110,7 +2123,7 @@ local value = glow.FadeWithSpeed --> true
 
 #### `Layer.Keep: number  (0 to 100)`
 
-How many sprites it keeps out all the time (at most 100), each with its own p.Index from 0, spread evenly along where they come from in that order and never fading with age (their Life loops every Lifetime): a formation its particle function moves, like runes in a ring or orbs following. 0: sprites come and go by Amount and Lifetime.
+How many sprites it keeps out all the time (at most 100), each with its own p.Index from 0, spread evenly along where they come from in that order and never fading with age (their Life loops every Lifetime): a formation its particle function moves, like runes in a ring or orbs following. 0: sprites come and go by Amount and Lifetime. For a beam, the points it is drawn through.
 
 Set: while the effect is built (at the top of the script).
 
@@ -2122,7 +2135,7 @@ local value = glow.Keep --> 12
 
 #### `Layer.Particle: (Particle) -> nothing`
 
-The function run for each of its sprites each frame: function layer.Particle( p ) ... end.
+The function run for each of its sprites (a beam's points) each frame: function layer.Particle( p ) ... end.
 
 Set: while the effect is built (at the top of the script).
 
@@ -3339,7 +3352,7 @@ end
 
 What a layer is: sprites, a light, or a trail it leaves.
 
-`Kind.Sprite`, `Kind.Light`, `Kind.Trail`
+`Kind.Sprite`, `Kind.Light`, `Kind.Trail`, `Kind.Beam`
 
 ```lua sticker
 local picked = Kind.Light --> Kind.Light

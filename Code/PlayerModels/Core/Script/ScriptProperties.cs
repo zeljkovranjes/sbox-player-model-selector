@@ -23,7 +23,7 @@ public static class ScriptProperties
 
 	public static readonly IReadOnlyList<ScriptProperty> All = new ScriptProperty[]
 	{
-		new( PropertyId.LayerKind, TypeKind.Layer, "Kind", ScriptEnums.Kind.Type, "What the layer is: Sprite(), Light() or Trail() made it.", ReadOnly: true, ExampleResult: "Kind.Sprite" ),
+		new( PropertyId.LayerKind, TypeKind.Layer, "Kind", ScriptEnums.Kind.Type, "What the layer is: Sprite(), Light(), Trail() or Beam() made it.", ReadOnly: true, ExampleResult: "Kind.Sprite" ),
 		new( PropertyId.LayerOff, TypeKind.Layer, "Off", ScriptType.Bool, "Whether it is switched off: kept, but not shown.", Live: true, ExampleValue: "true", ExampleResult: "true" ),
 		new( PropertyId.LayerJoint, TypeKind.Layer, "Joint", ScriptEnums.Joint.Type, "The joint it comes from, in place of its effect's.", ExampleValue: "Joint.LeftHand", ExampleResult: "Joint.LeftHand" ),
 		new( PropertyId.LayerComesFrom, TypeKind.Layer, "ComesFrom", ScriptEnums.ComesFrom.Type, "Where its sprites come from around its place (\"Comes from\").", ExampleValue: "ComesFrom.Sphere", ExampleResult: "ComesFrom.Sphere" ),
@@ -54,8 +54,8 @@ public static class ScriptProperties
 		new( PropertyId.LayerBurst, TypeKind.Layer, "Burst", ScriptType.Number, "How many sprites appear at once when its moment comes (When.On...).", 0, EffectLayer.MaxBurst, ExampleValue: "30", ExampleResult: "30" ),
 		new( PropertyId.LayerShowFor, TypeKind.Layer, "ShowFor", ScriptType.Number, "How long it shows after its moment, in seconds.", 0, EffectLayer.MaxShowFor, ExampleValue: "0.5", ExampleResult: "0.5" ),
 		new( PropertyId.LayerFadeWithSpeed, TypeKind.Layer, "FadeWithSpeed", ScriptType.Bool, "Whether it shows only as much as its place moves (none standing still).", ExampleValue: "true", ExampleResult: "true" ),
-		new( PropertyId.LayerKeep, TypeKind.Layer, "Keep", ScriptType.Number, "How many sprites it keeps out all the time (at most 100), each with its own p.Index from 0, spread evenly along where they come from in that order and never fading with age (their Life loops every Lifetime): a formation its particle function moves, like runes in a ring or orbs following. 0: sprites come and go by Amount and Lifetime.", 0, EffectLayer.MaxKeep, ExampleValue: "12", ExampleResult: "12" ),
-		new( PropertyId.LayerParticle, TypeKind.Layer, "Particle", Particle, "The function run for each of its sprites each frame: function layer.Particle( p ) ... end." ),
+		new( PropertyId.LayerKeep, TypeKind.Layer, "Keep", ScriptType.Number, "How many sprites it keeps out all the time (at most 100), each with its own p.Index from 0, spread evenly along where they come from in that order and never fading with age (their Life loops every Lifetime): a formation its particle function moves, like runes in a ring or orbs following. 0: sprites come and go by Amount and Lifetime. For a beam, the points it is drawn through.", 0, EffectLayer.MaxKeep, ExampleValue: "12", ExampleResult: "12" ),
+		new( PropertyId.LayerParticle, TypeKind.Layer, "Particle", Particle, "The function run for each of its sprites (a beam's points) each frame: function layer.Particle( p ) ... end." ),
 
 		new( PropertyId.EffectName, TypeKind.Effect, "Name", ScriptType.String, "What the effect is called.", ExampleValue: "\"Sparks\"", ExampleResult: "\"Sparks\"" ),
 		new( PropertyId.EffectKey, TypeKind.Effect, "Key", ScriptType.Key, "The key that shows it for a moment each press (one key start every 2 minutes per player).", ExampleValue: "\"g\"", ExampleResult: "\"g\"" ),

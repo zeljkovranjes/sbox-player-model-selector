@@ -34,4 +34,25 @@ public class LayerFieldTests
 		Assert.Equal( 35f, layer.LiveSprites( 0.25f ) );
 		Assert.Equal( 0f, new EffectLayer { Kind = nameof( LayerKind.Light ), Keep = 30 }.Sanitized().Keep );
 	}
+
+	[Theory]
+	[InlineData( "", 16f )]
+	[InlineData( "bolt.Keep = 1", EffectLayer.MinBeamPoints )]
+	[InlineData( "bolt.Keep = 500", EffectLayer.MaxBeamPoints )]
+	[InlineData( "bolt.Keep = 24", 24f )]
+	public void ABeamIsDrawnThroughItsPoints( string keep, float points )
+	{
+		var layer = RoundTrip( $"local bolt = Beam()\nbolt.ComesFrom = ComesFrom.Line\nbolt.ToJoint = Joint.RightHand\n{keep}" );
+		Assert.Equal( (LayerKind.Beam, points), (layer.KindIs, layer.Keep) );
+		Assert.Equal( points, layer.LiveSprites( 0.25f ) );
+	}
+
+	[Fact]
+	public void ABeamsPointsRunItsParticleFunction()
+	{
+		var (machine, build) = ScriptKit.Build( "local bolt = Beam()\nfunction bolt.Particle( p )\n\tp.Offset = Vector3( 0, 0, Math.Sin( p.Index / (p.Count - 1) * Math.PI ) * 4 )\nend" );
+		var io = ExampleRunner.Inputs();
+		Assert.True( machine.HasParticleFunction( 0 ) && machine.RunParticle( 0, io ) );
+		Assert.Equal( "local beam = Beam()\n", ScriptCodegen.Effect( build.Effect ) );
+	}
 }

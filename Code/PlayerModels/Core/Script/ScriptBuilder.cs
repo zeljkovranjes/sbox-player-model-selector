@@ -69,9 +69,9 @@ internal sealed partial class ScriptBuilder
 	{
 		switch ( op )
 		{
-			case Intrinsic.Sprite or Intrinsic.Light or Intrinsic.Trail:
+			case Intrinsic.Sprite or Intrinsic.Light or Intrinsic.Trail or Intrinsic.Beam:
 			{
-				var kind = op switch { Intrinsic.Light => LayerKind.Light, Intrinsic.Trail => LayerKind.Trail, _ => LayerKind.Sprite };
+				var kind = op switch { Intrinsic.Light => LayerKind.Light, Intrinsic.Trail => LayerKind.Trail, Intrinsic.Beam => LayerKind.Beam, _ => LayerKind.Sprite };
 				var layer = AddLayer( new EffectLayer { Kind = kind.ToString() }.Sanitized(), (int)s[ sp - 1 ] );
 				if ( layer < 0 )
 					return -1;

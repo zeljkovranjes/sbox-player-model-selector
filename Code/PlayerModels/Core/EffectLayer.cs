@@ -4,8 +4,11 @@ using System.Text.Json.Serialization;
 
 namespace PlayerModels.Core;
 
-/// <summary>What a layer of an effect is: sprites (flames, sparks, hearts), a light, or a trail left behind as it moves.</summary>
-public enum LayerKind { Sprite, Light, Trail }
+/// <summary>
+/// What a layer of an effect is: sprites (flames, sparks, hearts), a light, a trail left behind as it moves, or a beam (a
+/// ribbon through points it keeps, like a bolt between the hands).
+/// </summary>
+public enum LayerKind { Sprite, Light, Trail, Beam }
 
 /// <summary>
 /// Where a layer's sprites come from, around its place: one point, a ball, a flat ring, all around the body (an upright
@@ -97,6 +100,11 @@ public sealed class EffectLayer
 
 	/// <summary>The most sprites a layer keeps out all the time (see <see cref="Keep"/>).</summary>
 	public const float MaxKeep = 100f;
+
+	/// <summary>How many points a beam is drawn through: at least, at most, and unless it says.</summary>
+	public const float MinBeamPoints = 2f;
+	public const float MaxBeamPoints = 64f;
+	public const float BeamPoints = 16f;
 
 	private const string White = "#ffffff";
 
@@ -244,7 +252,8 @@ public sealed class EffectLayer
 	/// <summary>
 	/// How many sprites it keeps out all the time, each with its own index from 0 and spread evenly along its shape in that
 	/// order, never fading with age (their life loops every <see cref="Lifetime"/>): a formation its particle function
-	/// moves. 0 for sprites that only come and go by <see cref="Amount"/> and <see cref="Lifetime"/>.
+	/// moves. 0 for sprites that only come and go by <see cref="Amount"/> and <see cref="Lifetime"/>. For a beam, the points
+	/// it is drawn through.
 	/// </summary>
 	[JsonPropertyName( "kp" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public float Keep { get; set; }
@@ -314,9 +323,14 @@ public sealed class EffectLayer
 	/// <summary>
 	/// How many of its sprites are out at once at most, at <paramref name="amount"/> times its own amount: what it makes
 	/// over a lifetime, and a moment's burst on top, and those it keeps (whatever the amount: a formation stays whole); a
-	/// light, a trail or a layer switched off has none.
+	/// beam its points; a light, a trail or a layer switched off has none.
 	/// </summary>
-	public float LiveSprites( float amount = 1f ) => KindIs == LayerKind.Sprite && !Off ? (Amount * Lifetime + Burst) * amount + Keep : 0f;
+	public float LiveSprites( float amount = 1f ) => Off ? 0f : KindIs switch
+	{
+		LayerKind.Sprite => (Amount * Lifetime + Burst) * amount + Keep,
+		LayerKind.Beam => Keep,
+		_ => 0f,
+	};
 
 	/// <summary>
 	/// A copy within bounds, or null for a layer of a kind (or from a joint, shape, picture, rhythm, colour mode, facing or
@@ -389,7 +403,12 @@ public sealed class EffectLayer
 			Burst = isMoment && !isLight ? MathF.Round( Limited( Burst, 0f, MaxBurst, 0f ) ) : 0f,
 			ShowFor = isMoment ? Limited( ShowFor, 0f, MaxShowFor, 0f ) : 0f,
 			FadeWithSpeed = FadeWithSpeed,
-			Keep = Kind == nameof( LayerKind.Sprite ) ? MathF.Round( Limited( Keep, 0f, MaxKeep, 0f ) ) : 0f,
+			Keep = Kind switch
+			{
+				nameof( LayerKind.Sprite ) => MathF.Round( Limited( Keep, 0f, MaxKeep, 0f ) ),
+				nameof( LayerKind.Beam ) => Keep == 0f ? BeamPoints : MathF.Round( Limited( Keep, MinBeamPoints, MaxBeamPoints, BeamPoints ) ),
+				_ => 0f,
+			},
 		};
 	}
 

@@ -60,7 +60,8 @@
     // A concept explained in a paragraph, or a guide in steps, each with its clip
     sealed record Page( string Title, string Clip, string Text, string[] Steps = null );
 
-    static readonly Page[] ConceptPages =
+    // Not carried over a hot reload: the pages are the code's, so a reload shows the new ones
+    [SkipHotload] static readonly Page[] ConceptPages =
     {
         new( "Effect", "effect",
             "An effect is something you wear that isn't a model: glowing eyes, fire in your hands, a halo. Click one on the Effects tab to put it on; the preview shows it, Apply wears it, and everyone sees it. You can wear several at once, switch them off and on, and change each with four sliders: color, size, amount and speed." ),
@@ -73,7 +74,7 @@
         new( "Rhythm", "rhythm",
             "Rhythm is how a layer changes over time: steady, pulsing brighter and dimmer, flickering like a flame, going through every color, turning round its place (so a layer set off to the side circles you), or jiggling about." ),
         new( "When", "when",
-            "When says when a layer shows: always, while you move, stand, are in the air, crouch or hold a weapon, or for a moment when something happens: you jump, land, get hurt, start or stop moving, crouch, stand up, shoot or swing, or hit something hard. A moment can throw out a burst of sprites at once." ),
+            "When says when a layer shows: always, while you move, stand, are in the air, crouch or hold a weapon, or for a moment when something happens: you jump, land, get hurt, start or stop moving, crouch, stand up, shoot or swing, reload, draw a weapon or put it away, or your shot or swing hits something. A moment can throw out a burst of sprites at once." ),
         new( "Keys", "keys",
             "Give an effect a key and it shows only when you press it, for 10 seconds, for everyone, fading in and out. To keep anyone from flooding the server, effect keys work once every 2 minutes for each player, whichever effect the key is for. Switching an effect off is always free." ),
         new( "Shape", "shape",
@@ -86,11 +87,13 @@
             "The shape creator makes shapes of your own: strokes drawn with the mouse, filled or as lines, text, and other shapes put together, mirrored, turned and sized. Use one as where sprites come from (sparkles tracing a word) or as what each sprite looks like, and keep it in My shapes. A shape has up to 500 points and a look carries up to 8; everyone sees them with nothing to download." ),
         new( "Color cycles", "colors",
             "A color cycle colors a layer's sprites one by one, the way World at War's clan tags did: Rain scrolls the colors along, Cycle wipes one color across them, and Scanner sweeps a highlight back and forth. Mixed gives each sprite one of the colors for its life, like confetti. Use the game's colors or your own." ),
+        new( "Weapon design", "weapon",
+            "Each weapon you hold can have a design of its own: a finish and tint, a skin painted over it (a pattern, and colors that move like World at War's clan tags), stickers, props on it or in place of its parts, parts hidden, and effects that come from it, like a tracer when you shoot. It is kept with your look for that weapon, so it shows on it in any game, for everyone, and on your weapon in first person. A weapon takes up to 8 props, 8 stickers and 4 effects, and a look up to 16 weapons." ),
         new( "Budget and settings", "budget",
             "Each server lets each player show so many layers, lights and sprites at once. Past that, your last layers wait (marked over budget) until you remove or switch off some; nothing is lost. The host can turn effects off or change the budget on the Server page, and you can lower Effects quality or hide one player's effects on your own screen." ),
     };
 
-    static readonly Page[] HowToPages =
+    [SkipHotload] static readonly Page[] HowToPages =
     {
         new( "Build an effect from layers", "build", null, new[]
         {
@@ -117,9 +120,25 @@
         new( "Set up a sword slash", "sword", null, new[]
         {
             "Put on Sword slash from the Effects tab.",
-            "Hold a weapon: the trail starts at its tip, and at your right hand while you hold nothing.",
-            "Swing: the trail shows as fast as the tip moves, and sparks fly when you hit.",
-            "In the Advanced editor, change the trail's color, width and how long it lasts.",
+            "Hold a melee weapon and swing: a crescent appears in front of you with each swing, lying along it and sweeping round with it.",
+            "In the Advanced editor, change the slash's color, its arc and thickness, and how far it sweeps.",
+            "For a streak that follows the tip instead, put on Blade trail.",
+        } ),
+        new( "Customize your weapon", "customize", null, new[]
+        {
+            "Hold the weapon in the game and open the Advanced editor: the preview holds it too.",
+            "Point at the weapon (it glows) and double-click it to design it; Back to player leaves.",
+            "Pick a finish and tint, then a skin: a pattern, its colors and a moving color.",
+            "Add stickers and props, click one on the weapon and move it with G, turn it with R, size it with S.",
+            "Right-click a part (the magazine, a rail) to replace it with a prop, attach one to it or hide it.",
+            "Press Apply to wear it. Share this design publishes it; the Workshop button lists what others shared for this weapon.",
+        } ),
+        new( "Bullet tracers", "tracer", null, new[]
+        {
+            "In weapon mode, under Effects, add Bullet tracer, and Muzzle flash or Impact sparks if you like.",
+            "Shoot: a streak runs from the muzzle to where each shot hits, gone in a blink.",
+            "Pick the effect in the list to change its color, size, amount and speed, or when it shows.",
+            "They come from the weapon you hold, in third person and in first person alike.",
         } ),
         new( "Remix from the Workshop", "remix", null, new[]
         {

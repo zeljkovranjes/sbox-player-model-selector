@@ -45,10 +45,6 @@
             <Body>
                 <ModelPreview @ref="Preview" class="@( _viewModel && !_server ? "hidden" : "" )" />
                 <ViewModelPreview @ref="ArmsPreview" class="@( _viewModel && !_server ? "" : "hidden" )" />
-                @if ( _pane == Pane.Effects && !_viewModel && !_server )
-                {
-                    <TestBar class="preview-tests" Stage=@Preview Compact=@true></TestBar>
-                }
             </Body>
         </UISettingsPane>
 

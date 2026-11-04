@@ -39,6 +39,10 @@ internal sealed class WeaponDresser
 		public DrawnShape Drawn;
 		public int Generation = -1;
 		public Color[] Palette;
+
+		// Read once when stuck, not each frame: reading the motion from its name boxes it
+		public Sticker.Motion Motion;
+		public Color Own;
 	}
 
 	private IReadOnlyList<WeaponDesign> _designs = Array.Empty<WeaponDesign>();
@@ -197,7 +201,7 @@ internal sealed class WeaponDresser
 			if ( stuck.Drawn is not null && stuck.Generation != ShapeTextures.Generation )
 				UseDrawn( stuck );
 
-			if ( stuck.Sticker.AnimationIs != Sticker.Motion.None )
+			if ( stuck.Motion != Sticker.Motion.None )
 				stuck.Decal.ColorTint = ColourOf( stuck, ms, i );
 		}
 	}
@@ -399,7 +403,7 @@ internal sealed class WeaponDresser
 				go.SetParent( parent, false );
 				go.LocalTransform = place.WithScale( 1f );
 
-				var stuck = new Stuck { Sticker = fitted, Drawn = Find( fitted.DrawnPicture ) };
+				var stuck = new Stuck { Sticker = fitted, Drawn = Find( fitted.DrawnPicture ), Motion = fitted.AnimationIs, Own = Color.Parse( fitted.Color ?? "" ) ?? Color.White };
 				var size = fitted.Size * scale;
 				var decal = go.AddComponent<Decal>();
 				decal.Decals = new List<DecalDefinition>
@@ -469,14 +473,14 @@ internal sealed class WeaponDresser
 		var scaled = (long)(ms * sticker.Speed);
 		var palette = stuck.Palette;
 		var count = _stickers.Count;
-		switch ( sticker.AnimationIs )
+		switch ( stuck.Motion )
 		{
 			case Sticker.Motion.Rainbow:
 				return new ColorHsv( (scaled / MillisecondsPerSecond * RainbowTurns + i / (float)count) % 1f * 360f, 1f, 1f, 1f ).ToColor();
 
 			case Sticker.Motion.Pulse:
 			{
-				var own = Color.Parse( sticker.Color ) ?? Color.White;
+				var own = stuck.Own;
 				var level = 1f - PulseDepth * (0.5f - 0.5f * MathF.Cos( scaled / MillisecondsPerSecond * PulseBeats * MathF.Tau ));
 				return new Color( own.r * level, own.g * level, own.b * level, 1f );
 			}
@@ -486,7 +490,7 @@ internal sealed class WeaponDresser
 
 			default:
 			{
-				var kind = sticker.AnimationIs == Sticker.Motion.Cycl ? ColorCycle.Kind.Cycl : ColorCycle.Kind.Rain;
+				var kind = stuck.Motion == Sticker.Motion.Cycl ? ColorCycle.Kind.Cycl : ColorCycle.Kind.Rain;
 				var index = ColorCycle.PaletteIndex( kind, scaled, i, count, palette.Length );
 				return index >= 0 ? palette[ index ] : Color.White;
 			}

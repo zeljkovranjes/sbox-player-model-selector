@@ -26,6 +26,17 @@ public sealed class ServerRules
 	/// <summary>Whether players other than the host may wear items (glasses, hats) on their models.</summary>
 	public bool AllowAccessories { get; set; } = true;
 
+	/// <summary>Whether the effects players other than the host wear (glowing eyes, a halo) are shown.</summary>
+	public bool AllowEffects { get; set; } = true;
+
+	/// <summary>How much of their effects each player shows (see <see cref="EffectBudget"/>).</summary>
+	public EffectBudget.Level EffectsBudget { get; set; } = EffectBudget.Level.Normal;
+
+	/// <summary>The budget when <see cref="EffectsBudget"/> is <see cref="EffectBudget.Level.Custom"/>: layers, lights and sprites.</summary>
+	public int EffectLayers { get; set; } = EffectBudget.NormalLayers;
+	public int EffectLights { get; set; } = EffectBudget.NormalLights;
+	public int EffectSprites { get; set; } = EffectBudget.NormalSprites;
+
 	/// <summary>
 	/// How many sbox.game models new to the server each player other than the host may put on per
 	/// <see cref="DownloadMinutes"/>: everyone here downloads each one.

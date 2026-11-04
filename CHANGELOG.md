@@ -73,6 +73,8 @@ Long lists - the Server page shows players and blocked models ten at a time, lat
 Flood protection - the host takes at most two picks a second from each player (the last one always lands) and refuses looks and model paths too long to be real, so no player can flood the server or everyone else with looks to load
 Package vetting - the host checks every sbox.game pick against the same rules (a model, not tagged as a hand, arm, clothing or the citizen, enough bones) before anyone sees it, so a changed client can't wear what the window leaves out
 Download limit - everyone here downloads each sbox.game model a player puts on, so each player other than the host brings in 3 new ones every 5 minutes, both set on the Server page (up to 50, over up to 60 minutes); every machine starts downloading a model as soon as the host takes it, so it is there when its player comes into view
+Effects switch - the host can keep players' effects off; they stay with their looks and show again when it is turned back on
+Effects budget - the host picks how much of their effects each player shows: Low (4 layers, 1 light and 150 sprites at once), Normal (8, 2 and 400), High (16, 4 and 1,000) or Custom (up to 32, 8 and 2,000); past it a player's last layers and lights wait and their sprites thin out, and nothing is taken from their look
 # Preview
 Zoom - scroll over the preview to zoom in towards the face
 ### Improved

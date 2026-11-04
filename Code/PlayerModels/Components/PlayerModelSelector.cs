@@ -111,9 +111,9 @@ public sealed partial class PlayerModelSelector : Component
 	private TimeSince _sinceScan;
 	private bool _restored;
 
-	// The look each player is shown with, kept with the text and host rules it was read from: every scan asks for every
-	// player's, and reading the text each time made garbage for each player ten times a second
-	private Dictionary<Guid, (string Text, int Rules, PlayerLook Look)> _shownLooks;
+	// The look each player is shown with, kept with the text, host rules and effects budget it was read from: every scan
+	// asks for every player's, and reading the text each time made garbage for each player ten times a second
+	private Dictionary<Guid, (string Text, int Rules, EffectBudget Effects, PlayerLook Look)> _shownLooks;
 
 	// Who hosts, last seen: when that changes the host left and another took over (see TrackHost)
 	private Guid? _knownHost;
@@ -139,14 +139,15 @@ public sealed partial class PlayerModelSelector : Component
 		var id = KeyOf( connection );
 		var text = LookTextOf( id );
 		var isHost = (connection ?? Connection.Local)?.IsHost ?? true;
-		var rules = isHost ? 0 : 1 | (BlockBodyGroups ? 2 : 0) | (BlockAccessories ? 4 : 0) | (BlockCloudModels ? 8 : 0);
+		var rules = isHost ? 0 : 1 | (BlockBodyGroups ? 2 : 0) | (BlockAccessories ? 4 : 0) | (BlockCloudModels ? 8 : 0) | (BlockEffects ? 16 : 0);
+		var effects = EffectsBudget;
 
 		_shownLooks ??= new();
-		if ( _shownLooks.TryGetValue( id, out var known ) && known.Rules == rules && known.Text == text )
+		if ( _shownLooks.TryGetValue( id, out var known ) && known.Rules == rules && known.Effects == effects && known.Text == text )
 			return known.Look;
 
-		var look = Shown( PlayerLook.Parse( text ), isHost );
-		_shownLooks[ id ] = (text, rules, look);
+		var look = Shown( PlayerLook.Parse( text ), isHost, effects );
+		_shownLooks[ id ] = (text, rules, effects, look);
 		return look;
 	}
 
@@ -160,20 +161,35 @@ public sealed partial class PlayerModelSelector : Component
 	}
 
 	/// <summary>
-	/// <paramref name="look"/> within what the host allows right now: without its body group choices or items while the
-	/// host keeps them off, and without Workshop items while it keeps sbox.game downloads off, unless it is the host's
-	/// (<paramref name="isHost"/>).
+	/// <paramref name="look"/> within what the host allows right now: without its body group choices, items or effects
+	/// while the host keeps them off, and without Workshop items while it keeps sbox.game downloads off, unless it is the
+	/// host's (<paramref name="isHost"/>); and with its effects within the server's budget, whoever's it is.
 	/// </summary>
 	public PlayerLook Shown( PlayerLook look, bool isHost )
 	{
-		if ( isHost || look is null )
-			return look;
+		return Shown( look, isHost, EffectsBudget );
+	}
 
-		var shown = BlockBodyGroups && look.BodyGroups.Count > 0 ? look.WithoutBodyGroups() : look;
-		if ( shown.Accessories.Count == 0 )
+	// The same, with the effects within the budget given
+	private PlayerLook Shown( PlayerLook look, bool isHost, EffectBudget effects )
+	{
+		if ( look is null )
+			return null;
+
+		var shown = look;
+		if ( !isHost )
+		{
+			if ( BlockBodyGroups && shown.BodyGroups.Count > 0 )
+				shown = shown.WithoutBodyGroups();
+
+			if ( shown.Accessories.Count > 0 )
+				shown = BlockAccessories ? shown.WithoutAccessories() : BlockCloudModels ? shown.WithoutWorkshopItems() : shown;
+		}
+
+		if ( shown.Effects.Count == 0 )
 			return shown;
 
-		return BlockAccessories ? shown.WithoutAccessories() : BlockCloudModels ? shown.WithoutWorkshopItems() : shown;
+		return !isHost && BlockEffects ? shown.WithoutEffects() : shown.WithinBudget( effects );
 	}
 
 	/// <summary>Whether the host chose this connection's model in place of their own pick.</summary>
@@ -315,6 +331,11 @@ public sealed partial class PlayerModelSelector : Component
 			AllowBodyGroups = !BlockBodyGroups,
 			AllowArmature = !BlockArmature,
 			AllowAccessories = !BlockAccessories,
+			AllowEffects = !BlockEffects,
+			EffectsBudget = EffectsLevel,
+			EffectLayers = EffectLayers,
+			EffectLights = EffectLights,
+			EffectSprites = EffectSprites,
 			DownloadLimit = DownloadLimit,
 			DownloadMinutes = DownloadMinutes,
 			Blocked = (BlockedModels ?? Enumerable.Empty<string>()).ToList(),
@@ -343,6 +364,7 @@ public sealed partial class PlayerModelSelector : Component
 		BlockBodyGroups = !rules.AllowBodyGroups;
 		BlockArmature = !rules.AllowArmature;
 		BlockAccessories = !rules.AllowAccessories;
+		UseEffectsRules( rules );
 		DownloadLimit = Math.Clamp( rules.DownloadLimit, 1, ServerRules.MaxDownloadLimit );
 		DownloadMinutes = Math.Clamp( rules.DownloadMinutes, 1, ServerRules.MaxDownloadMinutes );
 

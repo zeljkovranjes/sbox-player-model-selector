@@ -4,6 +4,7 @@
 @using Sandbox
 @using Sandbox.UI
 @using PlayerModels.Components
+@using PlayerModels.Core
 @using PlayerModels.Engine
 @inherits Panel
 @namespace PlayerModels.UI
@@ -118,6 +119,29 @@
     <ToggleRow Label="Players can change body groups" Value=@( !selector.BlockBodyGroups ) OnChanged=@AllowBodyGroups></ToggleRow>
     <ToggleRow Label="Players can wear items" Value=@( !selector.BlockAccessories ) OnChanged=@AllowAccessories></ToggleRow>
     <div class="note">Turned off, players' models show their own body groups; what they chose comes back when you turn it on. Nobody can hide the body itself, either way. You always can change yours.</div>
+
+    <div class="section-header">Effects</div>
+    <ToggleRow Label="Players can wear effects" Value=@( !selector.BlockEffects ) OnChanged=@AllowEffects></ToggleRow>
+    <div class="setting">
+        <div class="label">Effects each player shows</div>
+        <UIDropdown Items=@BudgetLevels() Value=@selector.EffectsLevel ValueChanged=@SetEffectsBudget Tokenize=@false></UIDropdown>
+    </div>
+    @if ( selector.EffectsLevel == EffectBudget.Level.Custom )
+    {
+        <div class="setting">
+            <div class="label">Layers</div>
+            <UIDropdown Items=@Choices( LayerChoices, selector.EffectLayers, "" ) Value=@selector.EffectLayers ValueChanged=@(( object value ) => SetCustom( value, null, null )) Tokenize=@false></UIDropdown>
+        </div>
+        <div class="setting">
+            <div class="label">Lights</div>
+            <UIDropdown Items=@Choices( LightChoices, selector.EffectLights, "" ) Value=@selector.EffectLights ValueChanged=@(( object value ) => SetCustom( null, value, null )) Tokenize=@false></UIDropdown>
+        </div>
+        <div class="setting">
+            <div class="label">Sprites at once</div>
+            <UIDropdown Items=@Choices( SpriteChoices, selector.EffectSprites, "" ) Value=@selector.EffectSprites ValueChanged=@(( object value ) => SetCustom( null, null, value )) Tokenize=@false></UIDropdown>
+        </div>
+    }
+    <div class="note">Turned off, nobody sees players' effects; they stay with their looks and come back when you turn them on. You always can wear yours. Each player's effects show within this: Low is @BudgetText( EffectBudget.Low ), Normal @BudgetText( EffectBudget.Normal ) and High @BudgetText( EffectBudget.High ); past it their last layers wait and their sprites thin out. Players can see less of everyone's on their own screen, never more.</div>
 
     <div class="section-header">Armature</div>
     <ToggleRow Label="Players can set up armatures" Value=@( !selector.BlockArmature ) OnChanged=@AllowArmature></ToggleRow>
@@ -254,7 +278,7 @@
     static List<Connection> Others() => Connection.All.Where( x => x != Connection.Local ).ToList();
 
     protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Selector?.BlockCloudModels, Selector?.BlockMountedModels, Selector?.BlockModelFolders,
-            Selector?.BlockArmature, Selector?.BlockBodyGroups, Selector?.BlockAccessories ),
+            Selector?.BlockArmature, Selector?.BlockBodyGroups, Selector?.BlockAccessories, Selector?.BlockEffects, Selector?.EffectsBudget ),
         string.Join( ";", Selector?.BlockedModels ?? Enumerable.Empty<string>() ),
         string.Join( ";", Others().Select( x => $"{x.Id}={Selector?.PickOf( x )}{Selector?.IsPickedByHost( x )}" ) ),
         string.Join( ";", Selector?.PlayersMounts().Select( x => $"{x.Ident}={x.Players}" ) ?? Enumerable.Empty<string>() ),
@@ -319,6 +343,46 @@
     void BlockMount( string ident, bool blocked )
     {
         Selector?.SetMountBlocked( ident, blocked );
+        StateHasChanged();
+    }
+
+    void AllowEffects( bool allow )
+    {
+        Selector?.SetAllowEffects( allow );
+        StateHasChanged();
+    }
+
+    // The budgets, and the choices for each number of a custom one
+    static List<UIDropdown.Item> BudgetLevels() => new()
+    {
+        new( "Low", EffectBudget.Level.Low ),
+        new( "Normal", EffectBudget.Level.Normal ),
+        new( "High", EffectBudget.Level.High ),
+        new( "Custom", EffectBudget.Level.Custom ),
+    };
+
+    static readonly int[] LayerChoices = { 1, 2, 4, 8, 12, 16, 24, 32 };
+    static readonly int[] LightChoices = { 0, 1, 2, 4, 6, 8 };
+    static readonly int[] SpriteChoices = { 50, 100, 200, 400, 700, 1000, 1500, 2000 };
+
+    static string BudgetText( EffectBudget budget ) => $"{budget.Layers} layers, {budget.Lights} {(budget.Lights == 1 ? "light" : "lights")} and {budget.Sprites:N0} sprites at once";
+
+    void SetEffectsBudget( object value )
+    {
+        if ( value is EffectBudget.Level level )
+            Selector?.SetEffectsBudget( level );
+
+        StateHasChanged();
+    }
+
+    // One number of the custom budget changed; the others stay
+    void SetCustom( object layers, object lights, object sprites )
+    {
+        if ( Selector is not { } selector )
+            return;
+
+        selector.SetCustomEffectsBudget( new EffectBudget( layers as int? ?? selector.EffectLayers, lights as int? ?? selector.EffectLights,
+            sprites as int? ?? selector.EffectSprites ) );
         StateHasChanged();
     }
 

@@ -488,7 +488,7 @@ public sealed class EffectAnchor
 
 	/// <summary>What it comes from; only right on an anchor within bounds (see <see cref="Sanitized"/>).</summary>
 	[JsonIgnore]
-	public AnchorKind KindIs => Kind is not null && Enum.TryParse<AnchorKind>( Kind, false, out var kind ) && Enum.IsDefined( typeof( AnchorKind ), kind ) ? kind : AnchorKind.Joint;
+	public AnchorKind KindIs => Kind is not null && Enum.TryParse<AnchorKind>( Kind, false, out var kind ) && Enum.IsDefined( kind ) ? kind : AnchorKind.Joint;
 
 	/// <summary>
 	/// A copy within bounds: a joint this version doesn't know is the head, a kind it doesn't know (or an item anchor

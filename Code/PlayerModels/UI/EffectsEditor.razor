@@ -197,6 +197,13 @@
                 <KeyGlyph class="key-glyph" Key=@selected.Key></KeyGlyph>
                 <div class="reset @( selected.Key is null ? "disabled" : "" )" @onclick=@(() => SetKey( selected, null ))>Clear</div>
             </div>
+            @if ( selected.Key is not null )
+            {
+                <div class="row">
+                    <div class="label">The key</div>
+                    <UIDropdown Items=@KeyActions() Value=@selected.KeyActionIs.ToString() ValueChanged=@(( object v ) => SetKeyAction( selected, (string)v )) Tokenize=@false></UIDropdown>
+                </div>
+            }
             <div class="note">@KeyNote( selected )</div>
 
             @if ( CycleOf( selected ) is { } cycle )
@@ -662,16 +669,39 @@
         StateHasChanged();
     }
 
+    // What a key can do: show the effect for a moment, switch it on and off, or show it while held
+    static List<UIDropdown.Item> KeyActions() => new()
+    {
+        new( $"Shows it for {Effect.TriggerSeconds:0} seconds", nameof( Effect.KeyAction.Fire ) ),
+        new( "Switches it on and off", nameof( Effect.KeyAction.Toggle ) ),
+        new( "Shows it while held", nameof( Effect.KeyAction.Hold ) ),
+    };
+
+    void SetKeyAction( Effect effect, string action )
+    {
+        effect.KeyMode = action == nameof( Effect.KeyAction.Fire ) ? null : action;
+        Changed?.Invoke();
+        StateHasChanged();
+    }
+
     // What a key does, and how long until one works again
     string KeyNote( Effect effect )
     {
         var minutes = (int)(Effect.TriggerCooldownSeconds / 60f);
         if ( effect.Key is null )
-            return $"Give it a key and it shows only when you press it, for {Effect.TriggerSeconds:0} seconds. Effect keys work once every {minutes} minutes.";
+            return $"Give it a key and it shows only when you press it: for {Effect.TriggerSeconds:0} seconds, until you press it again, or while you hold it. Starting an effect with a key works once every {minutes} minutes.";
 
         var wait = Selector?.TriggerWait() ?? 0f;
         var ready = wait > 0f ? $" Your next one in {(int)wait / 60}:{(int)wait % 60:00}." : "";
-        return $"Press {effect.Key.ToUpperInvariant()} and it shows for {Effect.TriggerSeconds:0} seconds, for everyone. Effect keys work once every {minutes} minutes, whichever effect they are for.{ready}";
+        var key = effect.Key.ToUpperInvariant();
+        var does = effect.KeyActionIs switch
+        {
+            Effect.KeyAction.Toggle => $"Press {key} to switch it on for everyone, and again to switch it off.",
+            Effect.KeyAction.Hold => $"Hold {key} and it shows for everyone until you let go.",
+            _ => $"Press {key} and it shows for {Effect.TriggerSeconds:0} seconds, for everyone.",
+        };
+
+        return $"{does} Starting an effect with a key works once every {minutes} minutes, whichever effect it is for; switching one off or letting go is always free.{ready}";
     }
 
     // The first layer of the effect whose colours cycle; the colours set here go to every such layer of it

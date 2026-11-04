@@ -17,6 +17,13 @@ namespace PlayerModels.Core;
 public sealed class Effect
 {
 	/// <summary>
+	/// What its key does (see <see cref="Key"/>): shows it for <see cref="TriggerSeconds"/> each press (and fires its
+	/// script's <c>OnKey</c>), switches it on and off, or shows it while the key is held. Only starting it counts toward
+	/// <see cref="TriggerCooldownSeconds"/>; switching it off or letting go is always free.
+	/// </summary>
+	public enum KeyAction { Fire, Toggle, Hold }
+
+	/// <summary>
 	/// The joints an effect can come from: those an item can be pinned to, the eyes (between them, and each one), the top
 	/// of the head (the crown, however high over its head bone a model's head reaches), the feet, and the ground under the
 	/// body (below its hips at its feet's height, turned the way it faces: a circle under the feet).
@@ -69,6 +76,16 @@ public sealed class Effect
 	/// the side mouse buttons.
 	/// </summary>
 	public static IReadOnlyList<string> Keys { get; } = KeyNames();
+
+	/// <summary>What its key does, a <see cref="KeyAction"/> by name; null to fire (show it for a moment each press).</summary>
+	[JsonPropertyName( "km" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public string KeyMode { get; set; }
+
+	/// <summary>What its key does.</summary>
+	[JsonIgnore]
+	public KeyAction KeyActionIs => KeyMode is not null && Enum.TryParse<KeyAction>( KeyMode, false, out var action ) && Enum.IsDefined( typeof( KeyAction ), action )
+		? action
+		: KeyAction.Fire;
 
 	/// <summary>Whether it is switched off: kept with the look, but not shown.</summary>
 	[JsonPropertyName( "off" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
@@ -222,6 +239,7 @@ public sealed class Effect
 			Name = name.Length <= MaxNameLength ? name : name[ ..MaxNameLength ],
 			Off = Off,
 			Key = KeyNamed( Key ),
+			KeyMode = KeyMode is not null && KeyActionIs != KeyAction.Fire ? KeyActionIs.ToString() : null,
 			Anchor = (Anchor ?? new EffectAnchor()).Sanitized(),
 			Layers = kept,
 			Hue = float.IsFinite( Hue ) ? Hue - MathF.Floor( Hue ) : 0f,
@@ -358,6 +376,7 @@ public sealed class Effect
 		copy.Name = "";
 		copy.Off = false;
 		copy.Key = null;
+		copy.KeyMode = null;
 		copy.ForkedFrom = null;
 		copy.Shapes = null;
 		return JsonSerializer.Serialize( copy );

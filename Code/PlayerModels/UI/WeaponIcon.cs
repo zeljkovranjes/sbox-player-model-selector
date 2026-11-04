@@ -8,7 +8,8 @@ namespace PlayerModels.UI;
 /// <summary>
 /// A picture of a weapon design (see <see cref="WeaponDesign"/>): its weapon in a little scene of its own, dressed as the
 /// design says (skin, props, stickers; see <see cref="WeaponDresser"/>), seen from its side, its colours moving as they do
-/// in the game. Drawn on this machine from the design, so a share needs no picture uploaded.
+/// in the game. Drawn on this machine from the design, so a share needs no picture uploaded; and a weapon as it comes,
+/// which the engine's thumbnails draw without its materials.
 /// </summary>
 public sealed class WeaponIcon : Panel
 {
@@ -20,11 +21,15 @@ public sealed class WeaponIcon : Panel
 	/// <summary>The design pictured.</summary>
 	[Parameter] public WeaponDesign Design { get; set; }
 
+	/// <summary>The weapon pictured as it comes, by its world model's path, while there is no <see cref="Design"/>.</summary>
+	[Parameter] public string Weapon { get; set; }
+
 	private ScenePanel _scene;
 	private CameraComponent _camera;
 	private GameObject _weapon;
 	private readonly WeaponDresser _dresser = new();
 	private WeaponDesign _shown;
+	private string _shownWeapon;
 
 	public WeaponIcon()
 	{
@@ -54,7 +59,7 @@ public sealed class WeaponIcon : Panel
 	{
 		base.Tick();
 
-		if ( !ReferenceEquals( Design, _shown ) )
+		if ( !ReferenceEquals( Design, _shown ) || Design is null && Weapon != _shownWeapon )
 			Show( Design );
 
 		_dresser.Animate();
@@ -63,6 +68,7 @@ public sealed class WeaponIcon : Panel
 	private void Show( WeaponDesign design )
 	{
 		_shown = design;
+		_shownWeapon = Weapon;
 		_dresser.Release();
 		if ( _weapon.IsValid() )
 		{
@@ -70,7 +76,8 @@ public sealed class WeaponIcon : Panel
 				_weapon.DestroyImmediate();
 		}
 
-		if ( design is null || Model.Load( design.Weapon ) is not { IsError: false } model )
+		var path = design?.Weapon ?? Weapon;
+		if ( string.IsNullOrEmpty( path ) || Model.Load( path ) is not { IsError: false } model )
 			return;
 
 		using ( _scene.RenderScene.Push() )
@@ -79,8 +86,11 @@ public sealed class WeaponIcon : Panel
 			var renderer = _weapon.AddComponent<SkinnedModelRenderer>();
 			renderer.Model = model;
 			renderer.UseAnimGraph = false;
-			_dresser.Apply( new[] { design }, design.Shapes );
-			_dresser.Dress( _weapon, null );
+			if ( design is not null )
+			{
+				_dresser.Apply( new[] { design }, design.Shapes );
+				_dresser.Dress( _weapon, null );
+			}
 		}
 
 		var bounds = model.Bounds;

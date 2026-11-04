@@ -28,7 +28,7 @@
                 {
                     var weapon = known;
                     <div class="tile" Tooltip=@WeaponDesign.NameOf( weapon ) @onclick=@(() => Browse( weapon ))>
-                        <img class="thumb" src=@( $"thumb:{weapon}" ) />
+                        <WeaponIcon class="thumb" Weapon=@weapon></WeaponIcon>
                         <div class="title">@( $"{WeaponDesign.NameOf( weapon )} · {Shared.Weapons.CountOf( weapon )}" )</div>
                     </div>
                 }

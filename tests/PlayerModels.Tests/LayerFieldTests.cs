@@ -126,4 +126,13 @@ public class LayerFieldTests
 		Assert.True( machine.RunParticle( 0, io ) );
 		Assert.Equal( (EffectLayer.MaxPictures - 1, ScriptIO.FrameSet), (io.Get( ScriptOutput.Frame ), io.OutputsSet) );
 	}
+
+	[Fact]
+	public void ALayerCanComeFromTheGroundUnderTheBody()
+	{
+		var effect = ScriptKit.BuildEffect( "Effect.Joint = Joint.Ground\nlocal circle = Sprite()\nlocal prints = Sprite()\nprints.Joint = Joint.Ground" );
+		Assert.Equal( ("Ground", "Ground"), (effect.Anchor.Joint, effect.Layers[ 1 ].Joint) );
+		Assert.Equal( Effect.Joint.Ground, effect.JointOf( effect.Layers[ 0 ] ) );
+		ScriptKit.SameEffect( effect, ScriptKit.BuildEffect( ScriptCodegen.Effect( effect ) ) );
+	}
 }

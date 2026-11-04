@@ -10,7 +10,7 @@ namespace PlayerModels.Core.Script;
 public static class ScriptEnums
 {
 	public static readonly ScriptEnum Kind = new( "Kind", Enum.GetNames<LayerKind>(), "What a layer is: sprites, a light, or a trail it leaves." );
-	public static readonly ScriptEnum Joint = new( "Joint", Enum.GetNames<Effect.Joint>(), "A joint of the body an effect or layer comes from." );
+	public static readonly ScriptEnum Joint = new( "Joint", Enum.GetNames<Effect.Joint>(), "A joint of the body an effect or layer comes from (Joint.Ground: the ground under it, turned the way it faces)." );
 	public static readonly ScriptEnum ComesFrom = new( "ComesFrom", Enum.GetNames<LayerShape>(), "Where a layer's sprites come from around its place (\"Comes from\")." );
 	public static readonly ScriptEnum Facing = new( "Facing", Enum.GetNames<LayerFacing>(), "The way a layer faces from its joint: where a cone opens, a line runs, a shape looks." );
 	public static readonly ScriptEnum ColorMode = new( "ColorMode", Enum.GetNames<LayerColorMode>(), "How a layer's sprites are coloured: fading, a World at War cycle, or the palette in turn." );

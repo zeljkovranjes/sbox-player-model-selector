@@ -3426,9 +3426,9 @@ local picked = Kind.Light --> Kind.Light
 
 #### `Joint`
 
-A joint of the body an effect or layer comes from.
+A joint of the body an effect or layer comes from (Joint.Ground: the ground under it, turned the way it faces).
 
-`Joint.Head`, `Joint.Eyes`, `Joint.LeftEye`, `Joint.RightEye`, `Joint.Crown`, `Joint.Neck`, `Joint.Chest`, `Joint.Hips`, `Joint.LeftHand`, `Joint.RightHand`, `Joint.LeftFoot`, `Joint.RightFoot`
+`Joint.Head`, `Joint.Eyes`, `Joint.LeftEye`, `Joint.RightEye`, `Joint.Crown`, `Joint.Neck`, `Joint.Chest`, `Joint.Hips`, `Joint.LeftHand`, `Joint.RightHand`, `Joint.LeftFoot`, `Joint.RightFoot`, `Joint.Ground`
 
 ```lua sticker
 local picked = Joint.Eyes --> Joint.Eyes

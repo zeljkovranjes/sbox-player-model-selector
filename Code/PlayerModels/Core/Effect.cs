@@ -17,9 +17,10 @@ public sealed class Effect
 {
 	/// <summary>
 	/// The joints an effect can come from: those an item can be pinned to, the eyes (between them, and each one), the top
-	/// of the head (the crown, however high over its head bone a model's head reaches) and the feet.
+	/// of the head (the crown, however high over its head bone a model's head reaches), the feet, and the ground under the
+	/// body (below its hips at its feet's height, turned the way it faces: a circle under the feet).
 	/// </summary>
-	public enum Joint { Head, Eyes, LeftEye, RightEye, Crown, Neck, Chest, Hips, LeftHand, RightHand, LeftFoot, RightFoot }
+	public enum Joint { Head, Eyes, LeftEye, RightEye, Crown, Neck, Chest, Hips, LeftHand, RightHand, LeftFoot, RightFoot, Ground }
 
 	/// <summary>The most effects one look wears, the most layers one effect has, and the most layers all of them have.</summary>
 	public const int MaxWorn = 8;

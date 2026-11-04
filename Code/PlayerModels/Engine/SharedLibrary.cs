@@ -118,23 +118,47 @@ public sealed class SharedLibrary<T>
 	private async Task<List<Entry>> ReadListAsync( string model )
 	{
 		var records = await Shared.ReadAsync( Database.GetTable( _table ), GroupOf( model ) );
-		var shared = records
-			.Select( x => (Record: x, Post: SharePost.Parse( x.Value )) )
-			.Select( x => (x.Record, x.Post, Item: x.Post is null ? default : Parse( x.Post.Item )) )
-			.Where( x => x.Item is not null && x.Post.Kind == _kind && x.Post.Model == model && _modelOf( x.Item ) == model )
-			.GroupBy( x => x.Record.OwnerSteamId )
-			.SelectMany( x => x.OrderByDescending( y => y.Record.CreatedAt ).Take( _perPlayer ) )
-			.OrderByDescending( x => x.Record.CreatedAt )
-			.Take( MaxListed )
-			.ToList();
+
+		// Loops and named methods rather than lambdas, here and below: a lambda of a generic type can't be carried over a
+		// hot reload, and LINQ keeps one in a static field once it has run
+		var found = new List<Listed>();
+		foreach ( var record in records )
+		{
+			var post = SharePost.Parse( record.Value );
+			var item = post is null ? default : Parse( post.Item );
+			if ( item is not null && post.Kind == _kind && post.Model == model && _modelOf( item ) == model )
+				found.Add( new Listed( record, post, item ) );
+		}
+
+		// The newest first, each player's newest few only
+		var shared = new List<Listed>();
+		var perOwner = new Dictionary<long, int>();
+		foreach ( var listed in found.OrderByDescending( CreatedAt ) )
+		{
+			var owner = listed.Record.OwnerSteamId;
+			var count = perOwner.GetValueOrDefault( owner );
+			if ( count >= _perPlayer )
+				continue;
+
+			perOwner[ owner ] = count + 1;
+			shared.Add( listed );
+			if ( shared.Count >= MaxListed )
+				break;
+		}
 
 		_counts[ model ] = (shared.Count, 0f);
 		if ( shared.Count == 0 )
 			return new List<Entry>();
 
+		var groups = new List<string>( shared.Count * 2 );
+		foreach ( var listed in shared )
+		{
+			groups.Add( UpGroup( listed.Record.Id ) );
+			groups.Add( DownGroup( listed.Record.Id ) );
+		}
+
 		var table = Database.GetTable( _votes );
-		var written = await table.GetPublicGroupInfo(
-			shared.SelectMany( x => new[] { UpGroup( x.Record.Id ), DownGroup( x.Record.Id ) } ).ToArray() );
+		var written = await table.GetPublicGroupInfo( groups.ToArray() );
 		long WrittenIn( string group ) => written.TryGetValue( group, out var info ) ? info.Count : 0;
 
 		var entries = new List<Entry>();
@@ -145,14 +169,48 @@ public sealed class SharedLibrary<T>
 			entries.Add( new Entry( record.Id, record.OwnerSteamId, item, post.Name, post.Description, record.CreatedAt, up, down ) );
 		}
 
-		var listed = new List<Entry>();
-		foreach ( var entry in entries.OrderByDescending( x => x.Score ).ThenBy( x => x.Changed ) )
+		var kept = new List<Entry>();
+		foreach ( var entry in entries.OrderByDescending( ScoreOf ).ThenBy( ChangedOf ) )
 		{
-			if ( entry.IsMine || !listed.Any( x => Same( x.Item, entry.Item ) ) )
-				listed.Add( entry );
+			if ( entry.IsMine || !Lists( kept, entry.Item ) )
+				kept.Add( entry );
 		}
 
-		return listed.OrderByDescending( x => x.Score ).ThenByDescending( x => x.Changed ).ToList();
+		return kept.OrderByDescending( ScoreOf ).ThenByDescending( ChangedOf ).ToList();
+	}
+
+	// A share read from its table, before its votes are counted
+	private readonly record struct Listed( Database.Record Record, SharePost Post, T Item );
+
+	private static DateTimeOffset CreatedAt( Listed listed ) => listed.Record.CreatedAt;
+
+	private static long ScoreOf( Entry entry ) => entry.Score;
+
+	private static DateTimeOffset ChangedOf( Entry entry ) => entry.Changed;
+
+	private static (long Owner, string Key) VoteOf( Database.Record record ) => (record.OwnerSteamId, record.Key);
+
+	// Whether entries has one the same as item
+	private bool Lists( List<Entry> entries, T item )
+	{
+		foreach ( var entry in entries )
+		{
+			if ( Same( entry.Item, item ) )
+				return true;
+		}
+
+		return false;
+	}
+
+	private Entry SameAs( List<Entry> entries, T item )
+	{
+		foreach ( var entry in entries )
+		{
+			if ( Same( entry.Item, item ) )
+				return entry;
+		}
+
+		return null;
 	}
 
 	// The votes that count in a group of <paramref name="written"/> records (see Votes). Each group is its own request, so
@@ -169,7 +227,7 @@ public sealed class SharedLibrary<T>
 		try
 		{
 			var records = await Shared.ReadAsync( table, group );
-			var votes = Votes.Count( records.Select( x => (x.OwnerSteamId, x.Key) ), shared.Id, shared.OwnerSteamId );
+			var votes = Votes.Count( records.Select( VoteOf ), shared.Id, shared.OwnerSteamId );
 			_votesCounted[ group ] = (written, votes);
 			return votes;
 		}
@@ -190,7 +248,7 @@ public sealed class SharedLibrary<T>
 	{
 		var model = _modelOf( item );
 		Forget( model );
-		if ( (await ListAsync( model )).FirstOrDefault( x => Same( x.Item, item ) ) is { } same )
+		if ( SameAs( await ListAsync( model ), item ) is { } same )
 			return same;
 
 		var post = PostOf( item, name, description );
@@ -289,11 +347,13 @@ public sealed class SharedLibrary<T>
 	/// </summary>
 	internal async Task<bool> CountAsync( IEnumerable<string> models )
 	{
-		var stale = models
-			.Where( x => !string.IsNullOrEmpty( x ) && (!_counts.TryGetValue( x, out var known ) || known.Age > CountLife) )
-			.Distinct()
-			.Take( MaxCounted )
-			.ToList();
+		var stale = new List<string>();
+		foreach ( var model in models )
+		{
+			if ( stale.Count < MaxCounted && !string.IsNullOrEmpty( model ) && !stale.Contains( model )
+				&& (!_counts.TryGetValue( model, out var known ) || known.Age > CountLife) )
+				stale.Add( model );
+		}
 
 		if ( stale.Count == 0 )
 			return false;
@@ -301,7 +361,11 @@ public sealed class SharedLibrary<T>
 		foreach ( var model in stale )
 			_counts[ model ] = (CountOf( model ), 0f);
 
-		var info = await Database.GetTable( _table ).GetPublicGroupInfo( stale.Select( GroupOf ).ToArray() );
+		var groups = new string[ stale.Count ];
+		for ( var i = 0; i < stale.Count; i++ )
+			groups[ i ] = GroupOf( stale[ i ] );
+
+		var info = await Database.GetTable( _table ).GetPublicGroupInfo( groups );
 		foreach ( var model in stale )
 			_counts[ model ] = (info.TryGetValue( GroupOf( model ), out var group ) ? group.Count : 0, 0f);
 

@@ -46,7 +46,12 @@
         <div class="row">
             <div class="label">Effect</div>
             <UIDropdown Items=@EffectChoices() Value=@effect.Id ValueChanged=@SelectEffect Tokenize=@false></UIDropdown>
+            <div class="reset" Tooltip="Open it in the code editor: the script it is (or would be), changed here and there alike" @onclick=@(() => OpenCode?.Invoke( effect.Id ))>Edit as code</div>
         </div>
+        @if ( effect.Script is not null )
+        {
+            <div class="note">Written in code: what its script works out (in a loop, a function, from a parameter) changes only in code or with the parameter; the rest changes here and the script follows.</div>
+        }
         <div class="row">
             <div class="label">Comes from</div>
             <UIDropdown Items=@AnchorChoices() Value=@AnchorValue( effect.Anchor ) ValueChanged=@SetAnchor Tokenize=@false></UIDropdown>
@@ -274,6 +279,24 @@
     [Parameter] public EditHistory History { get; set; }
     [Parameter] public Action Undo { get; set; }
     [Parameter] public Action Redo { get; set; }
+
+    /// <summary>Opens the code editor on an effect, by id; and is told which layer of which effect is picked here.</summary>
+    [Parameter] public Action<string> OpenCode { get; set; }
+    [Parameter] public Action<string, int> LayerPicked { get; set; }
+
+    /// <summary>Picks layer <paramref name="layer"/> of effect <paramref name="effect"/> alone (the code editor's caret is in it).</summary>
+    public void ShowLayer( string effect, int layer )
+    {
+        if ( effect is null || Look?.Effects.Find( x => x.Id == effect ) is not { } shown || layer < 0 || layer >= shown.Layers.Count )
+            return;
+
+        if ( _effect == effect && _layer == layer && _chosen.Count == 0 )
+            return;
+
+        _effect = effect;
+        ChooseOnly( layer );
+        StateHasChanged();
+    }
 
     // The layer selected, by its place in the effect (its settings are the ones shown), and any others chosen with it
     // (Ctrl or Shift), which every change goes to as well; whether everything else about it shows; and whether an effect
@@ -573,6 +596,7 @@
             ChooseOnly( index );
         }
 
+        LayerPicked?.Invoke( Effect?.Id, _layer );
         StateHasChanged();
     }
 

@@ -1,0 +1,49 @@
+// A live example in the reference: the real code editor's text beside a small preview (or the shape it draws), the
+// result or the error under it
+CodePlayground
+{
+	flex-direction: row;
+	flex-shrink: 0;
+	gap: 8px;
+	height: 260px;
+	border-radius: 4px;
+	overflow: hidden;
+
+	&.dark { background-color: #1f1f1f; color: #cccccc; .playground-bar { background-color: #181818; } .playground-status.error { color: #f14c4c; } }
+	&.light { background-color: #ffffff; color: #3b3b3b; border: 1px solid #e5e5e5; .playground-bar { background-color: #f8f8f8; } .playground-status.error { color: #e51400; } }
+
+	.playground-code { flex-direction: column; flex-grow: 1; min-width: 0; }
+
+	.code-entry
+	{
+		flex-grow: 1;
+		min-height: 0;
+		padding: 6px 8px;
+		border: 0;
+		background-color: transparent;
+		align-items: flex-start;
+		justify-content: flex-start;
+		overflow: scroll;
+		font-family: "Roboto Mono";
+		font-size: 12px;
+
+		.content-label { white-space: pre; line-height: 17px; font-family: "Roboto Mono"; font-size: 12px; flex-shrink: 0; }
+	}
+
+	.playground-bar { flex-shrink: 0; align-items: center; gap: 6px; padding: 3px 6px; }
+	.playground-status { font-size: 11px; flex-shrink: 1; min-width: 0; }
+	.spacer { flex-grow: 1; }
+	.playground-button { font-size: 11px; padding: 2px 8px; border-radius: 3px; cursor: pointer; background-color: rgba( 128, 128, 128, 0.25 ); flex-shrink: 0; }
+
+	.playground-preview
+	{
+		position: relative;
+		width: 220px;
+		flex-shrink: 0;
+		flex-direction: column;
+
+		.stage { flex-grow: 1; }
+		.shape { width: 160px; height: 160px; margin: 40px auto; background-size: contain; background-repeat: no-repeat; }
+		TestBar { position: absolute; left: 2px; right: 2px; bottom: 2px; }
+	}
+}

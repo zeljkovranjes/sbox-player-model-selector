@@ -51,8 +51,8 @@
                     }
                     else if ( ShownTab == Tab.Effects )
                     {
-                        <LayerEditor Look=@_look Changed=@Changed Stage=@Stage Locked=@EffectsLocked EffectId=@EffectId History=@History Undo=@Undo Redo=@Redo
-                                     StartShape=@StartShape></LayerEditor>
+                        <LayerEditor @ref="_layers" Look=@_look Changed=@Changed Stage=@Stage Locked=@EffectsLocked EffectId=@EffectId History=@History Undo=@Undo Redo=@Redo
+                                     StartShape=@StartShape OpenCode=@OpenCode LayerPicked=@LayerPicked></LayerEditor>
                     }
                     else
                     {
@@ -115,6 +115,19 @@
 
     /// <summary>A shape to open the Effects tab's shape creator on (a fork from the Workshop); null to open on the layers.</summary>
     public DrawnShape StartShape { get; init; }
+
+    /// <summary>Opens the code editor on an effect, by id; and says which layer of which effect was picked on the Effects tab.</summary>
+    public Action<string> OpenCode { get; init; }
+    public Action<string, int> LayerPicked { get; init; }
+
+    LayerEditor _layers;
+
+    /// <summary>Selects layer <paramref name="layer"/> of effect <paramref name="effect"/> on the Effects tab (the code editor's caret is in it).</summary>
+    public void ShowLayer( string effect, int layer )
+    {
+        if ( ShownTab == Tab.Effects && _layers is not null && _layers.IsValid() )
+            _layers.ShowLayer( effect, layer );
+    }
 
     // The tabs of options down the right
     enum Tab { Look, Accessories, Effects }

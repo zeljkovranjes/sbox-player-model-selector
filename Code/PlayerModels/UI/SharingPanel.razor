@@ -36,6 +36,10 @@
             {
                 <div class="button @( _busy ? "disabled" : "" )" @onclick=@(() => _ = TakeDownAsync( open ))>Take down</div>
             }
+            else
+            {
+                <div class="button" Tooltip="Hide everything this player shares, on your screen only" @onclick=@(() => ToggleHidden( open ))>@( IsHidden( open ) ? "Unhide author" : "Hide author" )</div>
+            }
         </div>
 
         <div class="description @( open.Description == "" ? "empty" : "" )">@( open.Description == "" ? "No description." : open.Description )</div>
@@ -74,10 +78,16 @@
     {
         <div class="top">
             <div class="back" Tooltip="Back" @onclick=@(() => Back?.Invoke())>arrow_back</div>
-            <div class="intro">@Capitalised( Noun )s players shared for this model, the best rated first. Use one to put it on the preview; Apply wears it.</div>
+            <div class="intro">@Capitalised( Noun )s players shared for this model: Top lists the best rated first, New the newest. Use one to put it on the preview; Apply wears it.</div>
         </div>
 
-        <div class="section-header">Shared @( Noun )s</div>
+        <div class="section-header sorted">
+            <div class="heading">Shared @( Noun )s</div>
+            <div class="sort">
+                <div class="sort-choice @( _newest ? "" : "active" )" @onclick=@(() => SortBy( false ))>Top</div>
+                <div class="sort-choice @( _newest ? "active" : "" )" @onclick=@(() => SortBy( true ))>New</div>
+            </div>
+        </div>
 
         <div class="row code-row">
             <TextEntry class="code-entry" Placeholder=@( $"Paste {A( Noun )} code" ) Value:bind=@_code @onsubmit=@UseCode></TextEntry>
@@ -102,7 +112,7 @@
         @foreach ( var entry in PageOfEntries )
         {
             var shared = entry;
-            <div class="row shared">
+            <div class="row shared @( IsHidden( shared ) ? "hidden-author" : "" )">
                 <img class="avatar" src="avatar:@shared.Author" />
                 <div class="shared-text">
                     <div class="shared-name">@NameOf( shared )</div>
@@ -121,6 +131,14 @@
             </div>
         }
         </div>
+
+        @if ( HiddenCount > 0 )
+        {
+            <div class="row hidden-row">
+                <div class="note">@( HiddenCount == 1 ? "1 is" : $"{HiddenCount} are" ) from players you hid.</div>
+                <div class="button" @onclick=@ToggleShowHidden>@( _showHidden ? "Hide them" : "Show them" )</div>
+            </div>
+        }
 
         <Pager Page=@_page Pages=@Pages OnPage=@ShowPage></Pager>
     }
@@ -187,6 +205,12 @@
 
     List<SharedLibrary<T>.Entry> _entries = new();
 
+    // What the list shows of them: in the order picked (Top or New), less what the players this one hid shared
+    List<SharedLibrary<T>.Entry> _shown = new();
+    HashSet<long> _hidden = new();
+    bool _newest = LocalPrefs.SharesByNewest;
+    bool _showHidden;
+
     // The one whose details show in the Workshop, and what else its author shared (null until listed)
     SharedLibrary<T>.Entry _details;
     List<AuthorIndex.Share> _more;
@@ -231,9 +255,54 @@
     protected override int BuildHash() => HashCode.Combine( ModelId, Current, Workshop, _revision, _status, _loading, _busy,
         HashCode.Combine( _page, _perPage, NamesHash() ) );
 
-    int Pages => Math.Max( 1, (_entries.Count + _perPage - 1) / _perPage );
+    int Pages => Math.Max( 1, (_shown.Count + _perPage - 1) / _perPage );
 
-    IEnumerable<SharedLibrary<T>.Entry> PageOfEntries => _entries.Skip( _page * _perPage ).Take( _perPage );
+    IEnumerable<SharedLibrary<T>.Entry> PageOfEntries => _shown.Skip( _page * _perPage ).Take( _perPage );
+
+    // A player's own are never hidden from them
+    bool IsHidden( SharedLibrary<T>.Entry entry ) => !entry.IsMine && _hidden.Contains( entry.Author );
+
+    int HiddenCount => _entries.Count( IsHidden );
+
+    // The hidden players are read again each time: hiding one in the other Workshop (looks, armatures) counts here too
+    void Arrange()
+    {
+        _hidden = LocalPrefs.HiddenAuthors();
+        var kept = _entries.Where( x => _showHidden || !IsHidden( x ) );
+        _shown = (_newest ? kept.OrderByDescending( x => x.Changed ) : kept).ToList();
+        _page = Math.Clamp( _page, 0, Pages - 1 );
+    }
+
+    void SortBy( bool newest )
+    {
+        _newest = newest;
+        LocalPrefs.SharesByNewest = newest;
+        _page = 0;
+        Arrange();
+        Redraw();
+    }
+
+    void ToggleShowHidden()
+    {
+        _showHidden = !_showHidden;
+        Arrange();
+        Redraw();
+    }
+
+    // Hiding closes the details, as the list they go back to no longer has it
+    void ToggleHidden( SharedLibrary<T>.Entry entry )
+    {
+        var hide = !IsHidden( entry );
+        LocalPrefs.SetHidden( entry.Author, hide );
+        _status = hide ? $"{AuthorOf( entry )}'s shares are hidden, on your screen only. Show them under the list to unhide them."
+            : $"{AuthorOf( entry )}'s shares show again.";
+
+        if ( hide && !_showHidden )
+            _details = null;
+
+        Arrange();
+        Redraw();
+    }
 
     void ShowPage( int page )
     {
@@ -284,6 +353,7 @@
     {
         var model = ModelId;
         _entries = new();
+        _shown = new();
         _page = 0;
         _listed = false;
         _loading = !string.IsNullOrEmpty( model ) && Library is not null;
@@ -299,6 +369,7 @@
                 return;
 
             _entries = entries;
+            Arrange();
             _listed = true;
             _unresponsive = false;
 
@@ -548,9 +619,9 @@
     int NamesHash()
     {
         var hash = _details is null ? 0 : new Friend( _details.Author ).Name?.GetHashCode() ?? 0;
-        var end = Math.Min( _entries.Count, (_page + 1) * _perPage );
+        var end = Math.Min( _shown.Count, (_page + 1) * _perPage );
         for ( var i = _page * _perPage; i < end; i++ )
-            hash = HashCode.Combine( hash, new Friend( _entries[ i ].Author ).Name );
+            hash = HashCode.Combine( hash, new Friend( _shown[ i ].Author ).Name );
 
         return hash;
     }

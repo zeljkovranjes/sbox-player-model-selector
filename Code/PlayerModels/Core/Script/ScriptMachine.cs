@@ -32,12 +32,16 @@ public sealed partial class ScriptMachine
 	private ScriptIO _ownIO;
 	private int _paletteAt = -1;
 
+	// How much of the arena is lists; the rest is room to grow into, so adding to it is cheap however often it's done
+	private int _arenaUsed;
+
 	public ScriptMachine( ScriptProgram program )
 	{
 		Program = program ?? throw new ArgumentNullException( nameof( program ) );
 		Globals = new double[ program.GlobalSlots ];
 		Arena = new double[ program.Arena.Length ];
 		Array.Copy( program.Arena, Arena, Arena.Length );
+		_arenaUsed = Arena.Length;
 		Strings = program.Strings;
 		SetPalette( null );
 	}
@@ -182,10 +186,15 @@ public sealed partial class ScriptMachine
 	/// <summary>Adds <paramref name="slots"/> to the arena (while building, or setting a palette), giving where they start.</summary>
 	internal int AppendArena( int slots )
 	{
-		var at = Arena.Length;
-		var grown = new double[ at + slots ];
-		Array.Copy( Arena, grown, at );
-		Arena = grown;
+		var at = _arenaUsed;
+		if ( at + slots > Arena.Length )
+		{
+			var grown = new double[ Math.Max( at + slots, Arena.Length * 2 ) ];
+			Array.Copy( Arena, grown, at );
+			Arena = grown;
+		}
+
+		_arenaUsed = at + slots;
 		return at;
 	}
 
@@ -195,7 +204,7 @@ public sealed partial class ScriptMachine
 	/// Adds <paramref name="slots"/> to the arena while building, as long as it stays within
 	/// <see cref="ScriptLimits.MaxArenaSlots"/>: where they start, or -1 when that would be too many.
 	/// </summary>
-	internal int TryAppendArena( int slots ) => Arena.Length + slots > ScriptLimits.MaxArenaSlots ? -1 : AppendArena( slots );
+	internal int TryAppendArena( int slots ) => _arenaUsed + slots > ScriptLimits.MaxArenaSlots ? -1 : AppendArena( slots );
 
 	/// <summary>Writes the colour <paramref name="hex"/> (white when it isn't one) as r, g, b, a at <paramref name="at"/>.</summary>
 	internal static void WriteColor( string hex, double[] into, int at )

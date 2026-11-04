@@ -95,6 +95,23 @@ public class AttackTests
 	}
 
 	[Fact]
+	public void MakingListAfterListStopsAtTheListCapQuickly()
+	{
+		// Every list made used to copy all the lists before it: 40,000 one-item lists took ~145 ms and 1 GB
+		var program = ScriptKit.Compile( "local glow = Sprite()\nfor k = 1, 40000 do\n\tlocal l = List.Create( 1, 0 )\nend" );
+		new ScriptMachine( program ).Build();
+		var before = GC.GetAllocatedBytesForCurrentThread();
+		var clock = Stopwatch.StartNew();
+		var build = new ScriptMachine( program ).Build();
+		clock.Stop();
+		var bytes = GC.GetAllocatedBytesForCurrentThread() - before;
+		_output.WriteLine( $"40,000 lists made: stopped in {clock.Elapsed.TotalMilliseconds:0.0} ms, {bytes:N0} bytes allocated: {build.Error}" );
+		Assert.Contains( "lists are too big", build.Error.Message );
+		Assert.True( clock.Elapsed.TotalMilliseconds < 20, $"took {clock.Elapsed.TotalMilliseconds} ms" );
+		Assert.True( bytes < 2_000_000, $"allocated {bytes} bytes" );
+	}
+
+	[Fact]
 	public void TheLargestScriptWithinTheCapsCompilesFast()
 	{
 		var source = MaximalScript();

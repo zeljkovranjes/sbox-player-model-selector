@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading.Tasks;
 using PlayerModels.Core;
 using Sandbox;
@@ -42,6 +43,7 @@ internal sealed class WeaponDresser
 
 	private IReadOnlyList<WeaponDesign> _designs = Array.Empty<WeaponDesign>();
 	private IReadOnlyList<DrawnShape> _shapes = Array.Empty<DrawnShape>();
+	private string _designsKey = "";
 	private bool _changed;
 
 	// What is dressed now: the weapon's object and main renderer, its design, the materials swapped on it (to put back)
@@ -113,11 +115,17 @@ internal sealed class WeaponDresser
 	internal void Apply( IReadOnlyList<WeaponDesign> designs, IReadOnlyList<DrawnShape> shapes )
 	{
 		designs ??= Array.Empty<WeaponDesign>();
-		if ( ReferenceEquals( designs, _designs ) && ReferenceEquals( shapes, _shapes ) )
+		shapes ??= Array.Empty<DrawnShape>();
+
+		// By what they say rather than which lists they are: an editor changes a look's designs in place. Asked only when
+		// a look changes (in the game) or a preview's does
+		var key = designs.Count == 0 ? "" : JsonSerializer.Serialize( designs ) + shapes.Count;
+		_designs = designs;
+		_shapes = shapes;
+		if ( key == _designsKey )
 			return;
 
-		_designs = designs;
-		_shapes = shapes ?? Array.Empty<DrawnShape>();
+		_designsKey = key;
 		_changed = true;
 	}
 

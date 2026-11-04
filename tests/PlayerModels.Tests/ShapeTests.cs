@@ -390,4 +390,11 @@ public class MachineTests
 		Assert.Equal( sticker.Content, built.Shape.Content );
 		Assert.Equal( code, Formatter.Format( code ) );
 	}
+
+	[Fact]
+	public void AnEffectShowingAStickerOfLayersRoundTripsAsCode()
+	{
+		var effect = ScriptKit.BuildEffect( "local badge = Shapes.New( \"Badge\" )\nbadge.Finish = StickerFinish.Gold\nlocal back = badge.AddLayer( Shapes.Hexagon )\nback.Color = Color.Black\nlocal word = badge.AddLayer( Shapes.Text( \"GG\" ) )\nword.Color = Color.Yellow\nlocal glow = Sprite()\nglow.LooksLike = badge" );
+		ScriptKit.SameEffect( effect, ScriptKit.BuildEffect( ScriptCodegen.Effect( effect ) ) );
+	}
 }

@@ -43,7 +43,7 @@ public static partial class ScriptCodegen
 				var name = Unique( names, Identifier( shape.Name, "shape" ) );
 				drawn[ reference ] = name;
 				Paragraph( text );
-				WriteShape( text, name, shape );
+				WriteShape( text, name, shape, names: names );
 			}
 		}
 
@@ -88,10 +88,17 @@ public static partial class ScriptCodegen
 		}
 	}
 
-	private static void WriteShape( StringBuilder text, string name, DrawnShape shape, bool isOwn = false )
+	private static void WriteShape( StringBuilder text, string name, DrawnShape shape, bool isOwn = false, HashSet<string> names = null )
 	{
 		if ( !isOwn )
 			text.Append( "local " ).Append( name ).Append( " = Shapes.New( " ).Append( ScriptLiteral.Text( shape.Name ?? "" ) ).Append( " )\n" );
+
+		// A sticker of layers is its layers (its own script stays with it, outside the code)
+		if ( shape.IsEmblem )
+		{
+			WriteEmblem( text, name, shape, names ?? new HashSet<string> { name } );
+			return;
+		}
 
 		foreach ( var stroke in shape.Decode() )
 		{

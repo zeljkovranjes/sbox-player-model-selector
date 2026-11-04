@@ -15,13 +15,19 @@ public static partial class ScriptCodegen
 	public static string Sticker( DrawnShape sticker )
 	{
 		var text = new StringBuilder();
+		WriteEmblem( text, "shape", sticker, new HashSet<string> { "shape" } );
+		return text.ToString();
+	}
+
+	// A sticker of layers drawn into the shape held in owner: its mirror and finish, its drawn shapes, then its layers
+	private static void WriteEmblem( StringBuilder text, string owner, DrawnShape sticker, HashSet<string> names )
+	{
 		if ( sticker?.Mirror == true )
-			text.Append( "shape.Mirror = true\n" );
+			text.Append( owner ).Append( ".Mirror = true\n" );
 
 		if ( sticker?.FinishIs is { } finish && finish != StickerFinish.Paper )
-			text.Append( "shape.Finish = StickerFinish." ).Append( finish ).Append( '\n' );
+			text.Append( owner ).Append( ".Finish = StickerFinish." ).Append( finish ).Append( '\n' );
 
-		var names = new HashSet<string> { "shape" };
 		var drawn = new Dictionary<string, string>();
 		foreach ( var part in sticker?.Parts ?? new List<DrawnShape>() )
 		{
@@ -31,7 +37,7 @@ public static partial class ScriptCodegen
 			var name = Unique( names, Identifier( part.Name, "drawn" ) );
 			drawn[ part.Reference ] = name;
 			Paragraph( text );
-			WriteShape( text, name, part );
+			WriteShape( text, name, part, names: names );
 		}
 
 		var plain = new EmblemLayer();
@@ -40,7 +46,7 @@ public static partial class ScriptCodegen
 			var shape = drawn.TryGetValue( layer.Shape, out var variable ) ? variable : "Shapes." + layer.Shape;
 			var name = Unique( names, Identifier( drawn.ContainsKey( layer.Shape ) ? variable + "Layer" : layer.Shape, "layer" ) );
 			Paragraph( text );
-			text.Append( "local " ).Append( name ).Append( " = shape.AddLayer( " ).Append( shape ).Append( " )\n" );
+			text.Append( "local " ).Append( name ).Append( " = " ).Append( owner ).Append( ".AddLayer( " ).Append( shape ).Append( " )\n" );
 			Field( text, name, "Position", Vector( layer.X, layer.Y, 0f ), Vector( plain.X, plain.Y, 0f ) );
 			Field( text, name, "Rotation", ScriptLiteral.Number( layer.Rotation ), ScriptLiteral.Number( plain.Rotation ) );
 			Field( text, name, "Scale", Vector( layer.ScaleX, layer.ScaleY, 1f ), Vector( plain.ScaleX, plain.ScaleY, 1f ) );
@@ -57,8 +63,6 @@ public static partial class ScriptCodegen
 			Field( text, name, "Eraser", layer.Eraser ? "true" : null, null );
 			Field( text, name, "Side", layer.Side != EmblemLayer.BothLooks ? layer.Side.ToString( System.Globalization.CultureInfo.InvariantCulture ) : null, null );
 		}
-
-		return text.ToString();
 	}
 
 	private static string Vector( float x, float y, float z ) =>

@@ -54,21 +54,21 @@
                     <CodePlayground Example=@open.Example Kind=@open.ExampleKind CopyInto=@CopyInto Wearer=@Wearer></CodePlayground>
                 }
             }
-            else if ( _page is { } page )
+            else if ( _page is { } intro )
             {
-                <TextLabel class="page-title" Text=@page.Title></TextLabel>
-                @if ( page.Clip is not null && FileSystem.Mounted.FileExists( ClipFolder + page.Clip + ".webp" ) )
+                <TextLabel class="page-title" Text=@intro.Title></TextLabel>
+                @if ( intro.Clip is not null && FileSystem.Mounted.FileExists( ClipFolder + intro.Clip + ".webp" ) )
                 {
-                    <div class="clip" style="background-image: url( @( ClipFolder + page.Clip + ".webp" ) )"></div>
+                    <div class="clip" style="background-image: url( @( ClipFolder + intro.Clip + ".webp" ) )"></div>
                 }
-                @foreach ( var paragraph in page.Text )
+                @foreach ( var paragraph in intro.Text )
                 {
                     <TextLabel class="doc" Text=@paragraph></TextLabel>
                 }
-                @if ( page.Example is not null )
+                @if ( intro.Example is not null )
                 {
                     <TextLabel class="subheading" Text="Try it"></TextLabel>
-                    <CodePlayground Example=@page.Example Kind=@( page.Kind ) CopyInto=@CopyInto Wearer=@Wearer></CodePlayground>
+                    <CodePlayground Example=@intro.Example Kind=@( intro.Kind ) CopyInto=@CopyInto Wearer=@Wearer></CodePlayground>
                 }
             }
         </div>

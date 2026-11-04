@@ -361,8 +361,8 @@ internal sealed class WeaponDresser
 			if ( !PropCatalog.IsStock( prop.Model ) )
 				continue;
 
-			// Loaded ahead (see WeaponPrewarm), it goes on in the frame the weapon is dressed
-			var model = WeaponPrewarm.PropModel( prop.Model ) ?? await ModelLoader.LoadAsync( prop.Model );
+			// Loaded ahead (see WeaponPrewarm), or a stock prop loaded now: it goes on in the frame the weapon is dressed
+			var model = WeaponPrewarm.PropModelNow( prop.Model ) ?? await ModelLoader.LoadAsync( prop.Model );
 			if ( request != _request || !renderer.IsValid() )
 				return;
 

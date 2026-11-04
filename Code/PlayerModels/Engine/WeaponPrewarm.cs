@@ -16,13 +16,33 @@ namespace PlayerModels.Engine;
 /// </summary>
 internal static class WeaponPrewarm
 {
-	/// <summary>The most prop models kept loaded for dressing: past it they are let go of and loaded again when needed.</summary>
+	/// <summary>The most prop models kept loaded for dressing: past it the one used longest ago is let go of.</summary>
 	internal const int MostProps = 256;
 
-	private static readonly Dictionary<string, Model> Props = new();
+	// Made afresh on a hot reload: what it keeps is made again as it is needed
+	[SkipHotload]
+	private static readonly RecentCache<string, Model> Props = new( MostProps );
 
 	/// <summary>The prop model at <paramref name="path"/> if it was loaded ahead; null when it has to be loaded now.</summary>
-	internal static Model PropModel( string path ) => path is not null && Props.TryGetValue( path, out var model ) && model.IsValid() ? model : null;
+	internal static Model PropModel( string path ) => path is not null && Props.TryGet( path, out var model ) && model.IsValid() ? model : null;
+
+	/// <summary>
+	/// The prop model at <paramref name="path"/>, loaded ahead or, for a stock prop (shipped with the game, so on disk),
+	/// loaded now: a weapon is dressed whole in the frame it appears. Null for one that has to be fetched.
+	/// </summary>
+	internal static Model PropModelNow( string path )
+	{
+		if ( PropModel( path ) is { } kept )
+			return kept;
+
+		if ( !PropCatalog.IsStock( path ) || Model.Load( path ) is not { IsValid: true, IsError: false } model )
+			return null;
+
+		Keep( path, model );
+		return model;
+	}
+
+	private static void Keep( string path, Model model ) => Props.Set( path, model );
 
 	/// <summary>
 	/// Readies every design of <paramref name="designs"/> (whose stickers and patterns name <paramref name="shapes"/>). A
@@ -59,16 +79,16 @@ internal static class WeaponPrewarm
 				if ( await ModelLoader.LoadAsync( prop.Model ) is not { } model )
 					continue;
 
-				if ( Props.Count >= MostProps )
-					Props.Clear();
-
-				Props[ prop.Model ] = model;
+				Keep( prop.Model, model );
 			}
 
 			// A design with stickers has them pressed into its skin, worked out where they lie on the weapon dressed: that
 			// skin is made when it is, its weapon's mesh (where each sticker lands) read now
 			if ( design.Stickers is { Count: > 0 } && await ModelLoader.LoadAsync( design.Weapon ) is { } stickered )
+			{
 				StickerSurface.Prepare( stickered );
+				await WarmShaderAsync( stickered, design, shapes );
+			}
 
 			if ( design.Skin is null || design.Stickers is { Count: > 0 } || await ModelLoader.LoadAsync( design.Weapon ) is not { } weapon )
 				continue;
@@ -78,6 +98,49 @@ internal static class WeaponPrewarm
 			var frame = WeaponSkins.Frame.Of( weapon.Bounds );
 			foreach ( var material in weapon.Materials )
 				WeaponSkins.For( material, design, key, frame, shapes, System.Array.Empty<WeaponSkins.Stuck>() );
+
+			await WarmShaderAsync( weapon, design, shapes );
 		}
+	}
+
+	// The graphics card readies a shader the first time it draws with it, which can cost that frame or leave what it draws
+	// out: the skin's is drawn once, in this session's first frames with a design, by a copy of the weapon too small to see
+	// right in front of the camera, so its first time is never a weapon's
+	private const float WarmScale = 0.0005f;
+	private const int WarmFrames = 3;
+	private const int FrameMilliseconds = 16;
+	private static bool _shaderWarmed;
+
+	private static async Task WarmShaderAsync( Model weapon, WeaponDesign design, List<DrawnShape> shapes )
+	{
+		var scene = Game.ActiveScene;
+		var camera = scene?.Camera;
+		if ( _shaderWarmed || !camera.IsValid() || weapon.Materials.Length == 0 )
+			return;
+
+		var made = WeaponSkins.For( weapon.Materials[ 0 ], design, WeaponSkins.KeyOf( design ), WeaponSkins.Frame.Of( weapon.Bounds ), shapes, System.Array.Empty<WeaponSkins.Stuck>() );
+		if ( made is null )
+			return;
+
+		_shaderWarmed = true;
+		GameObject warm;
+		using ( scene.Push() )
+		{
+			warm = new GameObject( false, "Weapon skin warm-up" );
+			warm.NetworkMode = NetworkMode.Never;
+			warm.Flags |= GameObjectFlags.NotSaved | GameObjectFlags.Hidden;
+			var renderer = warm.AddComponent<ModelRenderer>();
+			renderer.Model = weapon;
+			for ( var i = 0; i < weapon.Materials.Length; i++ )
+				renderer.Materials.SetOverride( i, made );
+
+			warm.WorldPosition = camera.WorldPosition + camera.WorldRotation.Forward * (camera.ZNear + 1f);
+			warm.WorldScale = WarmScale;
+			warm.Enabled = true;
+		}
+
+		await GameTask.Delay( WarmFrames * FrameMilliseconds );
+		if ( warm.IsValid() )
+			warm.Destroy();
 	}
 }

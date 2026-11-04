@@ -771,7 +771,7 @@
             return;
         }
 
-        Add( new EmblemLayer { Shape = choice, ScaleX = StartingScale, ScaleY = StartingScale, Color = NextColour() }, null );
+        AddLayer( new EmblemLayer { Shape = choice, ScaleX = StartingScale, ScaleY = StartingScale, Color = NextColour() }, null );
     }
 
     void AddText()
@@ -783,7 +783,7 @@
         if ( part is null )
             return;
 
-        Add( new EmblemLayer { Shape = part.Reference, ScaleX = TextScale, ScaleY = TextScale, Color = NextColour() }, part );
+        AddLayer( new EmblemLayer { Shape = part.Reference, ScaleX = TextScale, ScaleY = TextScale, Color = NextColour() }, part );
         _text = null;
     }
 
@@ -799,7 +799,7 @@
         if ( made is null )
         {
             var part = DrawnShape.From( shape.Decode(), shape.Name );
-            Add( new EmblemLayer { Shape = part?.Reference, ScaleX = StartingScale, ScaleY = StartingScale, Color = NextColour() }, part );
+            AddLayer( new EmblemLayer { Shape = part?.Reference, ScaleX = StartingScale, ScaleY = StartingScale, Color = NextColour() }, part );
             return;
         }
 
@@ -827,7 +827,7 @@
     }
 
     // A layer put above the one selected (on top when none is), selected alone; refused past the emblem's caps
-    void Add( EmblemLayer layer, DrawnShape part, int at = -1 )
+    void AddLayer( EmblemLayer layer, DrawnShape part, int at = -1 )
     {
         if ( IsFull )
         {
@@ -884,7 +884,7 @@
 
         layer.Shape = part.Reference;
         layer.Color = NextColour();
-        Add( layer, part );
+        AddLayer( layer, part );
     }
 
     // ----- Erasing -----
@@ -908,7 +908,7 @@
 
             layer.Shape = part.Reference;
             layer.Eraser = true;
-            Add( layer, part );
+            AddLayer( layer, part );
             return;
         }
 

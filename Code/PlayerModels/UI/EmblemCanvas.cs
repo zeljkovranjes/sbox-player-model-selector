@@ -120,10 +120,10 @@ public sealed class EmblemCanvas : Panel
 			return;
 
 		_overlay = overlay;
-		Draw();
+		DrawPicture();
 	}
 
-	private void Draw()
+	private void DrawPicture()
 	{
 		var size = EmblemRaster.Size;
 		if ( _shown.Length != size * size * 4 )

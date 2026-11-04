@@ -77,7 +77,7 @@ public sealed class ShapeCanvas : Panel
 		_shownStrokes = Strokes;
 		_shownSticker = Sticker;
 		_shownPoints = points;
-		Draw();
+		DrawPicture();
 	}
 
 	protected override void OnMouseDown( MousePanelEvent e )
@@ -168,7 +168,7 @@ public sealed class ShapeCanvas : Panel
 	}
 
 	// The strokes and the one being drawn, as the shape will look, into the canvas's own texture
-	private void Draw()
+	private void DrawPicture()
 	{
 		var strokes = new List<ShapeStroke>( Strokes ?? Array.Empty<ShapeStroke>() );
 		if ( _isDrawing && _drawing.Count >= 2 )

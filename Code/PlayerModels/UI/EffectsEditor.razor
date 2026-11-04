@@ -139,7 +139,7 @@
             @foreach ( var preset in EffectPresets.All )
             {
                 var shown = preset;
-                <div class="tile effect @( IsFull ? "disabled" : "" )" @onclick=@(() => Add( shown ))>
+                <div class="tile effect @( IsFull ? "disabled" : "" )" @onclick=@(() => PutOn( shown ))>
                     <EffectIcon class="thumb" Effect=@shown></EffectIcon>
                     <div class="title">@shown.Name</div>
                 </div>
@@ -180,7 +180,7 @@
                 @foreach ( var kept in Mine )
                 {
                     var shown = kept;
-                    <div class="tile effect @( IsFull ? "disabled" : "" )" Tooltip=@KeptTooltip( shown ) @onclick=@(() => Add( shown )) @onrightclick=@(() => KeptMenu( shown ))>
+                    <div class="tile effect @( IsFull ? "disabled" : "" )" Tooltip=@KeptTooltip( shown ) @onclick=@(() => PutOn( shown )) @onrightclick=@(() => KeptMenu( shown ))>
                         <EffectIcon class="thumb" Effect=@shown></EffectIcon>
                         <div class="title">@shown.Name</div>
                         <div class="more" Tooltip="More: open, rename, duplicate, delete, publish, copy code (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => KeptMenu( shown ) ))>more_vert</div>
@@ -665,7 +665,7 @@
     string _variationsOf;
 
     // A copy of the preset (or of one kept in My effects), selected for its sliders
-    void Add( Effect preset )
+    void PutOn( Effect preset )
     {
         if ( IsFull )
             return;
@@ -865,7 +865,7 @@
     {
         ContextMenu.OpenFrom( this, kept.Name, new List<ContextMenu.Entry>
         {
-            new( "Open", "add_circle", () => Add( kept ), "Click", !IsFull, $"A look wears up to {Effect.MaxWorn} effects" ),
+            new( "Open", "add_circle", () => PutOn( kept ), "Click", !IsFull, $"A look wears up to {Effect.MaxWorn} effects" ),
             new( "Rename", "drive_file_rename_outline", () => StartRename( kept, kept.Name ) ),
             new( "Duplicate", "content_copy", () => DuplicateKept( kept ), null, Mine.Count < LocalPrefs.MaxMyEffects, $"My effects is full ({LocalPrefs.MaxMyEffects})" ),
             new( "Delete", "delete", () => ForgetKept( kept ) ),
@@ -961,7 +961,7 @@
     // Puts it on, selected, and opens its share window
     void Publish( Effect kept )
     {
-        Add( kept );
+        PutOn( kept );
         _publishNext = Selected is not null;
     }
 

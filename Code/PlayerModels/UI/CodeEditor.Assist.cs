@@ -42,6 +42,10 @@ public partial class CodeEditor
 	private readonly List<KeyGlyph> _keyPictures = new();
 	private int _lastCaret = -1;
 
+	// An edit's completions and signature wait for its caret: a typed bracket or quote closes itself, the caret then put
+	// between the two
+	private bool _assistPending;
+
 	private string _findQuery = "";
 	private string _replaceText = "";
 	private string _goTo = "";
@@ -211,6 +215,12 @@ public partial class CodeEditor
 
 	private void TickCaret()
 	{
+		if ( _assistPending )
+		{
+			_assistPending = false;
+			Assist();
+		}
+
 		var caret = _entry.Caret;
 		if ( caret != _lastCaret )
 		{

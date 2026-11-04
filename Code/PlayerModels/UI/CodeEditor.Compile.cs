@@ -115,7 +115,7 @@ public partial class CodeEditor
 		_note = null;
 		Lines();
 		Restyle();
-		Assist();
+		_assistPending = true;
 		StateHasChanged();
 	}
 

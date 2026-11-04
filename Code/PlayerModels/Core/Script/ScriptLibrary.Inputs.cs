@@ -22,10 +22,14 @@ public static partial class ScriptLibrary
 		entries.Add( Input( "inAir", b, ScriptInput.InAir, inputs, "Whether the body is in the air.", "local flying = inAir --> false", run ) );
 		entries.Add( Input( "holdingWeapon", b, ScriptInput.HoldingWeapon, inputs, "Whether the body holds a weapon.", "local armed = holdingWeapon --> false", run ) );
 		entries.Add( Input( "anchorSpeed", N, ScriptInput.AnchorSpeed, inputs, "How fast the effect's own place moves (a swung weapon's tip, a running foot).", "local swing = anchorSpeed / 100 --> 0.8", run ) );
+		entries.Add( Input( "anchorPosition", v, ScriptInput.AnchorPositionX, inputs, "Where the effect's own place is in the world (its joint, item or weapon, moved by its Offset): to remember a path, or emit above it.",
+			"local glow = Sprite()\nlocal start = Vector3.Zero\nfunction OnSpawn()\n\tstart = anchorPosition\nend\nfunction OnJump()\n\tglow.EmitAt( anchorPosition + Vector3( 0, 0, 60 ), 10 )\nend", ScriptPlace.EffectRun ) );
 
 		entries.Add( Input( "i", N, ScriptInput.Index, sticker, "Which element this run colours, from 0: a particle, a shape point, an emblem layer.", "local second = i == 1 --> false", element ) );
 		entries.Add( Input( "count", N, ScriptInput.Count, sticker, "How many elements there are.", "local last = i == count - 1 --> false", element ) );
 		entries.Add( Input( "life", N, ScriptInput.Life, sticker, "How far through its life the element is, 0 to 1 (a particle's; 0 for a shape's points).", "local young = life < 0.5 --> true", element ) );
+		entries.Add( Input( "origin", v, ScriptInput.OriginX, sticker, "Where the element is on its shape, before its offset: a shape point's or emblem layer's x and y on the square (-1 to 1), a particle's place on its layer's shape.",
+			"local right = origin.X > 0 --> true\nlocal across = origin.X --> 0.5", element ) );
 		entries.Add( Reserved( "palette", ScriptType.ListOf( c ), PaletteSlot, sticker, "The sticker's palette (the game's five colours unless it has its own).", "local first = palette[ 0 ] --> #ff3333\nlocal n = palette.Count --> 5" ) );
 		entries.Add( Reserved( "highlight", c, HighlightSlot, sticker, "The Cyln scanner's highlight: the palette's first colour when it has two or more, else red.", "local eye = highlight --> #ff3333" ) );
 		entries.Add( Reserved( "rest", c, RestSlot, sticker, "The Cyln scanner's other colour: the palette's second when it has two or more, else white.", "local other = rest --> #ffffff" ) );
@@ -41,11 +45,14 @@ public static partial class ScriptLibrary
 		entries.Add( Member( "Particle.Count", N, PropertyAccess.Input, (int)ScriptInput.Count, particle, "How many sprites the layer has out.", setup + "local half = p.Count / 2\nend", particleRun ) );
 		entries.Add( Member( "Particle.Age", N, PropertyAccess.Input, (int)ScriptInput.Age, particle, "How long the sprite has been out, in seconds.", setup + "p.Size = 1 + p.Age\nend", particleRun ) );
 		entries.Add( Member( "Particle.Life", N, PropertyAccess.Input, (int)ScriptInput.Life, particle, "How far through its life it is, 0 to 1.", setup + "p.Alpha = 1 - p.Life\nend", particleRun ) );
+		entries.Add( Member( "Particle.Seed", N, PropertyAccess.Input, (int)ScriptInput.Seed, particle, "A number from 0 up to 1 picked when it appears, the same all its life: to make each one different (Math.Random( p.Seed + 1 ) for another).", setup + "p.Rotation = p.Seed * 360\nend", particleRun ) );
+		entries.Add( Member( "Particle.Origin", v, PropertyAccess.Input, (int)ScriptInput.OriginX, particle, "Where it appeared on its layer's shape, from the layer's place: forwards, to the body's left and up.", setup + "p.Offset = p.Origin * Math.Sin( t )\nend", particleRun ) );
 		entries.Add( Member( "Particle.Color", c, PropertyAccess.Output, (int)ScriptOutput.ColorR, particle, "Its colour now.", setup + "p.Color = Color.FromHsv( p.Index * 30, 1, 1 )\nend", particleRun, true, 0, 1 ) );
 		entries.Add( Member( "Particle.Alpha", N, PropertyAccess.Output, (int)ScriptOutput.Alpha, particle, "How solid it is now, 0 to 1.", setup + "p.Alpha = 0.5\nend", particleRun, true, 0, 1 ) );
 		entries.Add( Member( "Particle.Size", N, PropertyAccess.Output, (int)ScriptOutput.Size, particle, "How big it is now, times its own size.", setup + "p.Size = 2\nend", particleRun, true, 0, EffectLayer.MaxSize ) );
 		entries.Add( Member( "Particle.Rotation", N, PropertyAccess.Output, (int)ScriptOutput.Rotation, particle, "How far it is turned now, in degrees.", setup + "p.Rotation = t * 90\nend", particleRun, true, -MaxRotation, MaxRotation ) );
-		entries.Add( Member( "Particle.Offset", v, PropertyAccess.Output, (int)ScriptOutput.OffsetX, particle, "How far it is moved from where it would be.", setup + "p.Offset = Vector3( 0, 0, Math.Sin( t ) )\nend", particleRun, true, -EffectLayer.MaxOffset, EffectLayer.MaxOffset ) );
+		entries.Add( Member( "Particle.Offset", v, PropertyAccess.Output, (int)ScriptOutput.OffsetX, particle, "How far it is moved from where it would be: forwards, to the body's left and up (body-sized moves: up to 96 each way).", setup + "p.Offset = Vector3( 0, 0, Math.Sin( t ) )\nend", particleRun, true, -MaxParticleOffset, MaxParticleOffset ) );
+		entries.Add( Member( "Particle.Position", v, PropertyAccess.Output, (int)ScriptOutput.PositionX, particle, "Where it is in the world; set it to put it anywhere within 400 units of the effect's place each way (its Offset still moves it from there).", setup + "p.Position = anchorPosition + Vector3( 0, 0, 40 + p.Index * 4 )\nend", particleRun, true ) );
 
 		const string shotSetup = "local sparks = Sprite()\nfunction OnShoot( shot )\n\t";
 		entries.Add( Member( "Shot.Origin", v, PropertyAccess.Input, (int)ScriptInput.ShotOriginX, shot, "Where the shot left the weapon (its muzzle), in the world.", shotSetup + "sparks.EmitAt( shot.Origin, 4 )\nend", particleRun ) );
@@ -59,10 +66,16 @@ public static partial class ScriptLibrary
 	/// <summary>The furthest an element output can be turned, in degrees.</summary>
 	internal const double MaxRotation = 3600;
 
+	/// <summary>How far a particle function moves a sprite from where it would be, each way: across a body and more.</summary>
+	internal const double MaxParticleOffset = 96;
+
+	/// <summary>How far from the effect's place a particle function can put a sprite in the world, each way.</summary>
+	internal const double MaxPositionReach = 400;
+
 	private static LibraryEntry Input( string name, ScriptType type, ScriptInput slot, string category, string doc, string example, ScriptPlace where ) => new()
 	{
 		Name = name, Kind = EntryKind.Input, Type = type, Category = category, Doc = doc, Example = example, Where = where,
-		Access = PropertyAccess.Input, Slot = (int)slot,
+		Access = PropertyAccess.Input, Slot = (int)slot, ExampleKind = (where & ScriptPlace.StickerRun) != 0 ? ScriptKind.Sticker : ScriptKind.Effect,
 	};
 
 	private static LibraryEntry Reserved( string name, ScriptType type, int slot, string category, string doc, string example ) => new()

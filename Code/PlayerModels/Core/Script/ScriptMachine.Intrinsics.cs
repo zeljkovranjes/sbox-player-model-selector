@@ -172,6 +172,13 @@ public sealed partial class ScriptMachine
 		return item + 1;
 	}
 
+	// A world position written for a particle, held within reach of the effect's place along each axis
+	private double NearAnchor( double value, int axis )
+	{
+		var anchor = ScriptMath.Safe( _io.Inputs[ (int)ScriptInput.AnchorPositionX + axis ] );
+		return Math.Clamp( ScriptMath.Safe( value ), anchor - ScriptLibrary.MaxPositionReach, anchor + ScriptLibrary.MaxPositionReach );
+	}
+
 	private static double Lerp( double a, double b, double t ) => ScriptMath.Safe( a + (b - a) * Math.Clamp( t, 0, 1 ) );
 
 	private static double Length( double x, double y, double z ) => ScriptMath.Safe( Math.Sqrt( x * x + y * y + z * z ) );

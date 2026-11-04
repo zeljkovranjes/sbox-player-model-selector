@@ -7,17 +7,21 @@ namespace PlayerModels.Core.Script;
 public enum ScriptInput
 {
 	Time, Seconds, Speed, VelocityX, VelocityY, VelocityZ, Grounded, Crouching, Moving, InAir, HoldingWeapon, AnchorSpeed,
-	Index, Count, Age, Life,
+	AnchorPositionX, AnchorPositionY, AnchorPositionZ,
+	Index, Count, Age, Life, Seed, OriginX, OriginY, OriginZ,
 	Dt, Amount, Foot, Key,
 	ShotOriginX, ShotOriginY, ShotOriginZ, ShotDirectionX, ShotDirectionY, ShotDirectionZ, ShotHit,
 	ShotHitPositionX, ShotHitPositionY, ShotHitPositionZ, ShotHitNormalX, ShotHitNormalY, ShotHitNormalZ, ShotDistance,
 	Total,
 }
 
-/// <summary>The value slots an element run writes: its colour (r, g, b, a), alpha, size, rotation and offset (x, y, z).</summary>
+/// <summary>
+/// The value slots an element run writes: its colour (r, g, b, a), alpha, size, rotation, offset (x, y, z) and, for a
+/// particle, its place in the world (x, y, z).
+/// </summary>
 public enum ScriptOutput
 {
-	ColorR, ColorG, ColorB, ColorA, Alpha, Size, Rotation, OffsetX, OffsetY, OffsetZ,
+	ColorR, ColorG, ColorB, ColorA, Alpha, Size, Rotation, OffsetX, OffsetY, OffsetZ, PositionX, PositionY, PositionZ,
 	Total,
 }
 
@@ -32,13 +36,14 @@ public enum ScriptEvent
 /// <summary>
 /// What the host and a script exchange for one run, filled by the host and read back after: <see cref="Inputs"/> (see
 /// <see cref="ScriptInput"/>), and <see cref="Outputs"/> (see <see cref="ScriptOutput"/>) with a bit in
-/// <see cref="OutputsSet"/> for each output the script wrote (bit 0 colour, 1 alpha, 2 size, 3 rotation, 4 offset).
+/// <see cref="OutputsSet"/> for each output the script wrote (bit 0 colour, 1 alpha, 2 size, 3 rotation, 4 offset,
+/// 5 position).
 /// Outputs start as the host's own values, so a script can read and change them. One is reused for every run.
 /// </summary>
 public sealed class ScriptIO
 {
 	/// <summary>The bits of <see cref="OutputsSet"/>.</summary>
-	public const int ColorSet = 1, AlphaSet = 2, SizeSet = 4, RotationSet = 8, OffsetSet = 16;
+	public const int ColorSet = 1, AlphaSet = 2, SizeSet = 4, RotationSet = 8, OffsetSet = 16, PositionSet = 32;
 
 	public readonly double[] Inputs = new double[ (int)ScriptInput.Total ];
 	public readonly double[] Outputs = new double[ (int)ScriptOutput.Total ];
@@ -65,7 +70,8 @@ public sealed class ScriptIO
 		(int)ScriptOutput.Alpha => AlphaSet,
 		(int)ScriptOutput.Size => SizeSet,
 		(int)ScriptOutput.Rotation => RotationSet,
-		_ => OffsetSet,
+		<= (int)ScriptOutput.OffsetZ => OffsetSet,
+		_ => PositionSet,
 	};
 }
 

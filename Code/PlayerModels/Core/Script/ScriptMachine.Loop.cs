@@ -381,7 +381,8 @@ public sealed partial class ScriptMachine
 						for ( var i = 0; i < width; i++ )
 						{
 							var value = s[ sp + i ];
-							_io.Outputs[ slot + i ] = range >= 0 ? Math.Clamp( value, constants[ range ], constants[ range + 1 ] ) : value;
+							_io.Outputs[ slot + i ] = range >= 0 ? Math.Clamp( value, constants[ range ], constants[ range + 1 ] )
+								: slot == (int)ScriptOutput.PositionX ? NearAnchor( value, i ) : value;
 						}
 
 						_io.OutputsSet |= ScriptIO.BitOf( slot );

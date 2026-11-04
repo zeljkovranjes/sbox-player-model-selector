@@ -232,6 +232,28 @@ public class LanguageTests
 	}
 
 	[Fact]
+	public void AParticleIsPlacedWithinReachOfTheEffect()
+	{
+		var (machine, _) = ScriptKit.Build( "local glow = Sprite()\nfunction glow.Particle( p )\n\tp.Position = p.Position + Vector3( 1e9, -1e9, p.Seed )\n\tp.Offset = p.Origin * 1000\nend" );
+		var io = ExampleRunner.Inputs();
+		io.Outputs[ (int)ScriptOutput.PositionX ] = 90;
+		io.Outputs[ (int)ScriptOutput.PositionY ] = 210;
+		io.Outputs[ (int)ScriptOutput.PositionZ ] = 50;
+		Assert.True( machine.RunParticle( 0, io ) );
+		Assert.Equal( new[] { 100 + ScriptLibrary.MaxPositionReach, 200 - ScriptLibrary.MaxPositionReach, 50.375 }, io.Outputs[ (int)ScriptOutput.PositionX..(int)ScriptOutput.Total ] );
+		Assert.Equal( new[] { ScriptLibrary.MaxParticleOffset, -ScriptLibrary.MaxParticleOffset, 0 }, io.Outputs[ (int)ScriptOutput.OffsetX..(int)ScriptOutput.PositionX ] );
+		Assert.Equal( ScriptIO.PositionSet | ScriptIO.OffsetSet, io.OutputsSet );
+	}
+
+	[Fact]
+	public void AStickerElementKnowsWhereItIsOnItsShape()
+	{
+		var io = ExampleRunner.Inputs();
+		Assert.True( new ScriptMachine( ScriptKit.Compile( "offset = Vector3( -origin.X, origin.Y * 2, 0 )", ScriptKind.Sticker ) ).RunElement( io ) );
+		Assert.Equal( new[] { -0.5, -0.5, 0 }, io.Outputs[ (int)ScriptOutput.OffsetX..(int)ScriptOutput.PositionX ] );
+	}
+
+	[Fact]
 	public void UnsafeInputsReadSafe()
 	{
 		var io = ExampleRunner.Inputs();

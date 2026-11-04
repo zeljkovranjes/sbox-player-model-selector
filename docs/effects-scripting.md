@@ -10,8 +10,9 @@ visual editor and the code editor edit the same script.
 
 Every example on this page is run by the tests: it compiles with no errors, runs
 within its budget, and each `local name = ... --> value` holds that value once it
-has run. Examples run 1.5 seconds in (`time` is 1500), for element 2 of 5, a
-quarter through its life, with the body running sideways on the ground. An
+has run. Examples run 1.5 seconds in (`time` is 1500), for element 2 of 5 (at
+0.5, -0.25 on its shape), a quarter through its life, with the body running
+sideways on the ground and the effect's place at (100, 200, 50) in the world. An
 effect needs at least one layer, so an example that makes none is run with one
 added.
 
@@ -2181,6 +2182,32 @@ function glow.Particle( p )
 end
 ```
 
+#### `Particle.Seed: number  (read only)`
+
+A number from 0 up to 1 picked when it appears, the same all its life: to make each one different (Math.Random( p.Seed + 1 ) for another).
+
+Set: read only.
+
+```lua effect
+local glow = Sprite()
+function glow.Particle( p )
+	p.Rotation = p.Seed * 360
+end
+```
+
+#### `Particle.Origin: Vector3  (read only)`
+
+Where it appeared on its layer's shape, from the layer's place: forwards, to the body's left and up.
+
+Set: read only.
+
+```lua effect
+local glow = Sprite()
+function glow.Particle( p )
+	p.Offset = p.Origin * Math.Sin( t )
+end
+```
+
 #### `Particle.Color: Color  (0 to 1)`
 
 Its colour now.
@@ -2233,9 +2260,9 @@ function glow.Particle( p )
 end
 ```
 
-#### `Particle.Offset: Vector3  (-24 to 24)`
+#### `Particle.Offset: Vector3  (-96 to 96)`
 
-How far it is moved from where it would be.
+How far it is moved from where it would be: forwards, to the body's left and up (body-sized moves: up to 96 each way).
 
 Set: while it runs (in its functions).
 
@@ -2243,6 +2270,19 @@ Set: while it runs (in its functions).
 local glow = Sprite()
 function glow.Particle( p )
 	p.Offset = Vector3( 0, 0, Math.Sin( t ) )
+end
+```
+
+#### `Particle.Position: Vector3`
+
+Where it is in the world; set it to put it anywhere within 400 units of the effect's place each way (its Offset still moves it from there).
+
+Set: while it runs (in its functions).
+
+```lua effect
+local glow = Sprite()
+function glow.Particle( p )
+	p.Position = anchorPosition + Vector3( 0, 0, 40 + p.Index * 4 )
 end
 ```
 
@@ -2797,6 +2837,21 @@ How fast the effect's own place moves (a swung weapon's tip, a running foot).
 local swing = anchorSpeed / 100 --> 0.8
 ```
 
+#### `anchorPosition: Vector3`
+
+Where the effect's own place is in the world (its joint, item or weapon, moved by its Offset): to remember a path, or emit above it.
+
+```lua effect
+local glow = Sprite()
+local start = Vector3.Zero
+function OnSpawn()
+	start = anchorPosition
+end
+function OnJump()
+	glow.EmitAt( anchorPosition + Vector3( 0, 0, 60 ), 10 )
+end
+```
+
 ### Sticker
 
 #### `i: number`
@@ -2821,6 +2876,15 @@ How far through its life the element is, 0 to 1 (a particle's; 0 for a shape's p
 
 ```lua sticker
 local young = life < 0.5 --> true
+```
+
+#### `origin: Vector3`
+
+Where the element is on its shape, before its offset: a shape point's or emblem layer's x and y on the square (-1 to 1), a particle's place on its layer's shape.
+
+```lua sticker
+local right = origin.X > 0 --> true
+local across = origin.X --> 0.5
 ```
 
 #### `palette: {Color}`

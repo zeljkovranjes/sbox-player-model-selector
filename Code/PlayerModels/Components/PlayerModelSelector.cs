@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using PlayerModels.Core;
+using PlayerModels.Core.Script;
 using PlayerModels.Engine;
 using Sandbox;
 
@@ -114,7 +115,7 @@ public sealed partial class PlayerModelSelector : Component
 	// The look each player is shown with, kept with the text (and the look read from it), host rules and effects budget
 	// it was made from: every scan asks for every player's, and reading the text each time made garbage for each player
 	// ten times a second
-	private Dictionary<Guid, (string Text, PlayerLook Read, int Rules, EffectBudget Effects, PlayerLook Look)> _shownLooks;
+	private Dictionary<Guid, (string Text, PlayerLook Read, int Rules, EffectBudget Effects, PlayerLook Look, bool Pending)> _shownLooks;
 
 	// Who hosts, last seen: when that changes the host left and another took over (see TrackHost)
 	private Guid? _knownHost;
@@ -148,11 +149,17 @@ public sealed partial class PlayerModelSelector : Component
 		_shownLooks ??= new();
 		var isKnown = _shownLooks.TryGetValue( id, out var known ) && known.Text == text;
 		var read = isKnown ? known.Read : PlayerLook.Parse( text );
-		if ( isKnown && known.Rules == rules && known.Effects == effects )
+		if ( isKnown && known.Rules == rules && known.Effects == effects && !known.Pending )
 			return known.Look;
 
-		var look = Shown( read, isHost, effects, connection ?? Connection.Local );
-		_shownLooks[ id ] = (text, read, rules, effects, look);
+		var look = Shown( read, isHost, effects, connection ?? Connection.Local, out var pending );
+
+		// A look whose scripts wait their turn to compile is shown as its effects were saved until then: the same object
+		// while nothing changed, so the body isn't dressed again for nothing
+		if ( isKnown && pending && known.Pending && known.Rules == rules && known.Effects == effects )
+			look = known.Look;
+
+		_shownLooks[ id ] = (text, read, rules, effects, look, pending);
 		return look;
 	}
 
@@ -172,14 +179,19 @@ public sealed partial class PlayerModelSelector : Component
 	/// </summary>
 	public PlayerLook Shown( PlayerLook look, bool isHost )
 	{
-		return Shown( look, isHost, EffectsBudget, Connection.Local );
+		return Shown( look, isHost, EffectsBudget, Connection.Local, out _ );
 	}
 
-	// The same, with the effects within the budget given, worn by connection (whose effects the host may have muted)
-	private PlayerLook Shown( PlayerLook look, bool isHost, EffectBudget effects, Connection connection )
+	// The same, with the effects within the budget given, worn by connection (whose effects the host may have muted), and
+	// their scripts built as this machine runs them; pending says some wait their turn to compile
+	private PlayerLook Shown( PlayerLook look, bool isHost, EffectBudget effects, Connection connection, out bool pending )
 	{
+		pending = false;
 		if ( look is null )
 			return null;
+
+		var isLocal = connection is null || connection == Connection.Local;
+		look = ScriptPrograms.Built( look, KeyOf( connection ), isHost ? ScriptLimits.MaxScriptBytes : BlockScripts ? 0 : ScriptBytes, !isLocal, out pending );
 
 		var shown = look;
 		if ( !isHost )

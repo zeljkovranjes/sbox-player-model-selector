@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using PlayerModels.Core;
+using PlayerModels.Core.Script;
 using PlayerModels.Engine;
 using Sandbox;
 
@@ -44,6 +45,18 @@ public sealed partial class PlayerModelSelector
 	/// page.
 	/// </summary>
 	[Sync( SyncFlags.FromHost )] public bool BlockDrawnShapes { get; set; }
+
+	/// <summary>
+	/// Whether the scripts of effects players other than the host wear are kept from running: each shows what its script
+	/// built when it was saved. The host sets it on the Server page.
+	/// </summary>
+	[Sync( SyncFlags.FromHost )] public bool BlockScripts { get; set; }
+
+	/// <summary>
+	/// The longest script (minified, in UTF-8 bytes) that runs for players other than the host: at most
+	/// <see cref="ScriptLimits.MaxScriptBytes"/>. The host sets it on the Server page.
+	/// </summary>
+	[Sync( SyncFlags.FromHost )] public int ScriptBytes { get; set; } = ScriptLimits.MaxScriptBytes;
 
 	/// <summary>Players (by Steam id) whose effects nobody sees on this server. The host mutes them on the Server page.</summary>
 	[Sync( SyncFlags.FromHost )] public NetList<long> MutedEffects { get; set; } = new();
@@ -123,6 +136,18 @@ public sealed partial class PlayerModelSelector
 	public void SetAllowDrawnShapes( bool allow )
 	{
 		ChangeRules( rules => rules.AllowDrawnShapes = allow );
+	}
+
+	/// <summary>Lets the scripts of effects players other than the host wear run, or keeps them from running. Host only.</summary>
+	public void SetAllowScripts( bool allow )
+	{
+		ChangeRules( rules => rules.AllowScripts = allow );
+	}
+
+	/// <summary>Sets the longest script that runs, in bytes, within <see cref="ScriptLimits.MaxScriptBytes"/>. Host only.</summary>
+	public void SetMaxScriptBytes( int bytes )
+	{
+		ChangeRules( rules => rules.MaxScriptBytes = Math.Clamp( bytes, 0, ScriptLimits.MaxScriptBytes ) );
 	}
 
 	/// <summary>Whether the host muted <paramref name="connection"/>'s effects: nobody sees them.</summary>
@@ -355,7 +380,8 @@ public sealed partial class PlayerModelSelector
 	// they are muted, and which shares are blocked. Read for every player every scan: no allocations
 	private int EffectsRulesFor( Connection connection )
 	{
-		var rules = (BlockWorkshopEffects ? 1 : 0) | (BlockEffectLights ? 2 : 0) | (BlockDrawnShapes ? 4 : 0) | (IsEffectsMuted( connection ) ? 8 : 0);
+		var rules = (BlockWorkshopEffects ? 1 : 0) | (BlockEffectLights ? 2 : 0) | (BlockDrawnShapes ? 4 : 0) | (IsEffectsMuted( connection ) ? 8 : 0)
+			| (BlockScripts ? 16 : 0) | ScriptBytes << 5;
 		var blocked = 0;
 		for ( var i = 0; i < (BlockedShares?.Count ?? 0); i++ )
 			blocked = HashCode.Combine( blocked, BlockedShares[ i ] );
@@ -396,6 +422,8 @@ public sealed partial class PlayerModelSelector
 		rules.AllowWorkshopEffects = !BlockWorkshopEffects;
 		rules.AllowEffectLights = !BlockEffectLights;
 		rules.AllowDrawnShapes = !BlockDrawnShapes;
+		rules.AllowScripts = !BlockScripts;
+		rules.MaxScriptBytes = ScriptBytes;
 		rules.MutedEffects = new List<long>( MutedEffects ?? new NetList<long>() );
 
 		var names = LocalPrefs.ServerRules.BlockedShares ?? new();
@@ -416,6 +444,8 @@ public sealed partial class PlayerModelSelector
 		BlockWorkshopEffects = !rules.AllowWorkshopEffects;
 		BlockEffectLights = !rules.AllowEffectLights;
 		BlockDrawnShapes = !rules.AllowDrawnShapes;
+		BlockScripts = !rules.AllowScripts;
+		ScriptBytes = Math.Clamp( rules.MaxScriptBytes, 0, ScriptLimits.MaxScriptBytes );
 
 		MutedEffects ??= new();
 		MutedEffects.Clear();

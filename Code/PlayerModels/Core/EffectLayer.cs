@@ -296,6 +296,13 @@ public sealed class EffectLayer
 	[JsonPropertyName( "ps" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public List<string> Pictures { get; set; }
 
+	/// <summary>
+	/// Which layer of its effect's script it is, as built on this client (see <see cref="Effect.Script"/>), for the
+	/// script's functions to drive it while it runs; -1 for one no script drives. Never saved: worked out again each time.
+	/// </summary>
+	[JsonIgnore]
+	public int ScriptLayer { get; set; } = -1;
+
 	/// <summary>The ids of the drawn shapes it names: as its formation, its picture or one of its pictures.</summary>
 	public IEnumerable<string> DrawnShapeIds()
 	{
@@ -464,6 +471,7 @@ public sealed class EffectLayer
 			},
 			Align = Align == nameof( LayerAlign.Camera ) ? null : Align,
 			Pictures = pictures,
+			ScriptLayer = ScriptLayer,
 		};
 	}
 

@@ -141,7 +141,10 @@ public sealed class EffectLayer
 	[JsonPropertyName( "jt" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public string ToJoint { get; set; }
 
-	/// <summary>The <see cref="StandardShape"/> sprites come from, by name, for a layer from a shape.</summary>
+	/// <summary>
+	/// The <see cref="StandardShape"/> sprites come from, by name, for a layer from a shape; or a drawn shape the look
+	/// carries (see <see cref="DrawnShape.Reference"/>).
+	/// </summary>
 	[JsonPropertyName( "fm" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public string Formation { get; set; }
 
@@ -149,7 +152,10 @@ public sealed class EffectLayer
 	[JsonPropertyName( "fi" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public bool Fill { get; set; }
 
-	/// <summary>Its sprites' <see cref="LayerPicture"/> or <see cref="StandardShape"/> by name; null for a glow.</summary>
+	/// <summary>
+	/// Its sprites' <see cref="LayerPicture"/> or <see cref="StandardShape"/> by name, or a drawn shape the look carries
+	/// (see <see cref="DrawnShape.Reference"/>); null for a glow.
+	/// </summary>
 	[JsonPropertyName( "p" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public string Picture { get; set; }
 
@@ -262,9 +268,17 @@ public sealed class EffectLayer
 	[JsonIgnore]
 	public LayerFacing FacingIs => Parsed( Facing, LayerFacing.Forward );
 
-	/// <summary>The standard shape its sprites come from, for a layer from a shape.</summary>
+	/// <summary>The standard shape its sprites come from, for a layer from a shape (a circle for a drawn one).</summary>
 	[JsonIgnore]
 	public StandardShape FormationIs => Parsed( Formation, StandardShape.Circle );
+
+	/// <summary>The id of the drawn shape its sprites come from, or look like; null for none.</summary>
+	[JsonIgnore]
+	public string DrawnFormation => DrawnShape.IsReference( Formation ) ? Formation[ 1.. ] : null;
+
+	/// <inheritdoc cref="DrawnFormation"/>
+	[JsonIgnore]
+	public string DrawnPicture => DrawnShape.IsReference( Picture ) ? Picture[ 1.. ] : null;
 
 	/// <summary>When it shows.</summary>
 	[JsonIgnore]
@@ -295,15 +309,23 @@ public sealed class EffectLayer
 	/// <summary>
 	/// A copy within bounds, or null for a layer of a kind (or from a joint, shape, picture, rhythm, colour mode, facing or
 	/// moment) this version doesn't know: numbers finite and limited, colours valid hex colours (a palette keeps only those,
-	/// at most <see cref="MaxPalette"/>), and what is at its default left out.
+	/// at most <see cref="MaxPalette"/>), and what is at its default left out. A drawn shape it names is named as
+	/// <paramref name="drawn"/> says the look carries it; one the look doesn't carry (or with no <paramref name="drawn"/>)
+	/// is a shape it doesn't know.
 	/// </summary>
-	public EffectLayer Sanitized()
+	public EffectLayer Sanitized( Func<string, string> drawn = null )
 	{
+		var formation = DrawnShape.IsReference( Formation ) ? drawn?.Invoke( Formation ) : Formation;
+		var picture = DrawnShape.IsReference( Picture ) ? drawn?.Invoke( Picture ) : Picture;
+		if ( formation is null && Formation is not null || picture is null && Picture is not null )
+			return null;
+
 		if ( !Known<LayerKind>( Kind ) || Joint is not null && !Known<Effect.Joint>( Joint ) || Shape is not null && !Known<LayerShape>( Shape )
-			|| Picture is not null && !Known<LayerPicture>( Picture ) && !Known<StandardShape>( Picture )
+			|| picture is not null && !Known<LayerPicture>( picture ) && !Known<StandardShape>( picture ) && !DrawnShape.IsReference( picture )
 			|| Rhythm is not null && !Known<LayerRhythm>( Rhythm ) || ColorMode is not null && !Known<LayerColorMode>( ColorMode )
 			|| Facing is not null && !Known<LayerFacing>( Facing ) || ToJoint is not null && !Known<Effect.Joint>( ToJoint )
-			|| Formation is not null && !Known<StandardShape>( Formation ) || When is not null && !Known<LayerWhen>( When ) )
+			|| formation is not null && !Known<StandardShape>( formation ) && !DrawnShape.IsReference( formation )
+			|| When is not null && !Known<LayerWhen>( When ) )
 			return null;
 
 		var palette = new List<string>();
@@ -333,9 +355,9 @@ public sealed class EffectLayer
 			Facing = Facing == nameof( LayerFacing.Forward ) ? null : Facing,
 			Angle = Limited( Angle, 0f, MaxAngle, 0f ),
 			ToJoint = ToJoint,
-			Formation = Formation,
+			Formation = formation,
 			Fill = Fill,
-			Picture = Picture == nameof( LayerPicture.Glow ) ? null : Picture,
+			Picture = picture == nameof( LayerPicture.Glow ) ? null : picture,
 			Color = colour,
 			ColorEnd = colourEnd == colour ? null : colourEnd,
 			ColorMode = ColorMode == nameof( LayerColorMode.Fixed ) ? null : ColorMode,

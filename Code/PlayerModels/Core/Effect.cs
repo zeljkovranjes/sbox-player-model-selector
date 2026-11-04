@@ -95,6 +95,18 @@ public sealed class Effect
 	[JsonPropertyName( "w" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public float Speed { get; set; }
 
+	/// <summary>
+	/// The drawn shapes its layers name (see <see cref="DrawnShape"/>), carried with it while it is on its own: kept in My
+	/// effects, shared or copied as a code. In a look the look carries them instead, each once (see
+	/// <see cref="PlayerLook.DrawnShapes"/>), and this is null.
+	/// </summary>
+	[JsonPropertyName( "sh" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public List<DrawnShape> Shapes { get; set; }
+
+	/// <summary>The Workshop share it was used or forked from (see <see cref="ShareOrigin"/>); null for one made here.</summary>
+	[JsonPropertyName( "ff" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public ShareOrigin ForkedFrom { get; set; }
+
 	/// <summary>What <see cref="Size"/> multiplies sizes by.</summary>
 	[JsonIgnore]
 	public float SizeFactor => MathF.Pow( SizeRange, Size );
@@ -150,11 +162,23 @@ public sealed class Effect
 	}
 
 	/// <summary>
-	/// A copy within bounds, with at most <paramref name="layers"/> layers, or null without any it can show: name and id
-	/// capped (an id that isn't one becomes empty, for <see cref="Sanitized(IEnumerable{Effect})"/> to give it one),
-	/// sliders limited, its key one of <see cref="Keys"/> or none, and only the layers this version knows.
+	/// A copy on its own within bounds, with at most <paramref name="layers"/> layers, or null without any it can show:
+	/// name and id capped (an id that isn't one becomes empty, for <see cref="Sanitized(IEnumerable{Effect}, ShapePool)"/>
+	/// to give it one), sliders limited, its key one of <see cref="Keys"/> or none, only the layers this version knows, and
+	/// the drawn shapes it carries read within bounds, those its layers name kept.
 	/// </summary>
 	public Effect Sanitized( int layers = MaxLayers )
+	{
+		var own = ShapePool.Of( Shapes );
+		var copy = Sanitized( layers, own );
+		if ( copy is not null && own.Used.Count > 0 )
+			copy.Shapes = new List<DrawnShape>( own.Used );
+
+		return copy;
+	}
+
+	// The same, its layers naming the drawn shapes of pool (a look's, which carries them itself, or its own)
+	internal Effect Sanitized( int layers, ShapePool pool )
 	{
 		var kept = new List<EffectLayer>();
 		foreach ( var layer in Layers ?? new() )
@@ -162,7 +186,7 @@ public sealed class Effect
 			if ( kept.Count >= Math.Min( layers, MaxLayers ) )
 				break;
 
-			if ( layer?.Sanitized() is { } sanitized )
+			if ( layer?.Sanitized( pool.Resolve ) is { } sanitized )
 				kept.Add( sanitized );
 		}
 
@@ -183,14 +207,16 @@ public sealed class Effect
 			Size = Slider( Size ),
 			Amount = Slider( Amount ),
 			Speed = Slider( Speed ),
+			ForkedFrom = ForkedFrom?.Sanitized(),
 		};
 	}
 
 	/// <summary>
 	/// <paramref name="effects"/> within bounds: at most <see cref="MaxWorn"/> of them with <see cref="MaxLookLayers"/>
-	/// layers between them, in order, each with an id of its own.
+	/// layers between them, in order, each with an id of its own, their layers naming the drawn shapes of
+	/// <paramref name="pool"/> (the look's, which carries them).
 	/// </summary>
-	public static List<Effect> Sanitized( IEnumerable<Effect> effects )
+	internal static List<Effect> Sanitized( IEnumerable<Effect> effects, ShapePool pool )
 	{
 		var kept = new List<Effect>();
 		var layers = MaxLookLayers;
@@ -199,7 +225,7 @@ public sealed class Effect
 			if ( kept.Count >= MaxWorn || layers <= 0 )
 				break;
 
-			if ( effect?.Sanitized( layers ) is not { } sanitized )
+			if ( effect?.Sanitized( layers, pool ) is not { } sanitized )
 				continue;
 
 			if ( sanitized.Id == "" || kept.Exists( x => x.Id == sanitized.Id ) )

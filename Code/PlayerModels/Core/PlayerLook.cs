@@ -78,6 +78,21 @@ public sealed class PlayerLook
 		set => Effects = value ?? new();
 	}
 
+	/// <summary>
+	/// The drawn shapes its effects' layers name (see <see cref="DrawnShape"/>), each once however many layers name it, at
+	/// most <see cref="DrawnShape.MaxPerLook"/>.
+	/// </summary>
+	[JsonIgnore]
+	public List<DrawnShape> DrawnShapes { get; set; } = new();
+
+	// Drawn shapes as they are saved: left out with none, so a look without any reads exactly as it did before them
+	[JsonPropertyName( nameof( DrawnShapes ) ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public List<DrawnShape> SavedDrawnShapes
+	{
+		get => DrawnShapes is { Count: > 0 } ? DrawnShapes : null;
+		set => DrawnShapes = value ?? new();
+	}
+
 	/// <summary>Whether this is the default citizen.</summary>
 	[JsonIgnore]
 	public bool IsDefault => string.IsNullOrEmpty( Model );
@@ -125,6 +140,13 @@ public sealed class PlayerLook
 	public PlayerLook Sanitized()
 	{
 		var model = Model?.Trim() ?? "";
+
+		// The look's shapes, and any its effects carried on their own: in the look they are the look's, each once
+		var shapes = ShapePool.Of( DrawnShapes );
+		foreach ( var effect in Effects ?? new() )
+			shapes.Add( effect?.Shapes );
+
+		var effects = Effect.Sanitized( Effects, shapes );
 		return new PlayerLook
 		{
 			Model = model.Length <= MaxModelLength ? model : "",
@@ -158,7 +180,8 @@ public sealed class PlayerLook
 			Bones = (Bones ?? new())
 				.Where( x => x.Key is not null && Enum.IsDefined( typeof( BoneRole ), x.Key ) && x.Value is not null && x.Value.Length <= MaxNameLength )
 				.ToDictionary( x => x.Key, x => x.Value.Trim() ),
-			Effects = Effect.Sanitized( Effects )
+			Effects = effects,
+			DrawnShapes = new List<DrawnShape>( shapes.Used ),
 		};
 	}
 
@@ -208,7 +231,8 @@ public sealed class PlayerLook
 			&& SameEntries( mine.PartFinishes, theirs.PartFinishes )
 			&& mine.Accessories.Count == theirs.Accessories.Count
 			&& mine.Accessories.Zip( theirs.Accessories ).All( x => x.First.SameAs( x.Second ) )
-			&& JsonSerializer.Serialize( mine.Effects ) == JsonSerializer.Serialize( theirs.Effects );
+			&& JsonSerializer.Serialize( mine.Effects ) == JsonSerializer.Serialize( theirs.Effects )
+			&& JsonSerializer.Serialize( mine.DrawnShapes ) == JsonSerializer.Serialize( theirs.DrawnShapes );
 	}
 
 	/// <summary>
@@ -229,6 +253,7 @@ public sealed class PlayerLook
 		PartFinishes = look.PartFinishes;
 		Accessories = look.Accessories;
 		Effects = look.Effects;
+		DrawnShapes = look.DrawnShapes;
 	}
 
 	/// <summary>The look without its items: what shows while the host keeps players' items off.</summary>
@@ -252,6 +277,7 @@ public sealed class PlayerLook
 	{
 		var copy = Sanitized();
 		copy.Effects.Clear();
+		copy.DrawnShapes.Clear();
 		return copy;
 	}
 
@@ -261,7 +287,54 @@ public sealed class PlayerLook
 	/// </summary>
 	public PlayerLook EffectsAlone()
 	{
-		return new PlayerLook { Effects = Sanitized().Effects };
+		var copy = Sanitized();
+		return new PlayerLook { Effects = copy.Effects, DrawnShapes = copy.DrawnShapes };
+	}
+
+	/// <summary>The drawn shape the look carries with id <paramref name="id"/>; null for none.</summary>
+	public DrawnShape DrawnShapeOf( string id ) => id is null ? null : DrawnShapes.Find( x => x.Id == id );
+
+	/// <summary>
+	/// <paramref name="effect"/> of this look on its own, within bounds: carrying the drawn shapes its layers name, to keep,
+	/// share or copy as a code. Null when it has nothing to show.
+	/// </summary>
+	public Effect Standalone( Effect effect )
+	{
+		if ( effect is null )
+			return null;
+
+		var copy = JsonSerializer.Deserialize<Effect>( JsonSerializer.Serialize( effect ) );
+		copy.Shapes = DrawnShapes.Where( x => effect.Layers.Exists( l => l.DrawnFormation == x.Id || l.DrawnPicture == x.Id ) ).ToList();
+		return copy.Sanitized();
+	}
+
+	/// <summary>
+	/// Wears <paramref name="effect"/> (one on its own, see <see cref="Standalone"/>): its drawn shapes become the look's,
+	/// each once. False, with nothing changed, when the look would carry more than <see cref="DrawnShape.MaxPerLook"/>
+	/// shapes its layers name.
+	/// </summary>
+	public bool Adopt( Effect effect )
+	{
+		var shapes = effect.Shapes ?? new List<DrawnShape>();
+		var named = Effects.SelectMany( x => x.Layers ).Concat( effect.Layers )
+			.SelectMany( x => new[] { x.DrawnFormation, x.DrawnPicture } )
+			.Where( x => x is not null )
+			.ToHashSet();
+
+		if ( named.Count > DrawnShape.MaxPerLook )
+			return false;
+
+		// Shapes no layer names any more are let go of here too
+		DrawnShapes.RemoveAll( x => !named.Contains( x.Id ) );
+		foreach ( var shape in shapes )
+		{
+			if ( shape is not null && named.Contains( shape.Id ) && !DrawnShapes.Exists( x => x.Id == shape.Id ) )
+				DrawnShapes.Add( shape );
+		}
+
+		effect.Shapes = null;
+		Effects.Add( effect );
+		return true;
 	}
 
 	/// <summary>

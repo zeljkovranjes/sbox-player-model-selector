@@ -82,7 +82,19 @@ public static class StandardShapes
 			return SolidPoints( shape, filled, count );
 
 		var (closed, open) = Outline( shape );
-		var flat = filled && !IsOpen( shape ) ? Inside( closed, count ) : Along( closed, open, count );
+		return FormationOf( closed, open, filled, count );
+	}
+
+	/// <summary>
+	/// <paramref name="count"/> points of a flat shape made of <paramref name="closed"/> outlines and <paramref name="open"/>
+	/// lines (each x, y pairs on the square), standing upright facing forwards as <see cref="Formation"/>'s are: along them,
+	/// or with <paramref name="filled"/> all over the closed outlines' inside. What a drawn shape (see
+	/// <see cref="DrawnShape"/>) sends sprites out from.
+	/// </summary>
+	public static float[] FormationOf( List<float[]> closed, List<float[]> open, bool filled, int count = FormationPoints )
+	{
+		count = Math.Max( 1, count );
+		var flat = filled && closed.Count > 0 ? Inside( closed, count ) : Along( closed, open, count );
 
 		// Upright, facing forwards: the shape's right is the body's left, as someone in front sees it
 		var points = new float[ count * 3 ];

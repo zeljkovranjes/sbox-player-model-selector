@@ -302,6 +302,14 @@
         if ( _entry is null )
             return;
 
+        // A hot reload builds the entry again with no text; every other change to it goes through _source
+        if ( _opened && _entry.Source != _source )
+        {
+            _entry.Load( _source );
+            Lines();
+            Restyle();
+        }
+
         TickCompile();
         TickCaret();
         TickOverlays();

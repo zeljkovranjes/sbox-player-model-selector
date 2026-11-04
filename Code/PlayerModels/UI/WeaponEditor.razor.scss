@@ -246,6 +246,7 @@ WeaponEditor
 	.top
 	{
 		@include ui-top-row;
+		flex-wrap: wrap;
 
 		> .tool
 		{

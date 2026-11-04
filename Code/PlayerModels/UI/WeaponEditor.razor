@@ -555,6 +555,10 @@
     string PictureName( string picture ) => DrawnShape.IsReference( picture ) ? Look.DrawnShapeOf( picture[ 1.. ] )?.Name ?? "Drawn shape" : picture;
 
     // A sticker on top of the weapon's middle, pressed down onto it, its picture one of those offered
+    // A new sticker's place: this far up the weapon's height from its middle, turned to press onto its right side
+    const float StickerRise = 0.2f;
+    const float StickerRoll = 90f;
+
     void AddSticker( string picture )
     {
         if ( string.IsNullOrEmpty( picture ) || WeaponModel is null || (Design?.Stickers?.Count ?? 0) >= WeaponDesign.MaxStickers )
@@ -576,7 +580,9 @@
         Change( d =>
         {
             d.Stickers ??= new List<WeaponSticker>();
-            d.Stickers.Add( new WeaponSticker { Picture = picture, Forward = bounds.Center.x, Left = bounds.Center.y, Up = bounds.Maxs.z - 1f, Size = 3f } );
+            // On the side weapon mode looks at (its right), a little above the middle: the receiver, pressed sideways
+            d.Stickers.Add( new WeaponSticker { Picture = picture, Forward = bounds.Center.x, Left = bounds.Mins.y, Up = bounds.Center.z + bounds.Size.z * StickerRise,
+                Roll = StickerRoll, Size = 3f } );
         } );
         Select( PropCount + Design.Stickers.Count - 1 );
     }

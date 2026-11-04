@@ -28,6 +28,8 @@ public sealed class EffectBeam : Component, Component.ExecuteInEditor
 	private float[] _widths = Array.Empty<float>();
 	private int _count;
 	private bool _isLine;
+	private bool _toJoint;
+	private float _spread;
 	private Color _colour = Color.White;
 	private Color _colourEnd = Color.White;
 	private float _width = 1f;
@@ -54,6 +56,8 @@ public sealed class EffectBeam : Component, Component.ExecuteInEditor
 		}
 
 		_isLine = data.ShapeIs == LayerShape.Line;
+		_toJoint = data.ToJoint is not null;
+		_spread = data.Spread;
 		_colour = colour;
 		_colourEnd = colourEnd;
 		_width = data.Size * scale;
@@ -115,7 +119,10 @@ public sealed class EffectBeam : Component, Component.ExecuteInEditor
 			var along = i / (float)(_count - 1);
 			var at = i * 3;
 			var origin = new Vector3( _places[ at ], _places[ at + 1 ], _places[ at + 2 ] );
-			var position = _isLine ? Vector3.Lerp( place.Position, lineEnd, _places[ at ] ) : place.PointToWorld( origin );
+			// A line runs to its end joint, or across the way it faces
+			var position = !_isLine ? place.PointToWorld( origin )
+				: _toJoint ? Vector3.Lerp( place.Position, lineEnd, _places[ at ] )
+				: place.PointToWorld( Vector3.Lerp( Vector3.Backward * _spread, Vector3.Forward * _spread, _places[ at ] ) );
 			var colour = Color.Lerp( _colour, _colourEnd, along );
 			var width = MathX.Lerp( _width, _widthEnd, along );
 			var alpha = 1f;

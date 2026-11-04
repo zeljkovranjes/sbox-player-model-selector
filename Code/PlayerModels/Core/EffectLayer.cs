@@ -382,9 +382,10 @@ public sealed class EffectLayer
 	};
 
 	/// <summary>
-	/// A copy within bounds, or null for a layer of a kind (or from a joint, shape, picture, rhythm, colour mode, facing or
-	/// moment) this version doesn't know: numbers finite and limited, colours valid hex colours (a palette keeps only those,
-	/// at most <see cref="MaxPalette"/>), and what is at its default left out. A drawn shape it names is named as
+	/// A copy within bounds, or null for a layer of a kind (or from a joint, shape, picture, rhythm, colour mode, facing,
+	/// moment or alignment) this version doesn't know: numbers finite and limited, colours valid hex colours (a palette keeps
+	/// only those, at most <see cref="MaxPalette"/>), at most <see cref="MaxPictures"/> pictures, the sprites it keeps whole
+	/// and within their cap, and what is at its default left out. A drawn shape it names is named as
 	/// <paramref name="drawn"/> says the look carries it; one the look doesn't carry (or with no <paramref name="drawn"/>)
 	/// is a shape it doesn't know.
 	/// </summary>

@@ -33,9 +33,17 @@ public sealed class EffectShape
 	/// <summary>How much its fill is broken up into wisps, 0 (solid) to 1: smoke that doesn't look like discs.</summary>
 	public float Haze { get; init; }
 
+	// Everything fades to nothing before the square's edge: light stopping at the edge in a line shows as a square, and
+	// an aura's many big glows added over each other under the game's exposure and bloom show every one. A glow fades out
+	// from this far from the middle to none at the circle inside the square; the outermost pixels are clear whatever
+	// the picture, so a sprite's edge never shows
+	private const float GlowFadeFrom = 0.6f;
+	private const int ClearBorder = 2;
+
 	/// <summary>
 	/// How much of each pixel of a <paramref name="size"/> by <paramref name="size"/> square it covers, 0 to 1, row by row
-	/// from the top: inside it is covered, its edge blurs over <see cref="Softness"/>, and its glow fades out from there.
+	/// from the top: inside it is covered, its edge blurs over <see cref="Softness"/>, and its glow fades out from there,
+	/// to nothing before the square's edge.
 	/// </summary>
 	public float[] Rasterize( int size )
 	{
@@ -46,7 +54,8 @@ public sealed class EffectShape
 			{
 				var x = (column + 0.5f) / size * 2f - 1f;
 				var y = 1f - (row + 0.5f) / size * 2f;
-				coverage[ row * size + column ] = CoverageAt( x, y );
+				var border = Math.Min( Math.Min( column, size - 1 - column ), Math.Min( row, size - 1 - row ) );
+				coverage[ row * size + column ] = CoverageAt( x, y ) * Math.Clamp( border / (float)ClearBorder, 0f, 1f );
 			}
 		}
 
@@ -72,8 +81,15 @@ public sealed class EffectShape
 		if ( Haze > 0f )
 			solid *= 1f - Haze + Haze * Noise( x * 3f + 11f, y * 3f + 5f );
 
-		var glow = Glow * MathF.Exp( -MathF.Max( distance, 0f ) / MathF.Max( GlowReach, 0.001f ) );
+		var glow = Glow * MathF.Exp( -MathF.Max( distance, 0f ) / MathF.Max( GlowReach, 0.001f ) ) * FadeOut( MathF.Sqrt( x * x + y * y ) );
 		return Math.Clamp( MathF.Max( solid, glow ), 0f, 1f );
+	}
+
+	// 1 out to GlowFadeFrom from the middle, falling smoothly to none at 1
+	private static float FadeOut( float radius )
+	{
+		var t = Math.Clamp( (radius - GlowFadeFrom) / (1f - GlowFadeFrom), 0f, 1f );
+		return 1f - t * t * (3f - 2f * t);
 	}
 
 	private static float DistanceToOutline( float[] points, float x, float y, bool closed )

@@ -161,10 +161,12 @@ $favorite-heart: #ff4d6d;
 }
 
 // a text field, like Sandbox's search boxes
-// a page's top row: what the page is for, and its buttons beside it (or the arrow back out of a Workshop before it)
+// a page's top row: what the page is for, and its buttons beside it (or the arrow back out of a Workshop before it). In
+// a narrow pane the buttons go under the words rather than squeezing them a word to a line
 @mixin ui-top-row
 {
 	flex-direction: row;
+	flex-wrap: wrap;
 	align-items: center;
 	flex-shrink: 0;
 	gap: 8px;
@@ -173,9 +175,21 @@ $favorite-heart: #ff4d6d;
 	> .intro
 	{
 		flex-grow: 1;
+		flex-basis: 0px;
+		min-width: 160px;
 		padding: 0 4px;
 		color: $ui-text-muted;
 		font-size: $ui-settings-font;
+	}
+
+	// the buttons, kept together: they go under the words as one
+	> .buttons
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		margin-left: auto;
+		gap: 8px;
 	}
 
 	// the same arrow as out of a group of models

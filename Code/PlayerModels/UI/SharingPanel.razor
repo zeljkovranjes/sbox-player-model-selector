@@ -119,7 +119,7 @@
                 @foreach ( var group in FacetGroups() )
                 {
                     var name = group.Key;
-                    <UIDropdown Items=@FacetChoices( group ) Value=@( _facets.GetValueOrDefault( name ) ?? "" ) ValueChanged=@Bind.Picked( SetFacet, name ) Tokenize=@false></UIDropdown>
+                    <ScrollingDropdown Items=@FacetChoices( group ) Value=@( _facets.GetValueOrDefault( name ) ?? "" ) ValueChanged=@Bind.Picked( SetFacet, name ) Tokenize=@false></ScrollingDropdown>
                 }
             </div>
         }

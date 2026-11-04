@@ -32,7 +32,7 @@
     {
         <div class="row">
             <div class="label">Eraser cuts</div>
-            <UIDropdown Items=@EraseChoices() Value=@( _eraseBelow ? Below : ThisLayer ) ValueChanged=@SetEraseMode Tokenize=@false></UIDropdown>
+            <ScrollingDropdown Items=@EraseChoices() Value=@( _eraseBelow ? Below : ThisLayer ) ValueChanged=@SetEraseMode Tokenize=@false></ScrollingDropdown>
         </div>
         <NumberRow Label="Eraser size" Unit=@NumberRow.Field.Eraser Value=@_eraserSize OnChanged=@SetEraserSize></NumberRow>
     }
@@ -45,7 +45,7 @@
     <div class="subheading">Add a layer</div>
     <div class="row">
         <div class="label">Shape</div>
-        <UIDropdown Items=@AddChoices() Value=@( "" ) ValueChanged=@AddPicked Tokenize=@false></UIDropdown>
+        <ScrollingDropdown Items=@AddChoices() Value=@( "" ) ValueChanged=@AddPicked Tokenize=@false></ScrollingDropdown>
     </div>
     <div class="row">
         <div class="label">Draw</div>
@@ -113,8 +113,8 @@
             {
                 <div class="row">
                     <div class="label">Shape</div>
-                    <UIDropdown Items=@StandardChoices() Value=@selected.Shape ValueChanged=@(( object v ) => SetAll( l => l.Shape = (string)v ))
-                                Tokenize=@false></UIDropdown>
+                    <ScrollingDropdown Items=@StandardChoices() Value=@selected.Shape ValueChanged=@(( object v ) => SetAll( l => l.Shape = (string)v ))
+                                Tokenize=@false></ScrollingDropdown>
                 </div>
             }
             <NumberRow Label="Across" Unit=@NumberRow.Field.EmblemPlace Value=@selected.X OnChanged=@(( float v ) => SetAll( l => l.X = v ))></NumberRow>
@@ -130,7 +130,7 @@
         {
             <div class="row">
                 <div class="label">Shows in</div>
-                <UIDropdown Items=@LookChoices() Value=@selected.Side.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Side = int.Parse( (string)v ) )) Tokenize=@false></UIDropdown>
+                <ScrollingDropdown Items=@LookChoices() Value=@selected.Side.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Side = int.Parse( (string)v ) )) Tokenize=@false></ScrollingDropdown>
             </div>
         }
         @if ( !selected.Eraser )
@@ -144,8 +144,8 @@
             <NumberRow Label="Outline width" Unit=@NumberRow.Field.Outline Value=@selected.OutlineWidth OnChanged=@(( float v ) => SetAll( l => l.OutlineWidth = v ))></NumberRow>
             <div class="row">
                 <div class="label">Moving color</div>
-                <UIDropdown Items=@ShapeCreator.MotionChoices() Value=@selected.AnimationIs.ToString()
-                            ValueChanged=@(( object v ) => SetAll( l => l.Animation = (string)v == nameof( Sticker.Motion.None ) ? null : (string)v )) Tokenize=@false></UIDropdown>
+                <ScrollingDropdown Items=@ShapeCreator.MotionChoices() Value=@selected.AnimationIs.ToString()
+                            ValueChanged=@(( object v ) => SetAll( l => l.Animation = (string)v == nameof( Sticker.Motion.None ) ? null : (string)v )) Tokenize=@false></ScrollingDropdown>
             </div>
             @if ( selected.AnimationIs != Sticker.Motion.None )
             {

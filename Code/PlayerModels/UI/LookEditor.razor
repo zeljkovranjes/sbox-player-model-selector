@@ -76,7 +76,7 @@
         {
             <div class="row">
                 <div class="label">Skin</div>
-                <UIDropdown Items=@skins Value=@( Look.Skin ?? "" ) ValueChanged=@SetSkin Tokenize=@false></UIDropdown>
+                <ScrollingDropdown Items=@skins Value=@( Look.Skin ?? "" ) ValueChanged=@SetSkin Tokenize=@false></ScrollingDropdown>
             </div>
         }
         <ColorRow Label=@WholeLabel Hex=@Look.Tint OnChanged=@SetTint></ColorRow>
@@ -92,14 +92,14 @@
             <div class="section-header">Finish</div>
             <div class="row">
                 <div class="label">@WholeLabel</div>
-                <UIDropdown Items=@Finishes() Value=@( Look.Finish ?? "" ) ValueChanged=@SetFinish Tokenize=@false></UIDropdown>
+                <ScrollingDropdown Items=@Finishes() Value=@( Look.Finish ?? "" ) ValueChanged=@SetFinish Tokenize=@false></ScrollingDropdown>
             </div>
             @foreach ( var part in FinishParts() )
             {
                 var name = part;
                 <div class="row" @onmouseenter=@(() => Point( PartHighlight.Part( name ) )) @onmouseleave=@(() => Point( null ))>
                     <div class="label">@( name.Replace( '_', ' ' ) )</div>
-                    <UIDropdown Items=@PartFinishChoices( name ) Value=@PartFinish( name ) ValueChanged=@(( object finish ) => SetPartFinish( name, finish )) Tokenize=@false></UIDropdown>
+                    <ScrollingDropdown Items=@PartFinishChoices( name ) Value=@PartFinish( name ) ValueChanged=@(( object finish ) => SetPartFinish( name, finish )) Tokenize=@false></ScrollingDropdown>
                 </div>
             }
         }

@@ -65,14 +65,14 @@
                                 case ParameterKind.Key:
                                     <div class="row">
                                         <TextLabel class="label" Text=@shown.Title Tooltip=@shown.Tip></TextLabel>
-                                        <UIDropdown Items=@KeyChoices() Value=@value ValueChanged=@(( object v ) => Set( shown, (string)v )) Tokenize=@false></UIDropdown>
+                                        <ScrollingDropdown Items=@KeyChoices() Value=@value ValueChanged=@(( object v ) => Set( shown, (string)v )) Tokenize=@false></ScrollingDropdown>
                                         <KeyGlyph class="key-glyph" Key=@value></KeyGlyph>
                                     </div>
                                     break;
                                 case ParameterKind.Shape or ParameterKind.Picture:
                                     <div class="row">
                                         <TextLabel class="label" Text=@shown.Title Tooltip=@shown.Tip></TextLabel>
-                                        <UIDropdown Items=@ShapeChoices( shown, value ) Value=@value ValueChanged=@(( object v ) => Set( shown, (string)v )) Tokenize=@false></UIDropdown>
+                                        <ScrollingDropdown Items=@ShapeChoices( shown, value ) Value=@value ValueChanged=@(( object v ) => Set( shown, (string)v )) Tokenize=@false></ScrollingDropdown>
                                         @if ( OwnShape( value ) is { } own )
                                         {
                                             <ShapeIcon class="shape-picture" Shape=@own></ShapeIcon>
@@ -82,7 +82,7 @@
                                 case ParameterKind.Choice:
                                     <div class="row">
                                         <TextLabel class="label" Text=@shown.Title Tooltip=@shown.Tip></TextLabel>
-                                        <UIDropdown Items=@ChoicesOf( shown ) Value=@value ValueChanged=@(( object v ) => Set( shown, (string)v )) Tokenize=@false></UIDropdown>
+                                        <ScrollingDropdown Items=@ChoicesOf( shown ) Value=@value ValueChanged=@(( object v ) => Set( shown, (string)v )) Tokenize=@false></ScrollingDropdown>
                                     </div>
                                     break;
                                 default:

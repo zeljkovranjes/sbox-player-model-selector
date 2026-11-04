@@ -47,7 +47,7 @@
         }
         <div class="row">
             <div class="label">Effect</div>
-            <UIDropdown Items=@EffectChoices() Value=@effect.Id ValueChanged=@SelectEffect Tokenize=@false></UIDropdown>
+            <ScrollingDropdown Items=@EffectChoices() Value=@effect.Id ValueChanged=@SelectEffect Tokenize=@false></ScrollingDropdown>
         </div>
         <div class="row actions">
             <div class="reset @( CanStart ? "" : "disabled" )" Tooltip=@( CanStart ? "An effect of your own, from scratch" : $"A look wears up to {Effect.MaxWorn} effects and {Effect.MaxLookLayers} layers" )
@@ -78,7 +78,7 @@
         }
         <div class="row">
             <div class="label">Comes from</div>
-            <UIDropdown Items=@AnchorChoices() Value=@AnchorValue( effect.Anchor ) ValueChanged=@SetAnchor Tokenize=@false></UIDropdown>
+            <ScrollingDropdown Items=@AnchorChoices() Value=@AnchorValue( effect.Anchor ) ValueChanged=@SetAnchor Tokenize=@false></ScrollingDropdown>
         </div>
         <ToggleRow Label="Keep it where it is when it moves to another place" Value=@_keep OnChanged=@KeepWhereItIs></ToggleRow>
         <NumberRow Label="Forward / back" Unit=@NumberRow.Field.Offset Value=@effect.Anchor.Forward OnChanged=@(( float v ) => Set( () => effect.Anchor.Forward = v ))></NumberRow>
@@ -137,13 +137,13 @@
             {
                 <div class="row">
                     <div class="label">Comes from</div>
-                    <UIDropdown Items=@ShapeChoices() Value=@selected.ShapeIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Shape = (string)v ))
-                                Tokenize=@false></UIDropdown>
+                    <ScrollingDropdown Items=@ShapeChoices() Value=@selected.ShapeIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Shape = (string)v ))
+                                Tokenize=@false></ScrollingDropdown>
                 </div>
                 <div class="row">
                     <div class="label">As you move</div>
-                    <UIDropdown Items=@MovesChoices() Value=@( selected.Follow ? WithBody : LeftBehind ) ValueChanged=@(( object v ) => SetAll( l => l.Follow = (string)v == WithBody ))
-                                Tokenize=@false></UIDropdown>
+                    <ScrollingDropdown Items=@MovesChoices() Value=@( selected.Follow ? WithBody : LeftBehind ) ValueChanged=@(( object v ) => SetAll( l => l.Follow = (string)v == WithBody ))
+                                Tokenize=@false></ScrollingDropdown>
                 </div>
                 @if ( selected.Follow )
                 {
@@ -158,8 +158,8 @@
                 {
                     <div class="row">
                         <div class="label">Shape</div>
-                        <UIDropdown Items=@ShapePickerChoices( StandardShapeChoices() ) Value=@( selected.DrawnFormation is null ? selected.FormationIs.ToString() : selected.Formation )
-                                    ValueChanged=@(( object v ) => PickShape( v as string, false )) Tokenize=@false></UIDropdown>
+                        <ScrollingDropdown Items=@ShapePickerChoices( StandardShapeChoices() ) Value=@( selected.DrawnFormation is null ? selected.FormationIs.ToString() : selected.Formation )
+                                    ValueChanged=@(( object v ) => PickShape( v as string, false )) Tokenize=@false></ScrollingDropdown>
                         @if ( Look.DrawnShapeOf( selected.DrawnFormation ) is { } formation )
                         {
                             <div class="tool" Tooltip="Change it in the shape creator" @onclick=@(() => OpenCreator( formation ))>edit</div>
@@ -169,13 +169,13 @@
                                Value=@selected.Fill OnChanged=@(( bool v ) => SetAll( l => l.Fill = v ))></ToggleRow>
                     <div class="row">
                         <div class="label">Shape lies</div>
-                        <UIDropdown Items=@ShapeLiesChoices() Value=@ShapeLies( selected ) ValueChanged=@(( object v ) => SetAll( l => l.Facing = (string)v )) Tokenize=@false></UIDropdown>
+                        <ScrollingDropdown Items=@ShapeLiesChoices() Value=@ShapeLies( selected ) ValueChanged=@(( object v ) => SetAll( l => l.Facing = (string)v )) Tokenize=@false></ScrollingDropdown>
                     </div>
                 }
                 <div class="row">
                     <div class="label">Looks like</div>
-                    <UIDropdown Items=@ShapePickerChoices( PictureChoices() ) Value=@( selected.Picture ?? nameof( LayerPicture.Glow ) ) ValueChanged=@(( object v ) => PickShape( v as string, true ))
-                                Tokenize=@false></UIDropdown>
+                    <ScrollingDropdown Items=@ShapePickerChoices( PictureChoices() ) Value=@( selected.Picture ?? nameof( LayerPicture.Glow ) ) ValueChanged=@(( object v ) => PickShape( v as string, true ))
+                                Tokenize=@false></ScrollingDropdown>
                     @if ( Look.DrawnShapeOf( selected.DrawnPicture ) is { } picture )
                     {
                         <div class="tool" Tooltip="Change it in the shape creator" @onclick=@(() => OpenCreator( picture ))>edit</div>
@@ -202,7 +202,7 @@
 
             <div class="row">
                 <div class="label">When</div>
-                <UIDropdown Items=@WhenChoices() Value=@selected.WhenIs.ToString() ValueChanged=@(( object v ) => SetAll( l => SetWhen( l, (string)v ) )) Tokenize=@false></UIDropdown>
+                <ScrollingDropdown Items=@WhenChoices() Value=@selected.WhenIs.ToString() ValueChanged=@(( object v ) => SetAll( l => SetWhen( l, (string)v ) )) Tokenize=@false></ScrollingDropdown>
             </div>
             @if ( selected.IsMoment )
             {
@@ -214,7 +214,7 @@
             }
             <div class="row">
                 <div class="label">Rhythm</div>
-                <UIDropdown Items=@RhythmChoices() Value=@selected.RhythmIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Rhythm = (string)v )) Tokenize=@false></UIDropdown>
+                <ScrollingDropdown Items=@RhythmChoices() Value=@selected.RhythmIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Rhythm = (string)v )) Tokenize=@false></ScrollingDropdown>
             </div>
             @if ( selected.RhythmIs != LayerRhythm.Steady )
             {
@@ -252,8 +252,8 @@
             {
                 <div class="row">
                     <div class="label">From joint</div>
-                    <UIDropdown Items=@LayerJointChoices() Value=@( selected.Joint ?? "" ) ValueChanged=@(( object v ) => SetAll( l => l.Joint = (string)v == "" ? null : (string)v ))
-                                Tokenize=@false></UIDropdown>
+                    <ScrollingDropdown Items=@LayerJointChoices() Value=@( selected.Joint ?? "" ) ValueChanged=@(( object v ) => SetAll( l => l.Joint = (string)v == "" ? null : (string)v ))
+                                Tokenize=@false></ScrollingDropdown>
                 </div>
                 <NumberRow Label="Forward / back" Unit=@NumberRow.Field.Offset Value=@selected.Forward OnChanged=@(( float v ) => SetAll( l => l.Forward = v ))></NumberRow>
                 <NumberRow Label="Left / right" Unit=@NumberRow.Field.Offset Value=@selected.Left OnChanged=@(( float v ) => SetAll( l => l.Left = v ))></NumberRow>
@@ -270,11 +270,11 @@
                     <NumberRow Label="Falls (rises below 0)" Unit=@NumberRow.Field.Gravity Value=@selected.Gravity OnChanged=@(( float v ) => SetAll( l => l.Gravity = v ))></NumberRow>
                     <div class="row">
                         <div class="label">Faces</div>
-                        <UIDropdown Items=@FacingChoices() Value=@selected.FacingIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Facing = (string)v )) Tokenize=@false></UIDropdown>
+                        <ScrollingDropdown Items=@FacingChoices() Value=@selected.FacingIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Facing = (string)v )) Tokenize=@false></ScrollingDropdown>
                     </div>
                     <div class="row">
                         <div class="label">Sprites face</div>
-                        <UIDropdown Items=@AlignChoices() Value=@selected.AlignIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Align = (string)v )) Tokenize=@false></UIDropdown>
+                        <ScrollingDropdown Items=@AlignChoices() Value=@selected.AlignIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Align = (string)v )) Tokenize=@false></ScrollingDropdown>
                     </div>
                     <NumberRow Label="Turns as it lives (degrees)" Unit=@NumberRow.Field.Sweep Value=@selected.Sweep OnChanged=@(( float v ) => SetAll( l => l.Sweep = v ))></NumberRow>
                     @if ( selected.PictureShape is null && selected.PictureIs == LayerPicture.Slash )
@@ -290,14 +290,14 @@
                     {
                         <div class="row">
                             <div class="label">Line to</div>
-                            <UIDropdown Items=@LineEndChoices() Value=@( selected.ToJoint ?? "" ) ValueChanged=@(( object v ) => SetAll( l => l.ToJoint = (string)v == "" ? null : (string)v ))
-                                        Tokenize=@false></UIDropdown>
+                            <ScrollingDropdown Items=@LineEndChoices() Value=@( selected.ToJoint ?? "" ) ValueChanged=@(( object v ) => SetAll( l => l.ToJoint = (string)v == "" ? null : (string)v ))
+                                        Tokenize=@false></ScrollingDropdown>
                         </div>
                     }
                     <div class="row">
                         <div class="label">Colors</div>
-                        <UIDropdown Items=@ColourModeChoices() Value=@selected.ColorModeIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.ColorMode = (string)v ))
-                                    Tokenize=@false></UIDropdown>
+                        <ScrollingDropdown Items=@ColourModeChoices() Value=@selected.ColorModeIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.ColorMode = (string)v ))
+                                    Tokenize=@false></ScrollingDropdown>
                     </div>
                 }
             }

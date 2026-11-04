@@ -328,7 +328,7 @@
             {
                 <div class="row">
                     <div class="label">The key</div>
-                    <UIDropdown Items=@KeyActions() Value=@selected.KeyActionIs.ToString() ValueChanged=@(( object v ) => SetKeyAction( selected, (string)v )) Tokenize=@false></UIDropdown>
+                    <ScrollingDropdown Items=@KeyActions() Value=@selected.KeyActionIs.ToString() ValueChanged=@(( object v ) => SetKeyAction( selected, (string)v )) Tokenize=@false></ScrollingDropdown>
                 </div>
             }
             <div class="note">@KeyNote( selected )</div>
@@ -360,7 +360,7 @@
         <div class="section-header">What You See</div>
         <div class="setting">
             <div class="label">Effects quality</div>
-            <UIDropdown Items=@Qualities() Value=@selector.EffectsQuality ValueChanged=@SetQuality Tokenize=@false></UIDropdown>
+            <ScrollingDropdown Items=@Qualities() Value=@selector.EffectsQuality ValueChanged=@SetQuality Tokenize=@false></ScrollingDropdown>
         </div>
         @foreach ( var player in Others() )
         {

@@ -86,7 +86,7 @@
         </div>
         <div class="row">
             <div class="label">Combine with</div>
-            <UIDropdown Items=@CombineChoices() Value=@_combineWith ValueChanged=@SetCombineWith Tokenize=@false></UIDropdown>
+            <ScrollingDropdown Items=@CombineChoices() Value=@_combineWith ValueChanged=@SetCombineWith Tokenize=@false></ScrollingDropdown>
             <div class="reset" @onclick=@Combine>Add it</div>
         </div>
 
@@ -104,7 +104,7 @@
         </div>
         <div class="row">
             <div class="label">Printed on</div>
-            <UIDropdown Items=@FinishChoices() Value=@_finish.ToString() ValueChanged=@SetFinish Tokenize=@false></UIDropdown>
+            <ScrollingDropdown Items=@FinishChoices() Value=@_finish.ToString() ValueChanged=@SetFinish Tokenize=@false></ScrollingDropdown>
         </div>
         <div class="note">@FinishNote()</div>
     }

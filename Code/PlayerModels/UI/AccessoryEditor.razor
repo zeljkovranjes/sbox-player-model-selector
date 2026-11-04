@@ -53,7 +53,7 @@
             {
                 <div class="row">
                     <div class="label">Pinned to</div>
-                    <UIDropdown Items=@Joints() Value=@selected.Pin ValueChanged=@SetPin Tokenize=@false></UIDropdown>
+                    <ScrollingDropdown Items=@Joints() Value=@selected.Pin ValueChanged=@SetPin Tokenize=@false></ScrollingDropdown>
                 </div>
             }
             <SliderRow Label="Forward / back" Value=@( selected.Forward / Reach ) Signed=@true OnChanged=@(( float amount ) => Move( x => x.Forward = amount * Reach ))></SliderRow>

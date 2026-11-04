@@ -83,16 +83,16 @@
         <div class="section-header">Finish</div>
         <div class="row">
             <div class="label">Finish</div>
-            <UIDropdown Items=@FinishChoices() Value=@( Design?.Finish ?? "" ) ValueChanged=@(( object v ) => Change( d => d.Finish = (string)v == "" ? null : (string)v ))
-                        Tokenize=@false></UIDropdown>
+            <ScrollingDropdown Items=@FinishChoices() Value=@( Design?.Finish ?? "" ) ValueChanged=@(( object v ) => Change( d => d.Finish = (string)v == "" ? null : (string)v ))
+                        Tokenize=@false></ScrollingDropdown>
         </div>
         <ColorRow Label="Tint" Hex=@( Design?.Tint ?? "" ) OnChanged=@(( string hex ) => Change( d => d.Tint = string.IsNullOrEmpty( hex ) ? null : hex ))></ColorRow>
 
         <div class="section-header">Skin</div>
         <div class="row">
             <div class="label">Pattern</div>
-            <UIDropdown Items=@PatternChoices() Value=@( Skin?.PatternIs.ToString() ?? nameof( WeaponSkin.Pattern.None ) )
-                        ValueChanged=@(( object v ) => ChangeSkin( s => s.PatternName = (string)v == nameof( WeaponSkin.Pattern.None ) ? null : (string)v )) Tokenize=@false></UIDropdown>
+            <ScrollingDropdown Items=@PatternChoices() Value=@( Skin?.PatternIs.ToString() ?? nameof( WeaponSkin.Pattern.None ) )
+                        ValueChanged=@(( object v ) => ChangeSkin( s => s.PatternName = (string)v == nameof( WeaponSkin.Pattern.None ) ? null : (string)v )) Tokenize=@false></ScrollingDropdown>
         </div>
         @if ( Skin is { } patterned && patterned.PatternIs != WeaponSkin.Pattern.None )
         {
@@ -102,8 +102,8 @@
             {
                 <div class="row">
                     <div class="label">Shape</div>
-                    <UIDropdown Items=@PictureChoices( false ) Value=@( patterned.PatternShape ?? nameof( StandardShape.Star5 ) ) ValueChanged=@(( object v ) => ChangeSkin( s => s.PatternShape = (string)v ))
-                                Tokenize=@false></UIDropdown>
+                    <ScrollingDropdown Items=@PictureChoices( false ) Value=@( patterned.PatternShape ?? nameof( StandardShape.Star5 ) ) ValueChanged=@(( object v ) => ChangeSkin( s => s.PatternShape = (string)v ))
+                                Tokenize=@false></ScrollingDropdown>
                 </div>
             }
             <NumberRow Label="Size" Unit=@NumberRow.Field.PatternScale Value=@patterned.PatternScale OnChanged=@(( float v ) => ChangeSkin( s => s.PatternScale = v ))></NumberRow>
@@ -113,8 +113,8 @@
         }
         <div class="row">
             <div class="label">Moving color</div>
-            <UIDropdown Items=@MotionChoices() Value=@( Skin?.AnimationIs.ToString() ?? nameof( WeaponSkin.Motion.None ) )
-                        ValueChanged=@(( object v ) => ChangeSkin( s => s.Animation = (string)v == nameof( WeaponSkin.Motion.None ) ? null : (string)v )) Tokenize=@false></UIDropdown>
+            <ScrollingDropdown Items=@MotionChoices() Value=@( Skin?.AnimationIs.ToString() ?? nameof( WeaponSkin.Motion.None ) )
+                        ValueChanged=@(( object v ) => ChangeSkin( s => s.Animation = (string)v == nameof( WeaponSkin.Motion.None ) ? null : (string)v )) Tokenize=@false></ScrollingDropdown>
         </div>
         <div class="row">
             @if ( Skin?.Script is not null )
@@ -164,7 +164,7 @@
         }
         <div class="row">
             <div class="label">Add a sticker</div>
-            <UIDropdown Items=@PictureChoices( true ) Value=@( "" ) ValueChanged=@(( object v ) => AddSticker( v as string )) Tokenize=@false></UIDropdown>
+            <ScrollingDropdown Items=@PictureChoices( true ) Value=@( "" ) ValueChanged=@(( object v ) => AddSticker( v as string )) Tokenize=@false></ScrollingDropdown>
         </div>
         @if ( SelectedSticker is { } chosen )
         {
@@ -172,13 +172,13 @@
             <ColorRow Label="Color" Hex=@chosen.Color OnChanged=@(( string hex ) => Change( _ => chosen.Color = string.IsNullOrEmpty( hex ) ? "#ffffff" : hex ))></ColorRow>
             <div class="row">
                 <div class="label">Moving color</div>
-                <UIDropdown Items=@StickerMotionChoices() Value=@chosen.AnimationIs.ToString()
-                            ValueChanged=@(( object v ) => Change( _ => chosen.Animation = (string)v == nameof( Sticker.Motion.None ) ? null : (string)v )) Tokenize=@false></UIDropdown>
+                <ScrollingDropdown Items=@StickerMotionChoices() Value=@chosen.AnimationIs.ToString()
+                            ValueChanged=@(( object v ) => Change( _ => chosen.Animation = (string)v == nameof( Sticker.Motion.None ) ? null : (string)v )) Tokenize=@false></ScrollingDropdown>
             </div>
             <NumberRow Label="Size" Unit=@NumberRow.Field.StickerSize Value=@chosen.Size OnChanged=@(( float v ) => Change( _ => chosen.Size = v ))></NumberRow>
             <div class="row">
                 <div class="label">Printed on</div>
-                <UIDropdown Items=@StickerFinishChoices() Value=@( chosen.Finish ?? "" ) ValueChanged=@(( object v ) => Change( _ => chosen.Finish = (string)v == "" ? null : (string)v )) Tokenize=@false></UIDropdown>
+                <ScrollingDropdown Items=@StickerFinishChoices() Value=@( chosen.Finish ?? "" ) ValueChanged=@(( object v ) => Change( _ => chosen.Finish = (string)v == "" ? null : (string)v )) Tokenize=@false></ScrollingDropdown>
             </div>
             <NumberRow Label="Scrape" Unit=@NumberRow.Field.Fraction Value=@chosen.Scrape OnChanged=@(( float v ) => Change( _ => chosen.Scrape = v ))></NumberRow>
             <ToggleRow Label="White die-cut border" Value=@chosen.Border OnChanged=@(( bool v ) => Change( _ => chosen.Border = v ))></ToggleRow>
@@ -230,8 +230,8 @@
             <div class="subheading">Prop</div>
             <div class="row">
                 <div class="label">On</div>
-                <UIDropdown Items=@PartChoices() Value=@( selectedProp.Part ?? "" ) ValueChanged=@(( object v ) => Change( _ => { selectedProp.Part = (string)v == "" ? null : (string)v; selectedProp.Replaces &= selectedProp.Part is not null; } ))
-                            Tokenize=@false></UIDropdown>
+                <ScrollingDropdown Items=@PartChoices() Value=@( selectedProp.Part ?? "" ) ValueChanged=@(( object v ) => Change( _ => { selectedProp.Part = (string)v == "" ? null : (string)v; selectedProp.Replaces &= selectedProp.Part is not null; } ))
+                            Tokenize=@false></ScrollingDropdown>
             </div>
             @if ( selectedProp.Part is not null )
             {
@@ -290,14 +290,14 @@
         }
         <div class="row">
             <div class="label">Add an effect</div>
-            <UIDropdown Items=@EffectChoices() Value=@( "" ) ValueChanged=@(( object v ) => AddEffect( v as string )) Tokenize=@false></UIDropdown>
+            <ScrollingDropdown Items=@EffectChoices() Value=@( "" ) ValueChanged=@(( object v ) => AddEffect( v as string )) Tokenize=@false></ScrollingDropdown>
         </div>
         @if ( Design?.Effects?.FirstOrDefault( x => x.Id == _effect ) is { } edited )
         {
             <div class="row">
                 <div class="label">When</div>
-                <UIDropdown Items=@WhenChoices() Value=@( edited.Layers.FirstOrDefault()?.WhenIs.ToString() ?? nameof( LayerWhen.Always ) )
-                            ValueChanged=@(( object v ) => SetWhen( edited, (string)v )) Tokenize=@false></UIDropdown>
+                <ScrollingDropdown Items=@WhenChoices() Value=@( edited.Layers.FirstOrDefault()?.WhenIs.ToString() ?? nameof( LayerWhen.Always ) )
+                            ValueChanged=@(( object v ) => SetWhen( edited, (string)v )) Tokenize=@false></ScrollingDropdown>
             </div>
             <SliderRow Label="Color" Value=@edited.Hue OnChanged=@(( float value ) => Change( _ => edited.Hue = value ))></SliderRow>
             <SliderRow Label="Size" Signed=@true Value=@edited.Size OnChanged=@(( float value ) => Change( _ => edited.Size = value ))></SliderRow>

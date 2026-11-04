@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Tests the pure Core (Code/PlayerModels/Core) as plain .NET, without s&box: the editor compiles only Code/, so
+       this project is invisible to it. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <Nullable>disable</Nullable>
+    <!-- The retargeter's files lean on the SDK's implicit usings outside s&amp;box -->
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Some tests time the compiler and the machine: always measure optimized code -->
+    <Optimize>true</Optimize>
+    <!-- and as it runs once warmed up: fully optimized from the first call -->
+    <TieredCompilation>false</TieredCompilation>
+    <NoWarn>$(NoWarn);CS1591;xUnit1026</NoWarn>
+    <CoreDir>$(MSBuildThisFileDirectory)../../Code/PlayerModels/Core/</CoreDir>
+  </PropertyGroup>
+
+  <!-- PlayerLook names bone roles from Humanoid Retargeter: the copy s&box installed under Libraries/, else the
+       workspace's library repo; RETARGETER_DIR overrides both -->
+  <PropertyGroup>
+    <RetargeterDir Condition="'$(RETARGETER_DIR)' != ''">$(RETARGETER_DIR)/</RetargeterDir>
+    <RetargeterDir Condition="'$(RetargeterDir)' == '' And Exists('$(MSBuildThisFileDirectory)../../Libraries/notpointless.chomnr_humanoid_retargeter')">$(MSBuildThisFileDirectory)../../Libraries/notpointless.chomnr_humanoid_retargeter/</RetargeterDir>
+    <RetargeterDir Condition="'$(RetargeterDir)' == ''">$(MSBuildThisFileDirectory)../../../../libraries/humanoid-retargeter/</RetargeterDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.8.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="$(CoreDir)**/*.cs" Link="Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="$(RetargeterDir)Code/HumanoidRetargeter/Core/Mapping/BoneRole.cs" Link="Retargeter/BoneRole.cs" />
+    <Compile Include="$(RetargeterDir)Code/HumanoidRetargeter/Core/AliasAttribute.cs" Link="Retargeter/AliasAttribute.cs" />
+  </ItemGroup>
+
+</Project>

@@ -39,7 +39,7 @@ internal sealed class PlayerBodies
 		foreach ( var player in scene.GetAll<Player>() )
 		{
 			if ( player.Controller.IsValid() && player.Controller.Renderer.IsValid() )
-				Show( player.Controller.Renderer, selector.ShownLookOf( player.Network.Owner ), player.Network.Owner );
+				Show( player.Controller.Renderer, selector.ShownLookOf( player.Network.Owner ), player.Network.Owner, health: player );
 		}
 
 		// Sandbox's ragdolls are made on every client by a broadcast, each with the dead player's connection
@@ -106,8 +106,9 @@ internal sealed class PlayerBodies
 		_loading.Clear();
 	}
 
-	// dressedAs is the body whose outfit a stock character wears: the citizen itself when null
-	private void Show( SkinnedModelRenderer citizen, PlayerLook look, Connection owner, SkinnedModelRenderer dressedAs = null )
+	// dressedAs is the body whose outfit a stock character wears: the citizen itself when null. health is the player
+	// whose health effects that show when hurt read, if the body is a living player's
+	private void Show( SkinnedModelRenderer citizen, PlayerLook look, Connection owner, SkinnedModelRenderer dressedAs = null, Player health = null )
 	{
 		var body = ModelBody.On( citizen );
 
@@ -129,13 +130,18 @@ internal sealed class PlayerBodies
 		// The same model posed the same way only needs the rest of the look; bones picked differently need a new pose plan
 		if ( body.IsValid() && body.ModelId == pick && body.BonesKey == bones )
 		{
-			body.ApplyLook( look );
+			body.ApplyLook( look, null, HealthOf( health ) );
 			body.ShownLook = look;
 			return;
 		}
 
 		if ( _loading.Add( citizen ) )
 			_ = ShowAsync( citizen, look, owner, dressedAs ?? citizen );
+	}
+
+	private static Func<float> HealthOf( Player player )
+	{
+		return player is null ? null : () => player.IsValid() ? player.Health : 0f;
 	}
 
 	private async Task ShowAsync( SkinnedModelRenderer citizen, PlayerLook look, Connection owner, SkinnedModelRenderer dressedAs )

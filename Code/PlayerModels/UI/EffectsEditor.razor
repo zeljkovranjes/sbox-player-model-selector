@@ -9,7 +9,11 @@
 @namespace PlayerModels.UI
 
 <root>
-    @if ( Look is null )
+    @if ( _guides )
+    {
+        <EffectGuides Back=@(() => ShowGuides( false ))></EffectGuides>
+    }
+    else if ( Look is null )
     {
         <div class="note">Loading your look...</div>
     }
@@ -17,6 +21,7 @@
     {
         <div class="top">
             <div class="intro">Click an effect to put it on: the preview shows it, and Apply wears it.</div>
+            <div class="reset" Tooltip="What each part of an effect is, and how to do the harder things" @onclick=@(() => ShowGuides( true ))>Guides</div>
             <div class="reset @( Selected is null ? "disabled" : "" )" Tooltip=@( Selected is null ? "Select an effect you wear first" : "Every layer of it, placed by hand" )
                  @onclick=@(() => OpenAdvanced?.Invoke( Selected?.Id ))>Edit in Advanced editor</div>
         </div>
@@ -110,7 +115,7 @@
         }
     }
 
-    @if ( Selector is { } selector )
+    @if ( Selector is { } selector && !_guides )
     {
         <div class="section-header">What You See</div>
         <div class="setting">
@@ -151,11 +156,20 @@
     // The worn effect the sliders change, by id
     string _selected;
 
+    // Whether the guides show in place of the effects
+    bool _guides;
+
+    void ShowGuides( bool show )
+    {
+        _guides = show;
+        StateHasChanged();
+    }
+
     Effect Selected => Look?.Effects.FirstOrDefault( x => x.Id == _selected );
 
     bool IsFull => Look.Effects.Count >= Effect.MaxWorn;
 
-    protected override int BuildHash() => HashCode.Combine( Look?.Serialize(), _selected, Locked, Selector?.EffectsBudget, Selector?.EffectsQuality,
+    protected override int BuildHash() => HashCode.Combine( Look?.Serialize(), _selected, _guides, Locked, Selector?.EffectsBudget, Selector?.EffectsQuality,
         string.Join( ";", Others().Select( x => $"{x.Id}{Selector?.HidesEffectsOf( x )}" ) ), (int)(Selector?.TriggerWait() ?? 0f) );
 
     // A copy of the preset, selected for its sliders

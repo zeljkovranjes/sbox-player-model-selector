@@ -1,0 +1,131 @@
+@using System
+@using System.Collections.Generic
+@using Sandbox
+@using Sandbox.UI
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    <div class="top">
+        <div class="back" Tooltip="Back to effects" @onclick=@(() => Back?.Invoke())>arrow_back</div>
+        <div class="intro">What each part of an effect is, then how to do the harder things. Each clip plays on a loop.</div>
+    </div>
+
+    <div class="section-header">Concepts</div>
+    <div class="chips">
+        @foreach ( var page in Concepts )
+        {
+            var shown = page;
+            <div class="chip @( shown == _page ? "active" : "" )" @onclick=@(() => Show( shown ))>@shown.Title</div>
+        }
+    </div>
+
+    <div class="section-header">How to</div>
+    <div class="chips">
+        @foreach ( var page in HowTo )
+        {
+            var shown = page;
+            <div class="chip @( shown == _page ? "active" : "" )" @onclick=@(() => Show( shown ))>@shown.Title</div>
+        }
+    </div>
+
+    @if ( _page is { } open )
+    {
+        <div class="page">
+            <div class="page-title">@open.Title</div>
+            <div class="clip" style="background-image: url( @ClipOf( open ) )"></div>
+            @if ( open.Steps is null )
+            {
+                <div class="text">@open.Text</div>
+            }
+            else
+            {
+                @for ( var i = 0; i < open.Steps.Length; i++ )
+                {
+                    <div class="step"><div class="number">@( i + 1 )</div><div class="text">@open.Steps[ i ]</div></div>
+                }
+            }
+        </div>
+    }
+</root>
+
+@code
+{
+    /// <summary>Called when the player goes back to the effects.</summary>
+    [Parameter] public Action Back { get; set; }
+
+    // The clips, recorded in the editor and played as looping pictures, ship with the addon
+    const string ClipFolder = "ui/effects/guides/";
+
+    // A concept explained in a paragraph, or a guide in steps, each with its clip
+    sealed record Page( string Title, string Clip, string Text, string[] Steps = null );
+
+    static readonly Page[] Concepts =
+    {
+        new( "Effect", "effect",
+            "An effect is something you wear that isn't a model: glowing eyes, fire in your hands, a halo. Click one on the Effects tab to put it on; the preview shows it, Apply wears it, and everyone sees it. You can wear several at once, switch them off and on, and change each with four sliders: color, size, amount and speed." ),
+        new( "Layer", "layer",
+            "An effect is made of layers, each one thing: sprites (little pictures that appear, move and fade, like flames or sparks), a light that shines on what is around, or a trail left behind as it moves. Fire hands is flames, smoke and a light in each hand. In the Advanced editor you can add, copy, move, switch off and remove layers." ),
+        new( "Anchor", "anchor",
+            "An effect comes from somewhere on you: a joint (your head, eyes, hands, feet and more), an item you wear (it follows the hat as you move it), or the weapon you hold (its tip). If that isn't there, like a hat you took off or no weapon in hand, the effect shows on the joint it was on instead." ),
+        new( "Comes from and Looks like", "comesfrom",
+            "Comes from is the shape sprites appear in: a point, a ball, a ring, a box, a cone, a line or a shape like a star. Looks like is the picture each sprite is: a glow, a flame, a heart, or any of the shapes. A ring of hearts and a heart made of sparkles use the same two settings." ),
+        new( "Rhythm", "rhythm",
+            "Rhythm is how a layer changes over time: steady, pulsing brighter and dimmer, flickering like a flame, going through every color, turning round its place (so a layer set off to the side circles you), or jiggling about." ),
+        new( "When", "when",
+            "When says when a layer shows: always, while you move, stand, are in the air, crouch or hold a weapon, or for a moment when something happens: you jump, land, get hurt, start or stop moving, crouch, stand up, shoot or swing, or hit something hard. A moment can throw out a burst of sprites at once." ),
+        new( "Keys", "keys",
+            "Give an effect a key and it shows only when you press it, for 10 seconds, for everyone, fading in and out. To keep anyone from flooding the server, effect keys work once every 2 minutes for each player, whichever effect the key is for. Switching an effect off is always free." ),
+        new( "Shape", "shape",
+            "A shape is one of 40 standard shapes: circles, polygons, stars, hearts, lines, spirals and solids like a sphere or a torus. Sprites can come from a shape, along its outline or all over it (through a solid), or each sprite can look like the shape." ),
+        new( "Color cycles", "colors",
+            "A color cycle colors a layer's sprites one by one, the way World at War's clan tags did: Rain scrolls the colors along, Cycle wipes one color across them, and Scanner sweeps a highlight back and forth. Mixed gives each sprite one of the colors for its life, like confetti. Use the game's colors or your own." ),
+        new( "Budget and settings", "budget",
+            "Each server lets each player show so many layers, lights and sprites at once. Past that, your last layers wait (marked over budget) until you remove or switch off some; nothing is lost. The host can turn effects off or change the budget on the Server page, and you can lower Effects quality or hide one player's effects on your own screen." ),
+    };
+
+    static readonly Page[] HowTo =
+    {
+        new( "Build an effect from layers", "build", null, new[]
+        {
+            "Put an effect on from the Effects tab, select it, and press Edit in Advanced editor.",
+            "Under Layers, press Add sprites, Add a light or Add a trail.",
+            "Pick what it comes from and what it looks like, its color, size and amount.",
+            "Use the arrows to reorder, the copy button to duplicate and the check mark to switch a layer off.",
+            "Press Apply to wear it.",
+        } ),
+        new( "Put an effect on a hat or a weapon", "attach", null, new[]
+        {
+            "Wear the hat first (Advanced editor, Accessories).",
+            "On the Effects tab, open Comes from and pick the hat, or Weapon held for the tip of what you hold.",
+            "Leave Keep it where it is on to keep the effect in place, or turn it off to snap it onto the hat or the tip.",
+            "Nudge it with Forward, Left and Up. It follows the hat as you move it.",
+        } ),
+        new( "Show a layer on a jump or a key", "triggers", null, new[]
+        {
+            "Select a layer and open When.",
+            "Pick a moment, like On jumping or On landing.",
+            "Set Burst for how many sprites appear at once, and Shows for to keep it going a while.",
+            "For a key, type it in the Key box on the Effects tab: the effect shows for 10 seconds when you press it, once every 2 minutes.",
+        } ),
+        new( "Set up a sword slash", "sword", null, new[]
+        {
+            "Put on Sword slash from the Effects tab.",
+            "Hold a weapon: the trail starts at its tip, and at your right hand while you hold nothing.",
+            "Swing: the trail shows as fast as the tip moves, and sparks fly when you hit.",
+            "In the Advanced editor, change the trail's color, width and how long it lasts.",
+        } ),
+    };
+
+    static string ClipOf( Page page ) => $"{ClipFolder}{page.Clip}.webp";
+
+    Page _page = Concepts[ 0 ];
+
+    void Show( Page page )
+    {
+        _page = page;
+        StateHasChanged();
+    }
+
+    protected override int BuildHash() => HashCode.Combine( _page );
+}

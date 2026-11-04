@@ -15,10 +15,11 @@ internal sealed class HeldItems
 {
 	private sealed class Held
 	{
-		// The object hanging off the citizen's bone, and that bone
+		// The object hanging off the citizen's bone, and that bone (by name, and looked up once: a lookup by name allocates)
 		public GameObject Root { get; init; }
 		public string SourceBone { get; init; }
 		public string TargetBone { get; init; }
+		public BoneCollection.Bone Source { get; init; }
 
 		// Where the game holds it, relative to the bone: set once, when the weapon attaches it
 		public Transform GameLocal { get; init; }
@@ -118,6 +119,7 @@ internal sealed class HeldItems
 				Root = root,
 				SourceBone = sourceBone,
 				TargetBone = targetBone,
+				Source = sourceBone is null ? null : citizen.Model.Bones.GetBone( sourceBone ),
 				GameLocal = root.LocalTransform
 			} );
 		}
@@ -175,7 +177,7 @@ internal sealed class HeldItems
 			// Always from where the game holds it, never from last frame's move, so the offset can't add up
 			held.Root.LocalTransform = held.GameLocal;
 
-			if ( !citizen.TryGetBoneTransform( held.SourceBone, out var hand ) || !transfer.TryGetPosedBone( model, held.TargetBone, out var modelHand ) )
+			if ( held.Source is null || !citizen.TryGetBoneTransform( held.Source, out var hand ) || !transfer.TryGetPosedBone( model, held.TargetBone, out var modelHand ) )
 				continue;
 
 			var where = held.Root.WorldTransform;

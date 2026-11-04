@@ -226,6 +226,16 @@
                         <div class="label">Faces</div>
                         <UIDropdown Items=@FacingChoices() Value=@selected.FacingIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Facing = (string)v )) Tokenize=@false></UIDropdown>
                     </div>
+                    <div class="row">
+                        <div class="label">Sprites face</div>
+                        <UIDropdown Items=@AlignChoices() Value=@selected.AlignIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Align = (string)v )) Tokenize=@false></UIDropdown>
+                    </div>
+                    <NumberRow Label="Turns as it lives (degrees)" Unit=@NumberRow.Field.Sweep Value=@selected.Sweep OnChanged=@(( float v ) => SetAll( l => l.Sweep = v ))></NumberRow>
+                    @if ( selected.PictureShape is null && selected.PictureIs == LayerPicture.Slash )
+                    {
+                        <NumberRow Label="Slash reach (degrees)" Unit=@NumberRow.Field.SlashArc Value=@selected.SlashShape.Arc OnChanged=@(( float v ) => SetAll( l => l.SlashArcDegrees = v ))></NumberRow>
+                        <NumberRow Label="Slash thickness" Unit=@NumberRow.Field.SlashWidth Value=@selected.SlashShape.Width OnChanged=@(( float v ) => SetAll( l => l.SlashThickness = v ))></NumberRow>
+                    }
                     @if ( selected.ShapeIs == LayerShape.Cone )
                     {
                         <NumberRow Label="Cone width" Unit=@NumberRow.Field.Angle Value=@selected.Angle OnChanged=@(( float v ) => SetAll( l => l.Angle = v ))></NumberRow>
@@ -822,6 +832,12 @@
         LayerWhen.OnRespawn => "On spawning again",
         LayerWhen.OnFootstep => "On each footstep",
         _ => "Always",
+    };
+
+    static List<UIDropdown.Item> AlignChoices() => new()
+    {
+        new( "The camera", nameof( LayerAlign.Camera ) ),
+        new( "Along the swing", nameof( LayerAlign.Swing ) ),
     };
 
     static List<UIDropdown.Item> RhythmChoices() => new()

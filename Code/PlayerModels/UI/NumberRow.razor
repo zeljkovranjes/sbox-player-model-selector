@@ -14,8 +14,16 @@
 
 @code
 {
-    /// <summary>The ranges a number can have, each the range of an effect's field (see <see cref="EffectLayer"/>) or a sticker's.</summary>
-    public enum Field { Spread, Offset, Size, Reach, Seconds, Rate, Brightness, Speed, Gravity, Beats, Fraction, Angle, Burst, ShowFor, Outline }
+    /// <summary>
+    /// The ranges a number can have, each the range of an effect's field (see <see cref="EffectLayer"/>), a sticker's or a
+    /// weapon design's (see <see cref="WeaponDesign"/>).
+    /// </summary>
+    public enum Field
+    {
+        Spread, Offset, Size, Reach, Seconds, Rate, Brightness, Speed, Gravity, Beats, Fraction, Angle, Burst, ShowFor, Outline,
+        Sweep, SlashArc, SlashWidth, PropOffset, Turn, PropScale, StickerSize, PatternScale, PatternTurn, Scroll, Spin, SkinSpeed, Bands, Nudge,
+        NudgeTurn,
+    }
 
     /// <summary>What the number sets.</summary>
     [Parameter] public string Label { get; set; }
@@ -54,6 +62,21 @@
     [Range( 0f, EffectLayer.MaxBurst ), Step( 1f )] public float Burst { get => Value; set => Set( value ); }
     [Range( 0f, EffectLayer.MaxShowFor ), Step( 0.05f )] public float ShowFor { get => Value; set => Set( value ); }
     [Range( 0f, Sticker.MaxOutline ), Step( 0.01f )] public float Outline { get => Value; set => Set( value ); }
+    [Range( -EffectLayer.MaxSweep, EffectLayer.MaxSweep ), Step( 5f )] public float Sweep { get => Value; set => Set( value ); }
+    [Range( EffectLayer.MinSlashArc, EffectLayer.MaxSlashArc ), Step( 5f )] public float SlashArc { get => Value; set => Set( value ); }
+    [Range( EffectLayer.MinSlashWidth, EffectLayer.MaxSlashWidth ), Step( 0.01f )] public float SlashWidth { get => Value; set => Set( value ); }
+    [Range( -WeaponProp.MostOffset, WeaponProp.MostOffset ), Step( 0.25f )] public float PropOffset { get => Value; set => Set( value ); }
+    [Range( -Accessory.MaxTurn, Accessory.MaxTurn ), Step( 1f )] public float Turn { get => Value; set => Set( value ); }
+    [Range( WeaponProp.MinScale, WeaponProp.MostScale ), Step( 0.01f )] public float PropScale { get => Value; set => Set( value ); }
+    [Range( WeaponSticker.MinSize, WeaponSticker.MaxSize ), Step( 0.1f )] public float StickerSize { get => Value; set => Set( value ); }
+    [Range( WeaponSkin.MinScale, WeaponSkin.MaxScale ), Step( 0.05f )] public float PatternScale { get => Value; set => Set( value ); }
+    [Range( 0f, 180f ), Step( 1f )] public float PatternTurn { get => Value; set => Set( value ); }
+    [Range( -WeaponSkin.MaxScroll, WeaponSkin.MaxScroll ), Step( 0.05f )] public float Scroll { get => Value; set => Set( value ); }
+    [Range( -WeaponSkin.MaxSpin, WeaponSkin.MaxSpin ), Step( 0.05f )] public float Spin { get => Value; set => Set( value ); }
+    [Range( 0f, WeaponSkin.MaxSpeed ), Step( 0.05f )] public float SkinSpeed { get => Value; set => Set( value ); }
+    [Range( WeaponSkin.MinBands, WeaponSkin.MaxBands ), Step( 1f )] public float Bands { get => Value; set => Set( value ); }
+    [Range( -WeaponProp.MaxNudge, WeaponProp.MaxNudge ), Step( 0.05f )] public float Nudge { get => Value; set => Set( value ); }
+    [Range( -WeaponProp.MaxNudgeTurn, WeaponProp.MaxNudgeTurn ), Step( 1f )] public float NudgeTurn { get => Value; set => Set( value ); }
 
     void Set( float value )
     {

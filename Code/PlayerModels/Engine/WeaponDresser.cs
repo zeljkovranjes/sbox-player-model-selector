@@ -45,6 +45,7 @@ internal sealed class WeaponDresser
 	private IReadOnlyList<DrawnShape> _shapes = Array.Empty<DrawnShape>();
 	private string _designsKey = "";
 	private bool _changed;
+	private bool _extras = true;
 
 	// What is dressed now: the weapon's object and main renderer, its design, the materials swapped on it (to put back)
 	// and the tint it had, the props and stickers on it
@@ -140,7 +141,7 @@ internal sealed class WeaponDresser
 	{
 		// The same weapon as before, with the same designs to choose from, is dressed already: asked of every body twice a
 		// second, so it costs nothing
-		if ( !_changed && held == _root && (held is null || _renderer.IsValid()) && (worldModel is null || worldModel == Weapon) )
+		if ( !_changed && held == _root && (held is null || _renderer.IsValid()) && (worldModel is null || worldModel == Weapon) && extras == _extras )
 			return;
 
 		var renderer = main.IsValid() ? main : held.IsValid() ? MainRenderer( held ) : null;
@@ -148,6 +149,7 @@ internal sealed class WeaponDresser
 		var design = weapon is null ? null : DesignFor( weapon );
 
 		_changed = false;
+		_extras = extras;
 		Undress();
 		_root = held.IsValid() ? held : null;
 		_renderer = renderer;

@@ -16,7 +16,7 @@ public partial class CodeEditor
 	private const float LeastHeight = 240f;
 
 	// How much of it always stays on screen, so its title bar can be reached
-	private const float KeptOnScreen = 80f;
+	private const float KeptOnScreen = 160f;
 
 	private Rect _window;
 	private Rect _grabbed;
@@ -39,8 +39,19 @@ public partial class CodeEditor
 			_window = new Rect( MathF.Max( 0f, left ), (screen.y - height) / 2f, width, height );
 		}
 
-		KeepOnScreen();
+		FitOnScreen();
 		UseWindow();
+	}
+
+	// Opened whole on screen, however it was left: the screen may be smaller now (another resolution)
+	private void FitOnScreen()
+	{
+		var screen = ScreenSize();
+		var width = Math.Clamp( _window.Width, LeastWidth, MathF.Max( LeastWidth, screen.x ) );
+		var height = Math.Clamp( _window.Height, LeastHeight, MathF.Max( LeastHeight, screen.y ) );
+		var left = Math.Clamp( _window.Left, 0f, MathF.Max( 0f, screen.x - width ) );
+		var top = Math.Clamp( _window.Top, 0f, MathF.Max( 0f, screen.y - height ) );
+		_window = new Rect( left, top, width, height );
 	}
 
 	private void StartMove()

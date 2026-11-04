@@ -7,7 +7,7 @@
 <root>
     <div class="label">@Label</div>
     <UIColor Property=@_so?.GetProperty( nameof( Picked ) )></UIColor>
-    <div class="reset clear @( string.IsNullOrEmpty( Hex ) || !CanReset ? "disabled" : "" )" Tooltip=@ResetLabel @onclick=@(() => OnChanged?.Invoke( "" ))>@( ResetLabel == "Remove" ? "close" : "restart_alt" )</div>
+    <div class="reset clear @( string.IsNullOrEmpty( Hex ) || !CanReset ? "disabled" : "" )" Tooltip=@ResetLabel @onclick=@(() => OnChanged?.Invoke( "" ))>@( ResetLabel == "Remove" ? "close" : "refresh" )</div>
 </root>
 
 @code

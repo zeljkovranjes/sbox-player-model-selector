@@ -84,6 +84,12 @@ public sealed class ModelPreview : Panel
 	/// <summary>Whether the weapon is put away (the test bar's Holster): hidden, the hands empty, until it is taken out again.</summary>
 	internal bool WeaponPutAway { get; set; }
 
+	/// <summary>
+	/// How far the citizen has fallen over onto its back (the test bar's Death), 0 standing to 1 lying: turned about its
+	/// feet, so the body, what it wears and its effects all go down with it.
+	/// </summary>
+	internal float Fallen { get; set; }
+
 	/// <summary>Whether the weapon held is outlined, as one that can be clicked into.</summary>
 	internal bool WeaponOutlined { get; set; }
 
@@ -222,7 +228,7 @@ public sealed class ModelPreview : Panel
 
 		// In a window the camera goes around the model, which faces the front view (numpad 1)
 		var facing = Rotation.FromYaw( FillsWindow ? 0f : _yaw );
-		_citizen.GameObject.WorldRotation = facing;
+		_citizen.GameObject.WorldRotation = Fallen > 0f ? facing * Rotation.FromPitch( -90f * Fallen ) : facing;
 		AcceptsFocus = FillsWindow;
 
 		// Bones picked differently need a new pose plan (or make one possible at all)

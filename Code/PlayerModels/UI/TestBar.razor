@@ -94,6 +94,9 @@
     const float StepsSeconds = 2.4f;
     const float FallOverSeconds = 0.45f;
     const float DownSeconds = 5f;
+
+    // Lying on its back the body is raised by about how far its back reaches behind its feet, so it lies on the floor
+    const float LyingLift = 11f;
     const float NoteSeconds = 3f;
     const float WalkSpeed = 120f;
     const float WalkReach = 50f;
@@ -266,8 +269,8 @@
 
     void StandUp()
     {
-        if ( Stage?.Citizen is { } citizen && citizen.IsValid() )
-            citizen.GameObject.WorldRotation = _homeRotation;
+        if ( Stage is not null )
+            Stage.Fallen = 0f;
     }
 
     // Where the body stands when nothing moves it: learned before anything moves it, again for another body
@@ -442,7 +445,7 @@
 
             case Motion.Down:
                 var over = MathF.Min( 1f, _motionTime / FallOverSeconds );
-                citizen.GameObject.WorldRotation = _homeRotation * Rotation.FromPitch( -90f * over * over );
+                Stage.Fallen = over * over;
                 if ( _motionTime >= DownSeconds )
                     Respawn();
                 break;
@@ -467,7 +470,7 @@
             }
         }
 
-        citizen.GameObject.WorldPosition = _home + _homeRotation.Forward * along + Vector3.Up * _height;
+        citizen.GameObject.WorldPosition = _home + _homeRotation.Forward * along + Vector3.Up * (_height + LyingLift * Stage.Fallen);
         citizen.Write( GroundedParameter, grounded );
         citizen.Write( MoveZParameter, falling );
         citizen.Write( MoveXParameter, going );
@@ -487,12 +490,15 @@
         if ( Stage?.Citizen is { } citizen && citizen.IsValid() )
         {
             if ( _homeOf == citizen )
-                citizen.GameObject.WorldTransform = new Transform( _home, _homeRotation );
+                citizen.GameObject.WorldPosition = _home;
 
             citizen.Scene.TimeScale = 1f;
         }
 
         if ( Stage is not null )
+        {
             Stage.WeaponPutAway = false;
+            Stage.Fallen = 0f;
+        }
     }
 }

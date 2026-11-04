@@ -21,6 +21,12 @@ internal sealed class PoseSchedule : GameObjectSystem<PoseSchedule>
 	// Out of view
 	private const float UnseenInterval = 1f / 10f;
 
+	// A weapon skin's moving colours are worked out and uploaded this often for a body posed near, at mid distance and far;
+	// out of view not at all (it shows as it last was)
+	private const float NearSkinInterval = 1f / 60f;
+	private const float MidSkinInterval = 1f / 30f;
+	private const float FarSkinInterval = 1f / 10f;
+
 	// Effects in view between the near and mid distances show this much of their sprites; past it, none
 	private const float MidEffectsShare = 0.5f;
 
@@ -54,6 +60,18 @@ internal sealed class PoseSchedule : GameObjectSystem<PoseSchedule>
 
 		return distance < MidDistance ? MidInterval : FarInterval;
 	}
+
+	/// <summary>
+	/// Seconds between fills of the weapon skin colours of a body posed every <paramref name="poseInterval"/> seconds (see
+	/// <see cref="IntervalFor"/>): 60 a second near, 30 at mid distance, 10 far, and never out of view.
+	/// </summary>
+	internal static float SkinIntervalFor( float poseInterval ) => poseInterval switch
+	{
+		<= 0f => NearSkinInterval,
+		MidInterval => MidSkinInterval,
+		FarInterval => FarSkinInterval,
+		_ => float.PositiveInfinity,
+	};
 
 	/// <summary>
 	/// How much of the effects of a body within <paramref name="bounds"/> (in the world) show, 0 to 1: all of them near

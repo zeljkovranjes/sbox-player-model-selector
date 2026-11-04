@@ -56,6 +56,10 @@ public sealed class ModelBody : Component
 	private readonly CancellationTokenSource _cancel = new();
 	private TimeSince _sinceHidden;
 	private TimeSince _sincePosed;
+
+	// How often its weapon's skin colours are filled, by how near and in view it is (see PoseSchedule.SkinIntervalFor); a
+	// preview, posing it itself, fills them every frame
+	private float _skinInterval;
 	private LookPainter _painter;
 	private AccessoryRack _accessories;
 	private EffectRack _effects;
@@ -208,6 +212,7 @@ public sealed class ModelBody : Component
 	protected override void OnPreRender()
 	{
 		var interval = Source.IsValid() ? Scene.GetSystem<PoseSchedule>()?.IntervalFor( Source.Bounds ) ?? 0f : 0f;
+		_skinInterval = PoseSchedule.SkinIntervalFor( interval );
 		if ( _sincePosed < interval )
 		{
 			FollowHeld();
@@ -236,7 +241,7 @@ public sealed class ModelBody : Component
 		_held.Place( Source, _renderer, _transfer );
 		_accessories?.Place( Source, _renderer, _transfer );
 		_effects?.Place( Source, _renderer, _transfer, _accessories, _held );
-		_weapons?.Animate();
+		_weapons?.Animate( _skinInterval );
 	}
 
 	/// <summary>

@@ -36,6 +36,10 @@ public sealed class CitizenEffects : Component
 	private TimeSince _sinceFound;
 	private TimeSince _sincePlaced;
 
+	// How often its weapon's skin colours are filled, by how near and in view it is (see PoseSchedule.SkinIntervalFor); a
+	// preview, posing it itself, fills them every frame
+	private float _skinInterval;
+
 	/// <summary>The effects worn on <paramref name="source"/>, if any.</summary>
 	internal static CitizenEffects On( SkinnedModelRenderer source )
 	{
@@ -123,7 +127,7 @@ public sealed class CitizenEffects : Component
 		}
 
 		_effects?.Place( Source, Source, null, null, _held );
-		_weapons?.Animate();
+		_weapons?.Animate( _skinInterval );
 	}
 
 	// Bodies far from the camera or out of view are placed less often (see PoseSchedule); a weapon drawn is dressed the
@@ -131,6 +135,7 @@ public sealed class CitizenEffects : Component
 	protected override void OnPreRender()
 	{
 		var interval = Source.IsValid() ? Scene.GetSystem<PoseSchedule>()?.IntervalFor( Source.Bounds ) ?? 0f : 0f;
+		_skinInterval = PoseSchedule.SkinIntervalFor( interval );
 		if ( _sincePlaced < interval )
 		{
 			FollowHeld();

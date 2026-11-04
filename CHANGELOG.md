@@ -151,6 +151,8 @@ Effects switches - on the Server page the host can turn off effects from the Wor
 Scripts switch - the host can keep players' effects from running their scripts, and lower the longest script that runs (16 KB at most, down to 2 KB); such an effect shows what its script made when it was saved, nothing is deleted, and the host never runs anyone's scripts
 # Preview
 Zoom - scroll over the preview to zoom in towards the face
+# Performance
+Weapon skins - a moving skin is worked out 60 times a second on weapons near you, 30 at mid distance, 10 far away and not at all out of view (100 players, 50 different skins, all in view: 51 skin uploads a frame down to 32)
 ### Improved
 # Player Model Selector window
 Tab - the selector is a Custom Player Model tab in Sandbox's own window, after HUD and Physgun, shown while a selector is in the world, instead of a window next to Saves and Effects; it fits the screen it is on

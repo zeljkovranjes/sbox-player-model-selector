@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using PlayerModels.Core;
 using PlayerModels.Core.Script;
@@ -58,12 +59,15 @@ internal static class SkinTextures
 		return entry;
 	}
 
-	/// <summary>Fills <paramref name="entry"/> for now and uploads it, unless it was this frame. Every frame: no allocations.</summary>
-	internal static void Tick( Entry entry )
+	/// <summary>
+	/// Fills <paramref name="entry"/> for now and uploads it, unless it was filled within <paramref name="interval"/>
+	/// seconds (or this frame): the nearest weapon wearing it sets the pace. Every frame: no allocations.
+	/// </summary>
+	internal static void Tick( Entry entry, float interval = 0f )
 	{
 		var now = RealTime.NowDouble;
 		entry.UsedAt = now;
-		if ( now - entry.FilledAt < FillStep || !entry.Texture.IsValid() )
+		if ( now - entry.FilledAt < Math.Max( FillStep, interval ) || !entry.Texture.IsValid() )
 			return;
 
 		entry.FilledAt = now;

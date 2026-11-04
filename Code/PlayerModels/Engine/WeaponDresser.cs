@@ -218,13 +218,14 @@ internal sealed class WeaponDresser
 	private readonly List<DrawnShape> _drawnStickers = new();
 
 	/// <summary>
-	/// Moves its skin's colours, colours moving stickers, and keeps props drawn the way the weapon is (hidden in first
-	/// person). Every frame: no allocations.
+	/// Moves its skin's colours (at most every <paramref name="skinInterval"/> seconds, see
+	/// <see cref="PoseSchedule.SkinIntervalFor"/>), colours moving stickers, and keeps props drawn the way the weapon is
+	/// (hidden in first person). Every frame: no allocations.
 	/// </summary>
-	internal void Animate()
+	internal void Animate( float skinInterval = 0f )
 	{
 		if ( _moving is not null )
-			SkinTextures.Tick( _moving );
+			SkinTextures.Tick( _moving, skinInterval );
 
 		if ( _stickers.Count == 0 && _props.Count == 0 )
 			return;

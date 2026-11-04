@@ -1,37 +1,390 @@
 {
   "shape": {
-    "id": "4f624d092b0aa813",
-    "s": [
-      "cCwK4ALGZCwB7H7B7KgGaH7K4",
-      "cNaK4K1GZNaB7SlB7VKGaSlK4",
-      "cYFK4VgGZYFB7dQB7f1GadQK4",
-      "civK4gKGZivB7n6B7qfGan6K4",
-      "ctaK4q1GZtaB7ylB71KGaylK4",
-      "c4EK41fGZ4EB79PB7_0Ga9PK4",
-      "cIFXrFgTMIFOuNQOuP1TMNQXr",
-      "cSwXrQKTMSwOuX6OuagTMX6Xr",
-      "cdaXra1TMdaOuilOulKTMilXr",
-      "coFXrlfTMoFOutPOuv1TMtPXr",
-      "cyvXrwKTMyvOu36Ou6fTM36Xr",
-      "c9aXr60TM9aOu__Ou__TM__Xr",
-      "cCwkeALgACwbhH7bhKggAH7ke",
-      "cNakeK1gANabhSlbhVKgASlke",
-      "cYFkeVggAYFbhdQbhf1gAdQke",
-      "civkegKgAivbhn6bhqfgAn6ke",
-      "ctakeq1gAtabhylbh1KgAylke",
-      "c4Eke1fgA4Ebh9Pbh_0gA9Pke",
-      "cIFxRFgsyIFoUNQoUP1szNQxR",
-      "cSwxRQKsySwoUX6oUagszX6xR",
-      "cdaxRa1sydaoUiloUlKszilxR",
-      "coFxRlfsyoFoUtPoUv1sztPxR",
-      "cyvxRwKsyyvoU36oU6fsz36xR",
-      "c9axR60sy9aoU__oU__sz__xR",
-      "cCw-EAL5mCw1HH71HKg5mH7-E",
-      "cNa-EK15mNa1HSl1HVK5mSl-E",
-      "cYF-EVg5mYF1HdQ1Hf15mdQ-E",
-      "civ-EgK5miv1Hn61Hqf5mn6-E",
-      "cta-Eq15mta1Hyl1H1K5myl-E",
-      "c4E-E1f5m4E1H9P1H_05m9P-E"
+    "id": "6e5d71dca7a5a178",
+    "s": [],
+    "em": [
+      {
+        "sh": "Hexagon",
+        "x": -0.833,
+        "y": -0.8,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": -0.5,
+        "y": -0.8,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": -0.167,
+        "y": -0.8,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": 0.167,
+        "y": -0.8,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": 0.5,
+        "y": -0.8,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": 0.833,
+        "y": -0.8,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": -0.667,
+        "y": -0.4,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": -0.333,
+        "y": -0.4,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "y": -0.4,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": 0.333,
+        "y": -0.4,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": 0.667,
+        "y": -0.4,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": 1,
+        "y": -0.4,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": -0.833,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": -0.5,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": -0.167,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": 0.167,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": 0.5,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": 0.833,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": -0.667,
+        "y": 0.4,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": -0.333,
+        "y": 0.4,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "y": 0.4,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": 0.333,
+        "y": 0.4,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": 0.667,
+        "y": 0.4,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": 1,
+        "y": 0.4,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": -0.833,
+        "y": 0.8,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": -0.5,
+        "y": 0.8,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": -0.167,
+        "y": 0.8,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": 0.167,
+        "y": 0.8,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": 0.5,
+        "y": 0.8,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      },
+      {
+        "sh": "Hexagon",
+        "x": 0.833,
+        "y": 0.8,
+        "r": 30,
+        "sx": 0.17,
+        "sy": 0.17,
+        "c": "#ffffff",
+        "op": 1,
+        "oc": "#0a1a2a",
+        "ow": 0.08,
+        "sp": 1
+      }
     ]
   },
   "emblem": [
@@ -51,7 +404,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -69,7 +424,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -87,7 +444,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -105,7 +464,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -123,7 +484,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -141,7 +504,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -159,7 +524,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -177,7 +544,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -195,7 +564,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -213,7 +584,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -231,7 +604,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -249,7 +624,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -267,7 +644,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -285,7 +664,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -303,7 +684,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -321,7 +704,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -339,7 +724,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -357,7 +744,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -375,7 +764,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -393,7 +784,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -411,7 +804,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -429,7 +824,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -447,7 +844,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -465,7 +864,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -483,7 +884,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -501,7 +904,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -519,7 +924,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -537,7 +944,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -555,7 +964,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     },
     {
       "Shape": "Hexagon",
@@ -573,7 +984,9 @@
       "Animation": null,
       "Palette": null,
       "AnimationSpeed": 1,
-      "Hidden": false
+      "Hidden": false,
+      "Eraser": false,
+      "Side": 0
     }
   ]
 }

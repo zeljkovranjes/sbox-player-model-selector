@@ -111,13 +111,12 @@ internal sealed partial class ScriptBuilder
 		}
 
 		var strokes = draft.Strokes;
-		if ( strokes.Count == 0 && draft.Parts.Count > 0 )
+		if ( draft.Parts.Count > 0 )
 		{
-			var union = new Draft();
-			foreach ( var part in draft.Parts )
-				AddPartOutline( union, _parts[ part ] );
-
-			strokes = union.Strokes;
+			// Made (as nothing) first: a layer drawing the emblem itself draws a circle rather than going round forever
+			draft.IsMade = true;
+			draft.Made = MakeEmblem( draft );
+			return draft.Made;
 		}
 
 		draft.Made = strokes.Count > 0 ? DrawnShape.From( strokes, string.IsNullOrEmpty( draft.Name ) ? null : draft.Name, draft.Sticker?.Sanitized() ) : null;
@@ -128,20 +127,42 @@ internal sealed partial class ScriptBuilder
 		return draft.Made;
 	}
 
-	private void AddPartOutline( Draft union, EmblemPart part )
+	// A draft with layers as an emblem: a sticker of its layers (lines drawn into it a layer under them all), carrying the
+	// drawn shapes they draw, mirrored and printed as it says; null when none of it draws anything
+	private DrawnShape MakeEmblem( Draft draft )
 	{
-		if ( part.Hidden || StrokesOf( part.ShapeHandle ) is not { } strokes )
-			return;
-
-		var flipped = new List<ShapeStroke>();
-		foreach ( var stroke in strokes )
+		var layers = new List<EmblemLayer>();
+		var drawn = new List<DrawnShape>();
+		if ( draft.Strokes.Count > 0 && DrawnShape.From( draft.Strokes ) is { } lines )
 		{
-			flipped.Add( stroke.Mapped( ( x, y ) => (part.FlipX ? -x : x, part.FlipY ? -y : y) ) );
+			drawn.Add( lines );
+			layers.Add( new EmblemLayer { Shape = lines.Reference } );
 		}
 
-		// An emblem past the point cap keeps the outlines that fit; its layers stay whole
-		AddStrokes( union, flipped, part.X, part.Y, part.ScaleX, part.ScaleY, part.Rotation );
-		Error = null;
+		foreach ( var part in Parts( draft ) )
+		{
+			layers.Add( part.ToLayer() );
+			if ( DrawnShape.IsReference( part.Shape ) && !drawn.Exists( x => x.Reference == part.Shape ) && Made( part.Shape ) is { } shape )
+				drawn.Add( shape );
+		}
+
+		return new DrawnShape
+		{
+			Name = string.IsNullOrEmpty( draft.Name ) ? null : draft.Name, Emblem = layers, Parts = drawn.Count > 0 ? drawn : null, Mirror = draft.Mirror,
+			Finish = draft.Finish,
+		}.Sanitized();
+	}
+
+	// The drawn shape the build made with this reference; null for none
+	private DrawnShape Made( string reference )
+	{
+		foreach ( var draft in _drafts )
+		{
+			if ( draft.IsMade && draft.Made?.Reference == reference )
+				return draft.Made;
+		}
+
+		return null;
 	}
 
 	private IReadOnlyList<EmblemPart> Parts( Draft draft )

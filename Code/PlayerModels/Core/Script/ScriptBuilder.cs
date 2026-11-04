@@ -25,6 +25,8 @@ internal sealed partial class ScriptBuilder
 
 		// The player's own shape it was drawn from (Shapes.Mine and the like), and how many strokes that gave it: one the
 		// script doesn't change is that shape whole (a sticker of layers, its finish), not just its lines
+		public bool Mirror;
+		public string Finish;
 		public DrawnShape Own;
 		public int OwnStrokes;
 		public bool Edited;

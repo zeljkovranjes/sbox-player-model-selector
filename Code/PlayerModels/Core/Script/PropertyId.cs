@@ -16,10 +16,10 @@ public enum PropertyId
 	EffectName, EffectKey, EffectOff, EffectAnchor, EffectJoint, EffectItem, EffectOffset, EffectHue, EffectSize,
 	EffectAmount, EffectSpeed,
 
-	ShapeFillColor, ShapeOutlineColor, ShapeOutlineWidth, ShapeAnimation, ShapePalette, ShapeAnimationSpeed, ShapePointCount,
+	ShapeFillColor, ShapeOutlineColor, ShapeOutlineWidth, ShapeAnimation, ShapePalette, ShapeAnimationSpeed, ShapeMirror, ShapeFinish, ShapePointCount,
 
 	EmblemShape, EmblemPosition, EmblemRotation, EmblemScale, EmblemFlipX, EmblemFlipY, EmblemColor, EmblemOpacity,
-	EmblemOutlineColor, EmblemOutlineWidth, EmblemAnimation, EmblemPalette, EmblemAnimationSpeed, EmblemHidden,
+	EmblemOutlineColor, EmblemOutlineWidth, EmblemAnimation, EmblemPalette, EmblemAnimationSpeed, EmblemHidden, EmblemEraser, EmblemSide,
 
 	WeaponFinish, WeaponTint,
 	SkinPattern, SkinPatternColor, SkinPatternColorEnd, SkinPatternScale, SkinPatternTurn, SkinPatternScroll, SkinPatternSpin, SkinPatternShape,

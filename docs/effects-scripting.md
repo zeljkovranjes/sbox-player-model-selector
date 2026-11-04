@@ -2659,6 +2659,30 @@ badge.AnimationSpeed = 2
 local value = badge.AnimationSpeed --> 2
 ```
 
+#### `Shape.Mirror: bool`
+
+Whether an emblem (a shape of layers) is drawn again flipped left to right, as one half of a symmetric picture.
+
+Set: while the shape or effect is built.
+
+```lua effect
+local badge = Shapes.New( "Badge" )
+badge.Mirror = true
+local value = badge.Mirror --> true
+```
+
+#### `Shape.Finish: StickerFinish`
+
+What a sticker is printed on: paper, holo, foil, glitter, gold, or lenticular (two looks by the angle, see Side).
+
+Set: while the shape or effect is built.
+
+```lua effect
+local badge = Shapes.New( "Badge" )
+badge.Finish = StickerFinish.Holo
+local value = badge.Finish --> StickerFinish.Holo
+```
+
 #### `Shape.PointCount: number  (read only)`
 
 How many points the shape has so far (at most 500).
@@ -3053,6 +3077,32 @@ local badge = Shapes.New( "Badge" )
 local star = badge.AddLayer( Shapes.Star5 )
 star.Hidden = true
 local value = star.Hidden --> true
+```
+
+#### `EmblemLayer.Eraser: bool`
+
+Whether it is an eraser: it draws nothing and cuts its shape out of every layer below it.
+
+Set: while the shape or effect is built.
+
+```lua effect
+local badge = Shapes.New( "Badge" )
+local star = badge.AddLayer( Shapes.Star5 )
+star.Eraser = true
+local value = star.Eraser --> true
+```
+
+#### `EmblemLayer.Side: number  (0 to 2)`
+
+Which look of a lenticular sticker it is in: 0 both, 1 the first, 2 the second.
+
+Set: while the shape or effect is built.
+
+```lua effect
+local badge = Shapes.New( "Badge" )
+local star = badge.AddLayer( Shapes.Star5 )
+star.Side = 2
+local value = star.Side --> 2
 ```
 
 #### `Shape.AddLayer( shape: Shape ): EmblemLayer`

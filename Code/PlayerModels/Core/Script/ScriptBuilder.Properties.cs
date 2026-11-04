@@ -161,6 +161,8 @@ internal sealed partial class ScriptBuilder
 			case PropertyId.ShapeAnimation: into[ at ] = (int)sticker.AnimationIs; break;
 			case PropertyId.ShapePalette: return WritePalette( sticker.Palette, into, at );
 			case PropertyId.ShapeAnimationSpeed: into[ at ] = sticker.Speed; break;
+			case PropertyId.ShapeMirror: into[ at ] = Flag( draft.Mirror ); break;
+			case PropertyId.ShapeFinish: into[ at ] = (int)StickerFinishes.Of( draft.Finish ); break;
 			case PropertyId.ShapePointCount: into[ at ] = PointsOf( draft ); break;
 		}
 
@@ -170,6 +172,15 @@ internal sealed partial class ScriptBuilder
 	private bool SetShape( PropertyId property, Draft draft, double[] from, int at )
 	{
 		draft.Edited = true;
+		switch ( property )
+		{
+			case PropertyId.ShapeMirror:
+				draft.Mirror = from[ at ] != 0;
+				return true;
+			case PropertyId.ShapeFinish:
+				return Named( ScriptEnums.StickerFinish, from[ at ], out var finish ) && Assign( () => draft.Finish = StickerFinishes.Sanitized( finish ) );
+		}
+
 		var sticker = draft.Sticker ??= new Sticker();
 		switch ( property )
 		{
@@ -203,6 +214,8 @@ internal sealed partial class ScriptBuilder
 			case PropertyId.EmblemPalette: return WritePalette( part.Palette, into, at );
 			case PropertyId.EmblemAnimationSpeed: into[ at ] = part.AnimationSpeed; break;
 			case PropertyId.EmblemHidden: into[ at ] = Flag( part.Hidden ); break;
+			case PropertyId.EmblemEraser: into[ at ] = Flag( part.Eraser ); break;
+			case PropertyId.EmblemSide: into[ at ] = part.Side; break;
 		}
 
 		return true;
@@ -234,6 +247,8 @@ internal sealed partial class ScriptBuilder
 			case PropertyId.EmblemPalette: return Palette( from, at, out var palette ) && Assign( () => part.Palette = palette );
 			case PropertyId.EmblemAnimationSpeed: part.AnimationSpeed = number; break;
 			case PropertyId.EmblemHidden: part.Hidden = from[ at ] != 0; break;
+			case PropertyId.EmblemEraser: part.Eraser = from[ at ] != 0; break;
+			case PropertyId.EmblemSide: part.Side = (int)Math.Round( number ); break;
 		}
 
 		return true;

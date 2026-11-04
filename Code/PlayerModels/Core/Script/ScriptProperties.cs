@@ -87,6 +87,8 @@ public static class ScriptProperties
 		new( PropertyId.ShapeAnimation, TypeKind.Shape, "Animation", ScriptEnums.Animation.Type, "How a sticker's fill colour moves.", ExampleValue: "Animation.Rain", ExampleResult: "Animation.Rain" ),
 		new( PropertyId.ShapePalette, TypeKind.Shape, "Palette", Colors, "The colours a sticker's colour cycle goes through.", ExampleValue: "{ Color.Red, Color.Yellow }", ExampleResult: "{ #ff0000, #ffff00 }" ),
 		new( PropertyId.ShapeAnimationSpeed, TypeKind.Shape, "AnimationSpeed", ScriptType.Number, "How fast a sticker's animation runs: 1 is the game's own pace.", 0, Sticker.MaxSpeed, ExampleValue: "2", ExampleResult: "2" ),
+		new( PropertyId.ShapeMirror, TypeKind.Shape, "Mirror", ScriptType.Bool, "Whether an emblem (a shape of layers) is drawn again flipped left to right, as one half of a symmetric picture.", ExampleValue: "true", ExampleResult: "true" ),
+		new( PropertyId.ShapeFinish, TypeKind.Shape, "Finish", ScriptEnums.StickerFinish.Type, "What a sticker is printed on: paper, holo, foil, glitter, gold, or lenticular (two looks by the angle, see Side).", ExampleValue: "StickerFinish.Holo", ExampleResult: "StickerFinish.Holo" ),
 		new( PropertyId.ShapePointCount, TypeKind.Shape, "PointCount", ScriptType.Number, "How many points the shape has so far (at most 500).", ReadOnly: true, ExampleResult: "0" ),
 
 		new( PropertyId.EmblemShape, TypeKind.EmblemLayer, "Shape", ScriptType.Shape, "The shape the emblem layer draws.", ExampleValue: "Shapes.Heart", ExampleResult: "Shapes.Heart" ),
@@ -103,6 +105,8 @@ public static class ScriptProperties
 		new( PropertyId.EmblemPalette, TypeKind.EmblemLayer, "Palette", Colors, "The colours its colour cycle goes through.", ExampleValue: "{ Color.Cyan, Color.Magenta }", ExampleResult: "{ #00ffff, #ff00ff }" ),
 		new( PropertyId.EmblemAnimationSpeed, TypeKind.EmblemLayer, "AnimationSpeed", ScriptType.Number, "How fast its animation runs: 1 is the game's own pace.", 0, Sticker.MaxSpeed, ExampleValue: "0.5", ExampleResult: "0.5" ),
 		new( PropertyId.EmblemHidden, TypeKind.EmblemLayer, "Hidden", ScriptType.Bool, "Whether it is hidden: kept, not drawn.", ExampleValue: "true", ExampleResult: "true" ),
+		new( PropertyId.EmblemEraser, TypeKind.EmblemLayer, "Eraser", ScriptType.Bool, "Whether it is an eraser: it draws nothing and cuts its shape out of every layer below it.", ExampleValue: "true", ExampleResult: "true" ),
+		new( PropertyId.EmblemSide, TypeKind.EmblemLayer, "Side", ScriptType.Number, "Which look of a lenticular sticker it is in: 0 both, 1 the first, 2 the second.", 0, 2, ExampleValue: "2", ExampleResult: "2" ),
 
 		new( PropertyId.WeaponFinish, TypeKind.Weapon, "Finish", ScriptEnums.Finish.Type, "What the weapon is made of: its own materials (Finish.None) or a stock finish, under its tint and skin.", ExampleValue: "Finish.Gold", ExampleResult: "Finish.Gold" ),
 		new( PropertyId.WeaponTint, TypeKind.Weapon, "Tint", ScriptType.Color, "The colour the weapon is tinted (white when it isn't).", 0, 1, ExampleValue: "Color.Parse( \"#ff8800\" )", ExampleResult: "#ff8800" ),

@@ -39,7 +39,7 @@ public class ShapeTests
 	}
 
 	[Fact]
-	public void EmblemLayersKeepTheirFieldsAndOutlineTheShape()
+	public void EmblemLayersKeepTheirFieldsAndMakeASticker()
 	{
 		const string source = "local back = shape.AddLayer( Shapes.Hexagon )\nback.Color = Color.Black\nlocal star = shape.AddLayer( Shapes.Star5 )\nstar.Position = Vector3( 0.2, -0.1, 0 )\nstar.Scale = Vector3( 0.5, 9, 1 )\nstar.Rotation = 45\nstar.FlipX = true\nstar.Opacity = 0.5\nstar.Animation = Animation.Rainbow\nlocal hidden = shape.AddLayer( Shapes.Heart )\nhidden.Hidden = true";
 		var build = ScriptKit.Build( source, ScriptKind.Shape ).Build;
@@ -47,7 +47,37 @@ public class ShapeTests
 		var star = build.Emblem[ 1 ];
 		Assert.Equal( (0.2f, -0.1f, 0.5f, 4f, 45f, true, 0.5f, "Rainbow"), (star.X, star.Y, star.ScaleX, star.ScaleY, star.Rotation, star.FlipX, star.Opacity, star.Animation) );
 		Assert.Equal( "#000000", build.Emblem[ 0 ].Color );
-		Assert.True( build.Shape.PointCount > 0 );
+
+		// The shape is a sticker of those layers, each as it was set; as a formation, their outlines
+		Assert.True( build.Shape.IsEmblem && build.Shape.IsSticker );
+		Assert.Equal( new[] { "Hexagon", "Star5", "Heart" }, build.Shape.Emblem.Select( x => x.Shape ) );
+		Assert.Equal( "#000000", build.Shape.Emblem[ 0 ].Color );
+		Assert.True( build.Shape.Emblem[ 2 ].Hidden );
+		Assert.True( build.Shape.Formation( false ).Length > 0 );
+	}
+
+	[Fact]
+	public void AnEmblemScriptSetsErasersLooksMirrorAndFinish()
+	{
+		const string source = "shape.Mirror = true\nshape.Finish = StickerFinish.Lenticular\nlocal back = shape.AddLayer( Shapes.Circle )\nback.Side = 1\nlocal front = shape.AddLayer( Shapes.Star5 )\nfront.Side = 2\nlocal hole = shape.AddLayer( Shapes.Circle )\nhole.Eraser = true\nhole.Scale = Vector3( 0.2, 0.2, 1 )";
+		var shape = ScriptKit.Build( source, ScriptKind.Shape ).Build.Shape;
+		Assert.True( shape.Mirror );
+		Assert.Equal( StickerFinish.Lenticular, shape.FinishIs );
+		Assert.Equal( new[] { 1, 2, 0 }, shape.Emblem.Select( x => x.Side ) );
+		Assert.True( shape.Emblem[ 2 ].Eraser );
+		Assert.NotNull( shape.SecondLook() );
+	}
+
+	[Fact]
+	public void AnEffectsEmblemIsASticker()
+	{
+		var effect = ScriptKit.BuildEffect( "local badge = Shapes.New( \"Badge\" )\nlocal back = badge.AddLayer( Shapes.Hexagon )\nback.Color = Color.Black\nlocal word = badge.AddLayer( Shapes.Text( \"GG\" ) )\nword.Color = Color.Yellow\nlocal glow = Sprite()\nglow.LooksLike = badge" );
+		var badge = effect.Shapes.Single( x => x.Reference == effect.Layers[ 0 ].Picture );
+		Assert.True( badge.IsEmblem );
+		Assert.Equal( "Badge", badge.Name );
+		Assert.Equal( 2, badge.Emblem.Count );
+		Assert.True( DrawnShape.IsReference( badge.Emblem[ 1 ].Shape ) );
+		Assert.Contains( badge.Parts, x => x.Reference == badge.Emblem[ 1 ].Shape );
 	}
 
 	[Fact]

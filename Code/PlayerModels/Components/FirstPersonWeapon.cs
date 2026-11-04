@@ -41,7 +41,8 @@ internal sealed class FirstPersonWeapon
 		var worn = citizen.IsValid() ? Worn( citizen ) : default;
 		var renderer = viewModel.IsValid() ? viewModel.Components.Get<ViewModel>()?.Renderer : null;
 
-		if ( look is null || !viewModel.IsValid() || !renderer.IsValid() || worn.Dresser?.Renderer is not { Model: { } worldModel } )
+		// In third person the view model stays about, unseen: the world model's effects are the ones to show then
+		if ( look is null || player?.Controller?.ThirdPerson == true || !viewModel.IsValid() || !renderer.IsValid() || worn.Dresser?.Renderer is not { Model: { } worldModel } )
 		{
 			Release();
 			return;

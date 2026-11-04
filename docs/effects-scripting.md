@@ -399,6 +399,7 @@ for everyone.
 | Shape points | 500 per shape |
 | Emblem layers | 32 |
 | Palette | 32 colours |
+| Lists, once built | 16,384 values together |
 | Building | 200,000 instructions |
 | One run (frame, event, element) | 10,000 instructions |
 | Calls | 32 deep |

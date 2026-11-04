@@ -22,7 +22,7 @@ internal sealed partial class ScriptBuilder
 			case PropertyId.LayerColor: ScriptMachine.WriteColor( layer.Color, into, at ); break;
 			case PropertyId.LayerColorEnd: ScriptMachine.WriteColor( layer.ColorEnd ?? layer.Color, into, at ); break;
 			case PropertyId.LayerColorMode: into[ at ] = (int)layer.ColorModeIs; break;
-			case PropertyId.LayerPalette: WritePalette( layer.Palette, into, at ); break;
+			case PropertyId.LayerPalette: return WritePalette( layer.Palette, into, at );
 			case PropertyId.LayerSize: into[ at ] = layer.Size; break;
 			case PropertyId.LayerSizeEnd: into[ at ] = layer.SizeEnd ?? layer.Size; break;
 			case PropertyId.LayerSpeed: into[ at ] = layer.Speed; break;

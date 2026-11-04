@@ -48,6 +48,12 @@ public static class ScriptLimits
 	/// <summary>The most items a list literal has.</summary>
 	public const int MaxListLength = 256;
 
+	/// <summary>
+	/// The most list slots a script's lists hold together once it is built: its written lists and the palettes it read
+	/// while building (each read is a copy).
+	/// </summary>
+	public const int MaxArenaSlots = 16 * 1024;
+
 	/// <summary>The largest number a literal or a result can be; past it a result is held there.</summary>
 	public const double MaxNumber = 1e15;
 

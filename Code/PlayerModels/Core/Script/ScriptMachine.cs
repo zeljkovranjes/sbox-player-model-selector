@@ -189,6 +189,14 @@ public sealed partial class ScriptMachine
 		return at;
 	}
 
+	internal const string ArenaFull = "The script's lists are too big together";
+
+	/// <summary>
+	/// Adds <paramref name="slots"/> to the arena while building, as long as it stays within
+	/// <see cref="ScriptLimits.MaxArenaSlots"/>: where they start, or -1 when that would be too many.
+	/// </summary>
+	internal int TryAppendArena( int slots ) => Arena.Length + slots > ScriptLimits.MaxArenaSlots ? -1 : AppendArena( slots );
+
 	/// <summary>Writes the colour <paramref name="hex"/> (white when it isn't one) as r, g, b, a at <paramref name="at"/>.</summary>
 	internal static void WriteColor( string hex, double[] into, int at )
 	{

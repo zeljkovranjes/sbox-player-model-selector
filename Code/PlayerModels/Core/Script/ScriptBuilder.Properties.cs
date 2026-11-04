@@ -135,7 +135,7 @@ internal sealed partial class ScriptBuilder
 			case PropertyId.ShapeOutlineColor: ScriptMachine.WriteColor( sticker.Outline, into, at ); break;
 			case PropertyId.ShapeOutlineWidth: into[ at ] = sticker.OutlineWidth; break;
 			case PropertyId.ShapeAnimation: into[ at ] = (int)sticker.AnimationIs; break;
-			case PropertyId.ShapePalette: WritePalette( sticker.Palette, into, at ); break;
+			case PropertyId.ShapePalette: return WritePalette( sticker.Palette, into, at );
 			case PropertyId.ShapeAnimationSpeed: into[ at ] = sticker.Speed; break;
 			case PropertyId.ShapePointCount: into[ at ] = PointsOf( draft ); break;
 		}
@@ -175,7 +175,7 @@ internal sealed partial class ScriptBuilder
 			case PropertyId.EmblemOutlineColor: ScriptMachine.WriteColor( part.OutlineColor, into, at ); break;
 			case PropertyId.EmblemOutlineWidth: into[ at ] = part.OutlineWidth; break;
 			case PropertyId.EmblemAnimation: into[ at ] = Choice( ScriptEnums.Animation, part.Animation ); break;
-			case PropertyId.EmblemPalette: WritePalette( part.Palette, into, at ); break;
+			case PropertyId.EmblemPalette: return WritePalette( part.Palette, into, at );
 			case PropertyId.EmblemAnimationSpeed: into[ at ] = part.AnimationSpeed; break;
 			case PropertyId.EmblemHidden: into[ at ] = Flag( part.Hidden ); break;
 		}
@@ -259,16 +259,20 @@ internal sealed partial class ScriptBuilder
 		return true;
 	}
 
-	// A palette read: its colours copied into the machine's lists, the game's five for none
-	private void WritePalette( List<string> own, double[] into, int at )
+	// A palette read: its colours copied into the machine's lists, the game's five for none; false once the lists are full
+	private bool WritePalette( List<string> own, double[] into, int at )
 	{
 		IReadOnlyList<string> colours = own is { Count: > 0 } ? own : ColorCycle.GamePalette;
-		var start = _machine.AppendArena( colours.Count * 4 );
+		var start = _machine.TryAppendArena( colours.Count * 4 );
+		if ( start < 0 )
+			return Fail( ScriptMachine.ArenaFull ) >= 0;
+
 		for ( var i = 0; i < colours.Count; i++ )
 			ScriptMachine.WriteColor( colours[ i ], _machine.Arena, start + i * 4 );
 
 		into[ at ] = start;
 		into[ at + 1 ] = colours.Count;
+		return true;
 	}
 
 	private int ShapeHandle( string name )

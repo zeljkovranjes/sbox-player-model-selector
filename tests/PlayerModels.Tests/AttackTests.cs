@@ -80,6 +80,21 @@ public class AttackTests
 	public void AGiantNumberIsRefusedAtTheNumberCap() => Refused( "giant number", "local n = " + Repeat( "9", 60_000 ), "too long", 8 * 1024 );
 
 	[Fact]
+	public void ReadingAPaletteOverAndOverStopsAtTheListCap()
+	{
+		// Each read copies the palette into the script's lists: without a cap a short loop made the build take ~45 s
+		var colours = string.Join( ", ", System.Linq.Enumerable.Repeat( "Color.Red", 32 ) );
+		var program = ScriptKit.Compile( $"local glow = Sprite()\nglow.Palette = {{ {colours} }}\nfor k = 1, 40000 do\n\tlocal p = glow.Palette\nend" );
+		var clock = Stopwatch.StartNew();
+		var build = new ScriptMachine( program ).Build();
+		clock.Stop();
+		_output.WriteLine( $"palette read 40,000 times: stopped in {clock.Elapsed.TotalMilliseconds:0.0} ms: {build.Error}" );
+		Assert.False( build.Succeeded );
+		Assert.Contains( "lists are too big", build.Error.Message );
+		Assert.True( clock.Elapsed.TotalMilliseconds < 50, $"took {clock.Elapsed.TotalMilliseconds} ms" );
+	}
+
+	[Fact]
 	public void TheLargestScriptWithinTheCapsCompilesFast()
 	{
 		var source = MaximalScript();

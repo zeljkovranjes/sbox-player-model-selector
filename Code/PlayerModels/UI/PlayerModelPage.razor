@@ -464,6 +464,10 @@
         };
 
         _code.Parent = SpawnMenuHost.ModalLayer ?? FindPopupPanel();
+
+        // The reference comes back with it when it was left open
+        if ( LocalPrefs.CodeReference?.Open == true && !_reference.IsValid() )
+            OpenReference( null );
     }
 
     // The scripting reference, opened on an entry (or its start): one at a time, over everything

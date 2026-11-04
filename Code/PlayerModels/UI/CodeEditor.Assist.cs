@@ -400,6 +400,7 @@ public partial class CodeEditor
 	private void SetFindOption( bool matchCase, bool wholeWord )
 	{
 		(_matchCase, _wholeWord) = (matchCase, wholeWord);
+		LocalPrefs.CodeFind = (matchCase, wholeWord);
 		Search();
 	}
 

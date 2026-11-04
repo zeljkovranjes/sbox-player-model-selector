@@ -59,6 +59,23 @@
         SetClass( "compact", Compact );
     }
 
+    // The choices as they were left; one the bar doesn't offer (an older or edited value) is left at its default
+    public TestBar()
+    {
+        if ( LocalPrefs.TestBar is not { } kept )
+            return;
+
+        _speed = Array.IndexOf( Speeds, kept.Speed ) >= 0 ? kept.Speed : WalkSpeed;
+        _slow = Array.IndexOf( Slows, kept.Slow ) >= 0 ? kept.Slow : 1f;
+        _loop = kept.Loop;
+        _slowUnused = _slow != 1f;
+    }
+
+    // Slow motion kept from last time is put on the preview's time once there is one
+    bool _slowUnused;
+
+    void Remember() => LocalPrefs.TestBar = (_speed, _slow, _loop);
+
     // The citizen's animation parameters the actions play (its graph's own names)
     const string AttackParameter = "b_attack";
     const string JumpParameter = "b_jump";
@@ -329,6 +346,7 @@
     void NextSpeed()
     {
         _speed = Speeds[ (Array.IndexOf( Speeds, _speed ) + 1) % Speeds.Length ];
+        Remember();
         StateHasChanged();
     }
 
@@ -336,6 +354,7 @@
     {
         _loop = !_loop;
         _sinceLoop = 0;
+        Remember();
         StateHasChanged();
     }
 
@@ -343,6 +362,7 @@
     {
         _slow = Slows[ (Array.IndexOf( Slows, _slow ) + 1) % Slows.Length ];
         UseTime();
+        Remember();
         StateHasChanged();
     }
 
@@ -375,6 +395,12 @@
         var citizen = Stage?.Citizen;
         if ( citizen is null || !citizen.IsValid() )
             return;
+
+        if ( _slowUnused )
+        {
+            _slowUnused = false;
+            UseTime();
+        }
 
         // The body's time runs as the preview's does: slowed, paused or stepped
         var delta = RealTime.Delta * citizen.Scene.TimeScale;

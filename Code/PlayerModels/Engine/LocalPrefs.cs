@@ -42,6 +42,9 @@ internal static class LocalPrefs
 	private const string CodeThemeCookie = "player_model_selector.code_theme";
 	private const string CodeAutoApplyCookie = "player_model_selector.code_auto_apply";
 	private const string CodeWindowCookie = "player_model_selector.code_window";
+	private const string CodeFindCookie = "player_model_selector.code_find";
+	private const string CodeReferenceCookie = "player_model_selector.code_reference";
+	private const string TestBarCookie = "player_model_selector.test_bar";
 
 	// Script drafts can be long (a script each, as left), so they are kept in the game's data rather than its cookies
 	private const string ScriptDraftsFile = "script_drafts.json";
@@ -358,6 +361,41 @@ internal static class LocalPrefs
 			? (kept[ 0 ], kept[ 1 ], kept[ 2 ], kept[ 3 ], kept[ 4 ] != 0f)
 			: null;
 		set => Game.Cookies.Set( CodeWindowCookie, value is { } window ? new[] { window.Left, window.Top, window.Width, window.Height, window.Maximized ? 1f : 0f } : null );
+	}
+
+	/// <summary>The code editor's find options: match case, and whole words only.</summary>
+	internal static (bool MatchCase, bool WholeWord) CodeFind
+	{
+		get
+		{
+			var bits = Game.Cookies.Get( CodeFindCookie, 0 );
+			return ((bits & 1) != 0, (bits & 2) != 0);
+		}
+		set => Game.Cookies.Set( CodeFindCookie, (value.MatchCase ? 1 : 0) | (value.WholeWord ? 2 : 0) );
+	}
+
+	/// <summary>
+	/// Where the scripting reference was (left, top, in the UI's units) and whether it was left open, to open again with
+	/// the code editor; null when it was never opened.
+	/// </summary>
+	internal static (float Left, float Top, bool Open)? CodeReference
+	{
+		get => Game.Cookies.Get<float[]>( CodeReferenceCookie, null ) is { Length: 3 } kept && kept.All( float.IsFinite )
+			? (kept[ 0 ], kept[ 1 ], kept[ 2 ] != 0f)
+			: null;
+		set => Game.Cookies.Set( CodeReferenceCookie, value is { } place ? new[] { place.Left, place.Top, place.Open ? 1f : 0f } : null );
+	}
+
+	/// <summary>
+	/// The test bar's choices: how fast Walk goes (units a second), how slow time runs (1 for normal) and whether the last
+	/// action loops; null when never changed. Values the bar doesn't offer are the bar's to refuse.
+	/// </summary>
+	internal static (float Speed, float Slow, bool Loop)? TestBar
+	{
+		get => Game.Cookies.Get<float[]>( TestBarCookie, null ) is { Length: 3 } kept && kept.All( float.IsFinite )
+			? (kept[ 0 ], kept[ 1 ], kept[ 2 ] != 0f)
+			: null;
+		set => Game.Cookies.Set( TestBarCookie, value is { } bar ? new[] { bar.Speed, bar.Slow, bar.Loop ? 1f : 0f } : null );
 	}
 
 	/// <summary>Counts up whenever a draft is kept or let go of: lists of them read them again when it changes.</summary>

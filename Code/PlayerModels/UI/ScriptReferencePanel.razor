@@ -11,11 +11,11 @@
 
 <root class="@CodeTheme.Of( LocalPrefs.CodeLight ).Name">
     <div class="titlebar">
-        <DragHandle class="title-drag" Started=@Grab Moved=@Move></DragHandle>
+        <DragHandle class="title-drag" Started=@Grab Moved=@Move Ended=@Remember></DragHandle>
         <div class="title-icon">help</div>
         <TextLabel class="title" Text="Scripting reference"></TextLabel>
         <div class="spacer"></div>
-        <div class="window-button close" Tooltip="Close" @onclick=@(() => Delete())>close</div>
+        <div class="window-button close" Tooltip="Close" @onclick=@Close>close</div>
     </div>
     <div class="columns">
         <div class="contents">
@@ -110,8 +110,11 @@
         if ( !firstTime )
             return;
 
-        Style.Left = Length.Pixels( _at.x );
-        Style.Top = Length.Pixels( _at.y );
+        if ( LocalPrefs.CodeReference is { } kept )
+            _at = new Vector2( kept.Left, kept.Top );
+
+        Place( _at );
+        Remember();
         Show( Entry );
     }
 
@@ -140,11 +143,29 @@
 
     void Grab() => _grabbed = _at;
 
-    void Move( Vector2 moved )
+    void Move( Vector2 moved ) => Place( _grabbed + moved );
+
+    // How much of it always stays on screen, so its title bar can be reached
+    const float KeptOnScreen = 160f;
+
+    // Placed at at (in the UI's units), kept where its title bar can be reached however the screen changed
+    void Place( Vector2 at )
     {
-        _at = _grabbed + moved;
+        var scale = MathF.Max( ScaleToScreen, 0.01f );
+        var screen = (Parent?.Box.Rect.Size is { x: > 0f } size ? size : Screen.Size) / scale;
+        var width = Box.Rect.Width > 0f ? Box.Rect.Width / scale : KeptOnScreen;
+        _at = new Vector2( Math.Clamp( at.x, KeptOnScreen - width, MathF.Max( 0f, screen.x - KeptOnScreen ) ), Math.Clamp( at.y, 0f, MathF.Max( 0f, screen.y - KeptOnScreen ) ) );
         Style.Left = Length.Pixels( _at.x );
-        Style.Top = Length.Pixels( MathF.Max( 0f, _at.y ) );
+        Style.Top = Length.Pixels( _at.y );
+    }
+
+    // Where it is, and that it is open: the code editor opens it again there next time
+    void Remember() => LocalPrefs.CodeReference = (_at.x, _at.y, true);
+
+    void Close()
+    {
+        LocalPrefs.CodeReference = (_at.x, _at.y, false);
+        Delete();
     }
 
     // The entries whose name has the search in it, in the reference's order

@@ -55,6 +55,7 @@ public partial class CodeEditor
 	private void Open()
 	{
 		_autoApply = LocalPrefs.CodeAutoApply;
+		(_matchCase, _wholeWord) = LocalPrefs.CodeFind;
 		var look = LookNow?.Invoke();
 		_library = new MyLibrary( look?.DrawnShapes );
 		var effect = EffectOf( look );

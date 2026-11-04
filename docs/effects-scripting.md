@@ -2248,7 +2248,7 @@ end
 
 #### `Particle.Seed: number  (read only)`
 
-A number from 0 up to 1 picked when it appears, the same all its life: to make each one different (Math.Random( p.Seed + 1 ) for another).
+A number from 0 up to 1 picked when it appears (by each client for itself), the same all its life: to make each one different (Math.Random( p.Seed + 1 ) for another).
 
 Set: read only.
 
@@ -2339,7 +2339,7 @@ end
 
 #### `Particle.Frame: number  (0 to 15)`
 
-Which of its layer's Pictures it shows now, from 0 (they take them in turn unless this picks).
+Which of its layer's Pictures it shows now, from 0, a fraction rounded down (they take them in turn unless this picks).
 
 Set: while it runs (in its functions).
 

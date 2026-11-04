@@ -38,7 +38,7 @@ internal static class ScriptPrograms
 	internal static PlayerLook Built( PlayerLook look, Guid player, int mostBytes, bool paced, out bool pending )
 	{
 		pending = false;
-		if ( look is null || !look.Effects.Exists( x => x.Script is not null ) )
+		if ( !EffectScripts.HasScripts( look ) )
 			return look;
 
 		var key = $"{player}|{mostBytes}|{look.Serialize()}";

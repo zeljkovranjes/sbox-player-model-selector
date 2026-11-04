@@ -398,4 +398,41 @@ public class EffectScriptsTests
 		Assert.NotNull( shown.Effects[ 0 ].Script );
 		Assert.Equal( Enumerable.Range( 0, shown.Effects[ 0 ].Layers.Count ), shown.Effects[ 0 ].Layers.Select( x => x.ScriptLayer ) );
 	}
+
+	[Fact]
+	public void AWeaponsScriptedEffectIsBuiltAndStaysOnTheWeapon()
+	{
+		var look = new PlayerLook
+		{
+			Weapons = { new WeaponDesign { Weapon = Pistol, Effects = new() { Saved( Glow, new Dictionary<string, string> { ["glowSize"] = "4" } ) } } },
+		}.Sanitized();
+
+		var shown = EffectScripts.WithScriptsBuilt( look, Build, out var pending );
+		Assert.False( pending );
+		var effect = shown.Weapons[ 0 ].Effects[ 0 ];
+		Assert.Equal( 4f, effect.Layers[ 0 ].Size );
+		Assert.Equal( 0, effect.Layers[ 0 ].ScriptLayer );
+		Assert.Equal( nameof( AnchorKind.HeldWeapon ), effect.Anchor.Kind );
+		Assert.Null( effect.Key );
+		Assert.Null( EffectScripts.WithoutScripts( look, 0 ).Weapons[ 0 ].Effects[ 0 ].Script );
+	}
+
+	[Fact]
+	public void ALooksScriptsAreHeldToItsSizeWithItsWeaponsAfterItsBody()
+	{
+		Effect Long()
+		{
+			var effect = Saved( Glow );
+			effect.Script = new string( 'a', ScriptLimits.MaxLookBytes * 2 / 5 );
+			return effect;
+		}
+
+		var look = Wearing( Long(), Long() );
+		look.Weapons.Add( new WeaponDesign { Weapon = Pistol, Effects = new() { Long() } } );
+		var kept = look.Sanitized();
+		Assert.All( kept.Effects, x => Assert.NotNull( x.Script ) );
+		Assert.Null( kept.Weapons[ 0 ].Effects[ 0 ].Script );
+	}
+
+	private const string Pistol = "weapons/pistol/pistol.vmdl";
 }

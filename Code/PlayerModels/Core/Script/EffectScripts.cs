@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PlayerModels.Core.Script;
 
@@ -61,22 +62,37 @@ public static class EffectScripts
 	}
 
 	/// <summary>
-	/// <paramref name="look"/> with each of its scripted effects as <paramref name="build"/> builds it (see
-	/// <see cref="Shown"/>), the drawn shapes the scripts made carried by the look. An effect whose script fails shows
-	/// what its look kept, without its script (nothing of it runs); one <paramref name="build"/> gives null for (its turn to
-	/// compile hasn't come) does too, and <paramref name="pending"/> says to ask again. This very look when it has no
-	/// scripts, else a copy.
+	/// <paramref name="look"/> with each of its scripted effects (its body's and its weapons') as <paramref name="build"/>
+	/// builds it (see <see cref="Shown"/>), the drawn shapes the scripts made carried by the look. An effect whose script
+	/// fails shows what its look kept, without its script (nothing of it runs); one <paramref name="build"/> gives null for
+	/// (its turn to compile hasn't come) does too, and <paramref name="pending"/> says to ask again. This very look when it
+	/// has no scripts, else a copy.
 	/// </summary>
 	public static PlayerLook WithScriptsBuilt( PlayerLook look, Func<Effect, ScriptBuild> build, out bool pending )
 	{
 		pending = false;
-		if ( look is null || !look.Effects.Exists( x => x.Script is not null ) )
+		if ( !HasScripts( look ) )
 			return look;
 
 		var copy = look.Sanitized();
-		for ( var i = 0; i < copy.Effects.Count; i++ )
+		pending |= BuildEach( copy.Effects, copy, build, false );
+		foreach ( var design in copy.Weapons )
+			pending |= BuildEach( design.Effects, copy, build, true );
+
+		return copy;
+	}
+
+	/// <summary>Whether any effect of <paramref name="look"/>, its body's or a weapon's, has a script.</summary>
+	public static bool HasScripts( PlayerLook look ) => EffectsOf( look ).Any( x => x.Script is not null );
+
+	// Builds each scripted effect of effects in place (one on a weapon stays on it, without a key); true when one has to
+	// wait its turn
+	private static bool BuildEach( List<Effect> effects, PlayerLook look, Func<Effect, ScriptBuild> build, bool onWeapon )
+	{
+		var pending = false;
+		for ( var i = 0; i < (effects?.Count ?? 0); i++ )
 		{
-			var stored = copy.Effects[ i ];
+			var stored = effects[ i ];
 			if ( stored.Script is null )
 				continue;
 
@@ -86,12 +102,19 @@ public static class EffectScripts
 			{
 				foreach ( var shape in shown.Shapes ?? new List<DrawnShape>() )
 				{
-					if ( !copy.DrawnShapes.Exists( x => x.Id == shape.Id ) )
-						copy.DrawnShapes.Add( shape );
+					if ( !look.DrawnShapes.Exists( x => x.Id == shape.Id ) )
+						look.DrawnShapes.Add( shape );
 				}
 
 				shown.Shapes = null;
-				copy.Effects[ i ] = shown;
+				if ( onWeapon )
+				{
+					shown.Key = null;
+					shown.Anchor.Kind = stored.Anchor.Kind;
+					shown.Anchor.Joint = stored.Anchor.Joint;
+				}
+
+				effects[ i ] = shown;
 				continue;
 			}
 
@@ -99,7 +122,7 @@ public static class EffectScripts
 			stored.Parameters = null;
 		}
 
-		return copy;
+		return pending;
 	}
 
 	/// <summary>
@@ -109,13 +132,13 @@ public static class EffectScripts
 	/// </summary>
 	public static PlayerLook WithoutScripts( PlayerLook look, int mostBytes = 0 )
 	{
-		if ( look is null || !look.Effects.Exists( x => x.Script is not null && ScriptLimits.Utf8Bytes( x.Script ) > mostBytes ) )
+		if ( !EffectsOf( look ).Any( x => TooLong( x, mostBytes ) ) )
 			return look;
 
 		var copy = look.Sanitized();
-		foreach ( var effect in copy.Effects )
+		foreach ( var effect in EffectsOf( copy ) )
 		{
-			if ( effect.Script is not null && ScriptLimits.Utf8Bytes( effect.Script ) > mostBytes )
+			if ( TooLong( effect, mostBytes ) )
 			{
 				effect.Script = null;
 				effect.Parameters = null;
@@ -123,5 +146,23 @@ public static class EffectScripts
 		}
 
 		return copy;
+	}
+
+	private static bool TooLong( Effect effect, int mostBytes ) => effect.Script is not null && ScriptLimits.Utf8Bytes( effect.Script ) > mostBytes;
+
+	// Every effect of a look: its body's, then each weapon's
+	private static IEnumerable<Effect> EffectsOf( PlayerLook look )
+	{
+		if ( look is null )
+			yield break;
+
+		foreach ( var effect in look.Effects ?? new List<Effect>() )
+			yield return effect;
+
+		foreach ( var design in look.Weapons ?? new List<WeaponDesign>() )
+		{
+			foreach ( var effect in design.Effects ?? new List<Effect>() )
+				yield return effect;
+		}
 	}
 }

@@ -185,6 +185,8 @@ public sealed class WeaponDesign
 			effects.Add( kept );
 		}
 
+		Effect.HoldScriptsTo( effects, Script.ScriptLimits.MaxLookBytes );
+
 		var hidden = new List<string>();
 		foreach ( var part in HiddenParts ?? new() )
 		{

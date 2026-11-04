@@ -167,6 +167,9 @@ public sealed class PlayerLook
 		// The body's effects name shapes first: past the look's cap, a weapon's sticker gives way
 		var effects = Effect.Sanitized( Effects, shapes );
 		var weapons = WeaponDesign.Sanitized( Weapons, shapes );
+
+		// A look's scripts, its body's then its weapons', are held to their size together
+		Effect.HoldScriptsTo( effects.Concat( weapons.SelectMany( x => x.Effects ?? new() ) ).ToList(), Script.ScriptLimits.MaxLookBytes );
 		return new PlayerLook
 		{
 			Model = model.Length <= MaxModelLength ? model : "",

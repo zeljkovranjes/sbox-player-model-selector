@@ -36,7 +36,7 @@ public static class StandardShapes
 	private const int TriesPerPoint = 600;
 
 	// How lines are drawn when the shape is what a sprite looks like
-	private const float LineWidth = 0.14f;
+	internal const float LineWidth = 0.14f;
 	private const float Softness = 0.05f;
 	private const float Glow = 0.25f;
 	private const float GlowReach = 0.12f;

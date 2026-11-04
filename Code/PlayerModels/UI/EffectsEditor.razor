@@ -388,7 +388,7 @@
 
     static IEnumerable<string> ShapeFacets( DrawnShape shape )
     {
-        yield return shape.Sticker is null ? "Kind: shape" : "Kind: sticker";
+        yield return shape.IsEmblem ? "Kind: emblem" : shape.Sticker is null ? "Kind: shape" : "Kind: sticker";
         if ( shape.Sticker is { IsAnimated: true } sticker )
             yield return $"Moves: {sticker.AnimationIs.ToString().ToLowerInvariant()}";
     }
@@ -476,7 +476,7 @@
     static DrawnShape Credited( SharedLibrary<DrawnShape>.Entry entry )
     {
         var name = string.IsNullOrWhiteSpace( entry.Name ) ? "Shape" : entry.Name;
-        return DrawnShape.From( entry.Item.Decode(), name, entry.Item.Sticker, OriginOf( entry, ShareOrigin.ShapeKind ) );
+        return entry.Item.Credited( name, OriginOf( entry, ShareOrigin.ShapeKind ) );
     }
 
     // The host blocks a share on their server from its details

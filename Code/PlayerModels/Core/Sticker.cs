@@ -72,9 +72,9 @@ public sealed class Sticker
 	}
 
 	// A rainbow sticker turns round the wheel this often a second, a pulsing one beats this often and this deep, at speed 1
-	private const float RainbowTurns = 0.5f;
-	private const float PulseBeats = 1f;
-	private const float PulseDepth = 0.5f;
+	internal const float RainbowTurns = 0.5f;
+	internal const float PulseBeats = 1f;
+	internal const float PulseDepth = 0.5f;
 
 	/// <summary>
 	/// <paramref name="layer"/> as it shows with this sticker as its picture: its fill's animation as the layer's own

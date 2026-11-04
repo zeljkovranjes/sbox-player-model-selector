@@ -321,7 +321,13 @@ internal sealed class EffectRack
 			if ( layer.DrawnContent is { } content )
 				ShapeTextures.Count( content, distance );
 		}
+
+		for ( var i = 0; i < Stickers.Count; i++ )
+			ShapeTextures.Count( Stickers[ i ].Content, distance );
 	}
+
+	/// <summary>The drawn shapes the stickers on the weapon held are (see <see cref="WeaponDresser"/>), counted with its layers'.</summary>
+	internal IReadOnlyList<DrawnShape> Stickers { get; set; } = Array.Empty<DrawnShape>();
 
 	/// <summary>Gives every layer back to the scene for reuse; nothing shows until effects are applied again.</summary>
 	internal void Release()

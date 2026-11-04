@@ -5,9 +5,11 @@ namespace PlayerModels.Core;
 
 /// <summary>
 /// A drawn shape (see <see cref="DrawnShape"/>) as pixels, for a sprite or a thumbnail: closed strokes filled, open
-/// ones drawn <see cref="LineWidth"/> wide, edges smoothed over a pixel, and a sticker's outline round the outside. Each
+/// ones drawn <see cref="LineWidth"/> wide (or as wide as they say), an eraser's strokes cutting away what is under them,
+/// edges smoothed over a pixel, and a sticker's outline round the outside, following the edge an eraser leaves. Each
 /// pixel's distance is only worked out from the strokes near it, so even a shape of every point it may have is drawn in
-/// a millisecond or two, and the same shape is the same pixels on every machine.
+/// a millisecond or two, and the same shape is the same pixels on every machine. An emblem's layers are drawn with the
+/// same distances (see <see cref="EmblemRaster"/>).
 /// </summary>
 public static class ShapeRaster
 {
@@ -28,6 +30,7 @@ public static class ShapeRaster
 	{
 		internal float[] Edges = Array.Empty<float>();
 		internal float[] Lines = Array.Empty<float>();
+		internal float[] Cuts = Array.Empty<float>();
 		internal float[] Distances = Array.Empty<float>();
 		internal bool[] Inside = Array.Empty<bool>();
 		internal byte[] Pixels = Array.Empty<byte>();
@@ -41,6 +44,7 @@ public static class ShapeRaster
 
 			Edges = new float[ size * size ];
 			Lines = new float[ size * size ];
+			Cuts = new float[ size * size ];
 			Distances = new float[ size * size ];
 			Inside = new bool[ size * size ];
 			Pixels = new byte[ size * size * 4 ];
@@ -82,37 +86,60 @@ public static class ShapeRaster
 	}
 
 	/// <summary>
-	/// How far each pixel's middle is outside the strokes (negative inside a closed one or within a line's width), row by
-	/// row from the top; worked out up to <paramref name="reach"/> past them, and further away as far as can be.
+	/// How far each pixel's middle is outside the strokes (negative inside a closed one or within a line's width, and
+	/// outside again where an eraser's stroke cuts it away), row by row from the top; worked out up to
+	/// <paramref name="reach"/> past them, and further away as far as can be.
 	/// </summary>
 	public static float[] Distances( List<ShapeStroke> strokes, int size, float reach, Canvas canvas = null )
 	{
 		canvas ??= new Canvas();
+		return Distances( strokes, size, reach, canvas, new Area( 0, size - 1, 0, size - 1 ), false );
+	}
+
+	/// <summary>The pixels worked out, rows and columns from the first to the last, both included.</summary>
+	internal readonly record struct Area( int FirstRow, int LastRow, int FirstColumn, int LastColumn )
+	{
+		internal bool IsEmpty => FirstRow > LastRow || FirstColumn > LastColumn;
+	}
+
+	/// <summary>
+	/// <see cref="Distances(List{ShapeStroke},int,float,Canvas)"/> for the pixels of <paramref name="area"/> alone (the
+	/// rest of what it gives is left as it was): <paramref name="evenOdd"/> fills the closed strokes together, so one
+	/// inside another leaves a hole, instead of each on its own.
+	/// </summary>
+	internal static float[] Distances( List<ShapeStroke> strokes, int size, float reach, Canvas canvas, Area area, bool evenOdd )
+	{
 		canvas.Fit( size );
-		var count = size * size;
-		var edges = canvas.Edges;
-		var lines = canvas.Lines;
-		Array.Fill( edges, float.MaxValue );
-		Array.Fill( lines, float.MaxValue );
+		var (edges, lines, cuts, inside, distances) = (canvas.Edges, canvas.Lines, canvas.Cuts, canvas.Inside, canvas.Distances);
+		var hasCuts = false;
+		var width = area.LastColumn - area.FirstColumn + 1;
+		for ( var row = area.FirstRow; row <= area.LastRow; row++ )
+		{
+			var start = row * size + area.FirstColumn;
+			Array.Fill( edges, float.MaxValue, start, width );
+			Array.Fill( lines, float.MaxValue, start, width );
+			Array.Fill( cuts, float.MaxValue, start, width );
+			Array.Clear( inside, start, width );
+		}
 
 		var unit = 2f / size;
-		var halfWidth = LineWidth * 0.5f;
-		var near = halfWidth + reach + 2f * unit * SoftPixels;
 		foreach ( var stroke in strokes )
 		{
 			var points = stroke.Points;
 			var corners = stroke.Count;
 			var segments = stroke.Closed ? corners : Math.Max( 1, corners - 1 );
+			var field = stroke.Erase ? cuts : stroke.Closed ? edges : lines;
+			var less = stroke.Closed ? 0f : (stroke.Width > 0f ? stroke.Width : LineWidth) * 0.5f;
+			var near = less + reach + 2f * unit * SoftPixels;
+			hasCuts |= stroke.Erase;
 			for ( var s = 0; s < segments && corners > 0; s++ )
 			{
 				var t = Math.Min( (s + 1) % corners, corners - 1 );
 				float ax = points[ s * 2 ], ay = points[ s * 2 + 1 ], bx = points[ t * 2 ], by = points[ t * 2 + 1 ];
-				var firstColumn = Math.Max( 0, (int)MathF.Floor( (MathF.Min( ax, bx ) - near + 1f) / unit ) );
-				var lastColumn = Math.Min( size - 1, (int)MathF.Ceiling( (MathF.Max( ax, bx ) + near + 1f) / unit ) );
-				var firstRow = Math.Max( 0, (int)MathF.Floor( (1f - MathF.Max( ay, by ) - near) / unit ) );
-				var lastRow = Math.Min( size - 1, (int)MathF.Ceiling( (1f - MathF.Min( ay, by ) + near) / unit ) );
-				var field = stroke.Closed ? edges : lines;
-				var less = stroke.Closed ? 0f : halfWidth;
+				var firstColumn = Math.Max( area.FirstColumn, (int)MathF.Floor( (MathF.Min( ax, bx ) - near + 1f) / unit ) );
+				var lastColumn = Math.Min( area.LastColumn, (int)MathF.Ceiling( (MathF.Max( ax, bx ) + near + 1f) / unit ) );
+				var firstRow = Math.Max( area.FirstRow, (int)MathF.Floor( (1f - MathF.Max( ay, by ) - near) / unit ) );
+				var lastRow = Math.Min( area.LastRow, (int)MathF.Ceiling( (1f - MathF.Min( ay, by ) + near) / unit ) );
 				for ( var row = firstRow; row <= lastRow; row++ )
 				{
 					var y = 1f - (row + 0.5f) * unit;
@@ -128,19 +155,17 @@ public static class ShapeRaster
 		}
 
 		// Inside a closed stroke (even-odd, so one crossing itself leaves out what it goes round twice): strokes join where
-		// they overlap, as pictures' outlines do
-		var inside = canvas.Inside;
-		Array.Clear( inside );
+		// they overlap, as pictures' outlines do; filled together, one inside another is a hole
 		var crossings = canvas.Crossings;
-		foreach ( var stroke in strokes )
+		for ( var row = area.FirstRow; row <= area.LastRow; row++ )
 		{
-			if ( !stroke.Closed )
-				continue;
-
-			for ( var row = 0; row < size; row++ )
+			var y = 1f - (row + 0.5f) * unit;
+			crossings.Clear();
+			foreach ( var stroke in strokes )
 			{
-				var y = 1f - (row + 0.5f) * unit;
-				crossings.Clear();
+				if ( !stroke.Closed )
+					continue;
+
 				var points = stroke.Points;
 				for ( int i = 0, j = stroke.Count - 1; i < stroke.Count; j = i++ )
 				{
@@ -149,26 +174,44 @@ public static class ShapeRaster
 						crossings.Add( points[ i * 2 ] + (y - yi) * (points[ j * 2 ] - points[ i * 2 ]) / (yj - yi) );
 				}
 
-				crossings.Sort();
-				for ( var k = 0; k + 1 < crossings.Count; k += 2 )
-				{
-					var from = Math.Max( 0, (int)MathF.Ceiling( (crossings[ k ] + 1f) / unit - 0.5f ) );
-					var to = Math.Min( size - 1, (int)MathF.Floor( (crossings[ k + 1 ] + 1f) / unit - 0.5f ) );
-					for ( var column = from; column <= to; column++ )
-						inside[ row * size + column ] = true;
-				}
+				if ( !evenOdd )
+					Fill( crossings, inside, row, size, area, unit );
 			}
+
+			if ( evenOdd )
+				Fill( crossings, inside, row, size, area, unit );
 		}
 
-		var distances = canvas.Distances;
-		for ( var i = 0; i < count; i++ )
-			distances[ i ] = MathF.Min( inside[ i ] ? -edges[ i ] : edges[ i ], lines[ i ] );
+		for ( var row = area.FirstRow; row <= area.LastRow; row++ )
+		{
+			for ( var i = row * size + area.FirstColumn; i <= row * size + area.LastColumn; i++ )
+			{
+				var distance = MathF.Min( inside[ i ] ? -edges[ i ] : edges[ i ], lines[ i ] );
+				distances[ i ] = hasCuts ? MathF.Max( distance, -cuts[ i ] ) : distance;
+			}
+		}
 
 		return distances;
 	}
 
-	// How much a pixel this far outside an edge is covered: fully inside, none past the blur
-	private static float Covered( float distance, float soft ) => Math.Clamp( 0.5f - distance / soft, 0f, 1f );
+	// The pixels of a row between each pair of crossings marked inside (within the area), the crossings used up
+	private static void Fill( List<float> crossings, bool[] inside, int row, int size, Area area, float unit )
+	{
+		crossings.Sort();
+		for ( var k = 0; k + 1 < crossings.Count; k += 2 )
+		{
+			var from = Math.Max( area.FirstColumn, (int)MathF.Ceiling( (crossings[ k ] + 1f) / unit - 0.5f ) );
+			var to = Math.Min( area.LastColumn, (int)MathF.Floor( (crossings[ k + 1 ] + 1f) / unit - 0.5f ) );
+			for ( var column = from; column <= to; column++ )
+				inside[ row * size + column ] = true;
+		}
+
+		crossings.Clear();
+	}
+
+	/// <summary>How much a pixel <paramref name="distance"/> outside an edge is covered, with edges <paramref name="soft"/> wide: fully inside, none past the blur.</summary>
+	internal static float Covered( float distance, float soft ) => Math.Clamp( 0.5f - distance / soft, 0f, 1f );
+
 
 	private static float DistanceToSegment( float x, float y, float ax, float ay, float bx, float by )
 	{

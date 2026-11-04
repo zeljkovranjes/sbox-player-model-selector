@@ -8,32 +8,44 @@ namespace PlayerModels.Engine;
 
 /// <summary>
 /// What players' drawn shapes look like as sprites (see <see cref="DrawnShape"/>), drawn on this machine from their
-/// lines (see <see cref="ShapeRaster"/>) at one small size, once for each shape whoever wears it: a hundred players with
-/// the same sticker make one texture. Kept by what the shape is, never by its id, so no one can make their shape stand
-/// in for another's. Shapes asked for wait their turn and are drawn a millisecond or so's worth a frame, so a crowd joining
-/// doesn't stall a frame; at most <see cref="MostTextures"/> are kept, and past that the bodies furthest away show a plain shape while
-/// nearer ones get theirs. A server with no screen draws none.
+/// lines (see <see cref="ShapeRaster"/>) at one small size, emblems bigger (see <see cref="EmblemRaster"/>), once for each
+/// shape whoever wears it: a hundred players with the same sticker make one texture. Kept by what the shape is, never by
+/// its id, so no one can make their shape stand in for another's. Shapes asked for wait their turn and are drawn a
+/// millisecond or so's worth a frame (an emblem a layer at a time), so a crowd joining doesn't stall a frame; the textures
+/// kept take at most <see cref="MostBytes"/>, and past that the bodies furthest away show a plain shape while nearer ones
+/// get theirs. An emblem whose layers' colours move is put together again a few times a second while it shows near,
+/// within a fraction of a millisecond a frame. A server with no screen draws none.
 /// </summary>
 internal static class ShapeTextures
 {
-	/// <summary>The most textures kept: each is <see cref="ShapeRaster.Size"/> square, four bytes a pixel (64 KB), 8 MB in all.</summary>
-	internal const int MostTextures = 128;
+	/// <summary>
+	/// The bytes the kept textures (and emblems' moving parts) take at most: 16 MB, 256 stickers (each
+	/// <see cref="ShapeRaster.Size"/> square, four bytes a pixel, 64 KB) or 64 still emblems (256 KB).
+	/// </summary>
+	internal const long MostBytes = 16L * 1024 * 1024;
 
-	/// <summary>The bytes the kept textures take at most.</summary>
-	internal const int MostBytes = MostTextures * ShapeRaster.Size * ShapeRaster.Size * 4;
-
-	// How long a frame spends drawing shapes at most (at least one is drawn, a few milliseconds at worst), and how long a
-	// texture let go of is kept before it is freed, so nothing still showing it for a frame shows a freed one
+	// How long a frame spends drawing shapes at most (at least one step is taken, a millisecond or two at worst), and how
+	// long a texture let go of is kept before it is freed, so nothing still showing it for a frame shows a freed one
 	private const double FrameMilliseconds = 1.5;
 	private const float RetireSeconds = 2f;
 
 	// How many shapes wait to be drawn at most: past that the furthest are let go of (their bodies show a plain shape)
 	private const int MostWaiting = 256;
 
+	// Moving emblems are put together again this often a second at most, while a body showing one is this near, for at
+	// most this long a frame (at least one)
+	private const float MovingRate = 15f;
+	private const float MovingDistance = 2000f;
+	private const double MovingMilliseconds = 0.5;
+	private const float MillisecondsPerSecond = 1000f;
+
 	private sealed class Entry
 	{
 		public Texture Texture;
 		public Sprite Sprite;
+		public long Bytes;
+		public EmblemRaster.Moving Moving;
+		public RealTimeSince SinceComposed;
 
 		// How far away the nearest body showing it is, as last counted (see Count); none counted is as far as can be
 		public float Nearest;
@@ -46,14 +58,21 @@ internal static class ShapeTextures
 		public float Nearest;
 	}
 
-	// Where shapes are drawn, kept from one to the next: a crowd joining makes no garbage to collect
+	// Where shapes and emblems are drawn, kept from one to the next: a crowd joining makes no garbage to collect but the
+	// pictures. One emblem is drawn at a time, a layer a step, by what it is
 	private static readonly ShapeRaster.Canvas Scratch = new();
+	private static readonly EmblemRaster.Workspace Room = new();
+	private static EmblemRaster.Job _job;
+	private static string _jobContent;
 
 	private static readonly Dictionary<string, Entry> Entries = new();
 	private static readonly Dictionary<string, Wait> Waiting = new();
+	private static readonly List<Entry> Moving = new();
 	private static readonly List<(Texture Texture, RealTimeSince Since)> Retired = new();
 	private static float _frame = -1f;
 	private static double _spentThisFrame;
+	private static long _bytes;
+	private static int _nextMoving;
 
 	/// <summary>
 	/// Counts up whenever a texture is drawn or let go of: whatever shows one asks again when this changes, and between
@@ -61,9 +80,10 @@ internal static class ShapeTextures
 	/// </summary>
 	internal static int Generation { get; private set; }
 
-	/// <summary>How many textures are kept now, and the bytes they take.</summary>
+	/// <summary>How many textures are kept now, the bytes they take, and how many of them move.</summary>
 	internal static int Kept => Entries.Count;
-	internal static long Bytes => (long)Entries.Count * ShapeRaster.Size * ShapeRaster.Size * 4;
+	internal static long Bytes => _bytes;
+	internal static int Moves => Moving.Count;
 
 	/// <summary>
 	/// The sprite of <paramref name="shape"/> for a body <paramref name="distance"/> away (0 for a picture on the page),
@@ -104,9 +124,9 @@ internal static class ShapeTextures
 	}
 
 	/// <summary>
-	/// Draws the shapes waiting, nearest first, for a millisecond or so this frame (at least one), while there is room or
-	/// a texture shown further away to let go of, and frees textures let go of a while ago. Every frame: with nothing
-	/// waiting it allocates nothing.
+	/// Draws the shapes waiting, nearest first, for a millisecond or so this frame (at least one step), while there is
+	/// room or a texture shown further away to let go of; puts moving emblems shown near together again; and frees
+	/// textures let go of a while ago. Every frame: with nothing waiting it allocates nothing.
 	/// </summary>
 	internal static void Pump()
 	{
@@ -115,12 +135,13 @@ internal static class ShapeTextures
 		{
 			_frame = Time.Now;
 			_spentThisFrame = 0;
+			Animate();
 		}
 
-		while ( _spentThisFrame < FrameMilliseconds && Waiting.Count > 0 )
+		while ( _spentThisFrame < FrameMilliseconds && (Waiting.Count > 0 || _job is not null) )
 		{
 			var started = Stopwatch.GetTimestamp();
-			var drawn = DrawNearest();
+			var drawn = DrawNext();
 			_spentThisFrame += Stopwatch.GetElapsedTime( started ).TotalMilliseconds;
 			if ( !drawn )
 				break;
@@ -161,10 +182,16 @@ internal static class ShapeTextures
 		return Entries.GetValueOrDefault( content );
 	}
 
-	// The nearest shape waiting, drawn when there is room, or room is made by letting go of the texture shown furthest
-	// away if that is further than it; false when it has to wait, as everything kept shows nearer
-	private static bool DrawNearest()
+	private static int SizeOf( DrawnShape shape ) => shape.IsEmblem ? EmblemRaster.Size : ShapeRaster.Size;
+
+	// One step towards the shapes waiting: the emblem being drawn a layer further (kept once done), or the nearest shape
+	// drawn (or its emblem started) when there is room, or room is made by letting go of the texture shown furthest away
+	// if that is further than it; false when it has to wait, as everything kept shows nearer
+	private static bool DrawNext()
 	{
+		if ( _job is not null )
+			return StepEmblem();
+
 		string content = null;
 		Wait nearest = null;
 		foreach ( var (key, wait) in Waiting )
@@ -176,15 +203,98 @@ internal static class ShapeTextures
 			nearest = wait;
 		}
 
-		if ( Entries.Count >= MostTextures && !LetGoFurthest( nearest.Nearest ) )
+		var size = SizeOf( nearest.Shape );
+		if ( !MakeRoom( (long)size * size * 4, nearest.Nearest ) )
 			return false;
 
+		if ( nearest.Shape.IsEmblem )
+		{
+			_job = new EmblemRaster.Job( nearest.Shape, size, Room );
+			_jobContent = content;
+			return true;
+		}
+
 		Waiting.Remove( content );
-		var size = ShapeRaster.Size;
 		var texture = Texture.Create( size, size ).WithName( $"drawn_shape_{nearest.Shape.Id}" ).WithData( ShapeRaster.Rgba( nearest.Shape, size, Scratch ) ).Finish();
-		Entries[ content ] = new Entry { Texture = texture, Sprite = Sprite.FromTexture( texture ), Nearest = nearest.Nearest };
-		Generation++;
+		Keep( content, new Entry { Texture = texture, Sprite = Sprite.FromTexture( texture ), Bytes = (long)size * size * 4, Nearest = nearest.Nearest } );
 		return true;
+	}
+
+	// The emblem being drawn, a layer further; once done, kept with its moving part while there is room for that too
+	private static bool StepEmblem()
+	{
+		if ( !Waiting.TryGetValue( _jobContent, out var wait ) )
+		{
+			_job = null;
+			return true;
+		}
+
+		if ( !_job.Step() )
+			return true;
+
+		var size = EmblemRaster.Size;
+		var bytes = (long)size * size * 4;
+		var moving = _job.Moving;
+		if ( moving is not null && !MakeRoom( bytes + moving.Bytes, wait.Nearest ) )
+			moving = null;
+
+		var builder = Texture.Create( size, size ).WithName( $"emblem_{wait.Shape.Id}" );
+		if ( moving is not null )
+			builder = builder.WithDynamicUsage();
+
+		var texture = builder.WithData( Room.Pixels ).Finish();
+		Waiting.Remove( _jobContent );
+		Keep( _jobContent, new Entry { Texture = texture, Sprite = Sprite.FromTexture( texture ), Bytes = bytes + (moving?.Bytes ?? 0), Moving = moving, Nearest = wait.Nearest } );
+		_job = null;
+		_jobContent = null;
+		return true;
+	}
+
+	private static void Keep( string content, Entry entry )
+	{
+		Entries[ content ] = entry;
+		_bytes += entry.Bytes;
+		if ( entry.Moving is not null )
+			Moving.Add( entry );
+
+		Generation++;
+	}
+
+	// Lets go of the textures shown furthest away, further than distance, until bytes more fit; false when they can't
+	private static bool MakeRoom( long bytes, float distance )
+	{
+		while ( _bytes + bytes > MostBytes )
+		{
+			if ( !LetGoFurthest( distance ) )
+				return false;
+		}
+
+		return true;
+	}
+
+	// The moving emblems shown near put together as they are now, in turn, each at most MovingRate times a second, for at
+	// most MovingMilliseconds a frame: no allocations
+	private static void Animate()
+	{
+		if ( Moving.Count == 0 )
+			return;
+
+		var started = Stopwatch.GetTimestamp();
+		var ms = (long)(RealTime.Now * MillisecondsPerSecond);
+		for ( var tried = 0; tried < Moving.Count; tried++ )
+		{
+			_nextMoving = (_nextMoving + 1) % Moving.Count;
+			var entry = Moving[ _nextMoving ];
+			if ( entry.Nearest > MovingDistance || entry.SinceComposed < 1f / MovingRate || !entry.Texture.IsValid() )
+				continue;
+
+			entry.SinceComposed = 0f;
+			var moving = entry.Moving;
+			moving.Compose( ms, Room );
+			entry.Texture.Update( new ReadOnlySpan<byte>( Room.Composed, 0, moving.Width * moving.Height * 4 ), moving.X, moving.Y, moving.Width, moving.Height );
+			if ( Stopwatch.GetElapsedTime( started ).TotalMilliseconds >= MovingMilliseconds )
+				return;
+		}
 	}
 
 	// The key of the furthest of items, further than at; null for none
@@ -209,8 +319,11 @@ internal static class ShapeTextures
 		if ( furthest is null )
 			return false;
 
-		Retired.Add( (Entries[ furthest ].Texture, 0f) );
+		var entry = Entries[ furthest ];
+		Retired.Add( (entry.Texture, 0f) );
 		Entries.Remove( furthest );
+		Moving.Remove( entry );
+		_bytes -= entry.Bytes;
 		Generation++;
 		return true;
 	}

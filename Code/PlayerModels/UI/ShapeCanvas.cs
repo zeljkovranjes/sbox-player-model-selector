@@ -8,8 +8,9 @@ namespace PlayerModels.UI;
 
 /// <summary>
 /// The shape creator's drawing area: the shape so far drawn as it will look (see <see cref="ShapeRaster"/>), and the left
-/// mouse button drawing a new stroke on it, tidied when the button is let go (see <see cref="ShapeStroke.Freehand"/>). The
-/// square it shows is the shape's square, -1 to 1 each way.
+/// mouse button drawing a new stroke on it, tidied when the button is let go (see <see cref="ShapeStroke.Freehand"/>); with
+/// the eraser, a stroke that cuts away what is under it, its size shown as a circle at the cursor ([ and ] change it while
+/// the canvas has the focus). The square it shows is the shape's square, -1 to 1 each way.
 /// </summary>
 public sealed class ShapeCanvas : Panel
 {
@@ -28,6 +29,18 @@ public sealed class ShapeCanvas : Panel
 	/// <summary>Called with each stroke drawn, once it is tidied.</summary>
 	[Parameter] public Action<ShapeStroke> Drawn { get; set; }
 
+	/// <summary>Whether strokes are the eraser's, and how wide it is (on the square, 2 across).</summary>
+	[Parameter] public bool Erasing { get; set; }
+	[Parameter] public float EraserSize { get; set; }
+
+	/// <summary>Called with the eraser's new size when [ or ] is pressed.</summary>
+	[Parameter] public Action<float> Resized { get; set; }
+
+	// How much [ and ] change the eraser's size
+	private const float EraserStep = 0.02f;
+
+	private Panel _cursor;
+
 	private readonly List<float> _drawing = new();
 	private readonly ShapeRaster.Canvas _scratch = new();
 	private bool _isDrawing;
@@ -39,6 +52,8 @@ public sealed class ShapeCanvas : Panel
 	public ShapeCanvas()
 	{
 		AddClass( "shape-canvas" );
+		AcceptsFocus = true;
+		_cursor = AddChild<Panel>( "eraser-cursor" );
 	}
 
 	public override void Tick()
@@ -51,6 +66,8 @@ public sealed class ShapeCanvas : Panel
 
 		// An animated sticker's fill is drawn white, for its colour to move over it as on a body
 		Style.BackgroundTint = Sticker is { IsAnimated: true } sticker ? ShapeIcon.FillAt( sticker, RealTime.Now ) : Color.White;
+
+		PlaceCursor();
 
 		// Drawn again only when what shows changed: the strokes, the sticker, or the stroke being drawn
 		var points = _isDrawing ? _drawing.Count : -1;
@@ -69,10 +86,42 @@ public sealed class ShapeCanvas : Panel
 		if ( e.MouseButton != MouseButtons.Left )
 			return;
 
+		// The keys ([ and ]) come here while the canvas was used last
+		Focus();
 		_isDrawing = true;
 		_drawing.Clear();
 		AddPoint( e.LocalPosition );
 		e.StopPropagation();
+	}
+
+	public override void OnButtonEvent( ButtonEvent e )
+	{
+		if ( e.Pressed && e.Button is "[" or "]" )
+		{
+			Resized?.Invoke( EraserSize + (e.Button == "]" ? EraserStep : -EraserStep) );
+			e.StopPropagation = true;
+			return;
+		}
+
+		base.OnButtonEvent( e );
+	}
+
+	// The eraser's circle, as wide as it cuts, at the cursor while it is over the canvas
+	private void PlaceCursor()
+	{
+		var size = Box.Rect.Size;
+		var shown = Erasing && HasHovered && size.x > 0f;
+		_cursor.Style.Display = shown ? DisplayMode.Flex : DisplayMode.None;
+		if ( !shown )
+			return;
+
+		var scale = ScaleFromScreen;
+		var diameter = EraserSize / 2f * size.x;
+		var mouse = MousePosition;
+		_cursor.Style.Width = Length.Pixels( diameter * scale );
+		_cursor.Style.Height = Length.Pixels( diameter * scale );
+		_cursor.Style.Left = Length.Pixels( (mouse.x - diameter / 2f) * scale );
+		_cursor.Style.Top = Length.Pixels( (mouse.y - diameter / 2f) * scale );
 	}
 
 	protected override void OnMouseMove( MousePanelEvent e )
@@ -110,7 +159,9 @@ public sealed class ShapeCanvas : Panel
 	private void Finish()
 	{
 		_isDrawing = false;
-		if ( _drawing.Count >= 2 )
+		if ( _drawing.Count >= 2 && Erasing )
+			Drawn?.Invoke( new ShapeStroke { Erase = true, Width = EraserSize, Points = ShapeStroke.Freehand( _drawing.ToArray(), false ).Points } );
+		else if ( _drawing.Count >= 2 )
 			Drawn?.Invoke( ShapeStroke.Freehand( _drawing.ToArray(), Closed ) );
 
 		_drawing.Clear();
@@ -121,7 +172,7 @@ public sealed class ShapeCanvas : Panel
 	{
 		var strokes = new List<ShapeStroke>( Strokes ?? Array.Empty<ShapeStroke>() );
 		if ( _isDrawing && _drawing.Count >= 2 )
-			strokes.Add( new ShapeStroke { Points = _drawing.ToArray() } );
+			strokes.Add( new ShapeStroke { Erase = Erasing, Width = Erasing ? EraserSize : 0f, Points = _drawing.ToArray() } );
 
 		var shape = strokes.Count > 0 ? DrawnShape.From( strokes, sticker: Sticker ) : null;
 		var pixels = shape is null ? new byte[ CanvasPixels * CanvasPixels * 4 ] : ShapeRaster.Rgba( shape, CanvasPixels, _scratch );

@@ -12,7 +12,8 @@ namespace PlayerModels.Core;
 /// layer uses one by its id (see <see cref="Reference"/>) as a formation sprites come from, or as the picture each sprite
 /// is; a look carries each it uses once, so it shows on every machine with nothing else to fetch. Its id is worked out
 /// from what it is, so the same shape is the same id everywhere; what it looks like is drawn on each machine, once for
-/// everyone wearing it.
+/// everyone wearing it. An emblem is a shape made of a stack of layers instead (see <see cref="Emblem"/>), each a
+/// standard shape or one of the drawn shapes it carries (<see cref="Parts"/>), placed, coloured and cut out on its own.
 /// </summary>
 public sealed class DrawnShape
 {
@@ -23,15 +24,34 @@ public sealed class DrawnShape
 	/// <summary>The most shapes a look carries.</summary>
 	public const int MaxPerLook = 8;
 
+	/// <summary>The most points an emblem's drawn layers have, all together, and the most drawn shapes it carries.</summary>
+	public const int MaxEmblemPoints = 2000;
+	public const int MaxParts = EmblemLayer.MaxPerEmblem;
+
+	/// <summary>
+	/// The most points the shapes a look carries have, all together, and the most emblem layers: an emblem is many shapes
+	/// in one, and the look still has to fit in <see cref="PlayerLook.MaxTextLength"/>.
+	/// </summary>
+	public const int MaxLookPoints = 4000;
+	public const int MaxLookEmblemLayers = 2 * EmblemLayer.MaxPerEmblem;
+
+	/// <summary>How wide a wide line or an eraser's stroke is, at least and at most, on the square (2 across).</summary>
+	public const float MinStrokeWidth = 0.01f;
+	public const float MaxStrokeWidth = 0.8f;
+
 	/// <summary>The longest name.</summary>
 	public const int MaxNameLength = 32;
 
 	/// <summary>What a layer's shape or picture starts with when it is a drawn shape: then its id.</summary>
 	public const char ReferencePrefix = '@';
 
-	// A stroke is its kind, then each point as four digits of 64: twelve bits for x, twelve for y
+	// A stroke is its kind (and a wide line's or an eraser's width as two digits of 64), then each point as four digits of
+	// 64: twelve bits for x, twelve for y
 	private const char ClosedMark = 'c';
 	private const char OpenMark = 'o';
+	private const char WideMark = 'w';
+	private const char EraseMark = 'e';
+	private const int WidthDigits = 2;
 	private const int DigitsPerPoint = 4;
 	private const int Levels = 4095;
 	private const string Digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
@@ -63,11 +83,38 @@ public sealed class DrawnShape
 	public ShareOrigin ForkedFrom { get; set; }
 
 	/// <summary>
+	/// An emblem's layers, from the bottom of the stack to the top (see <see cref="EmblemLayer"/>); null for a shape that
+	/// isn't one.
+	/// </summary>
+	[JsonPropertyName( "em" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public List<EmblemLayer> Emblem { get; set; }
+
+	/// <summary>The drawn shapes an emblem's layers name (by <see cref="Reference"/>), each once; null for none.</summary>
+	[JsonPropertyName( "pt" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public List<DrawnShape> Parts { get; set; }
+
+	/// <summary>Whether an emblem is drawn again flipped left to right, as one half of a symmetric picture.</summary>
+	[JsonPropertyName( "mir" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public bool Mirror { get; set; }
+
+	/// <summary>Whether it is a sticker (an emblem of layers, or one coloured whole as stickers were before them), not a plain shape.</summary>
+	[JsonIgnore]
+	public bool IsSticker => IsEmblem || Sticker is not null;
+
+	/// <summary>Whether it is an emblem: a stack of layers rather than strokes.</summary>
+	[JsonIgnore]
+	public bool IsEmblem => Emblem is { Count: > 0 };
+
+	/// <summary>Whether it has colours of its own (a sticker or an emblem), rather than taking its layer's colour.</summary>
+	[JsonIgnore]
+	public bool HasOwnColours => IsSticker;
+
+	/// <summary>
 	/// What it is, as one string: its strokes and how it is coloured, its name and origin aside. Two shapes are the same
 	/// exactly when this is, so what each looks like is kept by it, never by the shorter id.
 	/// </summary>
 	[JsonIgnore]
-	public string Content => _content ??= ContentOf( Strokes, Sticker );
+	public string Content => _content ??= ContentOf( Strokes, Sticker, Emblem, Parts, Mirror );
 
 	// Worked out once: a shape is never changed once read, only copied
 	private string _content;
@@ -106,8 +153,12 @@ public sealed class DrawnShape
 			if ( kept.Count >= MaxStrokes || count <= 0 )
 				break;
 
-			var text = new StringBuilder( 1 + count * DigitsPerPoint );
-			text.Append( stroke.Closed && count >= 3 ? ClosedMark : OpenMark );
+			var text = new StringBuilder( 1 + WidthDigits + count * DigitsPerPoint );
+			var kind = stroke.Erase ? EraseMark : stroke.Closed && count >= 3 ? ClosedMark : stroke.Width > 0f ? WideMark : OpenMark;
+			text.Append( kind );
+			if ( HasWidth( kind ) )
+				AppendWidth( text, stroke.Width );
+
 			for ( var i = 0; i < count; i++ )
 			{
 				Append( text, stroke.Points[ i * 2 ] );
@@ -121,38 +172,58 @@ public sealed class DrawnShape
 		return new DrawnShape { Name = name, Strokes = kept, Sticker = sticker, ForkedFrom = forkedFrom }.Sanitized();
 	}
 
-	/// <summary>Its strokes, read back.</summary>
+	/// <summary>Its strokes, read back (an eraser's among them).</summary>
 	public List<ShapeStroke> Decode()
 	{
 		var strokes = new List<ShapeStroke>();
 		foreach ( var text in Strokes ?? new() )
 		{
-			var count = (text.Length - 1) / DigitsPerPoint;
+			var kind = text[ 0 ];
+			var start = HeaderOf( kind );
+			var count = (text.Length - start) / DigitsPerPoint;
 			var points = new float[ count * 2 ];
 			for ( var i = 0; i < count; i++ )
 			{
-				points[ i * 2 ] = Coordinate( text, 1 + i * DigitsPerPoint );
-				points[ i * 2 + 1 ] = Coordinate( text, 3 + i * DigitsPerPoint );
+				points[ i * 2 ] = Coordinate( text, start + i * DigitsPerPoint );
+				points[ i * 2 + 1 ] = Coordinate( text, start + 2 + i * DigitsPerPoint );
 			}
 
-			strokes.Add( new ShapeStroke { Closed = text[ 0 ] == ClosedMark, Points = points } );
+			var width = HasWidth( kind ) ? WidthAt( text ) : 0f;
+			strokes.Add( new ShapeStroke { Closed = kind == ClosedMark, Erase = kind == EraseMark, Width = width, Points = points } );
 		}
 
 		return strokes;
 	}
 
-	/// <summary>Its outlines, closed ones (filled) and open lines, each its points as x, y pairs: what it is drawn and spread from.</summary>
+	/// <summary>
+	/// Its outlines, closed ones (filled) and open lines, each its points as x, y pairs: what it is drawn and spread from.
+	/// An emblem's are its layers' outlines, together, where they are on it (see <see cref="Core.Emblem.Outline"/>); an
+	/// eraser's strokes are no outline.
+	/// </summary>
 	public (List<float[]> Closed, List<float[]> Open) Outline()
 	{
+		if ( IsEmblem )
+			return Core.Emblem.Outline( this );
+
 		var closed = new List<float[]>();
 		var open = new List<float[]>();
 		foreach ( var stroke in Decode() )
-			(stroke.Closed ? closed : open).Add( stroke.Points );
+		{
+			if ( !stroke.Erase )
+				(stroke.Closed ? closed : open).Add( stroke.Points );
+		}
 
 		return (closed, open);
 	}
 
-	/// <summary>How many points it has, all its strokes together.</summary>
+	/// <summary>
+	/// <paramref name="count"/> points to send sprites out from, as <see cref="StandardShapes.FormationOf"/> spreads them:
+	/// along its outline, or with <paramref name="filled"/> all over it; for an emblem, over each layer it shows; none
+	/// where an eraser cut it away. Worked out when a look changes, never each frame.
+	/// </summary>
+	public float[] Formation( bool filled, int count = StandardShapes.FormationPoints ) => Core.Emblem.Formation( this, filled, count );
+
+	/// <summary>How many points it has, all its strokes together (an eraser's too), and an emblem's drawn layers'.</summary>
 	[JsonIgnore]
 	public int PointCount
 	{
@@ -160,18 +231,38 @@ public sealed class DrawnShape
 		{
 			var points = 0;
 			foreach ( var text in Strokes ?? new() )
-				points += (text.Length - 1) / DigitsPerPoint;
+				points += (text.Length - HeaderOf( text[ 0 ] )) / DigitsPerPoint;
+
+			foreach ( var part in Parts ?? new() )
+				points += part?.PointCount ?? 0;
 
 			return points;
 		}
+	}
+
+	/// <summary>The drawn shape an emblem carries that <paramref name="reference"/> names; null for none.</summary>
+	public DrawnShape PartOf( string reference )
+	{
+		if ( Parts is null || reference is null )
+			return null;
+
+		foreach ( var part in Parts )
+		{
+			if ( part is not null && part.Reference == reference )
+				return part;
+		}
+
+		return null;
 	}
 
 	/// <summary>
 	/// A copy within bounds with its id worked out again (never the one it came with), or null when there is nothing to
 	/// see: at most <see cref="MaxStrokes"/> strokes and <see cref="MaxPoints"/> points (the rest cut off), a stroke with
 	/// anything but digits left out, a closed one of fewer than three points open, and a shape with no size at all
-	/// (every point the same) refused. Checked from the text's length before anything else, so a tampered one costs no
-	/// more than its length.
+	/// (every point the same, or nothing but an eraser's strokes) refused. An emblem is kept to its caps too (see
+	/// <see cref="Core.Emblem.Sanitize"/>): <see cref="EmblemLayer.MaxPerEmblem"/> layers and
+	/// <see cref="MaxEmblemPoints"/> points of drawn layers. Checked from the text's length before anything else, so a
+	/// tampered one costs no more than its length.
 	/// </summary>
 	public DrawnShape Sanitized()
 	{
@@ -183,43 +274,56 @@ public sealed class DrawnShape
 			if ( kept.Count >= MaxStrokes || points >= MaxPoints )
 				break;
 
-			if ( text is null || text.Length < 1 + DigitsPerPoint || text[ 0 ] is not (ClosedMark or OpenMark) )
+			if ( text is null || text.Length < 1 || text[ 0 ] is not (ClosedMark or OpenMark or WideMark or EraseMark) )
 				continue;
 
-			var count = Math.Min( (text.Length - 1) / DigitsPerPoint, MaxPoints - points );
-			var end = 1 + count * DigitsPerPoint;
+			var kind = text[ 0 ];
+			var start = HeaderOf( kind );
+			if ( text.Length < start + DigitsPerPoint )
+				continue;
+
+			var count = Math.Min( (text.Length - start) / DigitsPerPoint, MaxPoints - points );
+			var end = start + count * DigitsPerPoint;
 			if ( !AllDigits( text, end ) )
 				continue;
 
-			for ( var i = 0; i < count; i++ )
+			for ( var i = 0; i < count && kind != EraseMark; i++ )
 			{
-				var x = Level( text, 1 + i * DigitsPerPoint );
-				var y = Level( text, 3 + i * DigitsPerPoint );
+				var x = Level( text, start + i * DigitsPerPoint );
+				var y = Level( text, start + 2 + i * DigitsPerPoint );
 				(minX, maxX, minY, maxY) = (Math.Min( minX, x ), Math.Max( maxX, x ), Math.Min( minY, y ), Math.Max( maxY, y ));
 			}
 
-			var closed = text[ 0 ] == ClosedMark && count >= 3;
-			kept.Add( (closed ? ClosedMark : OpenMark) + text.Substring( 1, end - 1 ) );
+			// A closed stroke of fewer than three points is a line, at the usual width
+			kind = kind == ClosedMark && count < 3 ? OpenMark : kind;
+			kept.Add( kind + text.Substring( 1, end - 1 ) );
 			points += count;
 		}
 
-		if ( kept.Count == 0 || minX == maxX && minY == maxY )
+		List<DrawnShape> parts = null;
+		var emblem = Emblem is null ? null : Core.Emblem.Sanitize( Emblem, Parts, out parts );
+		var drawn = minX != int.MaxValue && (minX != maxX || minY != maxY);
+		if ( !drawn && emblem is null )
 			return null;
 
 		var name = SharePost.Tidy( Name, MaxNameLength );
-		var sticker = Sticker?.Sanitized();
+		var sticker = emblem is null ? Sticker?.Sanitized() : null;
+		var mirror = emblem is not null && Mirror;
 		return new DrawnShape
 		{
-			Id = IdOf( ContentOf( kept, sticker ) ),
+			Id = IdOf( ContentOf( kept, sticker, emblem, emblem is null ? null : parts, mirror ) ),
 			Name = name == "" ? null : name,
 			Strokes = kept,
 			Sticker = sticker,
 			ForkedFrom = ForkedFrom?.Sanitized(),
+			Emblem = emblem,
+			Parts = emblem is null ? null : parts,
+			Mirror = mirror,
 		};
 	}
 
-	/// <summary>The longest shape read from the Workshop or a code, as JSON: past the longest a shape within its caps can be.</summary>
-	public const int MaxSharedLength = 16 * 1024;
+	/// <summary>The longest shape read from the Workshop or a code, as JSON: past the longest a shape (an emblem) within its caps can be.</summary>
+	public const int MaxSharedLength = 32 * 1024;
 
 	/// <summary>A shape shared as JSON (see <see cref="SharedForm"/>), within bounds, or null when it isn't one.</summary>
 	public static DrawnShape ParseShared( string json )
@@ -241,12 +345,30 @@ public sealed class DrawnShape
 	public string SharedForm() => Sanitized() is { } copy ? JsonSerializer.Serialize( copy ) : "";
 
 	/// <summary>A copy with another name, kept within bounds.</summary>
-	public DrawnShape Named( string name ) => new DrawnShape { Name = name, Strokes = Strokes, Sticker = Sticker, ForkedFrom = ForkedFrom }.Sanitized();
+	public DrawnShape Named( string name ) => Credited( name, ForkedFrom );
 
-	private static string ContentOf( List<string> strokes, Sticker sticker )
+	/// <summary>A copy named <paramref name="name"/>, crediting <paramref name="origin"/> (null for none), kept within bounds.</summary>
+	public DrawnShape Credited( string name, ShareOrigin origin ) => new DrawnShape
+	{
+		Name = name, Strokes = Strokes, Sticker = Sticker, ForkedFrom = origin, Emblem = Emblem, Parts = Parts, Mirror = Mirror,
+	}.Sanitized();
+
+	// A plain shape's content is just as it was before emblems, so its id stays the same
+	private static string ContentOf( List<string> strokes, Sticker sticker, List<EmblemLayer> emblem = null, List<DrawnShape> parts = null, bool mirror = false )
 	{
 		var style = sticker is null ? "" : JsonSerializer.Serialize( sticker );
-		return string.Join( "|", strokes ?? new() ) + "#" + style;
+		var content = string.Join( "|", strokes ?? new() ) + "#" + style;
+		if ( emblem is null )
+			return content;
+
+		var drawn = new StringBuilder( content ).Append( "#emblem" ).Append( mirror ? "m" : "" );
+		foreach ( var layer in emblem )
+			drawn.Append( '#' ).Append( JsonSerializer.Serialize( layer ) );
+
+		foreach ( var part in parts ?? new() )
+			drawn.Append( '#' ).Append( part.Content );
+
+		return drawn.ToString();
 	}
 
 	private static string IdOf( string content )
@@ -269,6 +391,21 @@ public sealed class DrawnShape
 	}
 
 	private static int Level( string text, int at ) => DigitValues[ text[ at ] ] << 6 | DigitValues[ text[ at + 1 ] ];
+
+	private static bool HasWidth( char kind ) => kind is WideMark or EraseMark;
+
+	// Where a stroke's points start: after its kind, and its width if it has one
+	private static int HeaderOf( char kind ) => 1 + (HasWidth( kind ) ? WidthDigits : 0);
+
+	private static void AppendWidth( StringBuilder text, float width )
+	{
+		var t = (Math.Clamp( float.IsFinite( width ) ? width : MinStrokeWidth, MinStrokeWidth, MaxStrokeWidth ) - MinStrokeWidth) / (MaxStrokeWidth - MinStrokeWidth);
+		var level = (int)MathF.Round( t * Levels );
+		text.Append( Digits[ level >> 6 ] );
+		text.Append( Digits[ level & 63 ] );
+	}
+
+	private static float WidthAt( string text ) => MinStrokeWidth + Level( text, 1 ) / (float)Levels * (MaxStrokeWidth - MinStrokeWidth);
 
 	private static float Coordinate( string text, int at ) => Level( text, at ) / (float)Levels * 2f - 1f;
 

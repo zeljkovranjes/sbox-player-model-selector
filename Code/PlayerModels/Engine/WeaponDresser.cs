@@ -173,7 +173,13 @@ internal sealed class WeaponDresser
 		}
 
 		rack?.ApplyWeapon( extras ? design?.Effects : null );
+		if ( rack is not null )
+			rack.Stickers = _drawnStickers;
 	}
+
+	// The drawn shapes the weapon's stickers are, counted with its body's (see EffectRack.CountShapes), so an emblem on a
+	// weapon keeps its texture and moves while it is near
+	private readonly List<DrawnShape> _drawnStickers = new();
 
 	/// <summary>Colours moving stickers, and keeps props drawn the way the weapon is (hidden in first person). Every frame: no allocations.</summary>
 	internal void Animate()
@@ -413,11 +419,13 @@ internal sealed class WeaponDresser
 				decal.Depth = MathF.Max( StickerDepth * scale, size );
 				decal.AttenuationAngle = StickerAttenuation;
 				decal.SortLayer = (uint)_stickers.Count;
-				decal.ColorTint = stuck.Drawn?.Sticker is not null ? Color.White : Color.Parse( fitted.Color ) ?? Color.White;
+				decal.ColorTint = stuck.Drawn?.HasOwnColours == true ? Color.White : Color.Parse( fitted.Color ) ?? Color.White;
 				stuck.Decal = decal;
 				stuck.Palette = PaletteOf( fitted );
 				go.Enabled = true;
 				_stickers.Add( stuck );
+				if ( stuck.Drawn is not null )
+					_drawnStickers.Add( stuck.Drawn );
 			}
 		}
 	}
@@ -534,5 +542,6 @@ internal sealed class WeaponDresser
 		_tinted.Clear();
 		_props.Clear();
 		_stickers.Clear();
+		_drawnStickers.Clear();
 	}
 }

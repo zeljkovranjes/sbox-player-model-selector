@@ -6,12 +6,25 @@ namespace PlayerModels.Core;
 /// <summary>
 /// One line of a shape a player made (see <see cref="DrawnShape"/>): its points as x, y pairs one after another, on the
 /// square from -1 to 1 each way (y up) that shapes are drawn on, and whether it closes round on itself (filled in) or is
-/// an open line drawn at a width. The shape creator's tools (mirror, scale, turn, fit, freehand tidying) work on these.
+/// an open line drawn at a width, or an eraser's stroke that cuts away whatever of the shape is under it. The shape
+/// creator's tools (mirror, scale, turn, fit, freehand tidying) work on these.
 /// </summary>
 public sealed class ShapeStroke
 {
 	/// <summary>Whether it closes round on itself and is filled in, rather than a line drawn at a width.</summary>
 	public bool Closed { get; init; }
+
+	/// <summary>
+	/// Whether it is an eraser's stroke: where the shape is drawn it cuts away what is under it, fill and outline alike, so
+	/// a sticker's outline follows the new edge.
+	/// </summary>
+	public bool Erase { get; init; }
+
+	/// <summary>
+	/// How wide an open line or an eraser's stroke is, on the square (2 across); 0 for an open line's usual width (see
+	/// <see cref="ShapeRaster.LineWidth"/>).
+	/// </summary>
+	public float Width { get; init; }
 
 	/// <summary>Its points, as x, y pairs one after another.</summary>
 	public float[] Points { get; init; } = Array.Empty<float>();
@@ -28,14 +41,14 @@ public sealed class ShapeStroke
 	private const float Tolerance = 0.006f;
 	private const int Smoothing = 2;
 
-	/// <summary>A copy with every point moved by <paramref name="map"/>.</summary>
-	public ShapeStroke Mapped( Func<float, float, (float X, float Y)> map )
+	/// <summary>A copy with every point moved by <paramref name="map"/>, and its width (if it has one) times <paramref name="widthScale"/>.</summary>
+	public ShapeStroke Mapped( Func<float, float, (float X, float Y)> map, float widthScale = 1f )
 	{
 		var points = new float[ Points.Length ];
 		for ( var i = 0; i + 1 < Points.Length; i += 2 )
 			(points[ i ], points[ i + 1 ]) = map( Points[ i ], Points[ i + 1 ] );
 
-		return new ShapeStroke { Closed = Closed, Points = points };
+		return new ShapeStroke { Closed = Closed, Erase = Erase, Width = Width * MathF.Abs( widthScale ), Points = points };
 	}
 
 	/// <summary><paramref name="strokes"/> flipped left to right.</summary>
@@ -45,7 +58,7 @@ public sealed class ShapeStroke
 	public static List<ShapeStroke> Flipped( IEnumerable<ShapeStroke> strokes ) => Map( strokes, ( x, y ) => (x, -y) );
 
 	/// <summary><paramref name="strokes"/> grown (or shrunk, below 1) by <paramref name="factor"/> about the middle.</summary>
-	public static List<ShapeStroke> Scaled( IEnumerable<ShapeStroke> strokes, float factor ) => Map( strokes, ( x, y ) => (x * factor, y * factor) );
+	public static List<ShapeStroke> Scaled( IEnumerable<ShapeStroke> strokes, float factor ) => Map( strokes, ( x, y ) => (x * factor, y * factor), factor );
 
 	/// <summary><paramref name="strokes"/> turned about the middle by <paramref name="degrees"/>, anticlockwise.</summary>
 	public static List<ShapeStroke> Rotated( IEnumerable<ShapeStroke> strokes, float degrees )
@@ -55,14 +68,18 @@ public sealed class ShapeStroke
 	}
 
 	/// <summary>
-	/// <paramref name="strokes"/> moved to the middle of the square and sized to fill it, keeping their proportions; as
-	/// they are when they have no size at all (a single dot).
+	/// <paramref name="strokes"/> moved to the middle of the square and sized to fill it, keeping their proportions (an
+	/// eraser's strokes moved and sized with the rest, never counted); as they are when they have no size at all.
 	/// </summary>
 	public static List<ShapeStroke> Fitted( IReadOnlyList<ShapeStroke> strokes )
 	{
 		float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
 		foreach ( var stroke in strokes )
 		{
+			// What is cut away doesn't count towards its size
+			if ( stroke.Erase )
+				continue;
+
 			for ( var i = 0; i + 1 < stroke.Points.Length; i += 2 )
 			{
 				minX = MathF.Min( minX, stroke.Points[ i ] );
@@ -77,7 +94,7 @@ public sealed class ShapeStroke
 			return new List<ShapeStroke>( strokes );
 
 		var (middleX, middleY, scale) = ((minX + maxX) / 2f, (minY + maxY) / 2f, 2f * FitReach / extent);
-		return Map( strokes, ( x, y ) => ((x - middleX) * scale, (y - middleY) * scale) );
+		return Map( strokes, ( x, y ) => ((x - middleX) * scale, (y - middleY) * scale), scale );
 	}
 
 	/// <summary>
@@ -197,11 +214,11 @@ public sealed class ShapeStroke
 
 	private static float Distance( float ax, float ay, float bx, float by ) => MathF.Sqrt( (bx - ax) * (bx - ax) + (by - ay) * (by - ay) );
 
-	private static List<ShapeStroke> Map( IEnumerable<ShapeStroke> strokes, Func<float, float, (float, float)> map )
+	private static List<ShapeStroke> Map( IEnumerable<ShapeStroke> strokes, Func<float, float, (float, float)> map, float widthScale = 1f )
 	{
 		var mapped = new List<ShapeStroke>();
 		foreach ( var stroke in strokes )
-			mapped.Add( stroke.Mapped( map ) );
+			mapped.Add( stroke.Mapped( map, widthScale ) );
 
 		return mapped;
 	}

@@ -22,7 +22,7 @@
     {
         Spread, Offset, Size, Reach, Seconds, Rate, Brightness, Speed, Gravity, Beats, Fraction, Angle, Burst, ShowFor, Outline,
         Sweep, SlashArc, SlashWidth, PropOffset, Turn, PropScale, StickerSize, PatternScale, PatternTurn, Scroll, Spin, SkinSpeed, Bands, Nudge,
-        NudgeTurn,
+        NudgeTurn, EmblemPlace, EmblemTurn, EmblemScale, Eraser,
     }
 
     /// <summary>What the number sets.</summary>
@@ -77,6 +77,10 @@
     [Range( WeaponSkin.MinBands, WeaponSkin.MaxBands ), Step( 1f )] public float Bands { get => Value; set => Set( value ); }
     [Range( -WeaponProp.MaxNudge, WeaponProp.MaxNudge ), Step( 0.05f )] public float Nudge { get => Value; set => Set( value ); }
     [Range( -WeaponProp.MaxNudgeTurn, WeaponProp.MaxNudgeTurn ), Step( 1f )] public float NudgeTurn { get => Value; set => Set( value ); }
+    [Range( -EmblemLayer.MaxReach, EmblemLayer.MaxReach ), Step( 0.01f )] public float EmblemPlace { get => Value; set => Set( value ); }
+    [Range( -EmblemLayer.MaxTurn, EmblemLayer.MaxTurn ), Step( 1f )] public float EmblemTurn { get => Value; set => Set( value ); }
+    [Range( EmblemLayer.MinScale, EmblemLayer.MaxScale ), Step( 0.01f )] public float EmblemScale { get => Value; set => Set( value ); }
+    [Range( DrawnShape.MinStrokeWidth, DrawnShape.MaxStrokeWidth ), Step( 0.01f )] public float Eraser { get => Value; set => Set( value ); }
 
     void Set( float value )
     {

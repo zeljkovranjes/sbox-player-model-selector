@@ -674,6 +674,9 @@
     }
 
     // Asks what to call it and what to say about it, then publishes it
+    /// <summary>Opens the share window for <see cref="Current"/>, as Share mine does (a menu's Publish).</summary>
+    public void Share() => OpenShare();
+
     void OpenShare()
     {
         if ( !CanShare )

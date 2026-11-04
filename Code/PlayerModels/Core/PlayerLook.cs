@@ -504,7 +504,8 @@ public sealed class PlayerLook
 
 	/// <summary>
 	/// Carries <paramref name="shape"/> for a layer to name, letting go of shapes no layer names any more. False, with
-	/// nothing changed, when the look already carries <see cref="DrawnShape.MaxPerLook"/> shapes its layers name.
+	/// nothing changed, when the look already carries <see cref="DrawnShape.MaxPerLook"/> shapes its layers name, or with
+	/// it would carry more points or emblem layers than a look may (see <see cref="ShapePool"/>).
 	/// </summary>
 	public bool Carry( DrawnShape shape )
 	{
@@ -512,7 +513,7 @@ public sealed class PlayerLook
 		if ( DrawnShapes.Exists( x => x.Id == shape.Id ) )
 			return true;
 
-		if ( named.Count( x => x != shape.Id ) >= DrawnShape.MaxPerLook )
+		if ( named.Count( x => x != shape.Id ) >= DrawnShape.MaxPerLook || !ShapesFit( DrawnShapes.Where( x => named.Contains( x.Id ) ).Append( shape ) ) )
 			return false;
 
 		DrawnShapes.RemoveAll( x => !named.Contains( x.Id ) );
@@ -530,7 +531,7 @@ public sealed class PlayerLook
 		var shapes = effect.Shapes ?? new List<DrawnShape>();
 		var named = Named( Effects.Append( effect ) );
 
-		if ( named.Count > DrawnShape.MaxPerLook )
+		if ( named.Count > DrawnShape.MaxPerLook || !ShapesFit( DrawnShapes.Concat( shapes ).Where( x => x is not null && named.Contains( x.Id ) ).DistinctBy( x => x.Id ) ) )
 			return false;
 
 		// Shapes no layer names any more are let go of here too
@@ -544,6 +545,13 @@ public sealed class PlayerLook
 		effect.Shapes = null;
 		Effects.Add( effect );
 		return true;
+	}
+
+	// Whether shapes together are within what a look carries: their points, and their emblems' layers
+	private static bool ShapesFit( IEnumerable<DrawnShape> shapes )
+	{
+		var all = shapes.ToList();
+		return all.Sum( x => x.PointCount ) <= DrawnShape.MaxLookPoints && all.Sum( x => x.Emblem?.Count ?? 0 ) <= DrawnShape.MaxLookEmblemLayers;
 	}
 
 	// The ids of the drawn shapes effects' layers and the look's weapon designs name

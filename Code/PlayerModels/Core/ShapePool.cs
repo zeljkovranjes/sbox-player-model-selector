@@ -6,8 +6,9 @@ namespace PlayerModels.Core;
 /// The drawn shapes a look (or an effect on its own) carries, read within bounds, for its layers to name: a layer's name
 /// for one becomes the shape's own id, worked out from what it is, so a name that was tampered with can't stand for
 /// another shape. Only the shapes layers name are kept, each once however many layers name it, at most
-/// <see cref="DrawnShape.MaxPerLook"/>; a layer naming one past that, or one not carried, is a layer this version can't
-/// show.
+/// <see cref="DrawnShape.MaxPerLook"/>, and together at most <see cref="DrawnShape.MaxLookPoints"/> points and
+/// <see cref="DrawnShape.MaxLookEmblemLayers"/> emblem layers (an emblem is many shapes in one); a layer naming one past
+/// that, or one not carried, is a layer this version can't show.
 /// </summary>
 internal sealed class ShapePool
 {
@@ -17,6 +18,8 @@ internal sealed class ShapePool
 	private readonly Dictionary<string, DrawnShape> _named = new();
 	private readonly List<DrawnShape> _used = new();
 	private int _read;
+	private int _points;
+	private int _emblemLayers;
 
 	/// <summary>The shapes named so far, in the order they were first named.</summary>
 	internal List<DrawnShape> Used => _used;
@@ -60,10 +63,14 @@ internal sealed class ShapePool
 
 		if ( !_used.Exists( x => x.Id == shape.Id ) )
 		{
-			if ( _used.Count >= DrawnShape.MaxPerLook )
+			var points = shape.PointCount;
+			var layers = shape.Emblem?.Count ?? 0;
+			if ( _used.Count >= DrawnShape.MaxPerLook || _points + points > DrawnShape.MaxLookPoints || _emblemLayers + layers > DrawnShape.MaxLookEmblemLayers )
 				return null;
 
 			_used.Add( shape );
+			_points += points;
+			_emblemLayers += layers;
 		}
 
 		return shape.Reference;

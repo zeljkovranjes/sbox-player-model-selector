@@ -376,7 +376,7 @@
             }
 
             l.Picture = shape.Reference;
-            if ( shape.Sticker is null )
+            if ( !shape.HasOwnColours )
                 return;
 
             l.Color = "#ffffff";
@@ -467,7 +467,7 @@
     static DrawnShape Credited( SharedLibrary<DrawnShape>.Entry entry )
     {
         var origin = new ShareOrigin { Kind = ShareOrigin.ShapeKind, Id = entry.Id, Name = entry.Name, Author = entry.Author };
-        return DrawnShape.From( entry.Item.Decode(), string.IsNullOrWhiteSpace( entry.Name ) ? "Shape" : entry.Name, entry.Item.Sticker, origin );
+        return entry.Item.Credited( string.IsNullOrWhiteSpace( entry.Name ) ? "Shape" : entry.Name, origin );
     }
 
     // The selected layer on its own, as an effect of one layer from where it shows now, to share: made again only when

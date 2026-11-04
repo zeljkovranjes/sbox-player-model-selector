@@ -498,15 +498,9 @@ internal sealed class EffectLayerObject
 		_hasLastPosition = true;
 	}
 
-	// The points sprites come from: a drawn shape's, or a standard one's
-	private static float[] FormationOf( DrawnShape drawn, EffectLayer data )
-	{
-		if ( drawn is null )
-			return StandardShapes.Formation( data.FormationIs, data.Fill );
-
-		var (closed, open) = drawn.Outline();
-		return StandardShapes.FormationOf( closed, open, data.Fill );
-	}
+	// The points sprites come from: a drawn shape's (an emblem's layers', none where an eraser cut it), or a standard one's
+	private static float[] FormationOf( DrawnShape drawn, EffectLayer data ) =>
+		drawn is null ? StandardShapes.Formation( data.FormationIs, data.Fill ) : drawn.Formation( data.Fill );
 
 	// The drawn shape's texture once it is drawn, a plain circle meanwhile (or while a nearer body has it); asked again
 	// only when the textures change
@@ -647,9 +641,9 @@ internal sealed class EffectLayerObject
 		_colour = Color.White;
 		WantedSprites = data.LiveSprites( effect.AmountFactor );
 
-		// A sticker has colours of its own and covers what is behind it; it shows a plain circle until it is drawn
+		// A sticker or an emblem has colours of its own and covers what is behind it; it shows a plain circle until it is drawn
 		_renderer.Sprite = _drawn is null ? EffectAtlas.SpriteOf( data ) : EffectAtlas.SpriteOf( StandardShape.Circle );
-		_renderer.Additive = !data.Solid && _drawn?.Sticker is null;
+		_renderer.Additive = !data.Solid && _drawn?.HasOwnColours != true;
 		_renderer.Alignment = data.AlignIs == LayerAlign.Swing ? ParticleSpriteRenderer.BillboardAlignment.Object : ParticleSpriteRenderer.BillboardAlignment.LookAtCamera;
 		_renderer.Lighting = false;
 		_renderer.Shadows = false;

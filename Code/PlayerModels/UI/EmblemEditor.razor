@@ -1,0 +1,1129 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using System.Text.Json
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Core
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    <div class="canvas-row">
+        <EmblemCanvas @ref="_canvas" class="canvas" Emblem=@_current Selected=@_selected Guides=@_guides Eraser=@( _tool == Tool.Erase ? _eraserSize : 0f )
+                      Pending=@_pending Pressed=@Press Dragged=@Drag Released=@Release Wheeled=@Wheel Keyed=@Key></EmblemCanvas>
+        <div class="canvas-tools">
+            <div class="tool @( _tool == Tool.Select ? "active" : "" )" Tooltip="Select and move: drag a layer, its corners and sides to size it, the knob to turn it. The wheel sizes what is selected, Shift+wheel turns it" @onclick=@(() => UseTool( Tool.Select ))>near_me</div>
+            <div class="tool @( _tool == Tool.Draw ? "active" : "" )" Tooltip="Draw: each stroke is a new layer" @onclick=@(() => UseTool( Tool.Draw ))>gesture</div>
+            <div class="tool @( _tool == Tool.Erase ? "active" : "" )" Tooltip="Eraser: [ and ] change its size" @onclick=@(() => UseTool( Tool.Erase ))>cleaning_services</div>
+            <div class="tool @( _snap ? "active" : "" )" Tooltip="Snap to a grid and to the middle (the centre guides show)" @onclick=@ToggleSnap>grid_on</div>
+            <div class="tool @( _history.CanUndo ? "" : "disabled" )" Tooltip="Undo (Ctrl+Z)" @onclick=@Undo>undo</div>
+            <div class="tool @( _history.CanRedo ? "" : "disabled" )" Tooltip="Redo (Ctrl+Y)" @onclick=@Redo>redo</div>
+            <div class="tool @( _mirror ? "active" : "" )" Tooltip="Mirror: every layer drawn again flipped left to right" @onclick=@ToggleMirror>flip</div>
+            <div class="tool @( HasSelection ? "" : "disabled" )" Tooltip="Bigger (the wheel)" @onclick=@(() => ScaleSelected( WheelScale ))>zoom_in</div>
+            <div class="tool @( HasSelection ? "" : "disabled" )" Tooltip="Smaller (the wheel)" @onclick=@(() => ScaleSelected( 1f / WheelScale ))>zoom_out</div>
+            <div class="tool @( HasSelection ? "" : "disabled" )" Tooltip="Turn left (Shift+wheel)" @onclick=@(() => TurnSelected( WheelTurn ))>rotate_left</div>
+            <div class="tool @( HasSelection ? "" : "disabled" )" Tooltip="Turn right (Shift+wheel)" @onclick=@(() => TurnSelected( -WheelTurn ))>rotate_right</div>
+        </div>
+    </div>
+
+    @if ( _tool == Tool.Erase )
+    {
+        <div class="row">
+            <div class="label">Eraser cuts</div>
+            <UIDropdown Items=@EraseChoices() Value=@( _eraseBelow ? Below : ThisLayer ) ValueChanged=@SetEraseMode Tokenize=@false></UIDropdown>
+        </div>
+        <NumberRow Label="Eraser size" Unit=@NumberRow.Field.Eraser Value=@_eraserSize OnChanged=@SetEraserSize></NumberRow>
+    }
+    else if ( _tool == Tool.Draw )
+    {
+        <ToggleRow Label="Draw filled layers (each stroke closes round on itself)" Value=@_filled OnChanged=@SetFilled></ToggleRow>
+    }
+    <div class="note">@( _status ?? HintText() )</div>
+
+    <div class="subheading">Add a layer</div>
+    <div class="row">
+        <div class="label">Shape</div>
+        <UIDropdown Items=@AddChoices() Value=@( "" ) ValueChanged=@AddPicked Tokenize=@false></UIDropdown>
+    </div>
+    <div class="row">
+        <div class="label">Draw</div>
+        <div class="reset @( _tool == Tool.Draw ? "active" : "" )" Tooltip="Each stroke on the canvas is a layer of its own" @onclick=@(() => UseTool( Tool.Draw ))>Draw by hand</div>
+        <div class="reset @( _tool == Tool.Erase ? "active" : "" )" Tooltip="Cut away this layer, or every layer below the eraser" @onclick=@(() => UseTool( Tool.Erase ))>Eraser</div>
+    </div>
+    <div class="row">
+        <div class="label">Text</div>
+        <TextEntry class="entry" Placeholder="Letters, digits and . , ! ? & + - : # @@" MaxLength=@HersheyFont.MaxLength Value:bind=@_text @onsubmit=@AddText></TextEntry>
+        <div class="reset @( string.IsNullOrWhiteSpace( _text ) || IsFull ? "disabled" : "" )" @onclick=@AddText>Add text</div>
+    </div>
+
+    <div class="section-header">@( $"Layers ({_layers.Count} of {EmblemLayer.MaxPerEmblem})" )</div>
+    @if ( _layers.Count == 0 )
+    {
+        <div class="note">Add a shape, draw on the canvas or write text: each is a layer, the top of the list in front.</div>
+    }
+    @for ( var i = _layers.Count - 1; i >= 0; i-- )
+    {
+        var index = i;
+        var layer = _layers[ index ];
+        <div class="row layer @( _selected.Contains( index ) ? "selected" : "" ) @( layer.Hidden ? "hidden" : "" )" @onclick=@(() => PickRow( index ))
+             @onrightclick=@(() => OpenMenu( index ))>
+            <div class="icon-button" Tooltip=@( layer.Hidden ? "Show" : "Hide" ) @onclick=@(( PanelEvent e ) => Act( e, () => SetHidden( index, !layer.Hidden ) ))>@( layer.Hidden ? "visibility_off" : "visibility" )</div>
+            <div class="icon-button" Tooltip=@( layer.Locked ? "Unlock" : "Lock: it stays put on the canvas" ) @onclick=@(( PanelEvent e ) => Act( e, () => SetLocked( index, !layer.Locked ) ))>@( layer.Locked ? "lock" : "lock_open" )</div>
+            <div class="swatch" style="background-color: @( layer.Eraser ? "transparent" : layer.Color )">@( layer.Eraser ? "cleaning_services" : "" )</div>
+            <div class="layer-name">@NameOf( layer )</div>
+            @if ( layer.Group > 0 )
+            {
+                <div class="group-mark" Tooltip="Grouped: picked and moved together">link</div>
+            }
+            <div class="icon-button @( index == _layers.Count - 1 ? "disabled" : "" )" Tooltip="Up (towards the front)" @onclick=@(( PanelEvent e ) => Act( e, () => MoveLayer( index, 1 ) ))>arrow_upward</div>
+            <div class="icon-button @( index == 0 ? "disabled" : "" )" Tooltip="Down (towards the back)" @onclick=@(( PanelEvent e ) => Act( e, () => MoveLayer( index, -1 ) ))>arrow_downward</div>
+            <div class="icon-button" Tooltip="More: duplicate, delete, to front or back, lock, hide, group (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => OpenMenu( index ) ))>more_vert</div>
+        </div>
+    }
+    @if ( HasSelection )
+    {
+        <div class="row actions">
+            <div class="reset @( IsFull ? "disabled" : "" )" Tooltip="Ctrl+D" @onclick=@Duplicate>Duplicate</div>
+            <div class="reset" Tooltip="Delete" @onclick=@DeleteSelected>Delete</div>
+            <div class="reset" @onclick=@ToFront>To front</div>
+            <div class="reset" @onclick=@ToBack>To back</div>
+            @if ( _selected.Count > 1 )
+            {
+                <div class="reset" Tooltip="Ctrl+G" @onclick=@Group>Group</div>
+            }
+            @if ( Chosen().Any( x => x.Group > 0 ) )
+            {
+                <div class="reset" Tooltip="Ctrl+Shift+G" @onclick=@Ungroup>Ungroup</div>
+            }
+        </div>
+    }
+
+    @if ( Primary is { } selected )
+    {
+        <div class="section-header">@( _selected.Count > 1 ? $"{_selected.Count} layers" : NameOf( selected ) )</div>
+        @if ( _selected.Count > 1 )
+        {
+            <div class="note">Changes go to all of them. Drag one to move them all; the wheel sizes and Shift+wheel turns them together. Ctrl+click a layer to add or drop it.</div>
+        }
+        else
+        {
+            @if ( selected.StandardIs is not null )
+            {
+                <div class="row">
+                    <div class="label">Shape</div>
+                    <UIDropdown Items=@StandardChoices() Value=@selected.Shape ValueChanged=@(( object v ) => SetAll( l => l.Shape = (string)v ))
+                                Tokenize=@false></UIDropdown>
+                </div>
+            }
+            <NumberRow Label="Across" Unit=@NumberRow.Field.EmblemPlace Value=@selected.X OnChanged=@(( float v ) => SetAll( l => l.X = v ))></NumberRow>
+            <NumberRow Label="Up" Unit=@NumberRow.Field.EmblemPlace Value=@selected.Y OnChanged=@(( float v ) => SetAll( l => l.Y = v ))></NumberRow>
+            <NumberRow Label="Turn (degrees)" Unit=@NumberRow.Field.EmblemTurn Value=@selected.Rotation OnChanged=@(( float v ) => SetAll( l => l.Rotation = v ))></NumberRow>
+            <NumberRow Label="Width" Unit=@NumberRow.Field.EmblemScale Value=@selected.ScaleX OnChanged=@(( float v ) => SetAll( l => l.ScaleX = v ))></NumberRow>
+            <NumberRow Label="Height" Unit=@NumberRow.Field.EmblemScale Value=@selected.ScaleY OnChanged=@(( float v ) => SetAll( l => l.ScaleY = v ))></NumberRow>
+        }
+        <ToggleRow Label="Flip left to right" Value=@selected.FlipX OnChanged=@(( bool v ) => SetAll( l => l.FlipX = v ))></ToggleRow>
+        <ToggleRow Label="Flip upside down" Value=@selected.FlipY OnChanged=@(( bool v ) => SetAll( l => l.FlipY = v ))></ToggleRow>
+        <ToggleRow Label="Eraser: cut it out of every layer below" Value=@selected.Eraser OnChanged=@(( bool v ) => SetAll( l => l.Eraser = v ))></ToggleRow>
+        @if ( !selected.Eraser )
+        {
+            <ColorRow Label="Color" Hex=@selected.Color OnChanged=@(( string hex ) => SetAll( l => l.Color = string.IsNullOrEmpty( hex ) ? "#ffffff" : hex ))></ColorRow>
+        }
+        <NumberRow Label=@( selected.Eraser ? "How much it cuts" : "Opacity" ) Unit=@NumberRow.Field.Fraction Value=@selected.Opacity OnChanged=@(( float v ) => SetAll( l => l.Opacity = v ))></NumberRow>
+        @if ( !selected.Eraser )
+        {
+            <ColorRow Label="Outline" Hex=@selected.OutlineColor OnChanged=@(( string hex ) => SetAll( l => l.OutlineColor = string.IsNullOrEmpty( hex ) ? "#000000" : hex ))></ColorRow>
+            <NumberRow Label="Outline width" Unit=@NumberRow.Field.Outline Value=@selected.OutlineWidth OnChanged=@(( float v ) => SetAll( l => l.OutlineWidth = v ))></NumberRow>
+            <div class="row">
+                <div class="label">Moving color</div>
+                <UIDropdown Items=@ShapeCreator.MotionChoices() Value=@selected.AnimationIs.ToString()
+                            ValueChanged=@(( object v ) => SetAll( l => l.Animation = (string)v == nameof( Sticker.Motion.None ) ? null : (string)v )) Tokenize=@false></UIDropdown>
+            </div>
+            @if ( selected.AnimationIs != Sticker.Motion.None )
+            {
+                <NumberRow Label="Speed" Unit=@NumberRow.Field.Beats Value=@selected.AnimationSpeed OnChanged=@(( float v ) => SetAll( l => l.AnimationSpeed = v ))></NumberRow>
+            }
+            @if ( selected.AnimationIs is Sticker.Motion.Rain or Sticker.Motion.Cycl or Sticker.Motion.Cyln )
+            {
+                var colours = selected.CycleColours();
+                var scanner = selected.AnimationIs == Sticker.Motion.Cyln;
+                @for ( var i = 0; i < colours.Count; i++ )
+                {
+                    var at = i;
+                    <ColorRow Label=@( scanner ? (at == 0 ? "Highlight" : "Rest") : $"Color {at + 1}" ) Hex=@colours[ at ] OnChanged=@(( string hex ) => SetCycleColour( at, hex ))
+                              ResetLabel=@( scanner ? "Reset" : "Remove" ) CanReset=@( scanner || colours.Count > 1 )></ColorRow>
+                }
+                <div class="row">
+                    @if ( !scanner )
+                    {
+                        <div class="reset @( colours.Count < EffectLayer.MaxPalette ? "" : "disabled" )" @onclick=@AddCycleColour>Add color</div>
+                    }
+                    <div class="reset @( selected.Palette is null ? "disabled" : "" )" @onclick=@(() => SetAll( l => l.Palette = null ))>Game colors</div>
+                </div>
+            }
+        }
+    }
+</root>
+
+@code
+{
+    /// <summary>The emblem to start from (a kept one, a fork or a draft); null for a new one.</summary>
+    [Parameter] public DrawnShape Start { get; set; }
+
+    /// <summary>Called with the emblem after every change (null while it has no layers).</summary>
+    [Parameter] public Action<DrawnShape> Changed { get; set; }
+
+    /// <summary>The player's own shapes and stickers, to add as layers.</summary>
+    [Parameter] public List<DrawnShape> Mine { get; set; }
+
+    /// <summary>Opens the Workshop's shapes and stickers, to add one as a layer (see <see cref="AddShape"/>).</summary>
+    [Parameter] public Action OpenWorkshop { get; set; }
+
+    enum Tool { Select, Draw, Erase }
+
+    // What is being done with the mouse on the canvas
+    enum Doing { Nothing, Moving, Sizing, Turning, Stroke }
+
+    // The wheel and the size and turn buttons step this much; nudging with the arrows, this far (Shift: further)
+    const float WheelScale = 1.08f;
+    const float WheelTurn = 15f;
+    const float Nudge = 0.01f;
+    const float BigNudge = 0.05f;
+
+    // Snapping: places to this grid, near the middle onto it, turns to this step
+    const float Grid = 0.05f;
+    const float MiddleReach = 0.04f;
+    const float TurnStep = 15f;
+
+    // A new layer's size, and how far a copy is put from what it copies
+    const float StartingScale = 0.4f;
+    const float TextScale = 0.8f;
+    const float CopyOffset = 0.05f;
+
+    // How far apart the points of a stroke are kept as it is drawn, and the eraser's size step ([ and ])
+    const float StrokeStep = 0.004f;
+    const float EraserStep = 0.02f;
+    const float StartingEraser = 0.12f;
+
+    // New layers' colours, in turn, so each shows apart from the last
+    static readonly string[] StartingColours = { "#f2c14e", "#3a86ff", "#ff006e", "#06d6a0", "#8338ec", "#fb5607", "#ffffff" };
+
+    const string Below = "below";
+    const string ThisLayer = "this";
+    const string MinePrefix = "mine:";
+    const string WorkshopChoice = "workshop";
+
+    List<EmblemLayer> _layers = new();
+    List<DrawnShape> _parts = new();
+    bool _mirror;
+    DrawnShape _current;
+    DrawnShape _started;
+    EditHistory _history = new();
+    List<int> _selected = new();
+    Tool _tool;
+    bool _eraseBelow = true;
+    float _eraserSize = StartingEraser;
+    bool _snap = true;
+    bool _filled = true;
+    string _text;
+    string _status;
+    EmblemCanvas _canvas;
+
+    // The drag under way: what it does, which handle, where it began, the layers as they were then; the stroke drawn
+    Doing _doing;
+    int _handle;
+    Vector2 _from;
+    List<EmblemLayer> _before;
+    List<float> _pending;
+    int _guides;
+
+    /// <summary>The emblem as it is now; null while it has no layers.</summary>
+    public DrawnShape Current => _current;
+
+    bool HasSelection => _selected.Count > 0;
+
+    bool IsFull => _layers.Count >= EmblemLayer.MaxPerEmblem;
+
+    EmblemLayer Primary => _selected.Count > 0 && _selected[ ^1 ] < _layers.Count ? _layers[ _selected[ ^1 ] ] : null;
+
+    protected override int BuildHash() => HashCode.Combine( _current, string.Join( ",", _selected ), _tool, _eraseBelow, _eraserSize, _snap, _status,
+        HashCode.Combine( _history.CanUndo, _history.CanRedo, _filled, _mirror, _doing == Doing.Nothing ) );
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if ( ReferenceEquals( Start, _started ) )
+            return;
+
+        _started = Start;
+        Load( Start );
+    }
+
+    // Starts again on emblem (null for an empty one), with nothing to undo
+    void Load( DrawnShape emblem )
+    {
+        _layers = emblem?.Emblem?.Select( x => x.Copy() ).ToList() ?? new List<EmblemLayer>();
+        _parts = emblem?.Parts?.ToList() ?? new List<DrawnShape>();
+        _mirror = emblem?.Mirror ?? false;
+        _selected = new List<int>();
+        _history = new EditHistory();
+        Commit();
+        StateHasChanged();
+    }
+
+    // The layers as they are now made sound (see Emblem.Sanitize), shown, kept for undo (changes close together are one
+    // step: a drag is one) and handed on
+    void Commit()
+    {
+        _current = _layers.Count == 0 ? null : new DrawnShape { Emblem = _layers, Parts = _parts, Mirror = _mirror }.Sanitized();
+        if ( _current is not null && _current.Emblem.Count == _layers.Count )
+        {
+            _layers = _current.Emblem.Select( x => x.Copy() ).ToList();
+            _parts = _current.Parts?.ToList() ?? new List<DrawnShape>();
+        }
+
+        _selected = _selected.Where( x => x >= 0 && x < _layers.Count ).Distinct().ToList();
+        _history.Record( StateText(), RealTime.Now );
+        Changed?.Invoke( _current );
+        StateHasChanged();
+    }
+
+    string StateText() => JsonSerializer.Serialize( new DrawnShape { Emblem = _layers, Parts = _parts, Mirror = _mirror } );
+
+    void Restore( string state )
+    {
+        if ( state is null )
+            return;
+
+        var back = JsonSerializer.Deserialize<DrawnShape>( state );
+        _layers = back.Emblem ?? new List<EmblemLayer>();
+        _parts = back.Parts ?? new List<DrawnShape>();
+        _mirror = back.Mirror;
+        _current = _layers.Count == 0 ? null : new DrawnShape { Emblem = _layers, Parts = _parts, Mirror = _mirror }.Sanitized();
+        _selected = _selected.Where( x => x < _layers.Count ).ToList();
+        Changed?.Invoke( _current );
+        StateHasChanged();
+    }
+
+    void Undo() => Restore( _history.Undo() );
+
+    void Redo() => Restore( _history.Redo() );
+
+    /// <summary>How the editor is left, for a draft: the layers selected and the tools picked.</summary>
+    public string SaveState() => JsonSerializer.Serialize( new Dictionary<string, string>
+    {
+        ["sel"] = string.Join( ",", _selected ), ["tool"] = _tool.ToString(), ["below"] = _eraseBelow.ToString(),
+        ["eraser"] = _eraserSize.ToString( System.Globalization.CultureInfo.InvariantCulture ), ["snap"] = _snap.ToString(), ["filled"] = _filled.ToString(),
+    } );
+
+    /// <summary>Leaves the editor as <see cref="SaveState"/> said it was; anything that doesn't read is left as it is.</summary>
+    public void LoadState( string state )
+    {
+        Dictionary<string, string> values;
+        try
+        {
+            values = string.IsNullOrEmpty( state ) ? null : JsonSerializer.Deserialize<Dictionary<string, string>>( state );
+        }
+        catch ( JsonException )
+        {
+            return;
+        }
+
+        if ( values is null )
+            return;
+
+        _selected = (values.GetValueOrDefault( "sel" ) ?? "").Split( ',', StringSplitOptions.RemoveEmptyEntries )
+            .Select( x => int.TryParse( x, out var i ) ? i : -1 ).Where( x => x >= 0 && x < _layers.Count ).ToList();
+        _tool = Enum.TryParse<Tool>( values.GetValueOrDefault( "tool" ), out var tool ) ? tool : _tool;
+        _eraseBelow = values.GetValueOrDefault( "below" ) != bool.FalseString;
+        _eraserSize = float.TryParse( values.GetValueOrDefault( "eraser" ), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var size )
+            ? Math.Clamp( size, DrawnShape.MinStrokeWidth, DrawnShape.MaxStrokeWidth ) : _eraserSize;
+        _snap = values.GetValueOrDefault( "snap" ) != bool.FalseString;
+        _filled = values.GetValueOrDefault( "filled" ) != bool.FalseString;
+        StateHasChanged();
+    }
+
+    // ----- Selecting -----
+
+    // A layer and the others in its group
+    List<int> WithGroup( int index )
+    {
+        var group = _layers[ index ].Group;
+        if ( group == 0 )
+            return new List<int> { index };
+
+        var all = Enumerable.Range( 0, _layers.Count ).Where( x => _layers[ x ].Group == group && x != index ).ToList();
+        all.Add( index );
+        return all;
+    }
+
+    // A click selects a layer (and its group) alone; Ctrl+click adds it or drops it, Shift+click a run of them
+    void Select( int index, bool add, bool run )
+    {
+        if ( run && Primary is not null )
+        {
+            var from = _selected[ ^1 ];
+            var range = Enumerable.Range( Math.Min( from, index ), Math.Abs( from - index ) + 1 ).Where( x => x != index ).ToList();
+            range.Add( index );
+            _selected = range;
+        }
+        else if ( add )
+        {
+            var group = WithGroup( index );
+            if ( _selected.Contains( index ) )
+                _selected.RemoveAll( group.Contains );
+            else
+                _selected.AddRange( group.Where( x => !_selected.Contains( x ) ) );
+        }
+        else
+        {
+            _selected = WithGroup( index );
+        }
+
+        StateHasChanged();
+    }
+
+    void PickRow( int index ) => Select( index, Held( "ctrl" ), Held( "shift" ) );
+
+    List<EmblemLayer> Chosen() => _selected.Where( x => x < _layers.Count ).Select( x => _layers[ x ] ).ToList();
+
+    // Whether a modifier key is held: the window keeps the game from the keys (see InputLock), so that is lifted to read it
+    static bool Held( string key )
+    {
+        var suppressed = Input.Suppressed;
+        Input.Suppressed = false;
+        var held = Input.Keyboard.Down( key );
+        Input.Suppressed = suppressed;
+        return held;
+    }
+
+    // ----- The canvas -----
+
+    void UseTool( Tool tool )
+    {
+        _tool = tool;
+        _status = null;
+        StateHasChanged();
+    }
+
+    void ToggleSnap()
+    {
+        _snap = !_snap;
+        StateHasChanged();
+    }
+
+    void ToggleMirror()
+    {
+        _mirror = !_mirror;
+        Commit();
+    }
+
+    void SetEraseMode( object value )
+    {
+        _eraseBelow = value as string != ThisLayer;
+        StateHasChanged();
+    }
+
+    void SetEraserSize( float size )
+    {
+        _eraserSize = Math.Clamp( size, DrawnShape.MinStrokeWidth, DrawnShape.MaxStrokeWidth );
+        StateHasChanged();
+    }
+
+    void SetFilled( bool filled )
+    {
+        _filled = filled;
+        StateHasChanged();
+    }
+
+    void Press( Vector2 at, bool right )
+    {
+        _status = null;
+        if ( right )
+        {
+            var under = _current is null ? -1 : Emblem.LayerAt( _current, at.x, at.y );
+            if ( under >= 0 && !_selected.Contains( under ) )
+                Select( under, false, false );
+
+            if ( Primary is not null )
+                OpenMenu( _selected[ ^1 ] );
+
+            return;
+        }
+
+        _from = at;
+        _before = _layers.Select( x => x.Copy() ).ToList();
+        if ( _tool != Tool.Select )
+        {
+            _pending = new List<float> { at.x, at.y };
+            _doing = Doing.Stroke;
+            return;
+        }
+
+        // A handle of the layer selected alone sizes or turns it
+        if ( _selected.Count == 1 && _current is not null && Primary is { Locked: false } primary )
+        {
+            var handles = EmblemCanvas.HandlesOf( _current, primary );
+            for ( var i = 0; i < handles.Length; i++ )
+            {
+                if ( (handles[ i ] - at).Length > EmblemCanvas.HandleReach )
+                    continue;
+
+                _handle = i;
+                _doing = i == EmblemCanvas.Knob ? Doing.Turning : Doing.Sizing;
+                return;
+            }
+        }
+
+        var hit = _current is null ? -1 : Emblem.LayerAt( _current, at.x, at.y );
+        if ( hit < 0 )
+        {
+            if ( !Held( "ctrl" ) )
+                _selected.Clear();
+
+            _doing = Doing.Nothing;
+            StateHasChanged();
+            return;
+        }
+
+        if ( Held( "ctrl" ) )
+            Select( hit, true, false );
+        else if ( !_selected.Contains( hit ) )
+            Select( hit, false, false );
+
+        _doing = _selected.Count > 0 ? Doing.Moving : Doing.Nothing;
+    }
+
+    void Drag( Vector2 at )
+    {
+        switch ( _doing )
+        {
+            case Doing.Stroke:
+                if ( _pending.Count >= 2 && (new Vector2( _pending[ ^2 ], _pending[ ^1 ] ) - at).Length < StrokeStep )
+                    return;
+
+                _pending.Add( Math.Clamp( at.x, -1f, 1f ) );
+                _pending.Add( Math.Clamp( at.y, -1f, 1f ) );
+                _pending = new List<float>( _pending );
+                StateHasChanged();
+                return;
+
+            case Doing.Moving:
+                MoveTo( at );
+                return;
+
+            case Doing.Sizing:
+                SizeTo( at );
+                return;
+
+            case Doing.Turning:
+                TurnTo( at );
+                return;
+        }
+    }
+
+    void Release( Vector2 at )
+    {
+        var doing = _doing;
+        _doing = Doing.Nothing;
+        _guides = 0;
+        if ( doing == Doing.Stroke && _pending is { Count: >= 2 } pending )
+        {
+            _pending = null;
+            if ( _tool == Tool.Draw )
+                AddDrawn( pending.ToArray() );
+            else
+                Erase( pending.ToArray() );
+
+            return;
+        }
+
+        _pending = null;
+        StateHasChanged();
+    }
+
+    // Moves what is selected (but what is locked) as far as the mouse moved, the last one picked snapping to the grid and
+    // onto the middle, where the centre guides show
+    void MoveTo( Vector2 at )
+    {
+        var primary = _selected[ ^1 ];
+        var start = _before[ primary ];
+        var (x, y) = (start.X + at.x - _from.x, start.Y + at.y - _from.y);
+        _guides = 0;
+        if ( _snap )
+        {
+            (x, y) = (MathF.Round( x / Grid ) * Grid, MathF.Round( y / Grid ) * Grid);
+            if ( MathF.Abs( start.X + at.x - _from.x ) < MiddleReach )
+                (x, _guides) = (0f, _guides | 1);
+
+            if ( MathF.Abs( start.Y + at.y - _from.y ) < MiddleReach )
+                (y, _guides) = (0f, _guides | 2);
+        }
+
+        var (dx, dy) = (x - start.X, y - start.Y);
+        foreach ( var index in _selected )
+        {
+            if ( _layers[ index ].Locked )
+                continue;
+
+            _layers[ index ].X = Math.Clamp( _before[ index ].X + dx, -EmblemLayer.MaxReach, EmblemLayer.MaxReach );
+            _layers[ index ].Y = Math.Clamp( _before[ index ].Y + dy, -EmblemLayer.MaxReach, EmblemLayer.MaxReach );
+        }
+
+        Commit();
+    }
+
+    // Sizes the layer by a corner (both ways; Shift keeps its proportions) or a side (one way), about its middle
+    void SizeTo( Vector2 at )
+    {
+        var index = _selected[ ^1 ];
+        var start = _before[ index ];
+        var handles = EmblemCanvas.HandlesOf( _current, start );
+        var (handleU, handleV) = start.Unplace( handles[ _handle ].x, handles[ _handle ].y );
+        var (u, v) = start.Unplace( at.x, at.y );
+        var across = _handle is 4 or 6 ? 1f : Ratio( u, handleU );
+        var up = _handle is 5 or 7 ? 1f : Ratio( v, handleV );
+        if ( _handle < EmblemCanvas.Corners && Held( "shift" ) )
+            across = up = (across + up) / 2f;
+
+        _layers[ index ].ScaleX = Math.Clamp( start.ScaleX * across, EmblemLayer.MinScale, EmblemLayer.MaxScale );
+        _layers[ index ].ScaleY = Math.Clamp( start.ScaleY * up, EmblemLayer.MinScale, EmblemLayer.MaxScale );
+        Commit();
+    }
+
+    static float Ratio( float now, float then ) => MathF.Abs( then ) < 0.001f ? 1f : MathF.Max( 0f, now / then );
+
+    // Turns the layer by how far round its middle the mouse went from where the knob was; snapping, in steps
+    void TurnTo( Vector2 at )
+    {
+        var index = _selected[ ^1 ];
+        var start = _before[ index ];
+        var middle = new Vector2( start.X, start.Y );
+        var turned = Angle( at - middle ) - Angle( _from - middle );
+        var rotation = Normalised( start.Rotation + turned );
+        _layers[ index ].Rotation = _snap ? MathF.Round( rotation / TurnStep ) * TurnStep : rotation;
+        Commit();
+    }
+
+    static float Angle( Vector2 direction ) => MathF.Atan2( direction.y, direction.x ) * 180f / MathF.PI;
+
+    static float Normalised( float degrees ) => (degrees % 360f + 540f) % 360f - 180f;
+
+    void Wheel( float delta )
+    {
+        if ( !HasSelection || delta == 0f )
+            return;
+
+        if ( Held( "shift" ) )
+            TurnSelected( delta > 0f ? -WheelTurn : WheelTurn );
+        else
+            ScaleSelected( delta > 0f ? 1f / WheelScale : WheelScale );
+    }
+
+    // The middle of what is selected: the middle of their places
+    Vector2 SelectionMiddle()
+    {
+        var chosen = Chosen();
+        return chosen.Count == 0 ? Vector2.Zero : new Vector2( chosen.Average( x => x.X ), chosen.Average( x => x.Y ) );
+    }
+
+    // Sizes what is selected together, about its middle: each layer and how far it is from it
+    void ScaleSelected( float factor )
+    {
+        var middle = SelectionMiddle();
+        foreach ( var layer in Chosen().Where( x => !x.Locked ) )
+        {
+            layer.ScaleX = Math.Clamp( layer.ScaleX * factor, EmblemLayer.MinScale, EmblemLayer.MaxScale );
+            layer.ScaleY = Math.Clamp( layer.ScaleY * factor, EmblemLayer.MinScale, EmblemLayer.MaxScale );
+            layer.X = Math.Clamp( middle.x + (layer.X - middle.x) * factor, -EmblemLayer.MaxReach, EmblemLayer.MaxReach );
+            layer.Y = Math.Clamp( middle.y + (layer.Y - middle.y) * factor, -EmblemLayer.MaxReach, EmblemLayer.MaxReach );
+        }
+
+        Commit();
+    }
+
+    // Turns what is selected together, about its middle, anticlockwise by degrees
+    void TurnSelected( float degrees )
+    {
+        var middle = SelectionMiddle();
+        var (sin, cos) = MathF.SinCos( degrees * MathF.PI / 180f );
+        foreach ( var layer in Chosen().Where( x => !x.Locked ) )
+        {
+            var (dx, dy) = (layer.X - middle.x, layer.Y - middle.y);
+            layer.X = Math.Clamp( middle.x + dx * cos - dy * sin, -EmblemLayer.MaxReach, EmblemLayer.MaxReach );
+            layer.Y = Math.Clamp( middle.y + dx * sin + dy * cos, -EmblemLayer.MaxReach, EmblemLayer.MaxReach );
+            layer.Rotation = Normalised( layer.Rotation + degrees );
+        }
+
+        Commit();
+    }
+
+    bool Key( ButtonEvent e )
+    {
+        var key = e.Button.ToLowerInvariant();
+        switch ( key )
+        {
+            case "del" or "delete" or "backspace" when HasSelection:
+                DeleteSelected();
+                return true;
+            case "d" when e.HasCtrl:
+                Duplicate();
+                return true;
+            case "z" when e.HasCtrl && e.HasShift:
+            case "y" when e.HasCtrl:
+                Redo();
+                return true;
+            case "z" when e.HasCtrl:
+                Undo();
+                return true;
+            case "g" when e.HasCtrl && e.HasShift:
+                Ungroup();
+                return true;
+            case "g" when e.HasCtrl:
+                Group();
+                return true;
+            case "[":
+                SetEraserSize( _eraserSize - EraserStep );
+                return true;
+            case "]":
+                SetEraserSize( _eraserSize + EraserStep );
+                return true;
+            case "app" when HasSelection:
+            case "f10" when e.HasShift && HasSelection:
+                OpenMenu( _selected[ ^1 ] );
+                return true;
+            case "uparrow" or "downarrow" or "leftarrow" or "rightarrow" when HasSelection:
+                var step = e.HasShift ? BigNudge : Nudge;
+                var (dx, dy) = key switch { "uparrow" => (0f, step), "downarrow" => (0f, -step), "leftarrow" => (-step, 0f), _ => (step, 0f) };
+                foreach ( var layer in Chosen().Where( x => !x.Locked ) )
+                {
+                    layer.X = Math.Clamp( layer.X + dx, -EmblemLayer.MaxReach, EmblemLayer.MaxReach );
+                    layer.Y = Math.Clamp( layer.Y + dy, -EmblemLayer.MaxReach, EmblemLayer.MaxReach );
+                }
+
+                Commit();
+                return true;
+        }
+
+        return false;
+    }
+
+    // ----- Adding layers -----
+
+    List<UIDropdown.Item> AddChoices()
+    {
+        var choices = new List<UIDropdown.Item> { new( "Pick a shape...", "" ) };
+        choices.AddRange( StandardChoices() );
+        foreach ( var mine in Mine ?? new List<DrawnShape>() )
+            choices.Add( new UIDropdown.Item( $"{(mine.IsSticker ? "My sticker" : "My shape")}: {mine.Name}", MinePrefix + mine.Name ) );
+
+        if ( OpenWorkshop is not null )
+            choices.Add( new UIDropdown.Item( "Workshop...", WorkshopChoice ) );
+
+        return choices;
+    }
+
+    static List<UIDropdown.Item> StandardChoices() => Enum.GetValues<StandardShape>().Select( x => new UIDropdown.Item( ShapeName( x ), x.ToString() ) ).ToList();
+
+    // "RightTriangle" as "Right triangle", "Star5" as "5-point star"
+    static string ShapeName( StandardShape shape )
+    {
+        var name = shape.ToString();
+        if ( name.StartsWith( "Star" ) )
+            return $"{name[ 4.. ]}-point star";
+
+        return shape == StandardShape.SineWave ? "Sine wave" : string.Concat( name.Select( ( c, i ) => i > 0 && char.IsUpper( c ) ? $" {char.ToLowerInvariant( c )}" : c.ToString() ) );
+    }
+
+    string NameOf( EmblemLayer layer )
+    {
+        var name = layer.StandardIs is { } standard ? ShapeName( standard ) : _parts.FirstOrDefault( x => x.Reference == layer.Shape )?.Name ?? "Drawn";
+        return layer.Eraser ? $"Eraser: {name}" : name;
+    }
+
+    void AddPicked( object value )
+    {
+        if ( value is not string choice || choice == "" )
+            return;
+
+        if ( choice == WorkshopChoice )
+        {
+            OpenWorkshop?.Invoke();
+            return;
+        }
+
+        if ( choice.StartsWith( MinePrefix ) )
+        {
+            if ( Mine?.FirstOrDefault( x => x.Name == choice[ MinePrefix.Length.. ] ) is { } mine )
+                AddShape( mine );
+
+            return;
+        }
+
+        Add( new EmblemLayer { Shape = choice, ScaleX = StartingScale, ScaleY = StartingScale, Color = NextColour() }, null );
+    }
+
+    void AddText()
+    {
+        if ( string.IsNullOrWhiteSpace( _text ) )
+            return;
+
+        var part = DrawnShape.From( HersheyFont.Strokes( _text ), _text.Trim() );
+        if ( part is null )
+            return;
+
+        Add( new EmblemLayer { Shape = part.Reference, ScaleX = TextScale, ScaleY = TextScale, Color = NextColour() }, part );
+        _text = null;
+    }
+
+    string NextColour() => StartingColours[ _layers.Count % StartingColours.Length ];
+
+    /// <summary>
+    /// Adds <paramref name="shape"/> above the layer selected: a shape as a layer of its own (a sticker made before
+    /// stickers had layers coloured as it was), a sticker of layers as all of them, grouped, at the size it was made.
+    /// </summary>
+    public void AddShape( DrawnShape shape )
+    {
+        var made = shape.IsSticker ? Emblem.FromShape( shape ) : null;
+        if ( made is null )
+        {
+            var part = DrawnShape.From( shape.Decode(), shape.Name );
+            Add( new EmblemLayer { Shape = part?.Reference, ScaleX = StartingScale, ScaleY = StartingScale, Color = NextColour() }, part );
+            return;
+        }
+
+        var points = made.Parts?.Where( x => !_parts.Exists( y => y.Id == x.Id ) ).Sum( x => x.PointCount ) ?? 0;
+        if ( _layers.Count + made.Emblem.Count > EmblemLayer.MaxPerEmblem || PointsUsed() + points > DrawnShape.MaxEmblemPoints )
+        {
+            _status = $"There's no room for it: a sticker has up to {EmblemLayer.MaxPerEmblem} layers and {DrawnShape.MaxEmblemPoints} points of drawn layers.";
+            StateHasChanged();
+            return;
+        }
+
+        foreach ( var part in made.Parts ?? new List<DrawnShape>() )
+        {
+            if ( !_parts.Exists( x => x.Id == part.Id ) )
+                _parts.Add( part );
+        }
+
+        var group = made.Emblem.Count > 1 ? NewGroup() : 0;
+        var at = Primary is not null ? _selected.Max() + 1 : _layers.Count;
+        var added = made.Emblem.Select( x => { var copy = x.Copy(); copy.Group = group; return copy; } ).ToList();
+        _layers.InsertRange( at, added );
+        _selected = Enumerable.Range( at, added.Count ).ToList();
+        _status = null;
+        Commit();
+    }
+
+    // A layer put above the one selected (on top when none is), selected alone; refused past the emblem's caps
+    void Add( EmblemLayer layer, DrawnShape part, int at = -1 )
+    {
+        if ( IsFull )
+        {
+            _status = $"A sticker has up to {EmblemLayer.MaxPerEmblem} layers. Delete one first.";
+            StateHasChanged();
+            return;
+        }
+
+        if ( part is not null && !_parts.Exists( x => x.Id == part.Id ) )
+        {
+            if ( PointsUsed() + part.PointCount > DrawnShape.MaxEmblemPoints )
+            {
+                _status = $"The drawn layers of a sticker have up to {DrawnShape.MaxEmblemPoints} points together, and this would take it past that. Draw it simpler, or delete a drawn layer.";
+                StateHasChanged();
+                return;
+            }
+
+            _parts.Add( part );
+        }
+
+        at = at >= 0 ? at : Primary is not null ? _selected.Max() + 1 : _layers.Count;
+        _layers.Insert( Math.Clamp( at, 0, _layers.Count ), layer );
+        _selected = new List<int> { Math.Clamp( at, 0, _layers.Count - 1 ) };
+        _status = null;
+        Commit();
+    }
+
+    int PointsUsed() => _parts.Where( x => _layers.Exists( l => l.Shape == x.Reference ) ).Sum( x => x.PointCount );
+
+    // Strokes drawn on the emblem as a layer of their own: sized to its own square, and placed where they were drawn
+    (DrawnShape Part, EmblemLayer Layer) Fitted( List<ShapeStroke> strokes, string name )
+    {
+        float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
+        foreach ( var stroke in strokes )
+        {
+            for ( var i = 0; i + 1 < stroke.Points.Length; i += 2 )
+                (minX, minY, maxX, maxY) = (MathF.Min( minX, stroke.Points[ i ] ), MathF.Min( minY, stroke.Points[ i + 1 ] ), MathF.Max( maxX, stroke.Points[ i ] ), MathF.Max( maxY, stroke.Points[ i + 1 ] ));
+        }
+
+        var extent = MathF.Max( maxX - minX, maxY - minY );
+        if ( !(extent > 0.01f) )
+            return (DrawnShape.From( strokes, name ), new EmblemLayer());
+
+        var fitted = ShapeStroke.Fitted( strokes );
+        var scale = extent / 2f / 0.9f;
+        return (DrawnShape.From( fitted, name ), new EmblemLayer { X = (minX + maxX) / 2f, Y = (minY + maxY) / 2f, ScaleX = scale, ScaleY = scale });
+    }
+
+    void AddDrawn( float[] raw )
+    {
+        var (part, layer) = Fitted( new List<ShapeStroke> { ShapeStroke.Freehand( raw, _filled ) }, "Drawn" );
+        if ( part is null )
+            return;
+
+        layer.Shape = part.Reference;
+        layer.Color = NextColour();
+        Add( layer, part );
+    }
+
+    // ----- Erasing -----
+
+    // "Everything below" adds to the eraser layer selected, or puts a new one above the layer selected; "this layer"
+    // cuts the drawn layer selected alone
+    void Erase( float[] raw )
+    {
+        var path = ShapeStroke.Freehand( raw, false ).Points;
+        if ( _eraseBelow )
+        {
+            if ( Primary is { Eraser: true, Locked: false } eraser && eraser.DrawnShapeId is not null && _selected.Count == 1 )
+            {
+                AddStroke( _selected[ ^1 ], new ShapeStroke { Width = _eraserSize, Points = path }, false );
+                return;
+            }
+
+            var (part, layer) = Fitted( new List<ShapeStroke> { new() { Width = _eraserSize, Points = path } }, "Eraser strokes" );
+            if ( part is null )
+                return;
+
+            layer.Shape = part.Reference;
+            layer.Eraser = true;
+            Add( layer, part );
+            return;
+        }
+
+        if ( _selected.Count != 1 || Primary is not { } target || target.DrawnShapeId is null || target.Eraser || target.Locked )
+        {
+            _status = "To cut this layer, select one drawn layer (drawn, text or one of yours) that isn't locked; or pick Everything below.";
+            StateHasChanged();
+            return;
+        }
+
+        AddStroke( _selected[ ^1 ], new ShapeStroke { Erase = true, Width = _eraserSize, Points = path }, true );
+    }
+
+    // A stroke drawn on the emblem added to the drawn layer at index, where it is on that layer's own square
+    void AddStroke( int index, ShapeStroke stroke, bool erase )
+    {
+        var layer = _layers[ index ];
+        var part = _parts.FirstOrDefault( x => x.Reference == layer.Shape );
+        if ( part is null )
+            return;
+
+        var points = new float[ stroke.Points.Length ];
+        for ( var i = 0; i + 1 < points.Length; i += 2 )
+            (points[ i ], points[ i + 1 ]) = layer.Unplace( stroke.Points[ i ], stroke.Points[ i + 1 ] );
+
+        var strokes = part.Decode();
+        strokes.Add( new ShapeStroke { Erase = erase, Width = stroke.Width / MathF.Max( layer.WidthScale, EmblemLayer.MinScale ), Points = points } );
+        var cut = DrawnShape.From( strokes, part.Name );
+        if ( cut is null || cut.PointCount < part.PointCount + stroke.Count || PointsUsed() - part.PointCount + cut.PointCount > DrawnShape.MaxEmblemPoints )
+        {
+            _status = $"That layer is full ({DrawnShape.MaxPoints} points a layer, {DrawnShape.MaxEmblemPoints} a sticker): make the strokes simpler or start a new eraser layer.";
+            StateHasChanged();
+            return;
+        }
+
+        _parts.Add( cut );
+        layer.Shape = cut.Reference;
+        Commit();
+    }
+
+    List<UIDropdown.Item> EraseChoices() => new()
+    {
+        new( "Everything below (an eraser layer)", Below ),
+        new( "This layer only (a drawn one)", ThisLayer ),
+    };
+
+    string HintText() => _tool switch
+    {
+        Tool.Draw => $"Draw with the left mouse button: each stroke is a layer. {PointsText()}",
+        Tool.Erase => _eraseBelow
+            ? $"Erase with the left mouse button: the strokes make an eraser layer above the one selected, cutting every layer below it. [ and ] change the size. {PointsText()}"
+            : $"Erase with the left mouse button: the strokes cut the drawn layer selected, its fill and outline. [ and ] change the size. {PointsText()}",
+        _ => $"Click a layer to select it, drag it, its corners and sides, or its knob. Right-click for more. {PointsText()}",
+    };
+
+    string PointsText() => $"{PointsUsed()} of {DrawnShape.MaxEmblemPoints} points in drawn layers.";
+
+    // ----- Layer operations -----
+
+    void Act( PanelEvent e, Action action )
+    {
+        e.StopPropagation();
+        action();
+    }
+
+    // A change to every layer selected
+    void SetAll( Action<EmblemLayer> change )
+    {
+        foreach ( var layer in Chosen() )
+            change( layer );
+
+        Commit();
+    }
+
+    void SetHidden( int index, bool hidden )
+    {
+        _layers[ index ].Hidden = hidden;
+        Commit();
+    }
+
+    void SetLocked( int index, bool locked )
+    {
+        _layers[ index ].Locked = locked;
+        Commit();
+    }
+
+    void MoveLayer( int index, int by )
+    {
+        var to = index + by;
+        if ( to < 0 || to >= _layers.Count )
+            return;
+
+        (_layers[ index ], _layers[ to ]) = (_layers[ to ], _layers[ index ]);
+        _selected = _selected.Select( x => x == index ? to : x == to ? index : x ).ToList();
+        Commit();
+    }
+
+    // Moves what is selected to the top of the stack (or the bottom), keeping its order
+    void Reorder( bool front )
+    {
+        var chosen = _selected.OrderBy( x => x ).ToList();
+        var moved = chosen.Select( x => _layers[ x ] ).ToList();
+        var rest = _layers.Where( ( _, i ) => !chosen.Contains( i ) ).ToList();
+        _layers = front ? rest.Concat( moved ).ToList() : moved.Concat( rest ).ToList();
+        var first = front ? rest.Count : 0;
+        _selected = Enumerable.Range( first, moved.Count ).ToList();
+        Commit();
+    }
+
+    void ToFront() => Reorder( true );
+
+    void ToBack() => Reorder( false );
+
+    // Copies of what is selected, each just above its own, a little apart, grouped together if they were
+    void Duplicate()
+    {
+        var chosen = _selected.OrderByDescending( x => x ).ToList();
+        if ( chosen.Count == 0 || _layers.Count + chosen.Count > EmblemLayer.MaxPerEmblem )
+        {
+            _status = $"A sticker has up to {EmblemLayer.MaxPerEmblem} layers.";
+            StateHasChanged();
+            return;
+        }
+
+        var groups = new Dictionary<int, int>();
+        var copies = new List<EmblemLayer>();
+        foreach ( var index in chosen )
+        {
+            var copy = _layers[ index ].Copy();
+            copy.X = Math.Clamp( copy.X + CopyOffset, -EmblemLayer.MaxReach, EmblemLayer.MaxReach );
+            copy.Y = Math.Clamp( copy.Y - CopyOffset, -EmblemLayer.MaxReach, EmblemLayer.MaxReach );
+            copy.Locked = false;
+            if ( copy.Group > 0 )
+                copy.Group = groups.TryGetValue( copy.Group, out var group ) ? group : groups[ copy.Group ] = NewGroup( groups.Count );
+
+            _layers.Insert( index + 1, copy );
+            copies.Add( copy );
+        }
+
+        _selected = copies.Select( x => _layers.IndexOf( x ) ).ToList();
+        Commit();
+    }
+
+    // A group number no layer has, the extra-th new one asked for in one go
+    int NewGroup( int extra = 0 )
+    {
+        var used = _layers.Select( x => x.Group ).ToHashSet();
+        var group = 1;
+        for ( var skipped = 0; group < EmblemLayer.MaxPerEmblem; group++ )
+        {
+            if ( !used.Contains( group ) && skipped++ == extra )
+                break;
+        }
+
+        return group;
+    }
+
+    void DeleteSelected()
+    {
+        var chosen = _selected.ToHashSet();
+        _layers = _layers.Where( ( _, i ) => !chosen.Contains( i ) ).ToList();
+        _selected.Clear();
+        Commit();
+    }
+
+    void Group()
+    {
+        if ( _selected.Count < 2 )
+            return;
+
+        var group = NewGroup();
+        foreach ( var layer in Chosen() )
+            layer.Group = group;
+
+        Commit();
+    }
+
+    void Ungroup()
+    {
+        foreach ( var layer in Chosen() )
+            layer.Group = 0;
+
+        Commit();
+    }
+
+    // The menu of what can be done to the layers selected, from a right click, its row's button or Shift+F10
+    void OpenMenu( int index )
+    {
+        if ( !_selected.Contains( index ) )
+            Select( index, false, false );
+
+        var layer = _layers[ index ];
+        var several = _selected.Count > 1;
+        ContextMenu.OpenFrom( this, several ? $"{_selected.Count} layers" : NameOf( layer ), new List<ContextMenu.Entry>
+        {
+            new( "Duplicate", "content_copy", Duplicate, "Ctrl+D", !IsFull, $"A sticker has up to {EmblemLayer.MaxPerEmblem} layers" ),
+            new( "Delete", "delete", DeleteSelected, "Delete" ),
+            new( "To front", "flip_to_front", ToFront ),
+            new( "To back", "flip_to_back", ToBack ),
+            layer.Locked ? new( "Unlock", "lock_open", () => SetAll( l => l.Locked = false ) ) : new( "Lock", "lock", () => SetAll( l => l.Locked = true ) ),
+            layer.Hidden ? new( "Show", "visibility", () => SetAll( l => l.Hidden = false ) ) : new( "Hide", "visibility_off", () => SetAll( l => l.Hidden = true ) ),
+            layer.Group > 0 && !several ? new( "Ungroup", "link_off", Ungroup, "Ctrl+Shift+G" ) : new( "Group", "link", Group, "Ctrl+G", several, "Select two layers or more to group them (Ctrl+click)" ),
+        } );
+    }
+
+    void SetCycleColour( int index, string hex )
+    {
+        var layer = Primary;
+        var colours = layer.CycleColours().ToList();
+        var defaults = new Sticker { Animation = layer.Animation }.CycleColours();
+        if ( !string.IsNullOrEmpty( hex ) )
+            colours[ index ] = hex;
+        else if ( layer.AnimationIs == Sticker.Motion.Cyln )
+            colours[ index ] = defaults[ index ];
+        else if ( colours.Count > 1 )
+            colours.RemoveAt( index );
+
+        var palette = colours.SequenceEqual( defaults, StringComparer.OrdinalIgnoreCase ) ? null : colours;
+        SetAll( l => l.Palette = palette is null ? null : new List<string>( palette ) );
+    }
+
+    void AddCycleColour()
+    {
+        var colours = Primary.CycleColours().ToList();
+        colours.Add( colours[ ^1 ] );
+        SetAll( l => l.Palette = new List<string>( colours ) );
+    }
+}

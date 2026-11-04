@@ -75,7 +75,7 @@
         new( "When", "when",
             "When says when a layer shows: always, while you move, stand, are in the air, crouch or hold a weapon, or for a moment when something happens: you jump, land, get hurt, start or stop moving, crouch, stand up, shoot or swing, or hit something hard. A moment can throw out a burst of sprites at once." ),
         new( "Keys", "keys",
-            "Give an effect a key and it shows only when you press it, for 10 seconds, for everyone, fading in and out. To keep anyone from flooding the server, effect keys work once every 2 minutes for each player, whichever effect the key is for. Switching an effect off is always free." ),
+            "Give an effect a key and it shows only when you press it, for everyone: for 10 seconds, until you press it again, or while you hold it, as you choose. To keep anyone from flooding the server, starting an effect with a key works once every 2 minutes for each player, whichever effect the key is for. Switching one off or letting go is always free." ),
         new( "Shape", "shape",
             "A shape is one of 40 standard shapes (circles, polygons, stars, hearts, lines, spirals and solids like a sphere or a torus) or one you drew in the shape creator. Sprites can come from a shape, along its outline or all over it (through a solid), or each sprite can look like the shape." ),
         new( "Sticker", "sticker",
@@ -86,6 +86,10 @@
             "The shape creator makes shapes of your own: strokes drawn with the mouse, filled or as lines, text, and other shapes put together, mirrored, turned and sized. Use one as where sprites come from (sparkles tracing a word) or as what each sprite looks like, and keep it in My shapes. A shape has up to 500 points and a look carries up to 8; everyone sees them with nothing to download." ),
         new( "Color cycles", "colors",
             "A color cycle colors a layer's sprites one by one, the way World at War's clan tags did: Rain scrolls the colors along, Cycle wipes one color across them, and Scanner sweeps a highlight back and forth. Mixed gives each sprite one of the colors for its life, like confetti. Use the game's colors or your own." ),
+        new( "Script", "script",
+            "Every effect is also a short script: Edit as code opens it, and changing the code or the sliders changes the other. Code adds what sliders can't: values that follow what you do (brighter when running, bigger when hurt), something on every jump or key, each sprite moving on its own, and options of your own. Scripts run on every player's machine within strict limits, and the host can switch them off." ),
+        new( "Parameters", "parameters",
+            "A script can offer options, its parameters: they show under the effect's sliders as sliders, check marks, color pickers, palettes, keys and lists, so anyone can change the effect without the code. Reset puts the script's own value back; Save as default writes yours into the script." ),
         new( "Budget and settings", "budget",
             "Each server lets each player show so many layers, lights and sprites at once. Past that, your last layers wait (marked over budget) until you remove or switch off some; nothing is lost. The host can turn effects off or change the budget on the Server page, and you can lower Effects quality or hide one player's effects on your own screen." ),
     };
@@ -112,7 +116,7 @@
             "Select a layer and open When.",
             "Pick a moment, like On jumping or On landing.",
             "Set Burst for how many sprites appear at once, and Shows for to keep it going a while.",
-            "For a key, type it in the Key box on the Effects tab: the effect shows for 10 seconds when you press it, once every 2 minutes.",
+            "For a key, type it in the Key box on the Effects tab and choose what it does: show the effect for 10 seconds, switch it on and off, or show it while held; starting one works once every 2 minutes.",
         } ),
         new( "Set up a sword slash", "sword", null, new[]
         {
@@ -120,6 +124,14 @@
             "Hold a weapon: the trail starts at its tip, and at your right hand while you hold nothing.",
             "Swing: the trail shows as fast as the tip moves, and sparks fly when you hit.",
             "In the Advanced editor, change the trail's color, width and how long it lasts.",
+        } ),
+        new( "Expressions basics", "expressions", null, new[]
+        {
+            "Select an effect and press Edit as code: the code editor opens on its script.",
+            "Find a number, like glow.Size = 2, and make it work something out: glow.Size = 2 + Math.Sin( t * 4 ).",
+            "Put it in function OnUpdate( dt ) ... end to work it out every frame, from t (seconds), speed, grounded or crouching.",
+            "The preview follows as you type; a mistake is underlined with what is wrong, and the last good version keeps showing.",
+            "Press Save (Ctrl+S) to wear it. The ? button opens the reference, every example in it live.",
         } ),
         new( "Remix from the Workshop", "remix", null, new[]
         {

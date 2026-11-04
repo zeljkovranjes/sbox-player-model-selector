@@ -94,8 +94,8 @@
                                     break;
                             }
                         </div>
-                        <div class="tool @( IsSet( shown ) ? "" : "disabled" )" Tooltip="Reset: back to the script's own value" @onclick=@(() => Reset( shown ))>restart_alt</div>
-                        <div class="tool @( IsSet( shown ) ? "" : "disabled" )" Tooltip="Save as default: write this value into the script" @onclick=@(() => SaveAsDefault( shown ))>save_as</div>
+                        <div class="tool @( IsSet( shown ) ? "" : "disabled" )" Tooltip="Reset: back to the script's own value" @onclick=@(() => Reset( shown ))>refresh</div>
+                        <div class="tool @( IsSet( shown ) ? "" : "disabled" )" Tooltip="Save as default: write this value into the script" @onclick=@(() => SaveAsDefault( shown ))>save</div>
                     </div>
                 }
             }

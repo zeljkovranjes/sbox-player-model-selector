@@ -248,6 +248,15 @@ EffectIcon .picture
 	&.rise { animation-name: effect-rise; animation-duration: 1.6s; }
 	&.fall { animation-name: effect-fall; animation-duration: 1.2s; }
 	&.glow { animation-name: effect-pulse; animation-duration: 3s; }
+	&.sweep { animation-name: effect-sweep; animation-duration: 1.4s; }
+}
+
+// a trail: a streak sweeping across the tile and fading behind
+@keyframes effect-sweep
+{
+	0% { opacity: 0; transform: translateX( -35% ) scaleX( 2.4 ) scaleY( 0.5 ); }
+	40% { opacity: 1; }
+	100% { opacity: 0; transform: translateX( 35% ) scaleX( 2.4 ) scaleY( 0.5 ); }
 }
 
 @keyframes effect-pulse

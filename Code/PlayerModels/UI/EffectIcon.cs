@@ -7,9 +7,9 @@ using Sandbox.UI;
 namespace PlayerModels.UI;
 
 /// <summary>
-/// A tile's picture of an effect: the pictures of its first few sprite layers in their colours, over one another, each
-/// moving the way its layer does (pulsing, flickering, turning, rising or falling), and a colour cycle going through its
-/// colours as it does on the body, so the tile shows what it does.
+/// A tile's picture of an effect: the pictures of its first few sprite and trail layers in their colours, over one
+/// another, each moving the way its layer does (pulsing, flickering, turning, rising or falling, a trail sweeping past),
+/// and a colour cycle going through its colours as it does on the body, so the tile shows what it does.
 /// </summary>
 public sealed class EffectIcon : Panel
 {
@@ -50,7 +50,7 @@ public sealed class EffectIcon : Panel
 		var shown = 0;
 		foreach ( var layer in effect.Layers )
 		{
-			if ( layer.KindIs != LayerKind.Sprite || shown >= MostPictures )
+			if ( layer.KindIs == LayerKind.Light || shown >= MostPictures )
 				continue;
 
 			var picture = AddChild<Panel>( $"picture picture-{shown} {MotionOf( layer )}" );
@@ -85,6 +85,9 @@ public sealed class EffectIcon : Panel
 	// The animation a layer's picture plays on the tile (see EffectsEditor.razor.scss)
 	private static string MotionOf( EffectLayer layer )
 	{
+		if ( layer.KindIs == LayerKind.Trail )
+			return "sweep";
+
 		return layer.RhythmIs switch
 		{
 			LayerRhythm.Pulse => "pulse",

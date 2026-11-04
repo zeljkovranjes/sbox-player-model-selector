@@ -11,6 +11,9 @@ namespace PlayerModels.Core.Script;
 /// </summary>
 internal sealed class ScriptContext
 {
+	// How many unclosed blocks around the caret are closed to read the script
+	private const int MostEndsAdded = 3;
+
 	public string Source { get; private init; }
 	public int Caret { get; private init; }
 	public ScriptKind Kind { get; private init; }
@@ -57,6 +60,15 @@ internal sealed class ScriptContext
 
 		var blanked = Blank( source, caret );
 		var compiled = ScriptCompiler.Compile( blanked, kind, library );
+
+		// A block still being typed has no end yet: read it as the editor's closing would have it
+		for ( var ends = 1; ends <= MostEndsAdded && compiled.Tree?.Error is not null; ends++ )
+		{
+			var closed = ScriptCompiler.Compile( blanked + string.Concat( System.Linq.Enumerable.Repeat( "\nend", ends ) ), kind, library );
+			if ( closed.Tree?.Error is null )
+				compiled = closed;
+		}
+
 		return new ScriptContext
 		{
 			Source = source, Caret = caret, Kind = kind, Library = library, Before = before, Word = source[ wordStart..caret ], WordStart = wordStart,
@@ -115,6 +127,10 @@ internal sealed class ScriptContext
 
 		return false;
 	}
+
+	/// <summary>The dotted chain the word at the caret is the last part of: "glow" for <c>glow.Si|ze</c>; empty for none.</summary>
+	public List<string> ChainToWord() =>
+		Before.Count > 0 && Before[ ^1 ].Kind == TokenKind.Dot ? ChainBefore( Before.Count - 1 ) : new List<string>();
 
 	/// <summary>
 	/// The names of the dotted chain ending just before token <paramref name="end"/> (exclusive) in <see cref="Before"/>:

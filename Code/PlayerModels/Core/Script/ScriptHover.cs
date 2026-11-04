@@ -80,7 +80,7 @@ public static class ScriptHover
 			return Entry( token, option );
 
 		var context = ScriptContext.Of( source, token.End, kind, library );
-		var chain = context.ChainBefore( context.Before.Count );
+		var chain = context.ChainToWord();
 		chain.Add( name );
 		if ( chain.Count == 1 )
 		{

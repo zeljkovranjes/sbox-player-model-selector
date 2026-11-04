@@ -47,9 +47,9 @@ public static class ScriptSignature
 		if ( callee.Count == 0 )
 			return null;
 
-		var (_, _, entry) = context.Resolve( callee, context.Caret );
-		if ( callee.Count == 1 && ScriptLibrary.Global( callee[ 0 ] ) is { Kind: EntryKind.Function } global && entry is null )
-			entry = global;
+		var entry = callee.Count == 1 && ScriptLibrary.Global( callee[ 0 ] ) is { Kind: EntryKind.Function } global
+			? global
+			: context.Resolve( callee, context.Caret ).Entry;
 
 		if ( entry is { Kind: EntryKind.Function or EntryKind.Method } )
 		{

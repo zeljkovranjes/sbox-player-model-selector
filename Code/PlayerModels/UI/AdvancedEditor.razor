@@ -271,9 +271,6 @@
     // Which animation graph system moves the citizen every model is posed from
     string GraphVersion => AnimGraphVersions.Describe( AnimGraphVersions.Of( Stage?.Citizen ) );
 
-    // The menu this window lives in draws under the HUD's health (1050): while it is open it goes over that
-    const int AboveHud = 1100;
-    Panel _menu;
     InputLock _inputLock;
 
     PlayerLook CurrentLook => _look is { IsCustomised: true, IsDefault: false } ? _look.Customisation() : null;
@@ -290,9 +287,6 @@
             return;
 
         _hold = FindPopupPanel()?.AddChild<MenuHold>();
-        _menu = Game.ActiveScene?.Get<SpawnMenuHost>()?.Panel;
-        if ( _menu is not null )
-            _menu.Style.ZIndex = AboveHud;
 
         // The keys are for this window while it is up: the player stays where they are
         _inputLock = Game.ActiveScene?.GetSystem<InputLock>();
@@ -303,6 +297,9 @@
     public override void Tick()
     {
         base.Tick();
+
+        // The menu this window lives in goes over the game's HUD while it is open
+        HudCover.Hold();
 
         _look = LookNow?.Invoke();
         _model = ModelNow?.Invoke();
@@ -649,8 +646,7 @@
     {
         ContextMenu.Close();
         _hold?.Delete();
-        if ( _menu.IsValid() )
-            _menu.Style.ZIndex = null;
+        HudCover.Release( this );
 
         if ( _inputLock is not null )
             _inputLock.IsHeld = false;

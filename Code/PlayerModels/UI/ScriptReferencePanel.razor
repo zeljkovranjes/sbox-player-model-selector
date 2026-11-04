@@ -107,6 +107,19 @@
 
     protected override int BuildHash() => HashCode.Combine( _entry, _page, _search, LocalPrefs.CodeLight );
 
+    // Over the game's HUD while it is open, as the code editor is
+    public override void Tick()
+    {
+        base.Tick();
+        HudCover.Hold();
+    }
+
+    public override void OnDeleted()
+    {
+        base.OnDeleted();
+        HudCover.Release( this );
+    }
+
     protected override void OnAfterTreeRender( bool firstTime )
     {
         base.OnAfterTreeRender( firstTime );

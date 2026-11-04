@@ -336,6 +336,9 @@
     public override void Tick()
     {
         base.Tick();
+
+        // Over the game's HUD while it is open, as the Advanced editor is
+        HudCover.Hold();
         if ( _entry is null )
             return;
 
@@ -390,6 +393,7 @@
     public override void OnDeleted()
     {
         base.OnDeleted();
+        HudCover.Release( this );
         Closed?.Invoke();
     }
 }

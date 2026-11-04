@@ -25,6 +25,15 @@ public enum LayerShape { Point, Sphere, Ring, AroundBody, Box, Cone, Line, Shape
 public enum LayerPicture { Glow, Spark, Flame, Smoke, Sparkle, Heart, Snowflake, Droplet }
 
 /// <summary>
+/// Which way a layer's sprites face: the camera, as most do; the plane a swing sweeps through (worked out from where the
+/// player aims and the way the weapon's tip moves when they swing), so a slash lies along the swing; flat on the ground,
+/// turned the way the body faces (footprints, a circle under the feet); the way the layer faces (see
+/// <see cref="LayerFacing"/>: a portal's disc); or out from the layer's place, like tiles on a ball (a shield). A sprite's
+/// rotation turns it within that plane.
+/// </summary>
+public enum LayerAlign { Camera, Swing, Ground, Facing, Outward }
+
+/// <summary>
 /// How a layer changes over time: not at all, brighter and dimmer, flickering, through every colour, turning round its
 /// joint (so a layer set off from it circles it), or wobbling about its place.
 /// </summary>
@@ -258,6 +267,14 @@ public sealed class EffectLayer
 	[JsonPropertyName( "kp" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public float Keep { get; set; }
 
+	/// <summary>Its <see cref="LayerAlign"/> by name; null for facing the camera.</summary>
+	[JsonPropertyName( "al" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public string Align { get; set; }
+
+	/// <summary>Which way its sprites face.</summary>
+	[JsonIgnore]
+	public LayerAlign AlignIs => Parsed( Align, LayerAlign.Camera );
+
 	/// <summary>What the layer is; only right on a layer within bounds (see <see cref="Sanitized"/>).</summary>
 	[JsonIgnore]
 	public LayerKind KindIs => Parsed( Kind, LayerKind.Sprite );
@@ -351,7 +368,7 @@ public sealed class EffectLayer
 			|| Rhythm is not null && !Known<LayerRhythm>( Rhythm ) || ColorMode is not null && !Known<LayerColorMode>( ColorMode )
 			|| Facing is not null && !Known<LayerFacing>( Facing ) || ToJoint is not null && !Known<Effect.Joint>( ToJoint )
 			|| formation is not null && !Known<StandardShape>( formation ) && !DrawnShape.IsReference( formation )
-			|| When is not null && !Known<LayerWhen>( When ) )
+			|| When is not null && !Known<LayerWhen>( When ) || Align is not null && !Known<LayerAlign>( Align ) )
 			return null;
 
 		var palette = new List<string>();
@@ -409,6 +426,7 @@ public sealed class EffectLayer
 				nameof( LayerKind.Beam ) => Keep == 0f ? BeamPoints : MathF.Round( Limited( Keep, MinBeamPoints, MaxBeamPoints, BeamPoints ) ),
 				_ => 0f,
 			},
+			Align = Align == nameof( LayerAlign.Camera ) ? null : Align,
 		};
 	}
 

@@ -55,4 +55,20 @@ public class LayerFieldTests
 		Assert.True( machine.HasParticleFunction( 0 ) && machine.RunParticle( 0, io ) );
 		Assert.Equal( "local beam = Beam()\n", ScriptCodegen.Effect( build.Effect ) );
 	}
+
+	[Theory]
+	[InlineData( "Align.Camera", LayerAlign.Camera, null )]
+	[InlineData( "Align.Swing", LayerAlign.Swing, "Swing" )]
+	[InlineData( "Align.Ground", LayerAlign.Ground, "Ground" )]
+	[InlineData( "Align.Facing", LayerAlign.Facing, "Facing" )]
+	[InlineData( "Align.Outward", LayerAlign.Outward, "Outward" )]
+	public void SpritesFaceTheWayTheirLayerIsAligned( string align, LayerAlign expected, string saved )
+	{
+		var layer = RoundTrip( $"local prints = Sprite()\nprints.Align = {align}" );
+		Assert.Equal( (expected, saved), (layer.AlignIs, layer.Align) );
+	}
+
+	[Fact]
+	public void AnAlignmentThisVersionDoesntKnowDropsTheLayer() =>
+		Assert.Null( new EffectLayer { Align = "Sideways" }.Sanitized() );
 }

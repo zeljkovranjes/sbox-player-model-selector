@@ -2133,6 +2133,18 @@ glow.Keep = 12
 local value = glow.Keep --> 12
 ```
 
+#### `Layer.Align: Align`
+
+Which way its sprites face: the camera (most do); the plane of a swing (a slash lies along the sword's sweep); flat on the ground, turned the way the body faces (footprints); the way the layer faces (Facing: a portal's disc); or out from its place, like tiles on a ball. p.Rotation turns them within that plane.
+
+Set: while the effect is built (at the top of the script).
+
+```lua effect
+local glow = Sprite()
+glow.Align = Align.Ground
+local value = glow.Align --> Align.Ground
+```
+
 #### `Layer.Particle: (Particle) -> nothing`
 
 The function run for each of its sprites (a beam's points) each frame: function layer.Particle( p ) ... end.
@@ -3436,6 +3448,16 @@ How a sticker's (or emblem layer's) colour moves.
 
 ```lua sticker
 local picked = Animation.Rainbow --> Animation.Rainbow
+```
+
+#### `Align`
+
+Which way a layer's sprites face: the camera, a swing's plane, flat on the ground, the way the layer faces, or out from its place.
+
+`Align.Camera`, `Align.Swing`, `Align.Ground`, `Align.Facing`, `Align.Outward`
+
+```lua sticker
+local picked = Align.Swing --> Align.Swing
 ```
 
 ### Keys

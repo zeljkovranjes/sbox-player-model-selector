@@ -77,6 +77,7 @@ public static class ScriptLiteral
 		PropertyId.LayerShowFor => Number( layer.ShowFor ),
 		PropertyId.LayerFadeWithSpeed => Bool( layer.FadeWithSpeed ),
 		PropertyId.LayerKeep => Number( layer.Keep ),
+		PropertyId.LayerAlign => Choice( "Align", layer.Align ?? nameof( LayerAlign.Camera ) ),
 		_ => null,
 	};
 

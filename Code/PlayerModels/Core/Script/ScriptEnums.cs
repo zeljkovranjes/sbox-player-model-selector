@@ -5,7 +5,7 @@ namespace PlayerModels.Core.Script;
 /// <summary>
 /// The named choices scripts pick from, each the data's own enum by the same names (so <c>Rhythm.Pulse</c> is saved as
 /// the visual editor saves it): what a layer is, the joints, where sprites come from, the way a layer faces, colour
-/// modes, rhythms, when a layer shows, what an effect comes from, and how a sticker's colour moves.
+/// modes, rhythms, when a layer shows, what an effect comes from, how a sticker's colour moves, and which way sprites face.
 /// </summary>
 public static class ScriptEnums
 {
@@ -18,7 +18,8 @@ public static class ScriptEnums
 	public static readonly ScriptEnum When = new( "When", Enum.GetNames<LayerWhen>(), "When a layer shows: always, while something is so, or for a moment when something happens." );
 	public static readonly ScriptEnum Anchor = new( "Anchor", Enum.GetNames<AnchorKind>(), "What an effect comes from: a joint, an item worn, or the weapon held." );
 	public static readonly ScriptEnum Animation = new( "Animation", Enum.GetNames<Sticker.Motion>(), "How a sticker's (or emblem layer's) colour moves." );
+	public static readonly ScriptEnum Align = new( "Align", Enum.GetNames<LayerAlign>(), "Which way a layer's sprites face: the camera, a swing's plane, flat on the ground, the way the layer faces, or out from its place." );
 
 	/// <summary>Every one of them.</summary>
-	public static readonly ScriptEnum[] All = { Kind, Joint, ComesFrom, Facing, ColorMode, Rhythm, When, Anchor, Animation };
+	public static readonly ScriptEnum[] All = { Kind, Joint, ComesFrom, Facing, ColorMode, Rhythm, When, Anchor, Animation, Align };
 }

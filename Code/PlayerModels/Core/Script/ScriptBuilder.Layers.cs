@@ -39,6 +39,7 @@ internal sealed partial class ScriptBuilder
 			case PropertyId.LayerShowFor: into[ at ] = layer.ShowFor; break;
 			case PropertyId.LayerFadeWithSpeed: into[ at ] = Flag( layer.FadeWithSpeed ); break;
 			case PropertyId.LayerKeep: into[ at ] = layer.Keep; break;
+			case PropertyId.LayerAlign: into[ at ] = (int)layer.AlignIs; break;
 			case PropertyId.LayerParticle: into[ at ] = _particles[ index ]; break;
 		}
 
@@ -82,6 +83,7 @@ internal sealed partial class ScriptBuilder
 			case PropertyId.LayerShowFor: layer.ShowFor = number; break;
 			case PropertyId.LayerFadeWithSpeed: layer.FadeWithSpeed = flag; break;
 			case PropertyId.LayerKeep: layer.Keep = number; break;
+			case PropertyId.LayerAlign: return Named( ScriptEnums.Align, from[ at ], out var align ) && Assign( () => layer.Align = align );
 			case PropertyId.LayerParticle: _particles[ index ] = (int)from[ at ]; break;
 			default: return Fail( "That can't be changed" ) >= 0;
 		}

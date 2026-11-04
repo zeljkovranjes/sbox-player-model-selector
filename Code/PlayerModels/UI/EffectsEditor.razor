@@ -179,6 +179,7 @@
             <SliderRow Label="Size" Signed=@true Value=@selected.Size OnChanged=@(( float value ) => Set( () => selected.Size = value ))></SliderRow>
             <SliderRow Label="Amount" Signed=@true Value=@selected.Amount OnChanged=@(( float value ) => Set( () => selected.Amount = value ))></SliderRow>
             <SliderRow Label="Speed" Signed=@true Value=@selected.Speed OnChanged=@(( float value ) => Set( () => selected.Speed = value ))></SliderRow>
+            <ScriptParameters Look=@Look Effect=@selected Changed=@Changed></ScriptParameters>
             <div class="row">
                 <div class="reset @( IsAsMade( selected ) ? "disabled" : "" )" @onclick=@(() => ResetSliders( selected ))>Reset sliders</div>
                 <div class="reset" Tooltip="A few changed copies of it to pick from" @onclick=@(() => ShowVariations( selected ))>Variations</div>

@@ -1,0 +1,81 @@
+@import "SelectorTheme.scss";
+
+// A script's parameters, grouped and folded by group, each with its own widget, Reset and Save as default
+ScriptParameters
+{
+	flex-direction: column;
+	flex-shrink: 0;
+	gap: 4px;
+
+	.section-header
+	{
+		@include ui-section-header;
+	}
+
+	.group
+	{
+		flex-direction: row;
+		align-items: center;
+		gap: 4px;
+		cursor: pointer;
+		padding: 2px 0;
+
+		.fold-icon { font-family: "Material Icons"; font-size: 16px; }
+		.group-name { @include ui-label; font-weight: 600; }
+	}
+
+	.parameter
+	{
+		flex-direction: row;
+		align-items: flex-start;
+		gap: 2px;
+		padding-left: 12px;
+
+		.widget { flex-direction: column; flex-grow: 1; min-width: 0; gap: 2px; }
+		.widget-title { @include ui-label; }
+	}
+
+	.row
+	{
+		flex-direction: row;
+		align-items: center;
+		gap: 8px;
+		min-height: 26px;
+
+		> .label { @include ui-label; width: 120px; flex-shrink: 0; }
+		UIDropdown { flex-grow: 1; }
+	}
+
+	.key-glyph { width: 20px; height: 20px; background-size: contain; background-repeat: no-repeat; }
+	.text-entry { @include ui-text-entry; flex-grow: 1; }
+
+	.tool
+	{
+		font-family: "Material Icons";
+		font-size: 16px;
+		width: 24px;
+		height: 24px;
+		justify-content: center;
+		align-items: center;
+		cursor: pointer;
+		border-radius: 3px;
+		flex-shrink: 0;
+
+		&.disabled { opacity: 0.3; pointer-events: none; }
+		&:hover { background-color: rgba( 0, 0, 0, 0.1 ); }
+	}
+
+	.reset
+	{
+		@include ui-button;
+		flex-shrink: 0;
+
+		&.disabled { opacity: 0.4; pointer-events: none; }
+	}
+
+	.note
+	{
+		font-size: $ui-settings-font;
+		color: $ui-text-muted;
+	}
+}

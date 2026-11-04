@@ -115,7 +115,7 @@ Stickers in scripts - a shape with layers (shape.AddLayer, or Shapes.New( "name"
 Faded shapes - a shape a script fades (Shape.Fade) is drawn fading round its middle, from nothing at its tail to all of it at its front, on bodies and in the lists alike: a slash's crescent with a bright front and no tail
 Set by script - in the Advanced editor a scripted layer lists the fields its code works out (or a parameter gives, or a function changes while it runs), each with its line: click one to open the code there
 # Armature
-Armature - give a bone to each body part the automatic setup couldn't find, with the skeleton drawn on the preview
+Armature - give a bone to each body part the automatic setup couldn't find, with the skeleton drawn on the preview; type over the bones offered to narrow them to the ones whose names have what you typed
 Shared armatures - Share mine, under the Armature page's lists, publishes your armature for a model where every player of the selector can find it; the Workshop button beside Clear my picks (with how many are shared for the model) opens the armatures players shared, a page at a time sized to fit, where Use takes the parts one gives your copy of the model onto the preview and Apply wears them; picks already shared, by you or anyone, aren't shared again, and copies shared at the same moment are listed once
 Ratings - thumbs up or down on each shared armature or look, the best rated listed first; clicking your vote again takes it back; each player counts once, and never on their own share
 Top and New - the Workshops list shared armatures and looks the best rated first (Top) or the newest first (New), switched at the top of the list and kept for next time

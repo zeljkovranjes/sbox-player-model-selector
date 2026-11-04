@@ -68,11 +68,12 @@
                 }
                 else
                 {
+                    <TextEntry class="search-entry" Placeholder="Search bones" Value:bind=@_boneSearch HasClearButton=@true></TextEntry>
                     @if ( IsPicked( selected ) )
                     {
                         <div class="bone-option" @onclick=@(() => ClearPick( selected ))>Clear (back to missing)</div>
                     }
-                    @foreach ( var (name, depth) in FreeBones( selected ) )
+                    @foreach ( var (name, depth) in FreeBones( selected ).Where( x => string.IsNullOrWhiteSpace( _boneSearch ) || x.Name.Contains( _boneSearch.Trim(), StringComparison.OrdinalIgnoreCase ) ) )
                     {
                         var boneName = name;
                         <div class="bone @( boneName == BoneOf( selected ) ? "active" : "" )" style="padding-left: @( 6 + depth * 8 )px"
@@ -123,6 +124,9 @@
         new() { BoneRole.Hips, BoneRole.Head, BoneRole.HandL, BoneRole.HandR, BoneRole.FootL, BoneRole.FootR };
 
     BoneRole? _selected;
+
+    // What the bones offered are narrowed to, typed over them
+    string _boneSearch = "";
     Model _readModel;
 
     // The Workshop: the armatures players shared for the model, in place of the lists until Back to armature
@@ -147,7 +151,7 @@
         _bones = Model is null ? new() : Model.Bones.AllBones.Select( x => (x.Name, DepthOf( x )) ).ToList();
     }
 
-    protected override int BuildHash() => HashCode.Combine( Model, Look?.BonesKey(), _selected, _workshop, Shared.Armatures.CountOf( Look?.Model ) );
+    protected override int BuildHash() => HashCode.Combine( Model, Look?.BonesKey(), _selected, _workshop, Shared.Armatures.CountOf( Look?.Model ), _boneSearch );
 
     string WorkshopLabel => Shared.Armatures.CountOf( Look.Model ) is > 0 and var count ? $"Workshop ({count})" : "Workshop";
 

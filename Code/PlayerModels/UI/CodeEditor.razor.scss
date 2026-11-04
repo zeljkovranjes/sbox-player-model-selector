@@ -172,6 +172,17 @@ CodeEditor
 
 		.stage { flex-grow: 1; min-height: 0; }
 		TestBar { flex-shrink: 0; border-radius: 0; }
+
+		.flat { flex-grow: 1; align-items: center; justify-content: center; background-color: $ui-tile-bg; }
+		.sticker
+		{
+			width: 80%;
+			height: 60%;
+			background-size: contain;
+			background-repeat: no-repeat;
+			background-position: center;
+			animation: sticker-turn 5s ease-in-out infinite;
+		}
 	}
 
 	.gutter
@@ -353,4 +364,12 @@ CodeEditor
 	.corner.top-right { right: 0; top: 0; width: 10px; height: 10px; cursor: nesw-resize; }
 	.corner.bottom-left { left: 0; bottom: 0; width: 16px; height: 16px; cursor: nesw-resize; }
 	.corner.bottom-right { right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; }
+}
+
+// A sticker turned this way and that in the hand
+@keyframes sticker-turn
+{
+	0% { transform: perspective( 800px ) rotateY( -35deg ); }
+	50% { transform: perspective( 800px ) rotateY( 35deg ); }
+	100% { transform: perspective( 800px ) rotateY( -35deg ); }
 }

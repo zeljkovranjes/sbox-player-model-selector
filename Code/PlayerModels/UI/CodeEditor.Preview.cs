@@ -1,5 +1,4 @@
-using System;
-using System.Collections.Generic;
+using System.Text.Json;
 using PlayerModels.Core;
 using PlayerModels.Core.Script;
 using PlayerModels.Engine;
@@ -7,27 +6,32 @@ using Sandbox;
 
 namespace PlayerModels.UI;
 
-// The code editor's preview: the player's own character beside the code (their model and look as the code applies it,
-// holding the weapon they hold in the game), the test bar under it; a sticker shows worn over the head. On by default,
-// switched from the toolbar and kept on this machine
+// The code editor's preview, beside the code: what is written as it is applied, shown on what it needs. An effect or a
+// weapon's design shows on the player's own character (their model and look, holding the weapon they hold in the game);
+// a weapon's skin on the weapon alone, close up, with its own animations (see ModelPreview.WeaponAlone); both with the
+// test bar under them. A sticker shows flat on its own, turning, its finish shimmering. On by default, switched from the
+// toolbar and kept on this machine
 public partial class CodeEditor
 {
-	/// <summary>The look a sticker shows on: the player's own, as they are editing it. Only for a sticker.</summary>
-	public Func<PlayerLook> Wearer { get; init; }
+	private enum Preview { Body, Sticker, Weapon }
 
-	// How often the weapon held in the game is looked for
+	// How often the weapon held in the game is looked for; a weapon not held is held by this bone, as a pistol is
 	private const float HeldInterval = 0.5f;
+	private const string HoldBone = "hold_R";
+	private const int PistolHold = 1;
 
-	// A sticker worn in the preview: one sprite of it this far over the crown, this big
-	private const float StickerAbove = 8f;
-	private const float StickerSize = 12f;
+	private Preview Shows => Kind switch { ScriptKind.Shape or ScriptKind.Sticker => Preview.Sticker, ScriptKind.Skin => Preview.Weapon, _ => Preview.Body };
 
 	private ModelPreview _stage;
+	private ShapeIcon _stickerShown;
 	private bool _previewOn = LocalPrefs.CodePreview;
 	private ModelPreview.HeldWeapon? _held;
 	private RealTimeSince _sinceHeld = HeldInterval;
-	private DrawnShape _stickerShown;
-	private PlayerLook _stickerLook;
+
+	// The look the weapon alone shows: a copy of the page's, made again whenever something is put on it (a skin's script
+	// changes it in place, and the weapon is dressed again only for another look)
+	private PlayerLook _lookShown;
+	private string _lookOf;
 
 	private void TogglePreview()
 	{
@@ -38,59 +42,40 @@ public partial class CodeEditor
 
 	private void TickPreview()
 	{
-		if ( !_previewOn || _stage?.IsValid != true || PreviewLook() is not { } look )
+		if ( !_previewOn )
+			return;
+
+		if ( _stickerShown?.IsValid == true )
+			_stickerShown.Shape = StickerNow?.Invoke();
+
+		if ( _stage?.IsValid != true || LookNow?.Invoke() is not { } edited )
 			return;
 
 		if ( _sinceHeld >= HeldInterval )
 		{
 			_sinceHeld = 0;
 			_held = ModelPreview.HeldInGame( out _ );
+
+			// A skin shows on its own weapon, held in the game or not
+			if ( Shows == Preview.Weapon && _held?.Model.ResourcePath != Weapon && Model.Load( Weapon ) is { IsError: false } model )
+				_held = new ModelPreview.HeldWeapon( model, HoldBone, global::Transform.Zero, _held?.HoldType ?? PistolHold );
 		}
 
+		var look = ScriptPrograms.Built( Shows == Preview.Weapon ? Copied( edited ) : edited, System.Guid.Empty, ScriptLimits.MaxScriptBytes, false, out _ );
+		_stage.WeaponAlone = Shows == Preview.Weapon;
 		_stage.Look = look;
 		_stage.Weapon = _held;
 		_ = _stage.ShowAsync( look.Model ?? "" );
 	}
 
-	// The look as the code has it now: the page's (each good build is put on it), or for a sticker the player's own wearing it
-	private PlayerLook PreviewLook()
+	private PlayerLook Copied( PlayerLook look )
 	{
-		if ( Sticker is null )
-			return LookNow?.Invoke() is { } edited ? Built( edited ) : null;
-
-		var sticker = StickerNow?.Invoke();
-		if ( _stickerLook is null || !ReferenceEquals( sticker, _stickerShown ) )
+		if ( _lookShown is null || !ReferenceEquals( _lookOf, _applied ) )
 		{
-			_stickerShown = sticker;
-			_stickerLook = Built( Wearing( Wearer?.Invoke() ?? new PlayerLook(), sticker ) );
+			_lookOf = _applied;
+			_lookShown = PlayerLook.Parse( look.Serialize() ) ?? look;
 		}
 
-		return _stickerLook;
-	}
-
-	private static PlayerLook Built( PlayerLook look ) => ScriptPrograms.Built( look, Guid.Empty, ScriptLimits.MaxScriptBytes, false, out _ );
-
-	// The wearer without their effects, the sticker over their head instead (a sticker shows its own colours)
-	private static PlayerLook Wearing( PlayerLook wearer, DrawnShape sticker )
-	{
-		var look = wearer.WithoutEffects();
-		if ( sticker is null || string.IsNullOrEmpty( sticker.Id ) )
-			return look;
-
-		var layer = new EffectLayer { Picture = sticker.Reference, Keep = 1f, Amount = 1f, Size = StickerSize, Follow = true };
-		if ( sticker.HasOwnColours )
-			layer.Solid = true;
-
-		var effect = new Effect
-		{
-			Id = "e1",
-			Name = sticker.Name ?? "Sticker",
-			Anchor = new EffectAnchor { Joint = nameof( Effect.Joint.Crown ), Up = StickerAbove },
-			Layers = new List<EffectLayer> { layer },
-			Shapes = new List<DrawnShape> { sticker },
-		};
-
-		look.Adopt( effect );
-		return look;
+		return _lookShown;
 	}
 }

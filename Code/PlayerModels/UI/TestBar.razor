@@ -14,13 +14,16 @@
     @foreach ( var action in Actions )
     {
         var shown = action;
-        <div class="test @( _last == shown.Name && _loop ? "looping" : "" )" Tooltip=@shown.Tip @onclick=@(() => Act( shown ))>
-            <div class="test-icon">@shown.Icon</div>
-            @if ( !Compact )
-            {
-                <TextLabel class="test-name" Text=@shown.Name></TextLabel>
-            }
-        </div>
+        @if ( !Alone || shown.OnWeapon )
+        {
+            <div class="test @( _last == shown.Name && _loop ? "looping" : "" )" Tooltip=@shown.Tip @onclick=@(() => Act( shown ))>
+                <div class="test-icon">@shown.Icon</div>
+                @if ( !Compact )
+                {
+                    <TextLabel class="test-name" Text=@shown.Name></TextLabel>
+                }
+            </div>
+        }
     }
     @foreach ( var key in Keys() )
     {
@@ -34,10 +37,13 @@
         <TextLabel class="test-note" Text=@_note></TextLabel>
     }
     <div class="separator"></div>
-    <div class="test @( _walking ? "on" : "" )" Tooltip="Walk or run back and forth (trails, fading with speed, footprints)" @onclick=@ToggleWalk>
-        <div class="test-icon">@( _speed > WalkSpeed ? "directions_run" : "directions_walk" )</div>
-    </div>
-    <div class="test" Tooltip=@( $"Speed: {_speed:0} units a second" ) @onclick=@NextSpeed><TextLabel class="test-name" Text=@( $"{_speed:0}" )></TextLabel></div>
+    @if ( !Alone )
+    {
+        <div class="test @( _walking ? "on" : "" )" Tooltip="Walk or run back and forth (trails, fading with speed, footprints)" @onclick=@ToggleWalk>
+            <div class="test-icon">@( _speed > WalkSpeed ? "directions_run" : "directions_walk" )</div>
+        </div>
+        <div class="test" Tooltip=@( $"Speed: {_speed:0} units a second" ) @onclick=@NextSpeed><TextLabel class="test-name" Text=@( $"{_speed:0}" )></TextLabel></div>
+    }
     <div class="test @( _loop ? "on" : "" )" Tooltip=@( $"Loop: the last action again every {LoopSeconds:0} seconds" ) @onclick=@ToggleLoop><div class="test-icon">repeat</div></div>
     <div class="test" Tooltip="Slow motion" @onclick=@NextSlow><TextLabel class="test-name" Text=@( $"{_slow:0.##}x" )></TextLabel></div>
     <div class="test @( _paused ? "on" : "" )" Tooltip=@( _paused ? "Play" : "Pause" ) @onclick=@TogglePause><div class="test-icon">@( _paused ? "play_arrow" : "pause" )</div></div>
@@ -124,15 +130,17 @@
     [SkipHotload]
     static readonly float[] Slows = { 1f, 0.5f, 0.25f };
 
-    sealed record Action( string Name, string Icon, string Tip, ScriptEvent Event );
+    // An action, and whether it is the weapon's (shown while the weapon shows alone; the rest need a body)
+    sealed record Action( string Name, string Icon, string Tip, ScriptEvent Event, bool OnWeapon = false );
 
+    [SkipHotload]
     static readonly Action[] Actions =
     {
-        new( "Swing", "sports_martial_arts", "Swing or attack: the attack animation, as Sword slash and Blade trail show on", ScriptEvent.Shoot ),
-        new( "Shoot", "my_location", "Shoot at a target: tracers, impact sparks and the shot's hit", ScriptEvent.Hit ),
-        new( "Reload", "autorenew", "Reload", ScriptEvent.Reload ),
-        new( "Equip", "back_hand", "Take out the weapon", ScriptEvent.Equip ),
-        new( "Holster", "do_not_touch", "Put the weapon away", ScriptEvent.Holster ),
+        new( "Swing", "sports_martial_arts", "Swing or attack: the attack animation, as Sword slash and Blade trail show on", ScriptEvent.Shoot, true ),
+        new( "Shoot", "my_location", "Shoot at a target: tracers, impact sparks and the shot's hit", ScriptEvent.Hit, true ),
+        new( "Reload", "autorenew", "Reload", ScriptEvent.Reload, true ),
+        new( "Equip", "back_hand", "Take out the weapon", ScriptEvent.Equip, true ),
+        new( "Holster", "do_not_touch", "Put the weapon away", ScriptEvent.Holster, true ),
         new( "Jump", "arrow_upward", "Jump, and land again", ScriptEvent.Jump ),
         new( "Land", "arrow_downward", "Fall from a height and land", ScriptEvent.Land ),
         new( "Hurt", "healing", "Get hurt: a flinch", ScriptEvent.Hurt ),
@@ -167,7 +175,10 @@
     bool _moved;
     GameObject _target;
 
-    protected override int BuildHash() => HashCode.Combine( _last, _loop, _walking, _paused, _speed, _slow, string.Join( ",", Keys() ), HashCode.Combine( Compact, _note ) );
+    protected override int BuildHash() => HashCode.Combine( _last, _loop, _walking, _paused, _speed, _slow, string.Join( ",", Keys() ), HashCode.Combine( Compact, _note, Alone ) );
+
+    // Whether the preview shows the weapon alone (see ModelPreview.WeaponAlone): its own animations play the actions
+    bool Alone => Stage?.WeaponAlone == true;
 
     EffectRack Rack() => Stage?.Body?.Effects ?? (Stage?.Citizen is { } citizen && citizen.IsValid() ? CitizenEffects.On( citizen )?.Effects : null);
 
@@ -235,6 +246,9 @@
         }
 
         Tell( action );
+        if ( Alone && !Stage.PlayAlone( action.Event ) )
+            _note = $"{action.Name}: this weapon has no animation for it, so it moves a little instead";
+
         StateHasChanged();
     }
 
@@ -323,6 +337,12 @@
             _target.NetworkMode = NetworkMode.Never;
             _target.Flags |= GameObjectFlags.NotSaved;
             _target.WorldPosition = citizen.WorldPosition + citizen.WorldRotation.Forward * TargetDistance + Vector3.Up * 40f;
+            if ( Stage.AloneTarget is { } inFront )
+            {
+                _target.WorldPosition = inFront.Position;
+                _target.WorldRotation = inFront.Rotation;
+            }
+
             _target.WorldScale = new Vector3( 0.2f, 2f, 2f );
             var model = _target.AddComponent<ModelRenderer>();
             model.Model = Model.Load( "models/dev/box.vmdl" );

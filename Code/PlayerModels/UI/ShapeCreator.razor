@@ -173,9 +173,6 @@
     /// <summary>Goes back to the layer.</summary>
     [Parameter] public Action Back { get; set; }
 
-    /// <summary>The look a sticker is tried on in its code's preview: the player's own, as edited.</summary>
-    [Parameter] public Func<PlayerLook> Wearer { get; set; }
-
     // Shapes are shared for everyone, not for a model
     const string Everywhere = "";
 
@@ -390,7 +387,7 @@
                 return;
         }
 
-        _code = new CodeEditor { Sticker = part, StickerNow = () => Current, Wearer = Wearer, StickerBuilt = ShowFromCode, StickerScriptChanged = SetStickerScript, Closed = () => _code = null };
+        _code = new CodeEditor { Sticker = part, StickerNow = () => Current, StickerBuilt = ShowFromCode, StickerScriptChanged = SetStickerScript, Closed = () => _code = null };
         _code.Parent = SpawnMenuHost.ModalLayer ?? FindPopupPanel();
     }
 

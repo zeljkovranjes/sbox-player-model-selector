@@ -18,7 +18,7 @@
 
     @if ( _view == View.Creator && Look is not null )
     {
-        <ShapeCreator @ref="_creator" Start=@_creatorStart StartSticker=@StartSticker StartDraft=@_creatorDraft UseOnLayer=@UseShape CanUse=@( Layer?.KindIs == LayerKind.Sprite ) Back=@(() => ShowView( View.Layers )) Wearer=@(() => Look)></ShapeCreator>
+        <ShapeCreator @ref="_creator" Start=@_creatorStart StartSticker=@StartSticker StartDraft=@_creatorDraft UseOnLayer=@UseShape CanUse=@( Layer?.KindIs == LayerKind.Sprite ) Back=@(() => ShowView( View.Layers ))></ShapeCreator>
     }
     else if ( _view == View.ShapesWorkshop && Look is not null )
     {

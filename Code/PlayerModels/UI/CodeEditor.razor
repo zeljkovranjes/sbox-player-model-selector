@@ -181,8 +181,15 @@
     @if ( _previewOn )
     {
         <div class="preview-pane">
-            <ModelPreview @ref="_stage" class="stage"></ModelPreview>
-            <TestBar Stage=@_stage Compact=@true></TestBar>
+            @if ( Shows == Preview.Sticker )
+            {
+                <div class="flat"><ShapeIcon @ref="_stickerShown" class="sticker" Shimmers=@true></ShapeIcon></div>
+            }
+            else
+            {
+                <ModelPreview @ref="_stage" class="stage"></ModelPreview>
+                <TestBar Stage=@_stage Compact=@true></TestBar>
+            }
         </div>
     }
     </div>

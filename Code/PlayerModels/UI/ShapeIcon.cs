@@ -34,6 +34,9 @@ public sealed class ShapeIcon : Panel
 	/// <summary>The shape pictured.</summary>
 	[Parameter] public DrawnShape Shape { get; set; }
 
+	/// <summary>Whether a sticker's finish always shimmers, as if turned in the hand, rather than only while pointed at.</summary>
+	[Parameter] public bool Shimmers { get; set; }
+
 	private DrawnShape _shown;
 	private DrawnShape _second;
 	private int _generation = -1;
@@ -62,7 +65,7 @@ public sealed class ShapeIcon : Panel
 		ShapeTextures.Pump();
 		ShapeTextures.Count( shape.Content, 0f );
 		var finish = shape.FinishIs;
-		var pointed = finish != StickerFinish.Paper && (HasHovered || Parent?.HasHovered == true);
+		var pointed = finish != StickerFinish.Paper && (Shimmers || HasHovered || Parent?.HasHovered == true);
 		var secondLook = pointed && finish == StickerFinish.Lenticular && RealTime.Now % (2f * LenticularSeconds) > LenticularSeconds;
 		if ( !ReferenceEquals( shape, _shown ) )
 			_second = shape.SecondLook();

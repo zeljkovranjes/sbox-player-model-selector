@@ -16,7 +16,7 @@ namespace PlayerModels.UI;
 /// same way the game does it. Shows the whole body; drag to spin it, scroll to zoom in towards the face. Built on the
 /// engine menu's citizen preview.
 /// </summary>
-public sealed class ModelPreview : Panel
+public sealed partial class ModelPreview : Panel
 {
 	// Third person: a narrow lens from far back, so the whole body fits the tall panel without distortion
 	private const float ThirdPersonFieldOfView = 22f;
@@ -284,6 +284,7 @@ public sealed class ModelPreview : Panel
 
 		ShowCitizenEffects();
 		ShowWeapon();
+		TickAlone();
 
 		if ( FillsWindow )
 			Viewport?.Tick();
@@ -342,6 +343,7 @@ public sealed class ModelPreview : Panel
 
 	public override void OnDeleted()
 	{
+		RemoveAlone();
 		_cancel?.Cancel();
 		base.OnDeleted();
 	}
@@ -357,6 +359,7 @@ public sealed class ModelPreview : Panel
 			_camera.BackgroundColor = Color.Transparent;
 			_camera.ZNear = 1;
 			_camera.ZFar = 1024;
+			_camera.RenderExcludeTags.Add( UnseenTag );
 
 			// Draws the outline of the part being pointed at
 			cameraObject.AddComponent<Highlight>();
@@ -410,6 +413,9 @@ public sealed class ModelPreview : Panel
 
 	private void PlaceCamera()
 	{
+		if ( WeaponAlone && PlaceAloneCamera() )
+			return;
+
 		if ( FillsWindow )
 		{
 			_camera.FovAxis = CameraComponent.Axis.Vertical;

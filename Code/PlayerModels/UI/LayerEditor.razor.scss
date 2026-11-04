@@ -64,6 +64,18 @@ LayerEditor
 		}
 	}
 
+	// undo and redo, before the buttons that add layers
+	.row > .tool
+	{
+		@include ui-button;
+		flex-shrink: 0;
+		width: 28px;
+		padding: 0;
+		font-family: "Material Icons";
+		font-size: 16px;
+		text-transform: none;
+	}
+
 	// a layer: on or off, its name, and what can be done to it; the selected one is the one its settings change
 	.layer
 	{

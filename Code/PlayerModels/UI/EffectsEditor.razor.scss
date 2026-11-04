@@ -115,6 +115,18 @@ EffectsEditor
 		}
 	}
 
+	// undo and redo, beside the page's buttons
+	.top > .tool
+	{
+		@include ui-button;
+		flex-shrink: 0;
+		width: 28px;
+		padding: 0;
+		font-family: "Material Icons";
+		font-size: 16px;
+		text-transform: none;
+	}
+
 	// an effect tile: its pictures moving on a dark ground, so glows show as they do in the world
 	.tile.effect
 	{

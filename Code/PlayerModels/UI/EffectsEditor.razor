@@ -21,6 +21,8 @@
     {
         <div class="top">
             <div class="intro">Click an effect to put it on: the preview shows it, and Apply wears it.</div>
+            <div class="tool @( History?.CanUndo == true ? "" : "disabled" )" Tooltip="Undo the last change to your effects" @onclick=@(() => Undo?.Invoke())>undo</div>
+            <div class="tool @( History?.CanRedo == true ? "" : "disabled" )" Tooltip="Redo" @onclick=@(() => Redo?.Invoke())>redo</div>
             <div class="reset" Tooltip="What each part of an effect is, and how to do the harder things" @onclick=@(() => ShowGuides( true ))>Guides</div>
             <div class="reset @( Selected is null ? "disabled" : "" )" Tooltip=@( Selected is null ? "Select an effect you wear first" : "Every layer of it, placed by hand" )
                  @onclick=@(() => OpenAdvanced?.Invoke( Selected?.Id ))>Edit in Advanced editor</div>
@@ -146,6 +148,11 @@
     /// <summary>Opens the Advanced editor on the effect given, by id.</summary>
     [Parameter] public Action<string> OpenAdvanced { get; set; }
 
+    /// <summary>The steps back and forward through changes to the effects, and what takes them.</summary>
+    [Parameter] public EditHistory History { get; set; }
+    [Parameter] public Action Undo { get; set; }
+    [Parameter] public Action Redo { get; set; }
+
     static PlayerModelSelector Selector => PlayerModelSelector.Find( Game.ActiveScene );
 
     // Five tiles to a row like the Models grid, the last row made up with fillers so its tiles keep their width
@@ -170,7 +177,8 @@
     bool IsFull => Look.Effects.Count >= Effect.MaxWorn;
 
     protected override int BuildHash() => HashCode.Combine( Look?.Serialize(), _selected, _guides, Locked, Selector?.EffectsBudget, Selector?.EffectsQuality,
-        string.Join( ";", Others().Select( x => $"{x.Id}{Selector?.HidesEffectsOf( x )}" ) ), (int)(Selector?.TriggerWait() ?? 0f) );
+        string.Join( ";", Others().Select( x => $"{x.Id}{Selector?.HidesEffectsOf( x )}" ) ),
+        HashCode.Combine( (int)(Selector?.TriggerWait() ?? 0f), History?.CanUndo, History?.CanRedo ) );
 
     // A copy of the preset, selected for its sliders
     void Add( Effect preset )

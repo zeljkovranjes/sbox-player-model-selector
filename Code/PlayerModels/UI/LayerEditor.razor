@@ -55,6 +55,8 @@
             </div>
         }
         <div class="row">
+            <div class="tool @( History?.CanUndo == true ? "" : "disabled" )" Tooltip="Undo the last change to your effects" @onclick=@(() => Undo?.Invoke())>undo</div>
+            <div class="tool @( History?.CanRedo == true ? "" : "disabled" )" Tooltip="Redo" @onclick=@(() => Redo?.Invoke())>redo</div>
             <div class="reset @( CanAdd ? "" : "disabled" )" @onclick=@(() => AddLayer( LayerKind.Sprite ))>Add sprites</div>
             <div class="reset @( CanAdd ? "" : "disabled" )" @onclick=@(() => AddLayer( LayerKind.Light ))>Add a light</div>
             <div class="reset @( CanAdd ? "" : "disabled" )" @onclick=@(() => AddLayer( LayerKind.Trail ))>Add a trail</div>
@@ -207,6 +209,11 @@
     /// <summary>The effect to edit first, by id: the first one worn when it isn't worn.</summary>
     [Parameter] public string EffectId { get; set; }
 
+    /// <summary>The steps back and forward through changes to the effects, and what takes them.</summary>
+    [Parameter] public EditHistory History { get; set; }
+    [Parameter] public Action Undo { get; set; }
+    [Parameter] public Action Redo { get; set; }
+
     // The layer selected, by its place in the effect; whether everything else about it shows; and whether an effect moved
     // to another place stays where it is
     int _layer;
@@ -224,7 +231,8 @@
 
     static PlayerModelSelector Selector => PlayerModelSelector.Find( Game.ActiveScene );
 
-    protected override int BuildHash() => HashCode.Combine( Look?.Serialize(), _effect, _layer, _more, _keep, Locked, Selector?.EffectsBudget );
+    protected override int BuildHash() => HashCode.Combine( Look?.Serialize(), _effect, _layer, _more, _keep, Locked, Selector?.EffectsBudget,
+        HashCode.Combine( History?.CanUndo, History?.CanRedo ) );
 
     void Set( Action change )
     {

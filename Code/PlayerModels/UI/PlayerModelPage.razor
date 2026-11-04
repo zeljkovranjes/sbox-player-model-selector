@@ -73,7 +73,8 @@
             <UISettingsPane class="models-pane" Title="Effects" Revision=@BuildHash()>
                 <Body>
                     <SlowScroll><Content>
-                        <EffectsEditor Look=@_look Changed=@LookChanged Locked=@EffectsLocked OpenAdvanced=@OpenAdvancedOn></EffectsEditor>
+                        <EffectsEditor Look=@_look Changed=@LookChanged Locked=@EffectsLocked OpenAdvanced=@OpenAdvancedOn
+                                       History=@_effectHistory Undo=@UndoEffects Redo=@RedoEffects></EffectsEditor>
                     </Content></SlowScroll>
                 </Body>
             </UISettingsPane>
@@ -369,6 +370,9 @@
             AccessoriesLocked = Selector?.BlockAccessories == true && !IsHost,
             EffectsLocked = EffectsLocked,
             EffectId = effect,
+            History = _effectHistory,
+            Undo = UndoEffects,
+            Redo = RedoEffects,
         };
 
         _advanced.Parent = SpawnMenuHost.ModalLayer ?? FindPopupPanel();
@@ -937,6 +941,7 @@
         _look = Selector?.LookOf( Connection.Local ) ?? new PlayerLook();
         _lookDirty = false;
         _wornModel = null;
+        RecordEffects();
 
         if ( worn != "" )
             _ = LoadWornModelAsync( worn );
@@ -959,6 +964,34 @@
     void LookChanged()
     {
         _lookDirty = true;
+        RecordEffects();
+        StateHasChanged();
+    }
+
+    // The steps back through changes to the effects, on the Effects tab and in the Advanced editor alike: what the look's
+    // effects were after each change (a slider dragged is one), whatever else about the look changed meanwhile
+    readonly EditHistory _effectHistory = new();
+
+    void RecordEffects()
+    {
+        if ( _look is not null )
+            _effectHistory.Record( _look.EffectsAlone().Serialize(), RealTime.Now );
+    }
+
+    void UndoEffects() => RestoreEffects( _effectHistory.Undo() );
+
+    void RedoEffects() => RestoreEffects( _effectHistory.Redo() );
+
+    // Only the effects (and the drawn shapes they use) go back: the rest of the look stays as it is now
+    void RestoreEffects( string state )
+    {
+        if ( state is null || _look is null )
+            return;
+
+        var restored = PlayerLook.Parse( state );
+        _look.Effects = restored.Effects;
+        _look.DrawnShapes = restored.DrawnShapes;
+        _lookDirty = true;
         StateHasChanged();
     }
 
@@ -979,6 +1012,7 @@
         _look = Selector?.LookOf( Connection.Local ) ?? new PlayerLook();
         _lookModel = null;
         _lookDirty = false;
+        RecordEffects();
         StateHasChanged();
     }
 

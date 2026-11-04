@@ -107,6 +107,22 @@ public class ShapeTests
 	}
 
 	[Fact]
+	public void AFadedShapeIsDrawnFadingFromItsTailToItsFront()
+	{
+		var square = ScriptKit.Build( "shape.Add( Shapes.Square )\nshape.EndOutline()", ScriptKind.Shape ).Build.Shape;
+		var faded = square.Faded( -60, 90 );
+		const int size = 32;
+		var plain = ShapeRaster.Rgba( square, size ).ToArray();
+		var drawn = ShapeRaster.Rgba( faded, size );
+		byte AlphaAt( byte[] pixels, float x, float y ) => pixels[ ((int)((1f - y) / 2f * size) * size + (int)((x + 1f) / 2f * size)) * 4 + 3 ];
+
+		// Straight up (its front) as the plain shape; below its tail nothing
+		Assert.Equal( AlphaAt( plain, 0f, 0.6f ), AlphaAt( drawn, 0f, 0.6f ) );
+		Assert.True( AlphaAt( plain, 0.3f, -0.55f ) > 200 );
+		Assert.Equal( 0, AlphaAt( drawn, 0.3f, -0.55f ) );
+	}
+
+	[Fact]
 	public void AFadeCanGoClockwiseAndIsKeptWithinATurn()
 	{
 		var clockwise = ScriptKit.Build( "shape.Add( Shapes.Crescent )\nshape.Fade( 90, -60 )", ScriptKind.Shape ).Build.Shape;

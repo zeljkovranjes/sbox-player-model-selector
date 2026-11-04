@@ -50,7 +50,8 @@ public static class ShapeRaster
 	/// <summary>
 	/// <paramref name="shape"/> as <paramref name="size"/> by <paramref name="size"/> pixels, RGBA row by row from the top:
 	/// a plain shape white with the shape in its alpha (for a layer to colour); a sticker its fill and outline colours,
-	/// the fill white when it is animated (for its animation to colour). Drawn in <paramref name="canvas"/> when one is
+	/// the fill white when it is animated (for its animation to colour); a shape with a fade fading round its middle as
+	/// it says (a slash's tail to nothing). Drawn in <paramref name="canvas"/> when one is
 	/// given, and then the pixels are its own, until it draws the next.
 	/// </summary>
 	public static byte[] Rgba( DrawnShape shape, int size = Size, Canvas canvas = null )
@@ -75,10 +76,21 @@ public static class ShapeRaster
 				pixels[ i * 4 + channel ] = (byte)(value * 255f + 0.5f);
 			}
 
-			pixels[ i * 4 + 3 ] = (byte)(outer * 255f + 0.5f);
+			pixels[ i * 4 + 3 ] = (byte)(outer * Faded( shape, i, size ) * 255f + 0.5f);
 		}
 
 		return pixels;
+	}
+
+	// How much of pixel i shows for the shape's fade (see DrawnShape.FadeAt), on its square: x right, y up, -1 to 1
+	private static float Faded( DrawnShape shape, int i, int size )
+	{
+		if ( shape.FadeArc == 0f )
+			return 1f;
+
+		var unit = 2f / size;
+		var (row, column) = (i / size, i % size);
+		return shape.FadeAt( (column + 0.5f) * unit - 1f, 1f - (row + 0.5f) * unit );
 	}
 
 	/// <summary>

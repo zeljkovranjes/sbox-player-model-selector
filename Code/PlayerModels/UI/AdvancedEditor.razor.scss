@@ -291,6 +291,13 @@ AdvancedEditor
 				height: 32px;
 				padding: 0 16px;
 				font-size: 14px;
+
+				&.icon
+				{
+					width: 34px;
+					padding: 0;
+					font-size: 18px;
+				}
 			}
 		}
 

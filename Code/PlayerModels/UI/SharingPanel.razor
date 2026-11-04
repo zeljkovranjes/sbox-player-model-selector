@@ -98,7 +98,7 @@
     {
         <div class="top">
             <div class="back" Tooltip="Back" @onclick=@GoBack>arrow_back</div>
-            <div class="intro">@( Intro ?? $"{Capitalised( Noun )}s players shared{Scope}: Top lists the best rated first, New the newest. Use one to put it on the preview; Apply wears it." )</div>
+            <div class="intro" Tooltip=@IntroText>@FirstLine( IntroText )</div>
         </div>
 
         <div class="section-header sorted">
@@ -192,8 +192,8 @@
     else
     {
         <div class="row">
-            <div class="button @( CanShare ? "" : "disabled" )" @onclick=@OpenShare>@ShareLabel</div>
-            <div class="button @( Current is null ? "disabled" : "" )" @onclick=@CopyCode>Copy code</div>
+            <div class="button @( CanShare ? "" : "disabled" )" @onclick=@OpenShare><div class="glyph">share</div>@ShareLabel</div>
+            <div class="button icon @( Current is null ? "disabled" : "" )" Tooltip=@( $"Copy code: the {Noun} as a code to paste anywhere" ) @onclick=@CopyCode>content_copy</div>
         </div>
 
         @if ( ShareNote is { } note )
@@ -852,6 +852,15 @@
         }
 
         Took( entry.Item, entry.IsMine ? $"your {Noun}" : $"{AuthorOf( entry )}'s {Noun}" );
+    }
+
+    // The Workshop's sentence about itself: its first line at its top, the whole of it in that line's tooltip
+    string IntroText => Intro ?? $"{Capitalised( Noun )}s players shared{Scope}: Top lists the best rated first, New the newest. Use one to put it on the preview; Apply wears it.";
+
+    static string FirstLine( string text )
+    {
+        var end = text.IndexOfAny( new[] { '.', ':', ';' } );
+        return end > 0 ? text[ ..end ] + "." : text;
     }
 
     void CopyCode()

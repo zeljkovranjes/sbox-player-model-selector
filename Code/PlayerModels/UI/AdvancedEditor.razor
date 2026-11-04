@@ -52,7 +52,7 @@
                     else if ( ShownTab == Tab.Effects )
                     {
                         <LayerEditor @ref="_layers" Look=@_look Changed=@Changed Stage=@Stage Locked=@EffectsLocked EffectId=@EffectId History=@History Undo=@Undo Redo=@Redo
-                                     StartShape=@StartShape OpenCode=@OpenCode LayerPicked=@LayerPicked></LayerEditor>
+                                     StartShape=@StartShape OpenCode=@OpenCode LayerPicked=@LayerPicked OpenCodeAt=@OpenCodeAt></LayerEditor>
                     }
                     else
                     {
@@ -119,6 +119,9 @@
     /// <summary>Opens the code editor on an effect, by id; and says which layer of which effect was picked on the Effects tab.</summary>
     public Action<string> OpenCode { get; init; }
     public Action<string, int> LayerPicked { get; init; }
+
+    /// <summary>Opens the code editor on an effect (by id) at a line.</summary>
+    public Action<string, int> OpenCodeAt { get; init; }
 
     LayerEditor _layers;
 

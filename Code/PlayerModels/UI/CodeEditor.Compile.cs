@@ -91,6 +91,9 @@ public partial class CodeEditor
 		Lines();
 		Compile( false );
 		_entry.Focus();
+		_opened = true;
+		if ( _startLine > 0 )
+			JumpTo( CodeText.OffsetOfLine( _source, _startLine ) );
 	}
 
 	// The effect edited, in the look now; null when it isn't worn (yet)
@@ -355,6 +358,21 @@ public partial class CodeEditor
 
 		Changed?.Invoke();
 	}
+
+	/// <summary>Puts the caret on line <paramref name="line"/> (from 1), now or as soon as the script opens.</summary>
+	public void GoTo( int line )
+	{
+		if ( _entry is null || !_opened )
+		{
+			_startLine = line;
+			return;
+		}
+
+		JumpTo( CodeText.OffsetOfLine( _source, line ) );
+	}
+
+	private int _startLine;
+	private bool _opened;
 
 	/// <summary>Puts <paramref name="script"/> (an example copied from the reference) in at the caret, on lines of its own.</summary>
 	public void Insert( string script )

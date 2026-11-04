@@ -94,6 +94,10 @@
             var kind = ChosenKind();
             var chosen = Chosen().Count;
             <div class="section-header">@( chosen > 1 ? $"{chosen} layers" : NameOf( selected ) )</div>
+            @if ( effect.Script is not null && chosen == 1 )
+            {
+                <ScriptFieldsNote Look=@Look Effect=@effect Layer=@_layer OpenCodeAt=@OpenCodeAt></ScriptFieldsNote>
+            }
             @if ( chosen > 1 )
             {
                 <div class="note">@( kind is null ? $"Changes go to all {chosen}. They aren't all the same kind, so only what every layer has shows." : $"Changes go to all {chosen}." ) Ctrl+click a layer to add or drop it, Shift+click for a run of them.</div>
@@ -284,6 +288,9 @@
     /// <summary>Opens the code editor on an effect, by id; and is told which layer of which effect is picked here.</summary>
     [Parameter] public Action<string> OpenCode { get; set; }
     [Parameter] public Action<string, int> LayerPicked { get; set; }
+
+    /// <summary>Opens the code editor on an effect (by id) at a line: a field its script sets.</summary>
+    [Parameter] public Action<string, int> OpenCodeAt { get; set; }
 
     /// <summary>Picks layer <paramref name="layer"/> of effect <paramref name="effect"/> alone (the code editor's caret is in it).</summary>
     public void ShowLayer( string effect, int layer )

@@ -1,0 +1,77 @@
+@using System
+@using System.Collections.Generic
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Core
+@using PlayerModels.Core.Script
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    @if ( Fields() is { Count: > 0 } fields )
+    {
+        <TextLabel class="note" Text="Set by script (change these in code; click one to go to its line):"></TextLabel>
+        <div class="chips">
+            @foreach ( var field in fields )
+            {
+                var shown = field;
+                <div class="chip" Tooltip=@( shown.Parameter is null ? $"Worked out by the script on line {shown.Line}" : $"Given by the parameter {shown.Parameter} (line {shown.Line}): change it with the parameter" )
+                     @onclick=@(() => OpenCodeAt?.Invoke( Effect.Id, shown.Line ))>
+                    <TextLabel Text=@( $"{shown.Name} · line {shown.Line}" )></TextLabel>
+                </div>
+            }
+        </div>
+    }
+</root>
+
+@code
+{
+    /// <summary>The look the effect is worn in, the effect and which of its layers.</summary>
+    [Parameter] public PlayerLook Look { get; set; }
+    [Parameter] public Effect Effect { get; set; }
+    [Parameter] public int Layer { get; set; }
+
+    /// <summary>Opens the code editor on the effect (by id) at a line.</summary>
+    [Parameter] public Action<string, int> OpenCodeAt { get; set; }
+
+    sealed record Field( string Name, int Line, string Parameter );
+
+    // The last build, by the script and the values chosen it was of: built again only when either changes
+    string _builtFor;
+    ScriptBuild _build;
+
+    protected override int BuildHash() => HashCode.Combine( Effect?.Script, Effect?.Parameters is { } values ? string.Join( ";", values ) : "", Layer );
+
+    // The layer's fields the script works out (or a parameter gives), each with the line setting it
+    List<Field> Fields()
+    {
+        if ( Effect?.Script is not { } script )
+            return null;
+
+        var key = script + "\n" + (Effect.Parameters is { } values ? string.Join( ";", values ) : "");
+        if ( key != _builtFor )
+        {
+            _builtFor = key;
+            _build = EffectScripts.Build( Effect, ScriptPrograms.Cache, new LookLibrary( Look?.DrawnShapes ), ScriptPrograms.Stack );
+        }
+
+        if ( _build is not { Succeeded: true } build || Layer < 0 || Layer >= build.Effect.Layers.Count )
+            return null;
+
+        var fields = new List<Field>();
+        foreach ( var property in ScriptProperties.All )
+        {
+            if ( property.Owner != TypeKind.Layer || property.ReadOnly || property.Id == PropertyId.LayerParticle )
+                continue;
+
+            var source = build.SourceOf( Layer, property.Id );
+            if ( source.Origin is FieldOrigin.Script or FieldOrigin.Parameter )
+                fields.Add( new Field( property.Name, source.Line, source.Site?.Parameter ) );
+            else if ( source.ChangesWhileRunning )
+                fields.Add( new Field( property.Name + " (while it runs)", source.RunningLine, null ) );
+        }
+
+        return fields;
+    }
+}

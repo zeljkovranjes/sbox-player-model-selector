@@ -398,6 +398,7 @@
             Redo = RedoEffects,
             StartShape = shape,
             OpenCode = OpenCode,
+            OpenCodeAt = OpenCodeAt,
             LayerPicked = ( id, layer ) =>
             {
                 if ( _code.IsValid() && _code.EffectId == id )
@@ -414,6 +415,14 @@
     void OpenCode( string effect ) => OpenCodeWith( effect, null );
 
     void OpenDraft( ScriptDraft draft ) => OpenCodeWith( draft.EffectId, draft );
+
+    // On the effect's line: open (or already open) on it, the caret there
+    void OpenCodeAt( string effect, int line )
+    {
+        OpenCode( effect );
+        if ( _code.IsValid() && _code.EffectId == effect )
+            _code.GoTo( line );
+    }
 
     void OpenCodeWith( string effect, ScriptDraft draft )
     {

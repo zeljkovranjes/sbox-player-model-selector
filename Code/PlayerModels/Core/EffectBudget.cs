@@ -24,14 +24,17 @@ public readonly record struct EffectBudget( int Layers, int Lights, int Sprites 
 	public enum Quality { High, Normal, Low, Off }
 
 	/// <summary>What <see cref="Normal"/> allows, as constants for defaults.</summary>
-	public const int NormalLayers = 8;
-	public const int NormalLights = 2;
+	public const int NormalLayers = 16;
+	public const int NormalLights = 4;
 	public const int NormalSprites = 400;
 
-	/// <summary>The budgets a host picks from; a custom one is within <see cref="Most"/>.</summary>
-	public static readonly EffectBudget Low = new( 4, 1, 150 );
+	/// <summary>
+	/// The budgets a host picks from; a custom one is within <see cref="Most"/>. Normal fits any three presets worn
+	/// together.
+	/// </summary>
+	public static readonly EffectBudget Low = new( 6, 1, 150 );
 	public static readonly EffectBudget Normal = new( NormalLayers, NormalLights, NormalSprites );
-	public static readonly EffectBudget High = new( 16, 4, 1000 );
+	public static readonly EffectBudget High = new( 24, 6, 1000 );
 	public static readonly EffectBudget Most = new( Effect.MaxLookLayers, 8, 2000 );
 
 	/// <summary>No effects at all.</summary>
@@ -61,7 +64,7 @@ public readonly record struct EffectBudget( int Layers, int Lights, int Sprites 
 	/// <summary>The smaller of this budget and <paramref name="other"/>, number by number.</summary>
 	public EffectBudget Min( EffectBudget other ) => new( Math.Min( Layers, other.Layers ), Math.Min( Lights, other.Lights ), Math.Min( Sprites, other.Sprites ) );
 
-	/// <summary>Whether <paramref name="effects"/> show whole within this budget: the switched off ones don't count.</summary>
+	/// <summary>Whether <paramref name="effects"/> show whole within this budget: the switched off ones (and layers) don't count.</summary>
 	public bool Fits( IReadOnlyList<Effect> effects )
 	{
 		var layers = 0;
@@ -72,7 +75,7 @@ public readonly record struct EffectBudget( int Layers, int Lights, int Sprites 
 			if ( effect.Off )
 				continue;
 
-			layers += effect.Layers.Count;
+			layers += effect.LayersOn();
 			lights += effect.Lights();
 			sprites += effect.LiveSprites();
 		}
@@ -81,31 +84,57 @@ public readonly record struct EffectBudget( int Layers, int Lights, int Sprites 
 	}
 
 	/// <summary>
-	/// Trims <paramref name="effects"/> (changed in place, so pass a copy) to this budget: layers past the budget's,
-	/// first to last, and lights past its lights are left out, and if the sprites still come to more than its sprites,
-	/// every layer has fewer in proportion.
+	/// Which layers of <paramref name="effects"/> wait past this budget, by effect and then layer: layers past the budget's,
+	/// first to last, and lights past its lights. Switched off effects and layers never wait (they don't show anyway).
 	/// </summary>
-	public void Trim( List<Effect> effects )
+	public bool[][] HeldBack( IReadOnlyList<Effect> effects )
 	{
+		var held = new bool[ effects.Count ][];
 		var layers = 0;
 		var lights = 0;
-		var mostLayers = Layers;
-		var mostLights = Lights;
-		foreach ( var effect in effects )
+		for ( var e = 0; e < effects.Count; e++ )
 		{
+			var effect = effects[ e ];
+			held[ e ] = new bool[ effect.Layers.Count ];
 			if ( effect.Off )
 				continue;
 
-			effect.Layers.RemoveAll( layer =>
+			for ( var l = 0; l < effect.Layers.Count; l++ )
 			{
+				var layer = effect.Layers[ l ];
+				if ( layer.Off )
+					continue;
+
 				var isLight = layer.KindIs == LayerKind.Light;
-				if ( layers >= mostLayers || isLight && lights >= mostLights )
-					return true;
+				if ( layers >= Layers || isLight && lights >= Lights )
+				{
+					held[ e ][ l ] = true;
+					continue;
+				}
 
 				layers++;
 				lights += isLight ? 1 : 0;
-				return false;
-			} );
+			}
+		}
+
+		return held;
+	}
+
+	/// <summary>
+	/// Trims <paramref name="effects"/> (changed in place, so pass a copy) to this budget: the layers that wait (see
+	/// <see cref="HeldBack"/>) are left out, and if the sprites still come to more than its sprites, every layer has fewer
+	/// in proportion.
+	/// </summary>
+	public void Trim( List<Effect> effects )
+	{
+		var held = HeldBack( effects );
+		for ( var e = 0; e < effects.Count; e++ )
+		{
+			for ( var l = effects[ e ].Layers.Count - 1; l >= 0; l-- )
+			{
+				if ( held[ e ][ l ] )
+					effects[ e ].Layers.RemoveAt( l );
+			}
 		}
 
 		var sprites = 0f;

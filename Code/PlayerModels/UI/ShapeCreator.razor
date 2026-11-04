@@ -131,46 +131,8 @@
     }
 
     <div class="section-header">My Shapes</div>
-    @if ( Mine.Count == 0 && MyDrafts.Count == 0 )
-    {
-        <div class="note">Shapes and stickers you save, use from the Workshop or fork show here, to change and use again; drafts too, marked with a pencil.</div>
-    }
-    else
-    {
-        <div class="shapes">
-            @foreach ( var kept in MyDrafts )
-            {
-                var shown = kept;
-                <div class="shape-tile draft @( _draft?.Id == shown.Id ? "active" : "" )" Tooltip=@( $"Draft: {shown.Name}, {shown.EditedText( Drafts.Now )}. Click to go on with it" ) @onclick=@(() => OpenDraft( shown ))
-                     @onrightclick=@(() => DraftMenu( shown ))>
-                    <ShapeIcon class="thumb" Shape=@DraftShape( shown )></ShapeIcon>
-                    <div class="title">@shown.Name</div>
-                    <div class="badge" Tooltip="Draft">edit</div>
-                    <div class="more" Tooltip="More: open, rename, duplicate, delete (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => DraftMenu( shown ) ))>more_vert</div>
-                </div>
-            }
-            @foreach ( var kept in Mine )
-            {
-                var shown = kept;
-                <div class="shape-tile @( _draft is null && shown.Name == _name ? "active" : "" )" Tooltip=@( $"{shown.Name}: click to change it" ) @onclick=@(() => Load( shown ))
-                     @onrightclick=@(() => ShapeMenu( shown ))>
-                    <ShapeIcon class="thumb" Shape=@shown></ShapeIcon>
-                    <div class="title">@shown.Name</div>
-                    <div class="more" Tooltip="More: open, rename, duplicate, delete, publish, copy code (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => ShapeMenu( shown ) ))>more_vert</div>
-                    <div class="forget" Tooltip="Delete from My shapes" @onclick=@(( PanelEvent e ) => Forget( shown, e ))>delete</div>
-                </div>
-            }
-        </div>
-    }
-    @if ( _renaming is not null )
-    {
-        <div class="row rename">
-            <div class="label">Rename to</div>
-            <TextEntry class="entry" MaxLength=@DrawnShape.MaxNameLength Value:bind=@_newName @onsubmit=@Rename></TextEntry>
-            <div class="reset @( string.IsNullOrWhiteSpace( _newName ) ? "disabled" : "" )" @onclick=@Rename>Rename</div>
-            <div class="reset" @onclick=@CancelRename>Cancel</div>
-        </div>
-    }
+    <ShapeShelf Active=@_name ActiveDraft=@_draft?.Id Open=@Load OpenDraft=@OpenDraft Publish=@Publish Revision=@_shelfRevision
+                Empty="Shapes and stickers you save, use from the Workshop or fork show here, to change and use again; drafts too, marked with a pencil."></ShapeShelf>
 </root>
 
 @code
@@ -265,8 +227,15 @@
 
     IReadOnlyList<Draft> MyDrafts => Drafts.Of( Draft.Of.Shape );
 
+    // What is kept changed here: the shelf reads it again
+    void Kept()
+    {
+        _mine = null;
+        _shelfRevision++;
+    }
+
     protected override int BuildHash() => HashCode.Combine( _revision, _closed, _undo.Count, _redo.Count, _status, _name, CanUse,
-        HashCode.Combine( Mine.Count, _emblemMode, _erasing, _eraserSize, _draft, _confirmDrop, _renaming, HashCode.Combine( _leaving, Drafts.Revision ) ) );
+        HashCode.Combine( Mine.Count, _emblemMode, _erasing, _eraserSize, _draft, _confirmDrop, _shelfRevision, HashCode.Combine( _leaving, Drafts.Revision ) ) );
 
     protected override void OnParametersSet()
     {
@@ -481,7 +450,7 @@
 
         _draft = null;
         _keptAs = shape.Content;
-        _mine = null;
+        Kept();
         Changed();
     }
 
@@ -522,7 +491,7 @@
     // A draft back in the creator as it was left: its shape, mode, tools and selection
     void OpenDraft( Draft draft )
     {
-        if ( DraftShape( draft ) is not { } shape )
+        if ( ShapeShelf.ShapeOf( draft ) is not { } shape )
         {
             _status = "This draft can't be read any more.";
             Changed();
@@ -564,19 +533,6 @@
         catch ( JsonException )
         {
             return new();
-        }
-    }
-
-    // A draft's shape, within bounds; null for one that doesn't read
-    static DrawnShape DraftShape( Draft draft )
-    {
-        try
-        {
-            return JsonSerializer.Deserialize<DrawnShape>( draft.Item )?.Sanitized();
-        }
-        catch ( JsonException )
-        {
-            return null;
         }
     }
 
@@ -636,138 +592,11 @@
         StateHasChanged();
     }
 
-    // ----- My shapes and drafts: their menus -----
-
-    void Act( PanelEvent e, Action action )
-    {
-        e.StopPropagation();
-        action();
-    }
-
-    void ShapeMenu( DrawnShape shape )
-    {
-        ContextMenu.OpenFrom( this, shape.Name, new List<ContextMenu.Entry>
-        {
-            new( "Open", "edit", () => Load( shape ), "Click" ),
-            new( "Rename", "drive_file_rename_outline", () => StartRename( shape, shape.Name ) ),
-            new( "Duplicate", "content_copy", () => DuplicateShape( shape ), null, Mine.Count < LocalPrefs.MaxMyShapes, $"My shapes is full ({LocalPrefs.MaxMyShapes})" ),
-            new( "Delete", "delete", () => ForgetShape( shape ) ),
-            new( "Publish", "publish", () => Publish( shape ) ),
-            new( "Copy code", "code", () => CopyCode( shape ) ),
-        } );
-    }
-
-    void DraftMenu( Draft draft )
-    {
-        ContextMenu.OpenFrom( this, $"Draft: {draft.Name}", new List<ContextMenu.Entry>
-        {
-            new( "Open", "edit", () => OpenDraft( draft ), "Click" ),
-            new( "Rename", "drive_file_rename_outline", () => StartRename( draft, draft.Name ) ),
-            new( "Duplicate", "content_copy", () => DuplicateDraft( draft ), null, MyDrafts.Count < Draft.MaxPerKind, $"Drafts are full ({Draft.MaxPerKind})" ),
-            new( "Delete", "delete", () => DeleteDraft( draft ) ),
-            new( "Publish", "publish", null, null, false, DraftTip ),
-            new( "Copy code", "code", null, null, false, DraftTip ),
-        } );
-    }
-
-    void StartRename( object what, string name )
-    {
-        _renaming = what;
-        _newName = name;
-        StateHasChanged();
-    }
-
-    void CancelRename()
-    {
-        _renaming = null;
-        StateHasChanged();
-    }
-
-    void Rename()
-    {
-        var name = _newName?.Trim();
-        if ( string.IsNullOrEmpty( name ) )
-            return;
-
-        if ( _renaming is Draft draft )
-        {
-            Drafts.Rename( Draft.Of.Shape, draft.Id, name );
-            _status = $"The draft is called \"{name}\" now.";
-        }
-        else if ( _renaming is DrawnShape shape && shape.Named( name ) is { } renamed )
-        {
-            LocalPrefs.DeleteMyShape( shape.Name );
-            LocalPrefs.SaveMyShape( renamed );
-            _status = $"\"{shape.Name}\" is called \"{renamed.Name}\" now.";
-            _name = _name == shape.Name ? renamed.Name : _name;
-        }
-
-        _renaming = null;
-        _mine = null;
-        Changed();
-    }
-
-    // A name not taken yet: the name with " copy", then " copy 2" and so on
-    string CopyName( string name, Func<string, bool> taken )
-    {
-        var copy = SharePost.Tidy( $"{name} copy", DrawnShape.MaxNameLength );
-        for ( var i = 2; taken( copy ) && i < LocalPrefs.MaxMyShapes + 2; i++ )
-            copy = SharePost.Tidy( $"{name} copy {i}", DrawnShape.MaxNameLength );
-
-        return copy;
-    }
-
-    void DuplicateShape( DrawnShape shape )
-    {
-        var copy = shape.Named( CopyName( shape.Name, x => Mine.Exists( y => y.Name == x ) ) );
-        _status = copy is not null && LocalPrefs.SaveMyShape( copy ) ? $"Copied as \"{copy.Name}\"." : $"My shapes is full ({LocalPrefs.MaxMyShapes}). Delete one first.";
-        _mine = null;
-        Changed();
-    }
-
-    void DuplicateDraft( Draft draft )
-    {
-        var copy = Drafts.Make( Draft.Of.Shape, null, CopyName( draft.Name, x => MyDrafts.Any( y => y.Name == x ) ), draft.Item, draft.State );
-        _status = Drafts.Save( copy, false, out _ ) ? $"Copied as the draft \"{copy.Name}\"." : $"Drafts are full ({Draft.MaxPerKind}). Delete one first.";
-        Changed();
-    }
-
-    void DeleteDraft( Draft draft )
-    {
-        Drafts.Delete( Draft.Of.Shape, draft.Id );
-        if ( _draft?.Id == draft.Id )
-            _draft = null;
-
-        _status = $"The draft \"{draft.Name}\" is deleted.";
-        Changed();
-    }
-
     // Opens it here and its share window, to name and describe it
     void Publish( DrawnShape shape )
     {
         Load( shape );
         _publishNext = true;
-    }
-
-    void CopyCode( DrawnShape shape )
-    {
-        Clipboard.SetText( ShareCode.Write( "shape", Shared.Shapes.Serialize( shape ) ) );
-        _status = $"Code copied. Paste it anywhere to pass \"{shape.Name}\" on.";
-        Changed();
-    }
-
-    void Forget( DrawnShape shape, PanelEvent e )
-    {
-        e.StopPropagation();
-        ForgetShape( shape );
-    }
-
-    void ForgetShape( DrawnShape shape )
-    {
-        LocalPrefs.DeleteMyShape( shape.Name );
-        _status = $"\"{shape.Name}\" is deleted from My shapes.";
-        _mine = null;
-        Changed();
     }
 
     void Use( bool asPicture )
@@ -804,7 +633,7 @@
         var origin = new ShareOrigin { Kind = ShareOrigin.ShapeKind, Id = entry.Id, Name = entry.Name, Author = entry.Author };
         var shape = entry.Item.Credited( string.IsNullOrWhiteSpace( entry.Name ) ? "Shape" : entry.Name, origin );
         LocalPrefs.SaveMyShape( shape );
-        _mine = null;
+        Kept();
         _workshop = false;
         _emblemEditor?.AddShape( shape );
         Changed();

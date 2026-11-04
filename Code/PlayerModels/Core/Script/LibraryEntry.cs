@@ -7,9 +7,10 @@ namespace PlayerModels.Core.Script;
 
 /// <summary>
 /// What a script is for: an effect (built once, then its functions run), a shape (built once into points), a sticker (run
-/// per element, each frame), or a weapon's skin (run per band along the weapon, each frame, into its colours).
+/// per element, each frame), a weapon's skin (run per band along the weapon, each frame, into its colours), or a weapon's
+/// whole design (built once: its finish, skin, stickers, props, hidden parts and effects).
 /// </summary>
-public enum ScriptKind { Effect, Shape, Sticker, Skin }
+public enum ScriptKind { Effect, Shape, Sticker, Skin, Weapon }
 
 /// <summary>
 /// Where in a script a library name can be used: while an effect or a shape is built (its top level, once), while an
@@ -25,11 +26,12 @@ public enum ScriptPlace
 	ShapeBuild = 4,
 	StickerRun = 8,
 	SkinRun = 16,
-	Build = EffectBuild | ShapeBuild,
+	WeaponBuild = 32,
+	Build = EffectBuild | ShapeBuild | WeaponBuild,
 	Run = EffectRun | StickerRun | SkinRun,
 	Element = StickerRun | SkinRun,
 	Effect = EffectBuild | EffectRun,
-	All = EffectBuild | EffectRun | ShapeBuild | StickerRun | SkinRun,
+	All = EffectBuild | EffectRun | ShapeBuild | StickerRun | SkinRun | WeaponBuild,
 }
 
 /// <summary>What a library entry is.</summary>

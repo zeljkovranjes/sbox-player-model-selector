@@ -14,6 +14,7 @@ public enum Intrinsic
 
 	Sprite, Light, Trail, Beam, Ghost, ListCreate, ShapeNew, ShapeText, ShapesMine, StickersMine, EmblemsMine, EffectsMine, EffectsPreset, EffectInclude,
 	ShapePoint, ShapePoints, ShapeEndLine, ShapeEndOutline, ShapeLetter, ShapeAdd, ShapeFit, ShapeFade, ShapeAddLayer,
+	WeaponAddSticker, WeaponAddProp, WeaponHidePart, WeaponAddEffect,
 
 	LayerEmit, LayerEmitAt,
 }

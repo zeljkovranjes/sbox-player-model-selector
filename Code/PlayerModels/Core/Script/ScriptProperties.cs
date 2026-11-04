@@ -3,7 +3,7 @@ using System.Collections.Generic;
 namespace PlayerModels.Core.Script;
 
 /// <summary>
-/// One property of a layer, an effect, a shape or an emblem layer: its name and type, the range a write is held to
+/// One property of a layer, an effect, a shape, an emblem layer or a weapon design's parts: its name and type, the range a write is held to
 /// (a light's own for its size and brightness), whether an event or particle function may change it while the effect
 /// runs (<see cref="Live"/>), and a value for its example.
 /// </summary>
@@ -103,6 +103,41 @@ public static class ScriptProperties
 		new( PropertyId.EmblemPalette, TypeKind.EmblemLayer, "Palette", Colors, "The colours its colour cycle goes through.", ExampleValue: "{ Color.Cyan, Color.Magenta }", ExampleResult: "{ #00ffff, #ff00ff }" ),
 		new( PropertyId.EmblemAnimationSpeed, TypeKind.EmblemLayer, "AnimationSpeed", ScriptType.Number, "How fast its animation runs: 1 is the game's own pace.", 0, Sticker.MaxSpeed, ExampleValue: "0.5", ExampleResult: "0.5" ),
 		new( PropertyId.EmblemHidden, TypeKind.EmblemLayer, "Hidden", ScriptType.Bool, "Whether it is hidden: kept, not drawn.", ExampleValue: "true", ExampleResult: "true" ),
+
+		new( PropertyId.WeaponFinish, TypeKind.Weapon, "Finish", ScriptEnums.Finish.Type, "What the weapon is made of: its own materials (Finish.None) or a stock finish, under its tint and skin.", ExampleValue: "Finish.Gold", ExampleResult: "Finish.Gold" ),
+		new( PropertyId.WeaponTint, TypeKind.Weapon, "Tint", ScriptType.Color, "The colour the weapon is tinted (white when it isn't).", 0, 1, ExampleValue: "Color.Parse( \"#ff8800\" )", ExampleResult: "#ff8800" ),
+		new( PropertyId.SkinPattern, TypeKind.WeaponSkin, "Pattern", ScriptEnums.Pattern.Type, "What is laid over the weapon from every side (no UVs needed).", ExampleValue: "Pattern.Stripes", ExampleResult: "Pattern.Stripes" ),
+		new( PropertyId.SkinPatternColor, TypeKind.WeaponSkin, "PatternColor", ScriptType.Color, "The pattern's first colour.", 0, 1, ExampleValue: "Color.Black", ExampleResult: "#000000" ),
+		new( PropertyId.SkinPatternColorEnd, TypeKind.WeaponSkin, "PatternColorEnd", ScriptType.Color, "The pattern's second colour.", 0, 1, ExampleValue: "Color.Yellow", ExampleResult: "#ffff00" ),
+		new( PropertyId.SkinPatternScale, TypeKind.WeaponSkin, "PatternScale", ScriptType.Number, "How large the pattern is: 1 as made.", WeaponSkin.MinScale, WeaponSkin.MaxScale, ExampleValue: "0.5", ExampleResult: "0.5" ),
+		new( PropertyId.SkinPatternTurn, TypeKind.WeaponSkin, "PatternTurn", ScriptType.Number, "How far the pattern is turned, in degrees.", 0, 180, ExampleValue: "45", ExampleResult: "45" ),
+		new( PropertyId.SkinPatternScroll, TypeKind.WeaponSkin, "PatternScroll", ScriptType.Number, "How fast the pattern scrolls along the weapon, its size a second; negative the other way.", -WeaponSkin.MaxScroll, WeaponSkin.MaxScroll, ExampleValue: "0.5", ExampleResult: "0.5" ),
+		new( PropertyId.SkinPatternSpin, TypeKind.WeaponSkin, "PatternSpin", ScriptType.Number, "How fast the pattern spins, turns a second; negative the other way.", -WeaponSkin.MaxSpin, WeaponSkin.MaxSpin, ExampleValue: "0.25", ExampleResult: "0.25" ),
+		new( PropertyId.SkinPatternShape, TypeKind.WeaponSkin, "PatternShape", ScriptType.Picture, "The shape Pattern.Shapes repeats: a standard shape, a picture or one the script made (a star unless set).", ExampleValue: "Shapes.Star6", ExampleResult: "Shapes.Star6" ),
+		new( PropertyId.SkinAnimation, TypeKind.WeaponSkin, "Animation", ScriptEnums.SkinAnimation.Type, "How the weapon's colour moves (each a stock skin script).", ExampleValue: "SkinAnimation.Rainbow", ExampleResult: "SkinAnimation.Rainbow" ),
+		new( PropertyId.SkinSpeed, TypeKind.WeaponSkin, "Speed", ScriptType.Number, "How fast its colour moves: 1 is the clan tags' own pace.", 0, WeaponSkin.MaxSpeed, ExampleValue: "2", ExampleResult: "2" ),
+		new( PropertyId.SkinBands, TypeKind.WeaponSkin, "Bands", ScriptType.Number, "How many bands its colour moves along the weapon in.", WeaponSkin.MinBands, WeaponSkin.MaxBands, ExampleValue: "12", ExampleResult: "12" ),
+		new( PropertyId.SkinPalette, TypeKind.WeaponSkin, "Palette", Colors, "The colours its motion goes through; the game's five (or its own for a pulse, glow or sheen: white) when none are given.", ExampleValue: "{ Color.Red, Color.Blue }", ExampleResult: "{ #ff0000, #0000ff }" ),
+		new( PropertyId.StickerPicture, TypeKind.WeaponSticker, "Picture", ScriptType.Picture, "What the sticker shows: a picture, a standard shape or a shape or sticker of the player's own.", ExampleValue: "Picture.Heart", ExampleResult: "Picture.Heart" ),
+		new( PropertyId.StickerColor, TypeKind.WeaponSticker, "Color", ScriptType.Color, "Its colour (a sticker of the player's own keeps its own colours).", 0, 1, ExampleValue: "Color.Red", ExampleResult: "#ff0000" ),
+		new( PropertyId.StickerAnimation, TypeKind.WeaponSticker, "Animation", ScriptEnums.Animation.Type, "How its colour moves.", ExampleValue: "Animation.Rainbow", ExampleResult: "Animation.Rainbow" ),
+		new( PropertyId.StickerPalette, TypeKind.WeaponSticker, "Palette", Colors, "The colours its colour cycle goes through.", ExampleValue: "{ Color.Cyan, Color.Magenta }", ExampleResult: "{ #00ffff, #ff00ff }" ),
+		new( PropertyId.StickerSpeed, TypeKind.WeaponSticker, "AnimationSpeed", ScriptType.Number, "How fast its colour moves: 1 is the game's own pace.", 0, Sticker.MaxSpeed, ExampleValue: "2", ExampleResult: "2" ),
+		new( PropertyId.StickerPosition, TypeKind.WeaponSticker, "Position", ScriptType.Vector3, "Where its middle is: forwards along the barrel (X), to the left (Y) and up (Z) from the weapon's origin; it is pressed onto the first surface it meets there.", -WeaponProp.MostOffset, WeaponProp.MostOffset, ExampleValue: "Vector3( 8, 0, 7 )", ExampleResult: "Vector3( 8, 0, 7 )" ),
+		new( PropertyId.StickerRotation, TypeKind.WeaponSticker, "Rotation", ScriptType.Vector3, "Which way it is pressed on, as pitch, yaw and roll in degrees from pressing down from above (roll -90 or 90 presses it onto a side).", -Accessory.MaxTurn, Accessory.MaxTurn, ExampleValue: "Vector3( 0, 0, -90 )", ExampleResult: "Vector3( 0, 0, -90 )" ),
+		new( PropertyId.StickerSize, TypeKind.WeaponSticker, "Size", ScriptType.Number, "How wide it is, in units.", WeaponSticker.MinSize, WeaponSticker.MaxSize, ExampleValue: "4", ExampleResult: "4" ),
+		new( PropertyId.StickerFinish, TypeKind.WeaponSticker, "Finish", ScriptEnums.StickerFinish.Type, "What it is printed on.", ExampleValue: "StickerFinish.Holo", ExampleResult: "StickerFinish.Holo" ),
+		new( PropertyId.StickerScrape, TypeKind.WeaponSticker, "Scrape", ScriptType.Number, "How worn it is, 0 new to 1 scraped away in patches (the same on every machine).", 0, 1, ExampleValue: "0.3", ExampleResult: "0.3" ),
+		new( PropertyId.StickerBorder, TypeKind.WeaponSticker, "Border", ScriptType.Bool, "Whether it has a thin white die-cut border.", ExampleValue: "true", ExampleResult: "true" ),
+		new( PropertyId.PropModel, TypeKind.WeaponProp, "Model", ScriptType.String, "The prop's model, by path (one of the stock props).", ExampleValue: "\"models/citizen_props/hotdog01.vmdl\"", ExampleResult: "\"models/citizen_props/hotdog01.vmdl\"" ),
+		new( PropertyId.PropPart, TypeKind.WeaponProp, "Part", ScriptType.String, "The part of the weapon it is on (its magazine, slide...), by name: it follows that part through every animation; the whole weapon for \"\".", ExampleValue: "\"magazine\"", ExampleResult: "\"magazine\"" ),
+		new( PropertyId.PropReplaces, TypeKind.WeaponProp, "Replaces", ScriptType.Bool, "Whether it takes its part's place: the part is hidden, and the prop may be as large as the part.", ExampleValue: "true", ExampleResult: "true" ),
+		new( PropertyId.PropPosition, TypeKind.WeaponProp, "Position", ScriptType.Vector3, "Where its middle sits: forwards, left and up from its part's middle (or the weapon's origin); kept within the weapon's bounds grown by 8 units.", -WeaponProp.MostOffset, WeaponProp.MostOffset, ExampleValue: "Vector3( 2, 0, 10 )", ExampleResult: "Vector3( 2, 0, 10 )" ),
+		new( PropertyId.PropRotation, TypeKind.WeaponProp, "Rotation", ScriptType.Vector3, "How it is turned: pitch, yaw and roll in degrees.", -Accessory.MaxTurn, Accessory.MaxTurn, ExampleValue: "Vector3( 0, 90, 0 )", ExampleResult: "Vector3( 0, 90, 0 )" ),
+		new( PropertyId.PropScale, TypeKind.WeaponProp, "Scale", ScriptType.Number, "Its size: 1 as made; its longest side is held to 16 units (or its part's size).", WeaponProp.MinScale, WeaponProp.MostScale, ExampleValue: "0.8", ExampleResult: "0.8" ),
+		new( PropertyId.PropNudge, TypeKind.WeaponProp, "Nudge", ScriptType.Vector3, "How far it is moved on the first-person weapon from where it is worked out to be: forwards, left and up, at most 4 units.", -WeaponProp.MaxNudge, WeaponProp.MaxNudge, ExampleValue: "Vector3( 0, 0, 1 )", ExampleResult: "Vector3( 0, 0, 1 )" ),
+		new( PropertyId.PropNudgeRotation, TypeKind.WeaponProp, "NudgeRotation", ScriptType.Vector3, "How far it is turned on the first-person weapon: pitch, yaw and roll, at most 45 degrees each.", -WeaponProp.MaxNudgeTurn, WeaponProp.MaxNudgeTurn, ExampleValue: "Vector3( 0, 15, 0 )", ExampleResult: "Vector3( 0, 15, 0 )" ),
+		new( PropertyId.EffectWhen, TypeKind.Effect, "When", ScriptEnums.When.Type, "When every layer of a weapon's effect shows: always, while something is so, or on a weapon event (When.OnShoot, OnReload, OnEquip, OnHolster, OnHit).", ExampleValue: "When.OnReload", ExampleResult: "When.OnReload" ),
 	};
 
 	/// <summary>Where each layer property starts in a layer's live block, and how big a block is.</summary>

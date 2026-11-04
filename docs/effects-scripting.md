@@ -455,6 +455,59 @@ Shimmer, Palette) and the pattern's scroll and spin are scripts like these.
 
 <br>
 
+## Weapon design scripts
+
+A weapon's whole design is a script too: Edit as code in weapon mode opens it,
+and the weapon panel and the code stay in step both ways. `Weapon` is the
+weapon (its `Finish` and `Tint`), `Skin` what is painted over it; stickers,
+props, hidden parts and effects are put on with `Weapon.AddSticker`,
+`Weapon.AddProp`, `Weapon.HidePart` and `Weapon.AddEffect`, each held to the
+same caps as the panel's (8 stickers, 8 props whose longest side is 16 units,
+16 hidden parts, 4 effects of 8 layers). A design script is built once, when it
+changes; it has no functions that run.
+
+```lua weapon
+-- Rainbow flowing skin: the colour wheel flowing along the weapon, twice the clan tags' pace, over carbon fibre
+Skin.Pattern = Pattern.Carbon
+Skin.Animation = SkinAnimation.Rainbow
+Skin.Speed = 2
+local pace = Skin.Speed --> 2
+```
+
+```lua weapon
+-- Gold with a holo sticker: a gold finish, and a star printed on holo film on the left of the receiver
+Weapon.Finish = Finish.Gold
+
+local star = Weapon.AddSticker( Shapes.Star5 )
+star.Position = Vector3( 4, 0, 6.5 )
+star.Rotation = Vector3( 0, 0, -90 )
+star.Size = 4
+star.Finish = StickerFinish.Holo
+star.Border = true
+local printed = star.Finish --> StickerFinish.Holo
+```
+
+```lua weapon
+-- Magazine replaced by a can: the can takes the magazine's place and follows it through a reload
+local can = Weapon.AddProp( "models/sbox_props/cola_can/cola_can.vmdl" )
+can.Part = "magazine"
+can.Replaces = true
+can.Scale = 0.8
+local replaces = can.Replaces --> true
+```
+
+An effect on the weapon is a stock preset or one of your own, with its sliders
+and `When` changed on what `Weapon.AddEffect` gives back:
+
+```lua weapon
+local tracer = Weapon.AddEffect( Effects.Preset( "Bullet tracer" ) )
+tracer.Hue = 0.3
+tracer.When = When.OnShoot
+local shows = tracer.When --> When.OnShoot
+```
+
+<br>
+
 ## Keys
 
 An effect can be shown by a key, for a moment each press. A player gets at most
@@ -1611,7 +1664,7 @@ Whole effects to include in this one: the player's own ("My effects") and the pr
 
 #### `Effects.Mine( name: string ): Effect`
 
-One of the player's saved effects, by name, to include.
+One of the player's saved effects, by name, to include (in a weapon design: to put on the weapon; one the design carries counts too).
 
 | Parameter | Type | Range | What it is |
 |---|---|---|---|
@@ -1623,7 +1676,7 @@ Effect.Include( Effects.Mine( "Fire hands" ) )
 
 #### `Effects.Preset( name: string ): Effect`
 
-One of the stock presets, by name, to include.
+One of the stock presets, by name, to include (in a weapon design: to put on the weapon).
 
 | Parameter | Type | Range | What it is |
 |---|---|---|---|
@@ -1649,7 +1702,7 @@ Effect.Include( Effects.Preset( "Hearts" ) )
 
 What the effect is called.
 
-Set: while the effect is built (at the top of the script).
+Set: anywhere.
 
 ```lua effect
 Effect.Name = "Sparks"
@@ -1671,7 +1724,7 @@ local value = Effect.Key --> "g"
 
 Whether it is switched off: kept with the look, not shown.
 
-Set: while the effect is built (at the top of the script).
+Set: anywhere.
 
 ```lua effect
 Effect.Off = true
@@ -1726,7 +1779,7 @@ local value = Effect.Offset --> Vector3( 0, 0, 4 )
 
 The colour slider: how far round the colour wheel every colour is turned.
 
-Set: while the effect is built (at the top of the script).
+Set: anywhere.
 
 ```lua effect
 Effect.Hue = 0.5
@@ -1737,7 +1790,7 @@ local value = Effect.Hue --> 0.5
 
 The size slider: -1 half, 0 as made, 1 twice the size.
 
-Set: while the effect is built (at the top of the script).
+Set: anywhere.
 
 ```lua effect
 Effect.Size = 0.5
@@ -1748,7 +1801,7 @@ local value = Effect.Size --> 0.5
 
 The amount slider: -1 a quarter, 1 four times the sprites (and light).
 
-Set: while the effect is built (at the top of the script).
+Set: anywhere.
 
 ```lua effect
 Effect.Amount = -0.5
@@ -1759,7 +1812,7 @@ local value = Effect.Amount --> -0.5
 
 The speed slider: -1 half, 1 twice as fast.
 
-Set: while the effect is built (at the top of the script).
+Set: anywhere.
 
 ```lua effect
 Effect.Speed = 0.25
@@ -2995,6 +3048,474 @@ local star = badge.AddLayer( Shapes.Star5 )
 local drawn = star.Shape --> Shapes.Star5
 ```
 
+### Weapon
+
+#### `Weapon.Finish: Finish`
+
+What the weapon is made of: its own materials (Finish.None) or a stock finish, under its tint and skin.
+
+Set: in a weapon design script.
+
+```lua weapon
+Weapon.Finish = Finish.Gold
+local value = Weapon.Finish --> Finish.Gold
+```
+
+#### `Weapon.Tint: Color  (0 to 1)`
+
+The colour the weapon is tinted (white when it isn't).
+
+Set: in a weapon design script.
+
+```lua weapon
+Weapon.Tint = Color.Parse( "#ff8800" )
+local value = Weapon.Tint --> #ff8800
+```
+
+#### `WeaponSkin.Pattern: Pattern`
+
+What is laid over the weapon from every side (no UVs needed).
+
+Set: in a weapon design script.
+
+```lua weapon
+Skin.Pattern = Pattern.Stripes
+local value = Skin.Pattern --> Pattern.Stripes
+```
+
+#### `WeaponSkin.PatternColor: Color  (0 to 1)`
+
+The pattern's first colour.
+
+Set: in a weapon design script.
+
+```lua weapon
+Skin.PatternColor = Color.Black
+local value = Skin.PatternColor --> #000000
+```
+
+#### `WeaponSkin.PatternColorEnd: Color  (0 to 1)`
+
+The pattern's second colour.
+
+Set: in a weapon design script.
+
+```lua weapon
+Skin.PatternColorEnd = Color.Yellow
+local value = Skin.PatternColorEnd --> #ffff00
+```
+
+#### `WeaponSkin.PatternScale: number  (0.25 to 4)`
+
+How large the pattern is: 1 as made.
+
+Set: in a weapon design script.
+
+```lua weapon
+Skin.PatternScale = 0.5
+local value = Skin.PatternScale --> 0.5
+```
+
+#### `WeaponSkin.PatternTurn: number  (0 to 180)`
+
+How far the pattern is turned, in degrees.
+
+Set: in a weapon design script.
+
+```lua weapon
+Skin.PatternTurn = 45
+local value = Skin.PatternTurn --> 45
+```
+
+#### `WeaponSkin.PatternScroll: number  (-4 to 4)`
+
+How fast the pattern scrolls along the weapon, its size a second; negative the other way.
+
+Set: in a weapon design script.
+
+```lua weapon
+Skin.PatternScroll = 0.5
+local value = Skin.PatternScroll --> 0.5
+```
+
+#### `WeaponSkin.PatternSpin: number  (-2 to 2)`
+
+How fast the pattern spins, turns a second; negative the other way.
+
+Set: in a weapon design script.
+
+```lua weapon
+Skin.PatternSpin = 0.25
+local value = Skin.PatternSpin --> 0.25
+```
+
+#### `WeaponSkin.PatternShape: Picture`
+
+The shape Pattern.Shapes repeats: a standard shape, a picture or one the script made (a star unless set).
+
+Set: in a weapon design script.
+
+```lua weapon
+Skin.PatternShape = Shapes.Star6
+local value = Skin.PatternShape --> Shapes.Star6
+```
+
+#### `WeaponSkin.Animation: SkinAnimation`
+
+How the weapon's colour moves (each a stock skin script).
+
+Set: in a weapon design script.
+
+```lua weapon
+Skin.Animation = SkinAnimation.Rainbow
+local value = Skin.Animation --> SkinAnimation.Rainbow
+```
+
+#### `WeaponSkin.Speed: number  (0 to 10)`
+
+How fast its colour moves: 1 is the clan tags' own pace.
+
+Set: in a weapon design script.
+
+```lua weapon
+Skin.Speed = 2
+local value = Skin.Speed --> 2
+```
+
+#### `WeaponSkin.Bands: number  (2 to 32)`
+
+How many bands its colour moves along the weapon in.
+
+Set: in a weapon design script.
+
+```lua weapon
+Skin.Bands = 12
+local value = Skin.Bands --> 12
+```
+
+#### `WeaponSkin.Palette: {Color}`
+
+The colours its motion goes through; the game's five (or its own for a pulse, glow or sheen: white) when none are given.
+
+Set: in a weapon design script.
+
+```lua weapon
+Skin.Palette = { Color.Red, Color.Blue }
+local value = Skin.Palette --> { #ff0000, #0000ff }
+```
+
+#### `WeaponSticker.Picture: Picture`
+
+What the sticker shows: a picture, a standard shape or a shape or sticker of the player's own.
+
+Set: in a weapon design script.
+
+```lua weapon
+local star = Weapon.AddSticker( Shapes.Star5 )
+star.Picture = Picture.Heart
+local value = star.Picture --> Picture.Heart
+```
+
+#### `WeaponSticker.Color: Color  (0 to 1)`
+
+Its colour (a sticker of the player's own keeps its own colours).
+
+Set: in a weapon design script.
+
+```lua weapon
+local star = Weapon.AddSticker( Shapes.Star5 )
+star.Color = Color.Red
+local value = star.Color --> #ff0000
+```
+
+#### `WeaponSticker.Animation: Animation`
+
+How its colour moves.
+
+Set: in a weapon design script.
+
+```lua weapon
+local star = Weapon.AddSticker( Shapes.Star5 )
+star.Animation = Animation.Rainbow
+local value = star.Animation --> Animation.Rainbow
+```
+
+#### `WeaponSticker.Palette: {Color}`
+
+The colours its colour cycle goes through.
+
+Set: in a weapon design script.
+
+```lua weapon
+local star = Weapon.AddSticker( Shapes.Star5 )
+star.Palette = { Color.Cyan, Color.Magenta }
+local value = star.Palette --> { #00ffff, #ff00ff }
+```
+
+#### `WeaponSticker.AnimationSpeed: number  (0 to 10)`
+
+How fast its colour moves: 1 is the game's own pace.
+
+Set: in a weapon design script.
+
+```lua weapon
+local star = Weapon.AddSticker( Shapes.Star5 )
+star.AnimationSpeed = 2
+local value = star.AnimationSpeed --> 2
+```
+
+#### `WeaponSticker.Position: Vector3  (-64 to 64)`
+
+Where its middle is: forwards along the barrel (X), to the left (Y) and up (Z) from the weapon's origin; it is pressed onto the first surface it meets there.
+
+Set: in a weapon design script.
+
+```lua weapon
+local star = Weapon.AddSticker( Shapes.Star5 )
+star.Position = Vector3( 8, 0, 7 )
+local value = star.Position --> Vector3( 8, 0, 7 )
+```
+
+#### `WeaponSticker.Rotation: Vector3  (-180 to 180)`
+
+Which way it is pressed on, as pitch, yaw and roll in degrees from pressing down from above (roll -90 or 90 presses it onto a side).
+
+Set: in a weapon design script.
+
+```lua weapon
+local star = Weapon.AddSticker( Shapes.Star5 )
+star.Rotation = Vector3( 0, 0, -90 )
+local value = star.Rotation --> Vector3( 0, 0, -90 )
+```
+
+#### `WeaponSticker.Size: number  (0.5 to 12)`
+
+How wide it is, in units.
+
+Set: in a weapon design script.
+
+```lua weapon
+local star = Weapon.AddSticker( Shapes.Star5 )
+star.Size = 4
+local value = star.Size --> 4
+```
+
+#### `WeaponSticker.Finish: StickerFinish`
+
+What it is printed on.
+
+Set: in a weapon design script.
+
+```lua weapon
+local star = Weapon.AddSticker( Shapes.Star5 )
+star.Finish = StickerFinish.Holo
+local value = star.Finish --> StickerFinish.Holo
+```
+
+#### `WeaponSticker.Scrape: number  (0 to 1)`
+
+How worn it is, 0 new to 1 scraped away in patches (the same on every machine).
+
+Set: in a weapon design script.
+
+```lua weapon
+local star = Weapon.AddSticker( Shapes.Star5 )
+star.Scrape = 0.3
+local value = star.Scrape --> 0.3
+```
+
+#### `WeaponSticker.Border: bool`
+
+Whether it has a thin white die-cut border.
+
+Set: in a weapon design script.
+
+```lua weapon
+local star = Weapon.AddSticker( Shapes.Star5 )
+star.Border = true
+local value = star.Border --> true
+```
+
+#### `WeaponProp.Model: string`
+
+The prop's model, by path (one of the stock props).
+
+Set: in a weapon design script.
+
+```lua weapon
+local can = Weapon.AddProp( "models/sbox_props/cola_can/cola_can.vmdl" )
+can.Model = "models/citizen_props/hotdog01.vmdl"
+local value = can.Model --> "models/citizen_props/hotdog01.vmdl"
+```
+
+#### `WeaponProp.Part: string`
+
+The part of the weapon it is on (its magazine, slide...), by name: it follows that part through every animation; the whole weapon for "".
+
+Set: in a weapon design script.
+
+```lua weapon
+local can = Weapon.AddProp( "models/sbox_props/cola_can/cola_can.vmdl" )
+can.Part = "magazine"
+local value = can.Part --> "magazine"
+```
+
+#### `WeaponProp.Replaces: bool`
+
+Whether it takes its part's place: the part is hidden, and the prop may be as large as the part.
+
+Set: in a weapon design script.
+
+```lua weapon
+local can = Weapon.AddProp( "models/sbox_props/cola_can/cola_can.vmdl" )
+can.Replaces = true
+local value = can.Replaces --> true
+```
+
+#### `WeaponProp.Position: Vector3  (-64 to 64)`
+
+Where its middle sits: forwards, left and up from its part's middle (or the weapon's origin); kept within the weapon's bounds grown by 8 units.
+
+Set: in a weapon design script.
+
+```lua weapon
+local can = Weapon.AddProp( "models/sbox_props/cola_can/cola_can.vmdl" )
+can.Position = Vector3( 2, 0, 10 )
+local value = can.Position --> Vector3( 2, 0, 10 )
+```
+
+#### `WeaponProp.Rotation: Vector3  (-180 to 180)`
+
+How it is turned: pitch, yaw and roll in degrees.
+
+Set: in a weapon design script.
+
+```lua weapon
+local can = Weapon.AddProp( "models/sbox_props/cola_can/cola_can.vmdl" )
+can.Rotation = Vector3( 0, 90, 0 )
+local value = can.Rotation --> Vector3( 0, 90, 0 )
+```
+
+#### `WeaponProp.Scale: number  (0.05 to 4)`
+
+Its size: 1 as made; its longest side is held to 16 units (or its part's size).
+
+Set: in a weapon design script.
+
+```lua weapon
+local can = Weapon.AddProp( "models/sbox_props/cola_can/cola_can.vmdl" )
+can.Scale = 0.8
+local value = can.Scale --> 0.8
+```
+
+#### `WeaponProp.Nudge: Vector3  (-4 to 4)`
+
+How far it is moved on the first-person weapon from where it is worked out to be: forwards, left and up, at most 4 units.
+
+Set: in a weapon design script.
+
+```lua weapon
+local can = Weapon.AddProp( "models/sbox_props/cola_can/cola_can.vmdl" )
+can.Nudge = Vector3( 0, 0, 1 )
+local value = can.Nudge --> Vector3( 0, 0, 1 )
+```
+
+#### `WeaponProp.NudgeRotation: Vector3  (-45 to 45)`
+
+How far it is turned on the first-person weapon: pitch, yaw and roll, at most 45 degrees each.
+
+Set: in a weapon design script.
+
+```lua weapon
+local can = Weapon.AddProp( "models/sbox_props/cola_can/cola_can.vmdl" )
+can.NudgeRotation = Vector3( 0, 15, 0 )
+local value = can.NudgeRotation --> Vector3( 0, 15, 0 )
+```
+
+#### `Effect.When: When`
+
+When every layer of a weapon's effect shows: always, while something is so, or on a weapon event (When.OnShoot, OnReload, OnEquip, OnHolster, OnHit).
+
+Set: in a weapon design script.
+
+```lua weapon
+local tracer = Weapon.AddEffect( Effects.Preset( "Bullet tracer" ) )
+tracer.When = When.OnReload
+local value = tracer.When --> When.OnReload
+```
+
+#### `Weapon: Weapon`
+
+The weapon a design script is for: its finish and tint, and what is put on it (stickers, props, hidden parts, effects).
+
+```lua weapon
+Weapon.Finish = Finish.Chrome
+local made = Weapon.Finish --> Finish.Chrome
+```
+
+#### `Skin: WeaponSkin`
+
+What is painted over the weapon: a pattern from every side, and a colour moving over it.
+
+```lua weapon
+Skin.Pattern = Pattern.Camo
+local laid = Skin.Pattern --> Pattern.Camo
+```
+
+#### `Weapon.AddSticker( picture: Picture ): WeaponSticker`
+
+Sticks a picture onto the weapon, pressed onto its surface (at most 8): a picture, a standard shape, or a shape or sticker of the player's own.
+
+| Parameter | Type | Range | What it is |
+|---|---|---|---|
+| `picture` | Picture | any | What it shows |
+
+```lua weapon
+local star = Weapon.AddSticker( Shapes.Star5 )
+star.Position = Vector3( 8, 0, 7 )
+local shown = star.Picture --> Shapes.Star5
+```
+
+#### `Weapon.AddProp( model: string ): WeaponProp`
+
+Puts a stock prop on the weapon (at most 8), by its model's path: its longest side is held to 16 units, and it stays within the weapon's bounds grown by 8.
+
+| Parameter | Type | Range | What it is |
+|---|---|---|---|
+| `model` | string | any | The model's path |
+
+```lua weapon
+local can = Weapon.AddProp( "models/sbox_props/cola_can/cola_can.vmdl" )
+can.Scale = 0.5
+local size = can.Scale --> 0.5
+```
+
+#### `Weapon.HidePart( part: string )`
+
+Hides a part of the weapon by its name (a rail, the sights: what its model lets show or hide; at most 16); a part it doesn't have is passed over.
+
+| Parameter | Type | Range | What it is |
+|---|---|---|---|
+| `part` | string | any | The part's name |
+
+```lua weapon
+Weapon.HidePart( "rail" )
+```
+
+#### `Weapon.AddEffect( effect: Effect ): Effect`
+
+Puts an effect on the weapon, coming from it (at most 4, 8 layers between them): change its sliders and When on what it gives back.
+
+| Parameter | Type | Range | What it is |
+|---|---|---|---|
+| `effect` | Effect | any | From Effects.Preset or Effects.Mine |
+
+```lua weapon
+local flash = Weapon.AddEffect( Effects.Preset( "Muzzle flash" ) )
+flash.Hue = 0.5
+local hue = flash.Hue --> 0.5
+```
+
 ### Inputs
 
 #### `time: number`
@@ -3730,6 +4251,46 @@ Which way a layer's sprites face: the camera, a swing's plane, flat on the groun
 
 ```lua sticker
 local picked = Align.Swing --> Align.Swing
+```
+
+#### `Finish`
+
+What a weapon is made of: its own materials (None), or one of the stock finishes.
+
+`Finish.None`, `Finish.Gold`, `Finish.Silver`, `Finish.Chrome`, `Finish.Copper`, `Finish.Bronze`, `Finish.Gloss`, `Finish.Clay`, `Finish.Matteblack`
+
+```lua sticker
+local picked = Finish.Gold --> Finish.Gold
+```
+
+#### `Pattern`
+
+What is laid over a weapon from every side: stripes, camo, checker, a gradient, carbon fibre or a repeated shape.
+
+`Pattern.None`, `Pattern.Stripes`, `Pattern.Camo`, `Pattern.Checker`, `Pattern.Gradient`, `Pattern.Carbon`, `Pattern.Shapes`
+
+```lua sticker
+local picked = Pattern.Stripes --> Pattern.Stripes
+```
+
+#### `SkinAnimation`
+
+How a weapon's colour moves: a rainbow flowing along it, World at War's colourings in bands, a pulse, a glow, a sheen or its palette going round.
+
+`SkinAnimation.None`, `SkinAnimation.Rainbow`, `SkinAnimation.Rain`, `SkinAnimation.Cycl`, `SkinAnimation.Cyln`, `SkinAnimation.Pulse`, `SkinAnimation.Glow`, `SkinAnimation.Shimmer`, `SkinAnimation.Palette`
+
+```lua sticker
+local picked = SkinAnimation.Rainbow --> SkinAnimation.Rainbow
+```
+
+#### `StickerFinish`
+
+What a sticker is printed on: paper, holo, foil, glitter, gold or lenticular.
+
+`StickerFinish.Paper`, `StickerFinish.Holo`, `StickerFinish.Foil`, `StickerFinish.Glitter`, `StickerFinish.Gold`, `StickerFinish.Lenticular`
+
+```lua sticker
+local picked = StickerFinish.Holo --> StickerFinish.Holo
 ```
 
 ### Keys

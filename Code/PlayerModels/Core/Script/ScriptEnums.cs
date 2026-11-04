@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 namespace PlayerModels.Core.Script;
 
@@ -30,7 +31,26 @@ public static class ScriptEnums
 	[Sandbox.SkipHotload]
 	public static readonly ScriptEnum Align = new( "Align", Enum.GetNames<LayerAlign>(), "Which way a layer's sprites face: the camera, a swing's plane, flat on the ground, the way the layer faces, or out from its place." );
 
+	[Sandbox.SkipHotload]
+	public static readonly ScriptEnum Finish = new( "Finish", FinishNames(), "What a weapon is made of: its own materials (None), or one of the stock finishes." );
+	[Sandbox.SkipHotload]
+	public static readonly ScriptEnum Pattern = new( "Pattern", Enum.GetNames<WeaponSkin.Pattern>(), "What is laid over a weapon from every side: stripes, camo, checker, a gradient, carbon fibre or a repeated shape." );
+	[Sandbox.SkipHotload]
+	public static readonly ScriptEnum SkinAnimation = new( "SkinAnimation", Enum.GetNames<WeaponSkin.Motion>(), "How a weapon's colour moves: a rainbow flowing along it, World at War's colourings in bands, a pulse, a glow, a sheen or its palette going round." );
+	[Sandbox.SkipHotload]
+	public static readonly ScriptEnum StickerFinish = new( "StickerFinish", Enum.GetNames<Core.StickerFinish>(), "What a sticker is printed on: paper, holo, foil, glitter, gold or lenticular." );
+
 	/// <summary>Every one of them.</summary>
 	[Sandbox.SkipHotload]
-	public static readonly ScriptEnum[] All = { Kind, Joint, ComesFrom, Facing, ColorMode, Rhythm, When, Anchor, Animation, Align };
+	public static readonly ScriptEnum[] All = { Kind, Joint, ComesFrom, Facing, ColorMode, Rhythm, When, Anchor, Animation, Align, Finish, Pattern, SkinAnimation, StickerFinish };
+
+	/// <summary>The finish a choice of <see cref="Finish"/> names in the data (<see cref="MaterialFinish"/>): null for None.</summary>
+	public static string FinishOf( string member ) => member is null || member == NoFinish ? null : MaterialFinish.All.FirstOrDefault( x => x.Replace( " ", "" ) == member );
+
+	/// <summary>The choice of <see cref="Finish"/> for a finish of the data; None for none.</summary>
+	public static string FinishMember( string finish ) => MaterialFinish.IsKnown( finish ) ? finish.Replace( " ", "" ) : NoFinish;
+
+	private const string NoFinish = "None";
+
+	private static string[] FinishNames() => new[] { NoFinish }.Concat( MaterialFinish.All.Select( x => x.Replace( " ", "" ) ) ).ToArray();
 }

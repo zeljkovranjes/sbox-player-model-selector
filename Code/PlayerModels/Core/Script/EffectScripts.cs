@@ -68,13 +68,39 @@ public static class EffectScripts
 	/// (its turn to compile hasn't come) does too, and <paramref name="pending"/> says to ask again. This very look when it
 	/// has no scripts, else a copy.
 	/// </summary>
-	public static PlayerLook WithScriptsBuilt( PlayerLook look, Func<Effect, ScriptBuild> build, out bool pending )
+	public static PlayerLook WithScriptsBuilt( PlayerLook look, Func<Effect, ScriptBuild> build, out bool pending, Func<WeaponDesign, ScriptBuild> buildDesign = null )
 	{
 		pending = false;
 		if ( !HasScripts( look ) )
 			return look;
 
 		var copy = look.Sanitized();
+
+		// A weapon's design first: its script names the effects it puts on, whose own scripts are built after
+		for ( var i = 0; i < copy.Weapons.Count; i++ )
+		{
+			var stored = copy.Weapons[ i ];
+			if ( stored.Script is null || buildDesign is null )
+				continue;
+
+			var made = buildDesign( stored );
+			pending |= made is null;
+			if ( made is { Succeeded: true } && WeaponScripts.Shown( stored, made ) is { } shown )
+			{
+				foreach ( var shape in shown.Shapes ?? new List<DrawnShape>() )
+				{
+					if ( !copy.DrawnShapes.Exists( x => x.Id == shape.Id ) )
+						copy.DrawnShapes.Add( shape );
+				}
+
+				shown.Shapes = null;
+				copy.Weapons[ i ] = shown;
+				continue;
+			}
+
+			stored.Script = null;
+		}
+
 		pending |= BuildEach( copy.Effects, copy, build, false );
 		foreach ( var design in copy.Weapons )
 			pending |= BuildEach( design.Effects, copy, build, true );
@@ -83,7 +109,7 @@ public static class EffectScripts
 	}
 
 	/// <summary>Whether any effect of <paramref name="look"/>, its body's or a weapon's, has a script.</summary>
-	public static bool HasScripts( PlayerLook look ) => EffectsOf( look ).Any( x => x.Script is not null );
+	public static bool HasScripts( PlayerLook look ) => EffectsOf( look ).Any( x => x.Script is not null ) || (look?.Weapons ?? new List<WeaponDesign>()).Any( x => x.Script is not null );
 
 	// Builds each scripted effect of effects in place (one on a weapon stays on it, without a key); true when one has to
 	// wait its turn
@@ -132,7 +158,7 @@ public static class EffectScripts
 	/// </summary>
 	public static PlayerLook WithoutScripts( PlayerLook look, int mostBytes = 0 )
 	{
-		if ( !EffectsOf( look ).Any( x => TooLong( x, mostBytes ) ) )
+		if ( !EffectsOf( look ).Any( x => TooLong( x, mostBytes ) ) && !(look?.Weapons ?? new List<WeaponDesign>()).Any( x => TooLong( x.Script, mostBytes ) ) )
 			return look;
 
 		var copy = look.Sanitized();
@@ -145,10 +171,18 @@ public static class EffectScripts
 			}
 		}
 
+		foreach ( var design in copy.Weapons )
+		{
+			if ( TooLong( design.Script, mostBytes ) )
+				design.Script = null;
+		}
+
 		return copy;
 	}
 
-	private static bool TooLong( Effect effect, int mostBytes ) => effect.Script is not null && ScriptLimits.Utf8Bytes( effect.Script ) > mostBytes;
+	private static bool TooLong( Effect effect, int mostBytes ) => TooLong( effect.Script, mostBytes );
+
+	private static bool TooLong( string script, int mostBytes ) => script is not null && ScriptLimits.Utf8Bytes( script ) > mostBytes;
 
 	// Every effect of a look: its body's, then each weapon's
 	private static IEnumerable<Effect> EffectsOf( PlayerLook look )

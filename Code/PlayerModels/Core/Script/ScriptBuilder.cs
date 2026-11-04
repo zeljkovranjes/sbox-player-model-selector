@@ -51,6 +51,9 @@ internal sealed partial class ScriptBuilder
 		_library = library;
 		if ( _program.Kind == ScriptKind.Shape )
 			_drafts.Add( new Draft { Name = "" } );
+
+		if ( _program.Kind == ScriptKind.Weapon )
+			_design = new WeaponDesign();
 	}
 
 	private int Fail( string message )
@@ -116,6 +119,8 @@ internal sealed partial class ScriptBuilder
 			}
 
 			case Intrinsic.EffectInclude: return Include( (int)s[ sp - 2 ], (int)s[ sp - 1 ] ) ? sp - 2 : -1;
+			case Intrinsic.WeaponAddSticker or Intrinsic.WeaponAddProp or Intrinsic.WeaponHidePart or Intrinsic.WeaponAddEffect:
+				return RunWeapon( op, s, sp );
 			case Intrinsic.ShapePoint: return Point( (int)s[ sp - 3 ], s[ sp - 2 ], s[ sp - 1 ] ) ? sp - 3 : -1;
 			case Intrinsic.ShapePoints: return Points( (int)s[ sp - 3 ], (int)s[ sp - 2 ], (int)s[ sp - 1 ] ) ? sp - 3 : -1;
 			case Intrinsic.ShapeEndLine or Intrinsic.ShapeEndOutline: return EndStroke( (int)s[ sp - 1 ], op == Intrinsic.ShapeEndOutline ) ? sp - 1 : -1;

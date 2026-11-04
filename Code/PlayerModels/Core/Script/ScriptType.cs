@@ -8,6 +8,9 @@ public enum TypeKind
 {
 	Error, Void, Number, Bool, String, Color, Vector3, Key, Shape, Picture, Layer, Effect, EmblemLayer, Enum, List, Function,
 
+	// A weapon design script's: the weapon, its skin, a sticker and a prop on it
+	Weapon, WeaponSkin, WeaponSticker, WeaponProp,
+
 	// Only ever parameters, read field by field: a particle's (p) and a shot's
 	Particle, Shot,
 }
@@ -66,6 +69,14 @@ public sealed class ScriptType
 	[Sandbox.SkipHotload]
 	public static readonly ScriptType EmblemLayer = new( TypeKind.EmblemLayer, 1 );
 	[Sandbox.SkipHotload]
+	public static readonly ScriptType Weapon = new( TypeKind.Weapon, 1 );
+	[Sandbox.SkipHotload]
+	public static readonly ScriptType WeaponSkin = new( TypeKind.WeaponSkin, 1 );
+	[Sandbox.SkipHotload]
+	public static readonly ScriptType WeaponSticker = new( TypeKind.WeaponSticker, 1 );
+	[Sandbox.SkipHotload]
+	public static readonly ScriptType WeaponProp = new( TypeKind.WeaponProp, 1 );
+	[Sandbox.SkipHotload]
 	public static readonly ScriptType Particle = new( TypeKind.Particle, 0 );
 	[Sandbox.SkipHotload]
 	public static readonly ScriptType Shot = new( TypeKind.Shot, 0 );
@@ -89,6 +100,7 @@ public sealed class ScriptType
 	{
 		["number"] = Number, ["bool"] = Bool, ["string"] = String, ["Color"] = Color, ["Vector3"] = Vector3, ["Key"] = Key,
 		["Shape"] = Shape, ["Picture"] = Picture, ["Layer"] = Layer, ["Effect"] = Effect, ["EmblemLayer"] = EmblemLayer,
+		["Weapon"] = Weapon, ["WeaponSkin"] = WeaponSkin, ["WeaponSticker"] = WeaponSticker, ["WeaponProp"] = WeaponProp,
 	};
 
 	/// <summary>Whether it is a value that can be kept in a variable (parameters only types and nothing aren't).</summary>

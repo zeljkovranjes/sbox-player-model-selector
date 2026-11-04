@@ -11,7 +11,7 @@ namespace PlayerModels.Core.Script;
 /// layer, each field only when it isn't the default. Building the script gives back the same effect, field for field.
 /// Its id and where it was forked from stay outside the script, with the effect.
 /// </summary>
-public static class ScriptCodegen
+public static partial class ScriptCodegen
 {
 	// How many points one Points( { ... } ) call holds, so a line stays readable and under the line cap
 	private const int PointsPerLine = 16;

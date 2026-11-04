@@ -42,6 +42,9 @@ public sealed class WeaponDesign
 	// Effects on a weapon are told apart from the body's by their ids: "w1" to "w4"
 	private const string IdPrefix = "w";
 
+	/// <summary>A weapon standing in for any, where a design is held to its bounds before it is given its own.</summary>
+	public const string AnyWeapon = "weapon.vmdl";
+
 	/// <summary>The weapon: its world model, by path.</summary>
 	[JsonPropertyName( "w" )]
 	public string Weapon { get; set; } = "";
@@ -84,6 +87,15 @@ public sealed class WeaponDesign
 	[JsonPropertyName( "sh" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public List<DrawnShape> Shapes { get; set; }
 
+	/// <summary>
+	/// The design written as a script (see <see cref="PlayerModels.Core.Script.WeaponScripts"/>), minified, as it was saved: what "Edit as
+	/// code" opens, and what every machine builds the design from where scripts run; null for one made in the weapon
+	/// panel alone. Held to <see cref="PlayerModels.Core.Script.ScriptLimits.MaxScriptBytes"/>, and with the look's effects' scripts to
+	/// <see cref="PlayerModels.Core.Script.ScriptLimits.MaxLookBytes"/>, by length alone.
+	/// </summary>
+	[JsonPropertyName( "sc" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public string Script { get; set; }
+
 	/// <summary>The Workshop share it was used or forked from; null for one made here.</summary>
 	[JsonPropertyName( "ff" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public ShareOrigin ForkedFrom { get; set; }
@@ -110,6 +122,27 @@ public sealed class WeaponDesign
 
 		return true;
 	}
+
+	/// <summary>
+	/// Shows every layer of <paramref name="effect"/> (one on a weapon) <paramref name="when"/> (a <see cref="LayerWhen"/> by
+	/// name): a layer shown for a moment that had no burst or time to show for gets the panel's own (20 sprites, half a
+	/// second).
+	/// </summary>
+	public static void ShowWhen( Effect effect, string when )
+	{
+		foreach ( var layer in effect.Layers )
+		{
+			layer.When = when == nameof( LayerWhen.Always ) ? null : when;
+			if ( layer.IsMoment && layer.Burst == 0f && layer.ShowFor == 0f )
+			{
+				layer.Burst = layer.KindIs == LayerKind.Sprite ? MomentBurst : 0f;
+				layer.ShowFor = layer.KindIs == LayerKind.Sprite ? 0f : MomentShowFor;
+			}
+		}
+	}
+
+	private const float MomentBurst = 20f;
+	private const float MomentShowFor = 0.5f;
 
 	/// <summary>The weapon's name, from its model's file: "w_m4a1.vmdl" is "M4a1".</summary>
 	public static string NameOf( string weapon )
@@ -185,7 +218,7 @@ public sealed class WeaponDesign
 			effects.Add( kept );
 		}
 
-		Effect.HoldScriptsTo( effects, Script.ScriptLimits.MaxLookBytes );
+		Effect.HoldScriptsTo( effects, PlayerModels.Core.Script.ScriptLimits.MaxLookBytes );
 
 		var hidden = new List<string>();
 		foreach ( var part in HiddenParts ?? new() )
@@ -206,6 +239,7 @@ public sealed class WeaponDesign
 			Stickers = stickers.Count > 0 ? stickers : null,
 			Effects = effects.Count > 0 ? effects : null,
 			ForkedFrom = ForkedFrom?.Sanitized(),
+			Script = Script is not null && Script.Length <= PlayerModels.Core.Script.ScriptLimits.MaxScriptBytes && PlayerModels.Core.Script.ScriptLimits.Utf8Bytes( Script ) <= PlayerModels.Core.Script.ScriptLimits.MaxScriptBytes ? Script : null,
 		};
 
 		return design.IsEmpty ? null : design;
@@ -215,6 +249,26 @@ public sealed class WeaponDesign
 	/// <paramref name="designs"/> within bounds: at most <see cref="MaxPerLook"/> of them, one a weapon (the first kept),
 	/// in order, together within <see cref="MaxLookBytes"/>, naming the drawn shapes of <paramref name="pool"/>.
 	/// </summary>
+	/// <summary>
+	/// Holds the scripts of <paramref name="designs"/> to <paramref name="bytes"/> together, in order: one past it loses its
+	/// script (the design stays as it was saved).
+	/// </summary>
+	internal static void HoldScriptsTo( List<WeaponDesign> designs, int bytes )
+	{
+		var total = 0;
+		foreach ( var design in designs )
+		{
+			if ( design.Script is null )
+				continue;
+
+			var size = PlayerModels.Core.Script.ScriptLimits.Utf8Bytes( design.Script );
+			if ( total + size <= bytes )
+				total += size;
+			else
+				design.Script = null;
+		}
+	}
+
 	internal static List<WeaponDesign> Sanitized( IEnumerable<WeaponDesign> designs, ShapePool pool )
 	{
 		var kept = new List<WeaponDesign>();
@@ -229,7 +283,11 @@ public sealed class WeaponDesign
 			if ( design?.Sanitized( pool ) is not { } sanitized || kept.Exists( x => x.Weapon == sanitized.Weapon ) )
 				continue;
 
+			// Its script counts with the look's effects' scripts (see PlayerLook.Sanitized), not here
+			var script = sanitized.Script;
+			sanitized.Script = null;
 			bytes += Encoding.UTF8.GetByteCount( JsonSerializer.Serialize( sanitized ) );
+			sanitized.Script = script;
 			if ( bytes > MaxLookBytes )
 				break;
 
@@ -271,6 +329,7 @@ public sealed class WeaponDesign
 			return "";
 
 		copy.ForkedFrom = null;
+		copy.Script = null;
 		return JsonSerializer.Serialize( copy );
 	}
 

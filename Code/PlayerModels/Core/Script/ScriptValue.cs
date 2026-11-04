@@ -49,6 +49,10 @@ public static class ScriptValue
 			case TypeKind.Layer: return "Layer " + (int)slots[ 0 ];
 			case TypeKind.EmblemLayer: return "EmblemLayer " + (int)slots[ 0 ];
 			case TypeKind.Effect: return slots[ 0 ] == Handles.CurrentEffect ? "Effect" : "Effect " + (int)slots[ 0 ];
+			case TypeKind.Weapon: return "Weapon";
+			case TypeKind.WeaponSkin: return "Skin";
+			case TypeKind.WeaponSticker: return "WeaponSticker " + (int)slots[ 0 ];
+			case TypeKind.WeaponProp: return "WeaponProp " + (int)slots[ 0 ];
 			case TypeKind.Function: return "function";
 			case TypeKind.List:
 			{

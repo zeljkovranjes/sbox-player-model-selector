@@ -1,7 +1,7 @@
 namespace PlayerModels.Core.Script;
 
 /// <summary>
-/// The properties of layers, effects, shapes and emblem layers a script reads and writes. A layer's come first, in the
+/// The properties of layers, effects, shapes, emblem layers and weapon designs a script reads and writes. A layer's come first, in the
 /// order of its live block (what its event and particle functions change while it runs; see <see cref="LayerProperties"/>).
 /// </summary>
 public enum PropertyId
@@ -20,6 +20,14 @@ public enum PropertyId
 
 	EmblemShape, EmblemPosition, EmblemRotation, EmblemScale, EmblemFlipX, EmblemFlipY, EmblemColor, EmblemOpacity,
 	EmblemOutlineColor, EmblemOutlineWidth, EmblemAnimation, EmblemPalette, EmblemAnimationSpeed, EmblemHidden,
+
+	WeaponFinish, WeaponTint,
+	SkinPattern, SkinPatternColor, SkinPatternColorEnd, SkinPatternScale, SkinPatternTurn, SkinPatternScroll, SkinPatternSpin, SkinPatternShape,
+	SkinAnimation, SkinSpeed, SkinBands, SkinPalette,
+	StickerPicture, StickerColor, StickerAnimation, StickerPalette, StickerSpeed, StickerPosition, StickerRotation, StickerSize, StickerFinish,
+	StickerScrape, StickerBorder,
+	PropModel, PropPart, PropReplaces, PropPosition, PropRotation, PropScale, PropNudge, PropNudgeRotation,
+	EffectWhen,
 
 	Total,
 }

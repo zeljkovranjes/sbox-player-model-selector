@@ -98,6 +98,7 @@ public static class ScriptReference
 		ScriptPlace.EffectRun => "while it runs (in its functions)",
 		ScriptPlace.StickerRun => "in a sticker script",
 		ScriptPlace.SkinRun => "in a weapon skin script",
+		ScriptPlace.WeaponBuild => "in a weapon design script",
 		ScriptPlace.Element => "in a sticker or weapon skin script",
 		_ => "anywhere",
 	};

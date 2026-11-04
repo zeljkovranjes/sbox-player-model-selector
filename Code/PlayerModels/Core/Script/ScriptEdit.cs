@@ -16,7 +16,7 @@ public sealed record EditResult( string Source, string Problem = null, int Line 
 /// given by a [Parameter], is left alone and reported with its line ("set by script"). Each edit is from one build of
 /// the source, and building the edited source gives the edited effect.
 /// </summary>
-public static class ScriptEdit
+public static partial class ScriptEdit
 {
 	private readonly record struct Splice( int Start, int End, string Text, int Order );
 

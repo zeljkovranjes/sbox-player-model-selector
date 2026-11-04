@@ -108,6 +108,74 @@ public static class ScriptLiteral
 		};
 	}
 
+	/// <summary>
+	/// Weapon design field <paramref name="property"/> as a literal: of the weapon or its skin, of sticker, prop or effect
+	/// <paramref name="index"/>; a drawn shape it names by <paramref name="shapeName"/>. Null when it isn't set or can't be
+	/// written.
+	/// </summary>
+	public static string Of( PropertyId property, WeaponDesign design, int index = 0, Func<string, string> shapeName = null )
+	{
+		var skin = design.Skin ?? new WeaponSkin();
+		var sticker = index >= 0 && index < (design.Stickers?.Count ?? 0) ? design.Stickers[ index ] : null;
+		var prop = index >= 0 && index < (design.Props?.Count ?? 0) ? design.Props[ index ] : null;
+		var effect = index >= 0 && index < (design.Effects?.Count ?? 0) ? design.Effects[ index ] : null;
+		return property switch
+		{
+			PropertyId.WeaponFinish => Choice( "Finish", ScriptEnums.FinishMember( design.Finish ) ),
+			PropertyId.WeaponTint => design.Tint is null ? null : Colour( design.Tint ),
+			PropertyId.SkinPattern => Choice( "Pattern", skin.PatternIs.ToString() ),
+			PropertyId.SkinPatternColor => skin.PatternColor is null ? null : Colour( skin.PatternColor ),
+			PropertyId.SkinPatternColorEnd => skin.PatternColorEnd is null ? null : Colour( skin.PatternColorEnd ),
+			PropertyId.SkinPatternScale => Number( skin.PatternScale ),
+			PropertyId.SkinPatternTurn => Number( skin.PatternTurn ),
+			PropertyId.SkinPatternScroll => Number( skin.PatternScroll ),
+			PropertyId.SkinPatternSpin => Number( skin.PatternSpin ),
+			PropertyId.SkinPatternShape => skin.PatternShape is null ? null : Picture( skin.PatternShape, shapeName ),
+			PropertyId.SkinAnimation => Choice( "SkinAnimation", skin.AnimationIs.ToString() ),
+			PropertyId.SkinSpeed => Number( skin.Speed ),
+			PropertyId.SkinBands => Number( skin.Bands ),
+			PropertyId.SkinPalette => skin.Palette is null ? null : Palette( skin.Palette ),
+			PropertyId.StickerPicture => sticker is null ? null : Picture( sticker.Picture, shapeName ),
+			PropertyId.StickerColor => sticker is null ? null : Colour( sticker.Color ),
+			PropertyId.StickerAnimation => sticker is null ? null : Choice( "Animation", sticker.AnimationIs.ToString() ),
+			PropertyId.StickerPalette => sticker?.Palette is null ? null : Palette( sticker.Palette ),
+			PropertyId.StickerSpeed => sticker is null ? null : Number( sticker.Speed ),
+			PropertyId.StickerPosition => sticker is null ? null : Vector( sticker.Forward, sticker.Left, sticker.Up ),
+			PropertyId.StickerRotation => sticker is null ? null : Vector( sticker.Pitch, sticker.Yaw, sticker.Roll ),
+			PropertyId.StickerSize => sticker is null ? null : Number( sticker.Size ),
+			PropertyId.StickerFinish => sticker is null ? null : Choice( "StickerFinish", StickerFinishes.Of( sticker.Finish ).ToString() ),
+			PropertyId.StickerScrape => sticker is null ? null : Number( sticker.Scrape ),
+			PropertyId.StickerBorder => sticker is null ? null : Bool( sticker.Border ),
+			PropertyId.PropModel => prop is null ? null : Text( prop.Model ),
+			PropertyId.PropPart => prop is null ? null : Text( prop.Part ?? "" ),
+			PropertyId.PropReplaces => prop is null ? null : Bool( prop.Replaces ),
+			PropertyId.PropPosition => prop is null ? null : Vector( prop.Forward, prop.Left, prop.Up ),
+			PropertyId.PropRotation => prop is null ? null : Vector( prop.Pitch, prop.Yaw, prop.Roll ),
+			PropertyId.PropScale => prop is null ? null : Number( prop.Scale ),
+			PropertyId.PropNudge => prop is null ? null : Vector( prop.NudgeForward, prop.NudgeLeft, prop.NudgeUp ),
+			PropertyId.PropNudgeRotation => prop is null ? null : Vector( prop.NudgePitch, prop.NudgeYaw, prop.NudgeRoll ),
+			PropertyId.EffectWhen => effect is null ? null : Choice( "When", UniformWhen( effect ) ),
+			_ when effect is not null && property is >= PropertyId.EffectName and <= PropertyId.EffectSpeed => Of( property, effect ),
+			_ => null,
+		};
+	}
+
+	/// <summary>The one When every layer of <paramref name="effect"/> shows (Always for none); null when they differ.</summary>
+	public static string UniformWhen( Effect effect )
+	{
+		string when = null;
+		foreach ( var layer in effect.Layers )
+		{
+			var each = layer.WhenIs.ToString();
+			if ( when is not null && each != when )
+				return null;
+
+			when = each;
+		}
+
+		return when ?? nameof( LayerWhen.Always );
+	}
+
 	// A list of pictures, or null when one of them can't be written (a drawn shape with no name in the script)
 	private static string Pictures( IReadOnlyList<string> names, Func<string, string> shapeName )
 	{

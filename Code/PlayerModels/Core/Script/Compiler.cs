@@ -170,6 +170,7 @@ public sealed partial class Compiler
 		ScriptKind.Effect => ScriptPlace.EffectBuild,
 		ScriptKind.Shape => ScriptPlace.ShapeBuild,
 		ScriptKind.Skin => ScriptPlace.SkinRun,
+		ScriptKind.Weapon => ScriptPlace.WeaponBuild,
 		_ => ScriptPlace.StickerRun,
 	};
 

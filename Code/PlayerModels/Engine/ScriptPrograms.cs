@@ -54,7 +54,14 @@ internal static class ScriptPrograms
 				return null;
 
 			return EffectScripts.Build( effect, Cache, library, Stack );
-		}, out pending );
+		}, out pending, design =>
+		{
+			var named = new WeaponScripts.DesignLibrary( library, design.Effects );
+			if ( paced && !Cache.Has( design.Script, ScriptKind.Weapon, named ) && !Budget.TryTake( player, now ) )
+				return null;
+
+			return WeaponScripts.Build( design.Script, design, Cache, library, Stack );
+		} );
 
 		if ( !pending )
 			Remember( key, built );

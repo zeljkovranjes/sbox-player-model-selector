@@ -57,6 +57,7 @@ public class LibraryFunctionTests
 			{
 				"Layer" => ($"local layer = Sprite()\nfunction OnJump()\n\tlayer.{call}\nend", ScriptKind.Effect),
 				"Effect" => ($"Effect.{call}", ScriptKind.Effect),
+				"Weapon" => ($"{(entry.Type.Kind == TypeKind.Void ? "" : "local r = ")}Weapon.{call}", ScriptKind.Weapon),
 				_ => ($"local s = Shapes.New( \"x\" )\nlocal glow = Sprite()\n{(entry.Type.Kind == TypeKind.Void ? "" : "local r = ")}s.{call}", ScriptKind.Effect),
 			};
 		}

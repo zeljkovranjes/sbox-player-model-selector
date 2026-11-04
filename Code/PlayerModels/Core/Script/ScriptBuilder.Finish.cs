@@ -23,6 +23,7 @@ internal sealed partial class ScriptBuilder
 			}
 
 			case ScriptKind.Effect: return FinishEffect();
+			case ScriptKind.Weapon: return FinishWeapon();
 			default: return new ScriptBuild { Program = _program };
 		}
 	}

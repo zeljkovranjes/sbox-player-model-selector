@@ -14,7 +14,7 @@ public class DocTests
 {
 	private const string Start = "<!-- reference:start -->";
 	private const string End = "<!-- reference:end -->";
-	private static readonly Regex Example = new( @"^```lua (effect|shape|sticker|skin)\n(.*?)^```", RegexOptions.Multiline | RegexOptions.Singleline );
+	private static readonly Regex Example = new( @"^```lua (effect|shape|sticker|skin|weapon)\n(.*?)^```", RegexOptions.Multiline | RegexOptions.Singleline );
 
 	private static string DocPath()
 	{

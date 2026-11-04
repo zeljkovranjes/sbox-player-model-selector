@@ -18,7 +18,7 @@ public static partial class ScriptLibrary
 	[Sandbox.SkipHotload]
 	public static readonly string[] Categories =
 	{
-		"Keywords", "Types", "Parameters", "Math", "Color", "Vector3", "Lists", "Effect", "Layer", "Particle", "Shape", "Emblem",
+		"Keywords", "Types", "Parameters", "Math", "Color", "Vector3", "Lists", "Effect", "Layer", "Particle", "Shape", "Emblem", "Weapon",
 		"Inputs", "Sticker", "Skin", "Events", "Shot", "Choices", "Keys",
 	};
 
@@ -55,6 +55,7 @@ public static partial class ScriptLibrary
 		AddVector( entries );
 		AddEffects( entries );
 		AddShapes( entries );
+		AddWeapons( entries );
 		AddInputs( entries );
 		AddEvents( entries );
 		AddChoices( entries );
@@ -169,7 +170,7 @@ public static partial class ScriptLibrary
 		{
 			Name = name, Kind = EntryKind.Function, Op = op, Type = returns, Category = category, Doc = doc, Example = example,
 			Where = where, Parameters = parameters, Required = required,
-			ExampleKind = (where & ScriptPlace.StickerRun) != 0 ? ScriptKind.Sticker : ScriptKind.Effect,
+			ExampleKind = (where & ScriptPlace.StickerRun) != 0 ? ScriptKind.Sticker : where == ScriptPlace.WeaponBuild ? ScriptKind.Weapon : ScriptKind.Effect,
 		};
 	}
 

@@ -8,6 +8,12 @@ internal sealed partial class ScriptBuilder
 	/// <summary>Reads a property of a layer, the effect, a shape or an emblem layer into <paramref name="into"/> at <paramref name="at"/>.</summary>
 	public bool Get( PropertyId property, int handle, double[] into, int at )
 	{
+		if ( IsWeaponProperty( property ) )
+			return GetWeapon( property, handle, into, at );
+
+		if ( _design is not null && property is >= PropertyId.EffectName and <= PropertyId.EffectSpeed )
+			return WeaponEffectOf( handle, property ) is { } carried && GetWeaponEffect( carried, property, into, at );
+
 		if ( property <= PropertyId.LayerParticle )
 			return LayerOf( handle ) is { } layer && GetLayer( property, handle, layer, into, at );
 
@@ -23,6 +29,24 @@ internal sealed partial class ScriptBuilder
 	/// <summary>Writes a property from <paramref name="from"/> at <paramref name="at"/>, recording <paramref name="site"/> as where it was set.</summary>
 	public bool Set( PropertyId property, int handle, double[] from, int at, int site )
 	{
+		if ( IsWeaponProperty( property ) )
+		{
+			if ( !SetWeapon( property, handle, from, at ) )
+				return false;
+
+			Record( WeaponOwnerOf( property, handle ), property, site );
+			return true;
+		}
+
+		if ( _design is not null && property is >= PropertyId.EffectName and <= PropertyId.EffectSpeed )
+		{
+			if ( WeaponEffectOf( handle, property ) is not { } carried || !SetWeaponEffect( carried, property, from, at ) )
+				return false;
+
+			Record( ScriptBuild.EffectOwnerBase + _designEffects.IndexOf( handle ), property, site );
+			return true;
+		}
+
 		if ( property <= PropertyId.LayerParticle )
 		{
 			if ( LayerOf( handle ) is not { } layer || !SetLayer( property, handle, layer, from, at ) )

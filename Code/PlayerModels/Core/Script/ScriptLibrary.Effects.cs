@@ -23,9 +23,9 @@ public static partial class ScriptLibrary
 		entries.Add( Function( "Ghost", Intrinsic.Ghost, ScriptType.Layer, layer, "Adds ghosts: see-through copies of the body (or of the item or weapon its effect comes from), each the pose as it was, tinted Color fading to ColorEnd and gone after Lifetime: afterimages. Amount is how many a second (at most 30); at most 8 are out at once.",
 			"local afterimage = Ghost()\nafterimage.Color = Color.Parse( \"#7ad8ff\" )\nafterimage.Amount = 12\nafterimage.Lifetime = 0.4\nlocal kind = afterimage.Kind --> Kind.Ghost", build ) );
 		entries.Add( Space( "Effects", effect, "Whole effects to include in this one: the player's own (\"My effects\") and the presets." ) );
-		entries.Add( Function( "Effects.Mine", Intrinsic.EffectsMine, ScriptType.Effect, effect, "One of the player's saved effects, by name, to include.", "Effect.Include( Effects.Mine( \"Fire hands\" ) )", build,
+		entries.Add( Function( "Effects.Mine", Intrinsic.EffectsMine, ScriptType.Effect, effect, "One of the player's saved effects, by name, to include (in a weapon design: to put on the weapon; one the design carries counts too).", "Effect.Include( Effects.Mine( \"Fire hands\" ) )", build | ScriptPlace.WeaponBuild,
 			P( "name", name, "Its name in My effects" ) ) );
-		entries.Add( Function( "Effects.Preset", Intrinsic.EffectsPreset, ScriptType.Effect, effect, "One of the stock presets, by name, to include.", "Effect.Include( Effects.Preset( \"Hearts\" ) )", build,
+		entries.Add( Function( "Effects.Preset", Intrinsic.EffectsPreset, ScriptType.Effect, effect, "One of the stock presets, by name, to include (in a weapon design: to put on the weapon).", "Effect.Include( Effects.Preset( \"Hearts\" ) )", build | ScriptPlace.WeaponBuild,
 			P( "name", name, "Its name in the Effects tab" ) ) );
 		entries.Add( Method( "Effect.Include", Intrinsic.EffectInclude, ScriptType.Void, effect, "Adds every layer of another effect to this one (as long as there is room for them).", "Effect.Include( Effects.Preset( \"Hearts\" ) )", build,
 			P( "other", ScriptType.Effect, "From Effects.Mine or Effects.Preset" ) ) );
@@ -40,11 +40,15 @@ public static partial class ScriptLibrary
 
 	private static LibraryEntry PropertyEntry( ScriptProperty property )
 	{
+		var weapon = ScriptPlace.WeaponBuild;
 		var (owner, category, where, write) = property.Owner switch
 		{
 			TypeKind.Layer => ("Layer", "Layer", ScriptPlace.Effect, property.Live ? ScriptPlace.Effect : ScriptPlace.EffectBuild),
+			TypeKind.Effect when property.Id == PropertyId.EffectWhen => ("Effect", "Weapon", weapon, weapon),
+			TypeKind.Effect when OnWeaponEffects( property.Id ) => ("Effect", "Effect", ScriptPlace.EffectBuild | weapon, ScriptPlace.EffectBuild | weapon),
 			TypeKind.Effect => ("Effect", "Effect", ScriptPlace.EffectBuild, ScriptPlace.EffectBuild),
 			TypeKind.Shape => ("Shape", "Shape", ScriptPlace.Build, ScriptPlace.Build),
+			TypeKind.Weapon or TypeKind.WeaponSkin or TypeKind.WeaponSticker or TypeKind.WeaponProp => (property.Owner.ToString(), "Weapon", weapon, weapon),
 			_ => ("EmblemLayer", "Emblem", ScriptPlace.Build, ScriptPlace.Build),
 		};
 
@@ -52,16 +56,26 @@ public static partial class ScriptLibrary
 		{
 			Name = owner + "." + property.Name, Kind = EntryKind.Property, Type = property.Type, Category = category, Doc = property.Doc,
 			Where = where, WriteWhere = property.ReadOnly ? ScriptPlace.None : write, Access = PropertyAccess.Builder, Slot = (int)property.Id,
-			Min = property.Min, Max = property.Max, Example = PropertyExample( property ), ExampleKind = ScriptKind.Effect,
+			Min = property.Min, Max = property.Max, Example = PropertyExample( property ),
+			ExampleKind = category == "Weapon" ? ScriptKind.Weapon : ScriptKind.Effect,
 		};
 	}
+
+	/// <summary>Whether an effect's <paramref name="property"/> can be set on an effect a weapon design puts on its weapon (by its handle): not its key, anchor or place.</summary>
+	internal static bool OnWeaponEffects( PropertyId property ) => property is PropertyId.EffectName or PropertyId.EffectOff or PropertyId.EffectHue
+		or PropertyId.EffectSize or PropertyId.EffectAmount or PropertyId.EffectSpeed or PropertyId.EffectWhen;
 
 	private static string PropertyExample( ScriptProperty property )
 	{
 		var (setup, value) = property.Owner switch
 		{
 			TypeKind.Layer => ("local glow = Sprite()\n", "glow"),
+			TypeKind.Effect when property.Id == PropertyId.EffectWhen => ("local tracer = Weapon.AddEffect( Effects.Preset( \"Bullet tracer\" ) )\n", "tracer"),
 			TypeKind.Effect => ("", "Effect"),
+			TypeKind.Weapon => ("", "Weapon"),
+			TypeKind.WeaponSkin => ("", "Skin"),
+			TypeKind.WeaponSticker => ("local star = Weapon.AddSticker( Shapes.Star5 )\n", "star"),
+			TypeKind.WeaponProp => ("local can = Weapon.AddProp( \"models/sbox_props/cola_can/cola_can.vmdl\" )\n", "can"),
 			TypeKind.Shape => ("local badge = Shapes.New( \"Badge\" )\n", "badge"),
 			_ => ("local badge = Shapes.New( \"Badge\" )\nlocal star = badge.AddLayer( Shapes.Star5 )\n", "star"),
 		};
@@ -72,6 +86,43 @@ public static partial class ScriptLibrary
 		var set = property.ExampleValue is null ? "" : $"{value}.{property.Name} = {property.ExampleValue}\n";
 		return $"{setup}{set}local value = {value}.{property.Name} --> {property.ExampleResult}";
 	}
+
+	private static void AddWeapons( List<LibraryEntry> entries )
+	{
+		const string weapon = "Weapon";
+		var build = ScriptPlace.WeaponBuild;
+		entries.Add( new LibraryEntry
+		{
+			Name = "Weapon", Kind = EntryKind.Constant, Type = ScriptType.Weapon, Category = weapon, Where = build, Value = new[] { 0.0 },
+			Doc = "The weapon a design script is for: its finish and tint, and what is put on it (stickers, props, hidden parts, effects).",
+			Example = "Weapon.Finish = Finish.Chrome\nlocal made = Weapon.Finish --> Finish.Chrome", ExampleKind = ScriptKind.Weapon,
+		} );
+		entries.Add( new LibraryEntry
+		{
+			Name = "Skin", Kind = EntryKind.Constant, Type = ScriptType.WeaponSkin, Category = weapon, Where = build, Value = new[] { 0.0 },
+			Doc = "What is painted over the weapon: a pattern from every side, and a colour moving over it.",
+			Example = "Skin.Pattern = Pattern.Camo\nlocal laid = Skin.Pattern --> Pattern.Camo", ExampleKind = ScriptKind.Weapon,
+		} );
+		entries.Add( WeaponMethod( "Weapon.AddSticker", Intrinsic.WeaponAddSticker, ScriptType.WeaponSticker,
+			"Sticks a picture onto the weapon, pressed onto its surface (at most 8): a picture, a standard shape, or a shape or sticker of the player's own.",
+			"local star = Weapon.AddSticker( Shapes.Star5 )\nstar.Position = Vector3( 8, 0, 7 )\nlocal shown = star.Picture --> Shapes.Star5",
+			P( "picture", ScriptType.Picture, "What it shows" ) ) );
+		entries.Add( WeaponMethod( "Weapon.AddProp", Intrinsic.WeaponAddProp, ScriptType.WeaponProp,
+			"Puts a stock prop on the weapon (at most 8), by its model's path: its longest side is held to 16 units, and it stays within the weapon's bounds grown by 8.",
+			"local can = Weapon.AddProp( \"models/sbox_props/cola_can/cola_can.vmdl\" )\ncan.Scale = 0.5\nlocal size = can.Scale --> 0.5",
+			P( "model", ScriptType.String, "The model's path" ) ) );
+		entries.Add( WeaponMethod( "Weapon.HidePart", Intrinsic.WeaponHidePart, ScriptType.Void,
+			"Hides a part of the weapon by its name (a rail, the sights: what its model lets show or hide; at most 16); a part it doesn't have is passed over.",
+			"Weapon.HidePart( \"rail\" )",
+			P( "part", ScriptType.String, "The part's name" ) ) );
+		entries.Add( WeaponMethod( "Weapon.AddEffect", Intrinsic.WeaponAddEffect, ScriptType.Effect,
+			"Puts an effect on the weapon, coming from it (at most 4, 8 layers between them): change its sliders and When on what it gives back.",
+			"local flash = Weapon.AddEffect( Effects.Preset( \"Muzzle flash\" ) )\nflash.Hue = 0.5\nlocal hue = flash.Hue --> 0.5",
+			P( "effect", ScriptType.Effect, "From Effects.Preset or Effects.Mine" ) ) );
+	}
+
+	private static LibraryEntry WeaponMethod( string name, Intrinsic op, ScriptType returns, string doc, string example, params LibraryParameter[] parameters ) =>
+		Method( name, op, returns, "Weapon", doc, example, ScriptPlace.WeaponBuild, parameters );
 
 	private static void AddShapes( List<LibraryEntry> entries )
 	{

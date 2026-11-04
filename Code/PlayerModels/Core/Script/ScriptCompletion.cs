@@ -68,6 +68,13 @@ public static class ScriptCompletion
 				return;
 			}
 
+			// A weapon design's: the parts of the weapon held, the stock props
+			if ( name is "Weapon.HidePart" or "Weapon.AddProp" )
+			{
+				LibraryItems( context.Library, name == "Weapon.HidePart" ? LibraryItemKind.Part : LibraryItemKind.Prop, items );
+				return;
+			}
+
 			if ( name == "Effects.Preset" )
 			{
 				foreach ( var preset in EffectPresets.All )
@@ -75,6 +82,14 @@ public static class ScriptCompletion
 
 				return;
 			}
+		}
+
+		// A prop's part or model: prop.Part = "..", prop.Model = ".."
+		if ( n >= 3 && before[ ^1 ].Kind == TokenKind.Assign && before[ ^3 ].Kind == TokenKind.Dot && context.Text( before[ ^2 ] ) is "Part" or "Model"
+			&& context.Resolve( context.ChainBefore( n - 3 ), context.Caret ).Type?.Kind == TypeKind.WeaponProp )
+		{
+			LibraryItems( context.Library, context.Text( before[ ^2 ] ) == "Part" ? LibraryItemKind.Part : LibraryItemKind.Prop, items );
+			return;
 		}
 
 		// A key: Effect.Key = "..", or a comparison with a key (OnKey's key == "..")
@@ -99,9 +114,18 @@ public static class ScriptCompletion
 			if ( item.Kind != kind )
 				continue;
 
-			var group = kind switch { LibraryItemKind.Shape => "My shapes", LibraryItemKind.Sticker => "My stickers", LibraryItemKind.Emblem => "My emblems", _ => "My effects" };
+			if ( kind is LibraryItemKind.Part or LibraryItemKind.Prop )
+			{
+				var (detail, doc, group) = kind == LibraryItemKind.Part
+					? ("Part", "A part of the weapon you hold: it can be hidden, or a prop can take its place or go on it.", "This weapon's parts")
+					: ("Prop", "A stock prop, by its model's path.", "Props");
+				items.Add( new CompletionItem( item.Name, CompletionKind.Constant, detail, doc, item.Name, group ) );
+				continue;
+			}
+
+			var mine = kind switch { LibraryItemKind.Shape => "My shapes", LibraryItemKind.Sticker => "My stickers", LibraryItemKind.Emblem => "My emblems", _ => "My effects" };
 			items.Add( new CompletionItem( item.Name, kind == LibraryItemKind.Effect ? CompletionKind.Effect : CompletionKind.Shape, kind.ToString(), $"One of your own {kind.ToString().ToLowerInvariant()}s.",
-				item.Name, group, item.ContentId ) );
+				item.Name, mine, item.ContentId ) );
 		}
 	}
 

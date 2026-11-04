@@ -169,8 +169,11 @@ public sealed class PlayerLook
 		var effects = Effect.Sanitized( Effects, shapes );
 		var weapons = WeaponDesign.Sanitized( Weapons, shapes );
 
-		// A look's scripts, its body's then its weapons', are held to their size together
-		Effect.HoldScriptsTo( effects.Concat( weapons.SelectMany( x => x.Effects ?? new() ) ).ToList(), Script.ScriptLimits.MaxLookBytes );
+		// A look's scripts, its body's then its weapons' effects', then its weapon designs', are held to their size together
+		var scripted = effects.Concat( weapons.SelectMany( x => x.Effects ?? new() ) ).ToList();
+		Effect.HoldScriptsTo( scripted, Script.ScriptLimits.MaxLookBytes );
+		var used = scripted.Sum( x => x.Script is null ? 0 : Script.ScriptLimits.Utf8Bytes( x.Script ) );
+		WeaponDesign.HoldScriptsTo( weapons, Script.ScriptLimits.MaxLookBytes - used );
 		return new PlayerLook
 		{
 			Model = model.Length <= MaxModelLength ? model : "",

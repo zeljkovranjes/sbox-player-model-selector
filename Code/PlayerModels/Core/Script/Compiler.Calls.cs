@@ -225,6 +225,7 @@ public sealed partial class Compiler
 
 	// The intrinsics that make a layer, a shape or an emblem layer: the site making it goes with them
 	private static bool Makes( Intrinsic op ) => op is Intrinsic.Sprite or Intrinsic.Light or Intrinsic.Trail or Intrinsic.Beam or Intrinsic.Ghost
+		or Intrinsic.WeaponAddSticker or Intrinsic.WeaponAddProp or Intrinsic.WeaponHidePart or Intrinsic.WeaponAddEffect
 		or Intrinsic.ShapeNew
 		or Intrinsic.ShapeText or Intrinsic.ShapesMine or Intrinsic.StickersMine or Intrinsic.EmblemsMine or Intrinsic.ShapeAddLayer;
 
@@ -307,6 +308,10 @@ public sealed partial class Compiler
 			message = $"'{name}' is for sticker and weapon skin scripts" + (entry.Name == "i" ? ": in a particle function use p.Index" : "");
 		else if ( where == ScriptPlace.SkinRun )
 			message = $"'{name}' is for weapon skin scripts";
+		else if ( where == ScriptPlace.WeaponBuild )
+			message = $"'{name}' is for weapon design scripts";
+		else if ( _kind == ScriptKind.Weapon && (where & ScriptPlace.EffectBuild) != 0 )
+			message = $"'{name}' makes an effect: in a weapon design, put one on with Weapon.AddEffect( Effects.Preset( \"...\" ) )";
 		else if ( (where & ScriptPlace.Run) != 0 && (here & ScriptPlace.Build) != 0 && _kind == ScriptKind.Effect )
 			message = $"'{name}' changes while the effect runs: use it inside a function, like function OnUpdate( dt ) ... end";
 		else if ( (where & ScriptPlace.Effect) == where )

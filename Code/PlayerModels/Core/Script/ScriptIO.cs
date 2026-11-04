@@ -99,8 +99,11 @@ public interface IScriptHost
 	void EmitAt( int layer, double x, double y, double z, int count );
 }
 
-/// <summary>What a thing in the player's own library is.</summary>
-public enum LibraryItemKind { Shape, Sticker, Emblem, Effect }
+/// <summary>
+/// What a thing in the player's library is: their shapes, stickers, emblems and effects, and for a weapon design script
+/// the parts of the weapon held and the stock props, offered while typing.
+/// </summary>
+public enum LibraryItemKind { Shape, Sticker, Emblem, Effect, Part, Prop }
 
 /// <summary>One thing in the player's library: its name, kind, and the id of its content (for its thumbnail).</summary>
 public readonly record struct LibraryItem( string Name, LibraryItemKind Kind, string ContentId );

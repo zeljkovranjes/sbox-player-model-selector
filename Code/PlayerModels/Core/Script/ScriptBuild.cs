@@ -34,6 +34,9 @@ public sealed class ScriptBuild
 	public Effect Effect { get; init; }
 	public DrawnShape Shape { get; init; }
 
+	/// <summary>A weapon design script's design, its weapon left for the caller to name.</summary>
+	public WeaponDesign Design { get; init; }
+
 	/// <summary>A shape script's emblem layers (empty for a plain shape).</summary>
 	public IReadOnlyList<EmblemPart> Emblem { get; init; } = System.Array.Empty<EmblemPart>();
 
@@ -51,6 +54,31 @@ public sealed class ScriptBuild
 
 	/// <summary>The effect-level owner in <see cref="Sites"/> (a layer is its index).</summary>
 	internal const int EffectOwner = -1;
+
+	/// <summary>
+	/// A weapon design's owners in <see cref="Sites"/>: the weapon and its skin, then its stickers, props and effects by
+	/// their place in it.
+	/// </summary>
+	public const int WeaponOwner = -2;
+	public const int StickerOwner = 10_000;
+	public const int PropOwner = 20_000;
+	public const int EffectOwnerBase = 30_000;
+
+	internal int[] StickerSites { get; init; } = System.Array.Empty<int>();
+	internal int[] PropSites { get; init; } = System.Array.Empty<int>();
+	internal int[] PartSites { get; init; } = System.Array.Empty<int>();
+	internal int[] EffectSites { get; init; } = System.Array.Empty<int>();
+
+	/// <summary>Where design field <paramref name="property"/> of <paramref name="owner"/> (see <see cref="WeaponOwner"/>) came from.</summary>
+	public FieldSource SourceOf( PropertyId property, int owner ) => Source( owner, property );
+
+	/// <summary>The statement that put sticker, prop, hidden part or effect <paramref name="index"/> on the weapon; null when unknown.</summary>
+	public ScriptSite StickerSite( int index ) => SiteOf( StickerSites, index );
+	public ScriptSite PropSite( int index ) => SiteOf( PropSites, index );
+	public ScriptSite PartSite( int index ) => SiteOf( PartSites, index );
+	public ScriptSite EffectSite( int index ) => SiteOf( EffectSites, index );
+
+	private ScriptSite SiteOf( int[] sites, int index ) => index >= 0 && index < sites.Length && sites[ index ] >= 0 ? Program.Sites[ sites[ index ] ] : null;
 
 	internal static ScriptBuild Failed( ScriptError error ) => new() { Error = error };
 

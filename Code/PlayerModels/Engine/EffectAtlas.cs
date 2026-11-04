@@ -5,7 +5,8 @@ using Sandbox;
 namespace PlayerModels.Engine;
 
 /// <summary>
-/// The pictures effects' sprites are drawn with: each drawn on this client from its lines (see <see cref="EffectShape"/>)
+/// The pictures effects' sprites are drawn with, the curated ones and the standard shapes (see
+/// <see cref="StandardShapes.Picture"/>): each drawn on this client from its lines (see <see cref="EffectShape"/>)
 /// into a slot of its own the first time a layer needs it, so nothing is shipped, published or downloaded, and kept for
 /// every effect of every player. A slot is a small texture white all over with the shape in its alpha, for each layer
 /// to tint. Sprites draw bindless and batch by blending alone, not by texture, so every effect's sprites still batch
@@ -21,19 +22,20 @@ internal static class EffectAtlas
 
 	private static readonly Dictionary<string, Slot> Slots = new();
 
-	/// <summary>The sprite of the curated picture <paramref name="picture"/>.</summary>
-	internal static Sprite SpriteOf( LayerPicture picture ) => SlotOf( picture ).Sprite;
+	/// <summary>The sprite of <paramref name="layer"/>'s picture: a curated one, or a standard shape.</summary>
+	internal static Sprite SpriteOf( EffectLayer layer ) => SlotOf( layer ).Sprite;
 
-	/// <summary>The texture of <paramref name="picture"/>, for a tile on the page.</summary>
-	internal static Texture TextureOf( LayerPicture picture ) => SlotOf( picture ).Texture;
+	/// <summary>The texture of <paramref name="layer"/>'s picture, for a tile on the page.</summary>
+	internal static Texture TextureOf( EffectLayer layer ) => SlotOf( layer ).Texture;
 
-	private static Slot SlotOf( LayerPicture picture )
+	private static Slot SlotOf( EffectLayer layer )
 	{
-		var name = picture.ToString();
+		var shape = layer.PictureShape;
+		var name = shape?.ToString() ?? layer.PictureIs.ToString();
 		if ( Slots.TryGetValue( name, out var slot ) && slot.Texture.IsValid() )
 			return slot;
 
-		var texture = Draw( EffectShape.Of( picture ), name );
+		var texture = Draw( shape is { } standard ? StandardShapes.Picture( standard ) : EffectShape.Of( layer.PictureIs ), name );
 		slot = new Slot( texture, Sprite.FromTexture( texture ) );
 		Slots[ name ] = slot;
 		return slot;

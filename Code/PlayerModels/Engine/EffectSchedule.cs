@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using PlayerModels.Components;
 using PlayerModels.Core;
 using Sandbox;
 
@@ -11,8 +10,9 @@ namespace PlayerModels.Engine;
 /// <see cref="EffectBudget"/>), but a full server of them together could still be too much, so all of them share one
 /// budget too, the nearest bodies first: far ones thin out first, and the lights go to the nearest. Bodies further away
 /// show fewer sprites and past the mid distance none (see <see cref="PoseSchedule.EffectsShareFor"/>), and out of view
-/// they pause. It also lets only so many layers be built each frame, and keeps the objects of layers taken off to build
-/// the next ones from.
+/// they pause. It also lets only so many layers be built each frame, keeps the objects of layers taken off to build
+/// the next ones from, and has every body wearing effects read what it is doing each frame, before its animation runs
+/// (see <see cref="EffectSignals"/>).
 /// </summary>
 internal sealed class EffectSchedule : GameObjectSystem<EffectSchedule>
 {
@@ -31,11 +31,17 @@ internal sealed class EffectSchedule : GameObjectSystem<EffectSchedule>
 
 	private const string PoolName = "Effect layers kept";
 
-	private readonly List<ModelBody> _bodies = new();
 	private readonly Stack<EffectLayerObject> _keptSprites = new();
 	private readonly Stack<EffectLayerObject> _keptLights = new();
+
+	// Made where used: a hot reload keeps this system but not fields added since
+	private List<EffectRack> _wornRacks;
+	private Stack<EffectLayerObject> _keptTrails;
+
+	private List<EffectRack> Worn => _wornRacks ??= new();
 	private GameObject _pool;
 	private int _builtThisFrame;
+	private float _countedAt = -1f;
 	private RealTimeSince _sinceAllot;
 
 	// The bodies wearing effects, nearest first, and what each wants and gets: grown when there are more, never made
@@ -54,6 +60,22 @@ internal sealed class EffectSchedule : GameObjectSystem<EffectSchedule>
 	{
 		// After PoseSchedule reads the camera, before the bodies are posed
 		Listen( Stage.FinishUpdate, 1, Tick, "EffectSchedule.Tick" );
+
+		// After the game sets the animation for the frame, before it runs and clears the moments it was told of
+		Listen( Stage.UpdateBones, -50, Read, "EffectSchedule.Read" );
+	}
+
+	/// <summary>Counts <paramref name="rack"/> among the bodies wearing effects, once it shows any.</summary>
+	internal void Wear( EffectRack rack )
+	{
+		if ( !Worn.Contains( rack ) )
+			Worn.Add( rack );
+	}
+
+	/// <summary>Stops counting <paramref name="rack"/>: it shows nothing now.</summary>
+	internal void TakeOff( EffectRack rack )
+	{
+		Worn.Remove( rack );
 	}
 
 	/// <summary>
@@ -62,6 +84,14 @@ internal sealed class EffectSchedule : GameObjectSystem<EffectSchedule>
 	/// </summary>
 	internal bool TryBuild( int layers )
 	{
+		// Counted by the frame's time, not only from Tick: a preview's scene doesn't run its systems, and a count never
+		// started again would keep its effects from ever being built again
+		if ( Time.Now != _countedAt )
+		{
+			_countedAt = Time.Now;
+			_builtThisFrame = 0;
+		}
+
 		if ( _builtThisFrame > 0 && _builtThisFrame + layers > LayersPerFrame )
 			return false;
 
@@ -70,9 +100,9 @@ internal sealed class EffectSchedule : GameObjectSystem<EffectSchedule>
 	}
 
 	/// <summary>A kept layer object of the kind asked for, or null when none is kept.</summary>
-	internal EffectLayerObject Take( bool isLight )
+	internal EffectLayerObject Take( LayerKind kind )
 	{
-		var kept = isLight ? _keptLights : _keptSprites;
+		var kept = Kept( kind );
 		while ( kept.TryPop( out var layer ) )
 		{
 			if ( layer.Root.IsValid() )
@@ -88,7 +118,7 @@ internal sealed class EffectSchedule : GameObjectSystem<EffectSchedule>
 		if ( !layer.Root.IsValid() )
 			return;
 
-		var kept = layer.IsLight ? _keptLights : _keptSprites;
+		var kept = Kept( layer.Kind );
 		if ( kept.Count >= MostKept || Pool() is not { } pool )
 		{
 			layer.Root.Destroy();
@@ -98,6 +128,26 @@ internal sealed class EffectSchedule : GameObjectSystem<EffectSchedule>
 		layer.Root.Enabled = false;
 		layer.Root.SetParent( pool, false );
 		kept.Push( layer );
+	}
+
+	private Stack<EffectLayerObject> Kept( LayerKind kind ) => kind switch
+	{
+		LayerKind.Light => _keptLights,
+		LayerKind.Trail => _keptTrails ??= new(),
+		_ => _keptSprites,
+	};
+
+	// Every frame: each body reads what it is doing, gone ones are let go. No allocations
+	private void Read()
+	{
+		var worn = Worn;
+		for ( var i = worn.Count - 1; i >= 0; i-- )
+		{
+			if ( worn[ i ].IsWorn && worn[ i ].Source.IsValid() )
+				worn[ i ].Read();
+			else
+				worn.RemoveAt( i );
+		}
 	}
 
 	private GameObject Pool()
@@ -128,14 +178,11 @@ internal sealed class EffectSchedule : GameObjectSystem<EffectSchedule>
 	// Runs a few times a second for every body: no allocations once the arrays are big enough
 	private void Allot()
 	{
-		_bodies.Clear();
-		Scene.GetAll( _bodies );
-
 		var poses = Scene.GetSystem<PoseSchedule>();
 		var count = 0;
-		foreach ( var body in _bodies )
+		foreach ( var rack in Worn )
 		{
-			if ( body.Effects is not { IsWorn: true } rack || !body.Source.IsValid() )
+			if ( !rack.IsWorn || !rack.Source.IsValid() )
 				continue;
 
 			if ( count == _racks.Length )
@@ -143,7 +190,7 @@ internal sealed class EffectSchedule : GameObjectSystem<EffectSchedule>
 
 			var seen = true;
 			var distance = 0f;
-			var tier = poses?.EffectsShareFor( body.Source.Bounds, out seen, out distance ) ?? 1f;
+			var tier = poses?.EffectsShareFor( rack.Source.Bounds, out seen, out distance ) ?? 1f;
 
 			_racks[ count ] = rack;
 			_distances[ count ] = distance;

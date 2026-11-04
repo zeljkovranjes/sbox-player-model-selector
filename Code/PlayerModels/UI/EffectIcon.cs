@@ -54,7 +54,7 @@ public sealed class EffectIcon : Panel
 				continue;
 
 			var picture = AddChild<Panel>( $"picture picture-{shown} {MotionOf( layer )}" );
-			picture.Style.BackgroundImage = EffectAtlas.TextureOf( layer.PictureIs );
+			picture.Style.BackgroundImage = EffectAtlas.TextureOf( layer );
 			picture.Style.BackgroundTint = Color.Parse( layer.Color ) ?? Color.White;
 
 			if ( layer.ColorModeIs != LayerColorMode.Fixed )

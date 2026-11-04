@@ -7,9 +7,11 @@ namespace PlayerModels.Engine;
 /// <summary>
 /// Where each joint effects come from is on one body (see <see cref="Effect.Joint"/>), worked out once a frame however
 /// many layers come from it. A joint is the worn model's bone for the citizen's (as items find theirs, see
-/// <see cref="AccessoryRack.TryGetJoint"/>), facing the way the body faces at rest turned as the joint is now, and as big
-/// as the model is next to the citizen effects are made on. The eyes are where the model marks them, or else in front of
-/// its head; the crown is as high over the head bone as the model reaches. Runs every frame: no allocations.
+/// <see cref="AccessoryRack.TryGetJoint"/>), or the citizen's own when it wears no model, facing the way the body faces at
+/// rest turned as the joint is now, and as big as the model is next to the citizen effects are made on. The eyes are where
+/// the model marks them, or else in front of its head; the crown is as high over the head bone as the model reaches. A
+/// joint the model doesn't have is stood in for: the feet under the hips, anything else by the hips, or by the body
+/// itself. Runs every frame: no allocations.
 /// </summary>
 internal sealed class EffectJoints
 {
@@ -32,14 +34,21 @@ internal sealed class EffectJoints
 	private const float MinBodyScale = 0.25f;
 	private const float MaxBodyScale = 4f;
 
+	// Where the feet are on a model without foot bones: this far to each side of the hips, on the ground under them
+	private const float FootApart = 4f;
+
 	// Each joint's bone on the citizen, the worn model's bone for it, the citizen's bind turn undone, and the model's own
 	// marks (a bone and the place on it)
 	private readonly BoneCollection.Bone[] _sourceBones;
 	private readonly string[] _targetBones;
 	private readonly Rotation[] _unbind;
 	private readonly string[] _pointBones;
+	private readonly int[] _pointIndices;
 	private readonly Vector3[] _pointOffsets;
 	private readonly float _crownAbove;
+
+	// Without a model the citizen's own bones are the joints, read straight off it
+	private readonly bool _isCitizen;
 
 	// Each joint as placed this frame (a bit per joint for found, another for missing)
 	private readonly Transform[] _placed;
@@ -49,14 +58,19 @@ internal sealed class EffectJoints
 	/// <summary>How big the model is next to the citizen effects are made on, by height.</summary>
 	internal float BodyScale { get; }
 
-	/// <summary>The joints of <paramref name="model"/>, worn over <paramref name="citizen"/> and posed by <paramref name="transfer"/>.</summary>
+	/// <summary>
+	/// The joints of <paramref name="model"/>, worn over <paramref name="citizen"/> and posed by <paramref name="transfer"/>;
+	/// or, without a transfer, the citizen's own (<paramref name="model"/> is the citizen then).
+	/// </summary>
 	internal EffectJoints( PoseTransfer transfer, Model citizen, Model model )
 	{
 		var joints = Enum.GetValues<Effect.Joint>();
+		_isCitizen = transfer is null;
 		_sourceBones = new BoneCollection.Bone[ joints.Length ];
 		_targetBones = new string[ joints.Length ];
 		_unbind = new Rotation[ joints.Length ];
 		_pointBones = new string[ joints.Length ];
+		_pointIndices = new int[ joints.Length ];
 		_pointOffsets = new Vector3[ joints.Length ];
 		_placed = new Transform[ joints.Length ];
 
@@ -64,7 +78,7 @@ internal sealed class EffectJoints
 		{
 			var bone = AccessoryRack.BoneOf( joints[ i ].ToString() );
 			_sourceBones[ i ] = citizen.Bones.GetBone( bone );
-			_targetBones[ i ] = _sourceBones[ i ] is not null && transfer.TryMapBone( bone, out _, out var target ) ? target : null;
+			_targetBones[ i ] = _sourceBones[ i ] is null ? null : _isCitizen ? bone : transfer.TryMapBone( bone, out _, out var target ) ? target : null;
 			_unbind[ i ] = (_sourceBones[ i ]?.LocalTransform.Rotation ?? Rotation.Identity).Inverse;
 		}
 
@@ -119,27 +133,24 @@ internal sealed class EffectJoints
 		if ( model.Attachments?.Get( attachment ) is { Bone: { } on } marked )
 		{
 			_pointBones[ (int)joint ] = on.Name;
+			_pointIndices[ (int)joint ] = on.Index;
 			_pointOffsets[ (int)joint ] = marked.LocalTransform.Position;
 		}
-		else if ( bone is not null && model.Bones.HasBone( bone ) )
+		else if ( bone is not null && model.Bones.GetBone( bone ) is { } marking )
 		{
 			_pointBones[ (int)joint ] = bone;
+			_pointIndices[ (int)joint ] = marking.Index;
 		}
 	}
 
 	private bool Find( int joint, SkinnedModelRenderer citizen, SkinnedModelRenderer model, PoseTransfer transfer, out Transform placed )
 	{
-		placed = default;
-		if ( _targetBones[ joint ] is not { } targetBone
-			|| !AccessoryRack.TryGetJoint( citizen, model, transfer, _sourceBones[ joint ], targetBone, out var target, out var turn ) )
-			return false;
-
-		var heading = turn * _unbind[ joint ];
 		var scale = model.WorldScale.x * BodyScale;
-		var position = target.Position;
+		if ( !TryBone( joint, citizen, model, transfer, out var position, out var heading ) )
+			return StandIn( joint, citizen, model, transfer, scale, out placed );
 
-		if ( _pointBones[ joint ] is { } pointBone && transfer.TryGetPosedBone( model, pointBone, out var marked ) )
-			position = marked.PointToWorld( _pointOffsets[ joint ] );
+		if ( TryMarked( joint, citizen, model, transfer, out var marked ) )
+			position = marked;
 		else if ( joint == (int)Effect.Joint.Eyes )
 			position += heading * (EyesFromHead * scale);
 		else if ( joint is (int)Effect.Joint.LeftEye or (int)Effect.Joint.RightEye && TryGet( (int)Effect.Joint.Eyes, citizen, model, transfer, out var eyes ) )
@@ -148,6 +159,81 @@ internal sealed class EffectJoints
 			position += heading * new Vector3( 0f, 0f, _crownAbove * model.WorldScale.x );
 
 		placed = new Transform( position, heading, scale );
+		return true;
+	}
+
+	// Where the bone of a joint is posed now, turned as the citizen's would be
+	private bool TryBone( int joint, SkinnedModelRenderer citizen, SkinnedModelRenderer model, PoseTransfer transfer, out Vector3 position, out Rotation heading )
+	{
+		position = default;
+		heading = Rotation.Identity;
+		if ( _targetBones[ joint ] is not { } targetBone )
+			return false;
+
+		if ( _isCitizen )
+		{
+			var world = citizen.BoneWorldTransforms;
+			var index = _sourceBones[ joint ].Index;
+			if ( index >= world.Length )
+				return false;
+
+			position = world[ index ].Position;
+			heading = world[ index ].Rotation * _unbind[ joint ];
+			return true;
+		}
+
+		if ( !AccessoryRack.TryGetJoint( citizen, model, transfer, _sourceBones[ joint ], targetBone, out var target, out var turn ) )
+			return false;
+
+		position = target.Position;
+		heading = turn * _unbind[ joint ];
+		return true;
+	}
+
+	// Where the model marks a joint (the eyes), posed now
+	private bool TryMarked( int joint, SkinnedModelRenderer citizen, SkinnedModelRenderer model, PoseTransfer transfer, out Vector3 position )
+	{
+		position = default;
+		if ( _pointBones[ joint ] is not { } pointBone )
+			return false;
+
+		if ( _isCitizen )
+		{
+			var world = citizen.BoneWorldTransforms;
+			if ( _pointIndices[ joint ] >= world.Length )
+				return false;
+
+			position = world[ _pointIndices[ joint ] ].PointToWorld( _pointOffsets[ joint ] );
+			return true;
+		}
+
+		if ( !transfer.TryGetPosedBone( model, pointBone, out var marked ) )
+			return false;
+
+		position = marked.PointToWorld( _pointOffsets[ joint ] );
+		return true;
+	}
+
+	// A joint the model doesn't have: a foot on the ground under the hips, to its side; anything else the hips, or without
+	// those the body where it stands
+	private bool StandIn( int joint, SkinnedModelRenderer citizen, SkinnedModelRenderer model, PoseTransfer transfer, float scale, out Transform placed )
+	{
+		const int hips = (int)Effect.Joint.Hips;
+		if ( joint == hips || !TryGet( hips, citizen, model, transfer, out var hipsPlaced ) )
+		{
+			placed = new Transform( model.WorldPosition, model.WorldRotation, scale );
+			return true;
+		}
+
+		if ( joint is (int)Effect.Joint.LeftFoot or (int)Effect.Joint.RightFoot )
+		{
+			var side = joint == (int)Effect.Joint.LeftFoot ? FootApart : -FootApart;
+			var under = hipsPlaced.Position + model.WorldRotation * new Vector3( 0f, side * scale, 0f );
+			placed = new Transform( under.WithZ( model.WorldPosition.z ), model.WorldRotation, scale );
+			return true;
+		}
+
+		placed = hipsPlaced;
 		return true;
 	}
 }

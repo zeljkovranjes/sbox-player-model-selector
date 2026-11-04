@@ -97,9 +97,11 @@ public sealed class ModelBody : Component
 
 	/// <summary>
 	/// Customises the model as <paramref name="look"/> says: body group choices, morph weights, skin, colours, body
-	/// shape, items and effects. Whatever it no longer lists goes back to the model's default.
+	/// shape, items and effects. Whatever it no longer lists goes back to the model's default. <paramref name="keyShown"/>
+	/// says whether an effect with a key shows now (null: always, as in a preview), and <paramref name="health"/> reads its
+	/// wearer's health, for effects that show when hurt (null: never).
 	/// </summary>
-	internal void ApplyLook( PlayerLook look )
+	internal void ApplyLook( PlayerLook look, Func<string, bool> keyShown = null, Func<float> health = null )
 	{
 		if ( !_renderer.IsValid() || look is null )
 			return;
@@ -117,7 +119,7 @@ public sealed class ModelBody : Component
 		_accessories.Apply( look.Accessories, GameObject, _transfer, Source.Model, _renderer.Model, FindOwnRenderers );
 
 		_effects ??= new EffectRack();
-		_effects.Apply( look.Effects, GameObject, _transfer, Source.Model, _renderer.Model );
+		_effects.Apply( look.Effects, look.Accessories, GameObject, _transfer, Source, _renderer.Model, keyShown, health );
 	}
 
 	/// <summary>
@@ -216,7 +218,7 @@ public sealed class ModelBody : Component
 		_transfer.Apply( Source, _renderer );
 		_held.Place( Source, _renderer, _transfer );
 		_accessories?.Place( Source, _renderer, _transfer );
-		_effects?.Place( Source, _renderer, _transfer );
+		_effects?.Place( Source, _renderer, _transfer, _accessories, _held );
 	}
 
 	/// <summary>

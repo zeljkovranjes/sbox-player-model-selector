@@ -20,8 +20,8 @@ public static partial class PresetScripts
 	};
 
 	/// <summary>
-	/// The presets, each built from its script; a script that doesn't build is left out (the tests keep every one
-	/// building).
+	/// The presets, each built from its script and carrying it (minified, as a look keeps it); a script that doesn't build
+	/// is left out (the tests keep every one building).
 	/// </summary>
 	public static List<Effect> Gallery()
 	{
@@ -29,8 +29,11 @@ public static partial class PresetScripts
 		foreach ( var (_, script) in All )
 		{
 			var compiled = ScriptCompiler.Compile( script );
-			if ( compiled.Succeeded && new ScriptMachine( compiled.Program ).Build() is { Succeeded: true } build )
-				effects.Add( build.Effect );
+			if ( !compiled.Succeeded || new ScriptMachine( compiled.Program ).Build() is not { Succeeded: true } build )
+				continue;
+
+			build.Effect.Script = Minifier.Minify( script );
+			effects.Add( build.Effect );
 		}
 
 		return effects;

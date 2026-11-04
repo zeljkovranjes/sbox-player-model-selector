@@ -34,12 +34,17 @@ internal static class ScriptKit
 		return result.Errors[ 0 ].ToString();
 	}
 
-	/// <summary>An effect as a look keeps it, without what stays outside its script (its id, where it was forked from).</summary>
+	/// <summary>
+	/// An effect as a look keeps it, without what stays outside what its script builds (its id, where it was forked from,
+	/// the script itself and the parameters chosen).
+	/// </summary>
 	public static string Data( Effect effect )
 	{
 		var copy = effect.Sanitized();
 		copy.Id = "";
 		copy.ForkedFrom = null;
+		copy.Script = null;
+		copy.Parameters = null;
 		return JsonSerializer.Serialize( copy );
 	}
 

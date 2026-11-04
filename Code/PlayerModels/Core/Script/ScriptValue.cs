@@ -91,6 +91,9 @@ public static class ScriptValue
 				'\\' => "\\\\",
 				'\n' => "\\n",
 				'\t' => "\\t",
+
+				// The language writes no other control character (a carriage return, a bell): typed text loses them
+				_ when char.IsControl( c ) => "",
 				_ => c.ToString(),
 			} );
 		}

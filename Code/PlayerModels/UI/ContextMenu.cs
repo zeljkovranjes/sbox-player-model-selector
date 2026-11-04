@@ -44,8 +44,7 @@ public sealed class ContextMenu : Panel
 			return null;
 
 		// Under the menu and over everything else: a click anywhere but the menu lands on it and closes the menu
-		_backdrop = window.AddChild<Panel>( "context-backdrop" );
-		_backdrop.AddEventListener( "onmousedown", Close );
+		_backdrop = window.AddChild<Backdrop>( "context-backdrop" );
 
 		var menu = window.AddChild<ContextMenu>();
 		menu._at = window.MousePosition;
@@ -149,5 +148,23 @@ public sealed class ContextMenu : Panel
 		// Clicks on the menu are its own
 		e.StopPropagation();
 		base.OnMouseDown( e );
+	}
+
+	// What a click away from the menu lands on. It goes with the menu, even one a hot reload lost track of, so it never
+	// stays to swallow clicks
+	private sealed class Backdrop : Panel
+	{
+		public override void Tick()
+		{
+			base.Tick();
+			if ( !IsOpen )
+				Delete( true );
+		}
+
+		protected override void OnMouseDown( MousePanelEvent e )
+		{
+			e.StopPropagation();
+			Close();
+		}
 	}
 }

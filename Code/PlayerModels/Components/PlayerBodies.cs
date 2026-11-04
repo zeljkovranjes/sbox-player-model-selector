@@ -39,14 +39,14 @@ internal sealed class PlayerBodies
 		foreach ( var player in scene.GetAll<Player>() )
 		{
 			if ( player.Controller.IsValid() && player.Controller.Renderer.IsValid() )
-				Show( player.Controller.Renderer, selector.ShownLookOf( player.Network.Owner ), player.Network.Owner, health: player );
+				Show( player.Controller.Renderer, selector.ShownLookOf( player.Network.Owner ), player.Network.Owner, selector, health: player );
 		}
 
 		// Sandbox's ragdolls are made on every client by a broadcast, each with the dead player's connection
 		foreach ( var corpse in scene.GetAll<DeathCameraTarget>() )
 		{
 			if ( corpse.Components.Get<SkinnedModelRenderer>() is { } renderer )
-				Show( renderer, selector.ShownLookOf( corpse.Connection ), corpse.Connection );
+				Show( renderer, selector.ShownLookOf( corpse.Connection ), corpse.Connection, selector );
 		}
 
 		ShowStandIns( scene, selector, false );
@@ -79,7 +79,7 @@ internal sealed class PlayerBodies
 			if ( owner is null && Networking.IsActive )
 				continue;
 
-			Show( body, selector.ShownLookOf( owner ), owner, PlayerBodyOf( scene, owner ) );
+			Show( body, selector.ShownLookOf( owner ), owner, selector, PlayerBodyOf( scene, owner ) );
 		}
 	}
 
@@ -108,7 +108,8 @@ internal sealed class PlayerBodies
 
 	// dressedAs is the body whose outfit a stock character wears: the citizen itself when null. health is the player
 	// whose health effects that show when hurt read, if the body is a living player's
-	private void Show( SkinnedModelRenderer citizen, PlayerLook look, Connection owner, SkinnedModelRenderer dressedAs = null, Player health = null )
+	private void Show( SkinnedModelRenderer citizen, PlayerLook look, Connection owner, PlayerModelSelector selector, SkinnedModelRenderer dressedAs = null,
+		Player health = null )
 	{
 		var body = ModelBody.On( citizen );
 
@@ -130,13 +131,19 @@ internal sealed class PlayerBodies
 		// The same model posed the same way only needs the rest of the look; bones picked differently need a new pose plan
 		if ( body.IsValid() && body.ModelId == pick && body.BonesKey == bones )
 		{
-			body.ApplyLook( look, null, HealthOf( health ) );
+			body.ApplyLook( look, KeyShownFor( selector, owner ), HealthOf( health ) );
 			body.ShownLook = look;
 			return;
 		}
 
 		if ( _loading.Add( citizen ) )
 			_ = ShowAsync( citizen, look, owner, dressedAs ?? citizen );
+	}
+
+	// Whether owner's effect with a key shows now, by its id: made once a look changes, read every frame
+	private static Func<string, bool> KeyShownFor( PlayerModelSelector selector, Connection owner )
+	{
+		return effect => selector.IsKeyShown( owner, effect );
 	}
 
 	private static Func<float> HealthOf( Player player )

@@ -7,8 +7,8 @@ using Sandbox;
 namespace PlayerModels.Components;
 
 // Effects: the host's switch and budget, kept with the other rules and synced from the host the same way, how much of
-// them this player chose to see, and the effects that show on a key. Nothing is taken from anyone's look: what isn't
-// shown comes back once allowed.
+// them this player chose to see, and the effects that show on a key, which a player joining late sees for the time they
+// have left. Nothing is taken from anyone's look: what isn't shown comes back once allowed.
 public sealed partial class PlayerModelSelector
 {
 	/// <summary>
@@ -36,9 +36,12 @@ public sealed partial class PlayerModelSelector
 	private EffectBudget.Quality? _effectsQuality;
 	private HashSet<long> _hiddenEffects;
 
-	// Host: when each player last pressed an effect key. One press per player per cooldown, whichever of their
-	// effects it was for, so changing ids or keys gets around nothing
-	private Dictionary<Guid, RealTimeSince> _hostTriggers;
+	// Host: when each player last pressed an effect key, and for which effect. One press per player per cooldown,
+	// whichever of their effects it was for, so changing ids or keys gets around nothing
+	private Dictionary<Guid, (string Effect, RealTimeSince Since)> _hostTriggers;
+
+	// Host: the players who asked for the effects showing on a key when they joined; each is told once
+	private HashSet<Guid> _toldShownKeys;
 
 	// Every machine: when the host last said each player's effect was triggered, by player and effect id
 	private Dictionary<(Guid Player, string Effect), RealTimeSince> _triggers;
@@ -147,42 +150,62 @@ public sealed partial class PlayerModelSelector
 
 		var id = KeyOf( Rpc.Caller );
 		_hostTriggers ??= new();
-		if ( _hostTriggers.TryGetValue( id, out var since ) && since < Effect.TriggerCooldownSeconds )
+		if ( _hostTriggers.TryGetValue( id, out var last ) && last.Since < Effect.TriggerCooldownSeconds )
 			return;
 
 		if ( !LookOf( Rpc.Caller ).Effects.Exists( x => x.Id == effect && x.Key is not null && !x.Off ) )
 			return;
 
-		_hostTriggers[ id ] = 0;
-		EffectTriggered( id, effect );
+		_hostTriggers[ id ] = (effect, 0f);
+		EffectTriggered( id, effect, 0f );
 	}
 
+	// Shows player's effect with a key, already shown for elapsed seconds (a player who joined while it showed sees the
+	// rest of it). Every client holds anything not from the host, or out of range, for nothing
 	[Rpc.Broadcast]
-	private void EffectTriggered( Guid player, string effect )
+	private void EffectTriggered( Guid player, string effect, float elapsed )
 	{
-		if ( Rpc.Caller is not { IsHost: true } || effect is null || effect.Length > Effect.MaxIdLength )
+		if ( Rpc.Caller is not { IsHost: true } || effect is null || effect.Length > Effect.MaxIdLength || !float.IsFinite( elapsed )
+			|| elapsed < 0f || elapsed >= Effect.TriggerSeconds )
 			return;
 
 		_triggers ??= new();
-		_triggers[ (player, effect) ] = 0;
+		_triggers[ (player, effect) ] = elapsed;
 	}
 
-	// Which of the look's effects (a bit each, by place) were triggered within the last TriggerSeconds. Runs for every
-	// player every scan: no allocations
-	private int TriggeredOf( Guid player, PlayerLook look )
+	// A client that just joined asks the host which effects with a key show now
+	private void AskShownKeys()
 	{
-		if ( _triggers is not { Count: > 0 } )
-			return 0;
+		ShownKeysOnHost();
+	}
 
-		var triggered = 0;
-		for ( var i = 0; i < look.Effects.Count; i++ )
+	// Host: tells the caller, once, of each effect with a key that shows now and how long it has shown
+	[Rpc.Host]
+	private void ShownKeysOnHost()
+	{
+		var caller = Rpc.Caller;
+		_toldShownKeys ??= new();
+		if ( caller is null || _hostTriggers is not { Count: > 0 } || !_toldShownKeys.Add( caller.Id ) )
+			return;
+
+		using ( Rpc.FilterInclude( x => x == caller ) )
 		{
-			if ( look.Effects[ i ].Key is not null && _triggers.TryGetValue( (player, look.Effects[ i ].Id), out var since )
-				&& since < Effect.TriggerSeconds )
-				triggered |= 1 << i;
+			foreach ( var (player, last) in _hostTriggers )
+			{
+				if ( last.Since < Effect.TriggerSeconds )
+					EffectTriggered( player, last.Effect, last.Since );
+			}
 		}
+	}
 
-		return triggered;
+	/// <summary>
+	/// Whether <paramref name="connection"/>'s effect with a key (by its id) shows now: its key was pressed within the
+	/// last <see cref="Effect.TriggerSeconds"/>, as the host said. Read for every such effect every frame: no allocations.
+	/// </summary>
+	internal bool IsKeyShown( Connection connection, string effect )
+	{
+		return _triggers is { Count: > 0 } && effect is not null && _triggers.TryGetValue( (KeyOf( connection ), effect), out var since )
+			&& since < Effect.TriggerSeconds;
 	}
 
 	// The budget this player sees connection's effects within: the server's, lowered to what they chose to see, and

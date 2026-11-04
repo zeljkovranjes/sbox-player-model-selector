@@ -256,29 +256,6 @@ public sealed class PlayerLook
 	}
 
 	/// <summary>
-	/// The look with its effects that show on a key switched off unless their bit in <paramref name="triggered"/> (by
-	/// their place in <see cref="Effects"/>) says they were just triggered: this very look when none has a key.
-	/// </summary>
-	public PlayerLook WithTriggered( int triggered )
-	{
-		var keyed = false;
-		for ( var i = 0; i < Effects.Count; i++ )
-			keyed |= Effects[ i ].Key is not null && !Effects[ i ].Off && (triggered & (1 << i)) == 0;
-
-		if ( !keyed )
-			return this;
-
-		var copy = Sanitized();
-		for ( var i = 0; i < copy.Effects.Count; i++ )
-		{
-			if ( copy.Effects[ i ].Key is not null && (triggered & (1 << i)) == 0 )
-				copy.Effects[ i ].Off = true;
-		}
-
-		return copy;
-	}
-
-	/// <summary>
 	/// The look with its effects within <paramref name="budget"/> (see <see cref="EffectBudget.Trim"/>): this very look
 	/// when they fit, as they mostly do, else a copy.
 	/// </summary>

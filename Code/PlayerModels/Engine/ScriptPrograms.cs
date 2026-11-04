@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using PlayerModels.Core;
 using PlayerModels.Core.Script;
 using Sandbox;
@@ -22,6 +23,11 @@ internal static class ScriptPrograms
 	/// <summary>The scratch every script run on this machine uses, one at a time.</summary>
 	internal static readonly ScriptStack Stack = new();
 
+	// The looks built last, by what they are: a preview asks every frame for the same look, built once
+	private const int MostRecent = 8;
+	private static readonly Dictionary<string, PlayerLook> Recent = new();
+	private static readonly Queue<string> RecentOrder = new();
+
 	/// <summary>
 	/// <paramref name="look"/> with its effects as their scripts build them here (see
 	/// <see cref="EffectScripts.WithScriptsBuilt"/>), for <paramref name="player"/>: scripts at most
@@ -35,15 +41,32 @@ internal static class ScriptPrograms
 		if ( look is null || !look.Effects.Exists( x => x.Script is not null ) )
 			return look;
 
+		var key = $"{player}|{mostBytes}|{look.Serialize()}";
+		if ( Recent.TryGetValue( key, out var known ) )
+			return known;
+
 		look = EffectScripts.WithoutScripts( look, mostBytes );
 		var library = new LookLibrary( look.DrawnShapes );
 		var now = RealTime.Now;
-		return EffectScripts.WithScriptsBuilt( look, effect =>
+		var built = EffectScripts.WithScriptsBuilt( look, effect =>
 		{
 			if ( paced && !Cache.Has( effect.Script, ScriptKind.Effect, library ) && !Budget.TryTake( player, now ) )
 				return null;
 
 			return EffectScripts.Build( effect, Cache, library, Stack );
 		}, out pending );
+
+		if ( !pending )
+			Remember( key, built );
+
+		return built;
+	}
+
+	private static void Remember( string key, PlayerLook built )
+	{
+		Recent[ key ] = built;
+		RecentOrder.Enqueue( key );
+		while ( RecentOrder.Count > MostRecent )
+			Recent.Remove( RecentOrder.Dequeue() );
 	}
 }

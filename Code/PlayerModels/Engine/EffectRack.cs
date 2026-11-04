@@ -329,8 +329,14 @@ internal sealed partial class EffectRack
 				_gates[ shown ] = _keyed[ shown ] ? 0f : 1f;
 				var run = _runs[ shown ] = RunFor( effect, shown );
 
-				foreach ( var data in effect.Layers )
+				// A look not built here first (see EffectScripts) has its script's layers in the build's order
+				var unmarked = run is not null && effect.Layers.Count == run.Machine.LayerCount && effect.Layers.TrueForAll( x => x.ScriptLayer < 0 );
+				for ( var place = 0; place < effect.Layers.Count; place++ )
 				{
+					var data = effect.Layers[ place ];
+					if ( unmarked )
+						data.ScriptLayer = place;
+
 					if ( data.Off )
 						continue;
 

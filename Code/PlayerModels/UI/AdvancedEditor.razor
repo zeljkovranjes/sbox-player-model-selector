@@ -37,7 +37,9 @@
 
     @if ( ShownTab == Tab.Effects )
     {
-        <TestBar class="tests" Stage=@Stage></TestBar>
+        <div class="tests">
+            <TestBar Stage=@Stage Compact=@true></TestBar>
+        </div>
     }
 
     @if ( !string.IsNullOrEmpty( _viewport?.Status ) )

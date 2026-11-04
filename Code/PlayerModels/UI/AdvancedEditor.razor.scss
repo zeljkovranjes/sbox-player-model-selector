@@ -95,13 +95,23 @@ AdvancedEditor
 		}
 	}
 
-	// the test bar over the preview on the Effects tab: actions that play the effects' real causes here
+	// the test bar over the preview on the Effects tab: actions that play the effects' real causes here, as icons named in
+	// their tooltips, kept left of the options
 	> .tests
 	{
 		position: absolute;
 		left: 24px;
+		right: 492px;
 		bottom: 72px;
-		max-width: 60%;
+		flex-direction: row;
+		align-items: flex-end;
+		pointer-events: none;
+
+		> TestBar
+		{
+			flex-shrink: 1;
+			min-width: 0px;
+		}
 	}
 
 	// the view's tools: the five that take turns as one segmented strip, then Walk and Frame all, each an icon named in

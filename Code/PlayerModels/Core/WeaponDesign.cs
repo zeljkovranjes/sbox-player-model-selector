@@ -250,23 +250,34 @@ public sealed class WeaponDesign
 	/// in order, together within <see cref="MaxLookBytes"/>, naming the drawn shapes of <paramref name="pool"/>.
 	/// </summary>
 	/// <summary>
-	/// Holds the scripts of <paramref name="designs"/> to <paramref name="bytes"/> together, in order: one past it loses its
-	/// script (the design stays as it was saved).
+	/// Holds the scripts of <paramref name="designs"/> to <paramref name="bytes"/> together, in order, their skins' scripts
+	/// after: one past it loses its script (the design stays as it was saved; a skin moves as its stock motion says).
 	/// </summary>
 	internal static void HoldScriptsTo( List<WeaponDesign> designs, int bytes )
 	{
 		var total = 0;
 		foreach ( var design in designs )
 		{
-			if ( design.Script is null )
-				continue;
-
-			var size = PlayerModels.Core.Script.ScriptLimits.Utf8Bytes( design.Script );
-			if ( total + size <= bytes )
-				total += size;
-			else
+			if ( design.Script is not null && !Fits( design.Script, ref total, bytes ) )
 				design.Script = null;
 		}
+
+		// Their skins' own scripts after: one past it moves as its stock motion says
+		foreach ( var design in designs )
+		{
+			if ( design.Skin?.Script is { } script && !Fits( script, ref total, bytes ) )
+				design.Skin.Script = null;
+		}
+	}
+
+	private static bool Fits( string script, ref int total, int bytes )
+	{
+		var size = PlayerModels.Core.Script.ScriptLimits.Utf8Bytes( script );
+		if ( total + size > bytes )
+			return false;
+
+		total += size;
+		return true;
 	}
 
 	internal static List<WeaponDesign> Sanitized( IEnumerable<WeaponDesign> designs, ShapePool pool )
@@ -283,11 +294,16 @@ public sealed class WeaponDesign
 			if ( design?.Sanitized( pool ) is not { } sanitized || kept.Exists( x => x.Weapon == sanitized.Weapon ) )
 				continue;
 
-			// Its script counts with the look's effects' scripts (see PlayerLook.Sanitized), not here
-			var script = sanitized.Script;
+			// Its script and its skin's count with the look's effects' scripts (see PlayerLook.Sanitized), not here
+			var (script, skinScript) = (sanitized.Script, sanitized.Skin?.Script);
 			sanitized.Script = null;
+			if ( sanitized.Skin is { } skin )
+				skin.Script = null;
+
 			bytes += Encoding.UTF8.GetByteCount( JsonSerializer.Serialize( sanitized ) );
 			sanitized.Script = script;
+			if ( sanitized.Skin is { } painted )
+				painted.Script = skinScript;
 			if ( bytes > MaxLookBytes )
 				break;
 

@@ -52,7 +52,7 @@
                     <SlowScroll><Content>
                         <WeaponEditor @ref="_weaponPanel" Look=@_look Changed=@Changed Weapon=@_weaponPath WeaponModel=@_held?.Model Targets=@_weaponTargets DraftsOpen=@DraftsOpen
                                       PointAt=@PointPart HoveredPart=@( _pointedPart ?? _hoveredPart ) Locked=@WeaponsLocked PropsLocked=@WeaponPropsLocked
-                                      EffectsLocked=@WeaponEffectsLocked OpenCode=@(() => OpenWeaponCode?.Invoke( _weaponPath )) CodeOpen=@(() => WeaponCodeOpen?.Invoke( _weaponPath ) == true)
+                                      EffectsLocked=@WeaponEffectsLocked OpenCode=@(() => OpenWeaponCode?.Invoke( _weaponPath )) OpenSkinCode=@(() => OpenSkinCode?.Invoke( _weaponPath )) CodeOpen=@(() => WeaponCodeOpen?.Invoke( _weaponPath ) == true)
                                       ItemPicked=@(( CodeEditor.WeaponItem kind, int index ) => WeaponItemPicked?.Invoke( _weaponPath, kind, index ))></WeaponEditor>
                     </Content></SlowScroll>
                 </Body>
@@ -174,6 +174,9 @@
     public Action<string> OpenWeaponCode { get; init; }
     public Func<string, bool> WeaponCodeOpen { get; init; }
     public Action<string, CodeEditor.WeaponItem, int> WeaponItemPicked { get; init; }
+
+    /// <summary>Opens the skin script of the weapon at the path given (its world model) in the code editor.</summary>
+    public Action<string> OpenSkinCode { get; init; }
 
     /// <summary>Selects item <paramref name="index"/> of <paramref name="kind"/> on the weapon panel (the code editor's caret is in its lines).</summary>
     public void ShowWeaponItem( CodeEditor.WeaponItem kind, int index ) => _weaponPanel?.ShowItem( kind, index );

@@ -31,7 +31,7 @@ public partial class CodeEditor
 	private WeaponScripts.DesignLibrary _designLibrary;
 	private (WeaponItem Kind, int Index) _caretItem = (WeaponItem.Prop, -1);
 
-	private ScriptKind Kind => Weapon is null ? ScriptKind.Effect : ScriptKind.Weapon;
+	private ScriptKind Kind => Weapon is null ? ScriptKind.Effect : Skin ? ScriptKind.Skin : ScriptKind.Weapon;
 
 	// What the script may name: the player's own, and for a design the effects it carries, its weapon's parts and the props
 	private IPlayerLibrary Names => Weapon is null ? _library : _designLibrary;
@@ -41,6 +41,9 @@ public partial class CodeEditor
 	// The design's script formatted, or the design written as one
 	private string OpenWeapon( PlayerLook look )
 	{
+		if ( Skin )
+			return OpenSkin( look );
+
 		var design = DesignOf( look );
 		_designLibrary = new WeaponScripts.DesignLibrary( _library, design?.Effects, Offered() );
 		_openedAs = design is null ? null : JsonSerializer.Serialize( design );
@@ -105,6 +108,12 @@ public partial class CodeEditor
 	// The weapon panel changed the design: written into the code in place, or put back saying why
 	private void SyncDesign()
 	{
+		if ( Skin )
+		{
+			SyncSkin();
+			return;
+		}
+
 		var look = LookNow?.Invoke();
 		var design = DesignOf( look );
 		if ( design is null || _entry is null )

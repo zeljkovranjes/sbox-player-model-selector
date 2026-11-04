@@ -457,6 +457,23 @@ local moved = scroll --> 0.75
 Every stock moving colour (Rainbow, Rain, Cycle, Scanner, Pulse, Glow,
 Shimmer, Palette) and the pattern's scroll and spin are scripts like these.
 
+You can write your own: in weapon mode, under the skin's Moving color, Write
+your own opens the code editor on the colour picked (or Edit script on yours),
+and the weapon in the preview follows as you type. The skin keeps it (16 KB at
+most, counted with the look's other scripts), every player's machine runs it
+the way it runs the stock ones, within the same budget, and where the host
+switches scripts off the colour picked moves the weapon instead. Stock lets
+your script go.
+
+```lua skin
+-- A heat haze: hot white at the muzzle cooling to deep red at the back, flickering as if it just fired
+local heat = Math.Pow( along, 2 ) * (0.8 + 0.2 * Math.Sin( t * 30 + along * 12 ))
+color = Color.Lerp( Color.Parse( "#3a0000" ), Color.Parse( "#fff2c0" ), heat )
+alpha = 0.3 + 0.6 * along
+glow = color * (heat * 0.8)
+local front = along --> 0.25
+```
+
 <br>
 
 ## Weapon design scripts

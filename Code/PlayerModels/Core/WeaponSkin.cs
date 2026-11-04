@@ -87,6 +87,15 @@ public sealed class WeaponSkin
 	[JsonPropertyName( "pal" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public List<string> Palette { get; set; }
 
+	/// <summary>
+	/// The player's own script (a weapon skin script, see <see cref="PlayerModels.Core.Script.ScriptKind.Skin"/>) moving its
+	/// colour, minified, in place of a stock <see cref="Motion"/> (which stays as what shows where scripts don't run); null
+	/// for none. Held to <see cref="PlayerModels.Core.Script.ScriptLimits.MaxScriptBytes"/>, and with the look's other scripts
+	/// to <see cref="PlayerModels.Core.Script.ScriptLimits.MaxLookBytes"/>.
+	/// </summary>
+	[JsonPropertyName( "sc" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public string Script { get; set; }
+
 	/// <summary>How fast its colour moves: 1 is the clan tags' own pace.</summary>
 	[JsonPropertyName( "sp" )]
 	public float Speed { get; set; } = 1f;
@@ -105,7 +114,7 @@ public sealed class WeaponSkin
 
 	/// <summary>Whether it paints anything: a pattern or a moving colour.</summary>
 	[JsonIgnore]
-	public bool IsPainted => PatternIs != Pattern.None || AnimationIs != Motion.None;
+	public bool IsPainted => PatternIs != Pattern.None || AnimationIs != Motion.None || Script is not null;
 
 	/// <summary>
 	/// The colours its motion goes through: its own palette, or the game's five; for <see cref="Motion.Cyln"/> the
@@ -125,14 +134,16 @@ public sealed class WeaponSkin
 
 	/// <summary>
 	/// A copy within bounds, or null when it paints nothing: a pattern or motion this version doesn't know is none, colours
-	/// valid hex colours (a palette keeps only those, at most <see cref="MaxPalette"/>), numbers limited, and a drawn shape
-	/// named only when <paramref name="drawn"/> says the look carries it (a star otherwise).
+	/// valid hex colours (a palette keeps only those, at most <see cref="MaxPalette"/>), numbers limited, a script too long
+	/// dropped (by its length alone, never read), and a drawn shape named only when <paramref name="drawn"/> says the look
+	/// carries it (a star otherwise).
 	/// </summary>
 	public WeaponSkin Sanitized( Func<string, string> drawn = null )
 	{
 		var pattern = PatternIs;
 		var motion = AnimationIs;
-		if ( pattern == Pattern.None && motion == Motion.None )
+		var script = PlayerModels.Core.Script.ScriptLimits.Fits( Script ) ? Script : null;
+		if ( pattern == Pattern.None && motion == Motion.None && script is null )
 			return null;
 
 		var palette = new List<string>();
@@ -154,7 +165,8 @@ public sealed class WeaponSkin
 			PatternSpin = Limited( PatternSpin, -MaxSpin, MaxSpin, 0f ),
 			PatternShape = shape,
 			Animation = motion == Motion.None ? null : motion.ToString(),
-			Palette = motion != Motion.None && palette.Count > 0 ? palette : null,
+			Palette = (motion != Motion.None || script is not null) && palette.Count > 0 ? palette : null,
+			Script = script,
 			Speed = Limited( Speed, 0f, MaxSpeed, 1f ),
 			Bands = Math.Clamp( Bands, MinBands, MaxBands ),
 		};

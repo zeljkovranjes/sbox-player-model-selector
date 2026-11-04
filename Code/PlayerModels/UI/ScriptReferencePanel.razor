@@ -68,7 +68,7 @@
                 @if ( page.Example is not null )
                 {
                     <TextLabel class="subheading" Text="Try it"></TextLabel>
-                    <CodePlayground Example=@page.Example Kind=@ScriptKind.Effect CopyInto=@CopyInto Wearer=@Wearer></CodePlayground>
+                    <CodePlayground Example=@page.Example Kind=@( page.Kind ) CopyInto=@CopyInto Wearer=@Wearer></CodePlayground>
                 }
             }
         </div>

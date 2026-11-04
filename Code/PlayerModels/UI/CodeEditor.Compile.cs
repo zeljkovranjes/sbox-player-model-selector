@@ -141,7 +141,13 @@ public partial class CodeEditor
 		var result = ScriptCompiler.Compile( _source, Kind, Names );
 		_storedBytes = result.StoredBytes;
 		_errors = result.Errors.ToList();
-		if ( result.Succeeded )
+		if ( result.Succeeded && Kind == ScriptKind.Skin )
+		{
+			_program = result.Program;
+			if ( RunsAsSkin( result.Program ) && apply )
+				PutSkin();
+		}
+		else if ( result.Succeeded )
 		{
 			_program = result.Program;
 			var machine = new ScriptMachine( result.Program );

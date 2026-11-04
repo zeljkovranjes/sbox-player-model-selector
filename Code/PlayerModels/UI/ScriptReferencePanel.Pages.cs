@@ -6,7 +6,7 @@ namespace PlayerModels.UI;
 public partial class ScriptReferencePanel
 {
 	// A page to start from: what a script is, how expressions work, parameters; each with a clip and something to try
-	sealed record Page( string Title, string Clip, string[] Text, string Example );
+	sealed record Page( string Title, string Clip, string[] Text, string Example, ScriptKind Kind = ScriptKind.Effect );
 
 	[Sandbox.SkipHotload]
 	static readonly Page[] Pages =
@@ -68,5 +68,17 @@ public partial class ScriptReferencePanel
 			glow.Size = glowSize
 			glow.Color = glowColor
 			""" ),
+		new( "Weapon skins", "skinscript", new[]
+		{
+			"A weapon's moving colour is a script too: in weapon mode, under the skin's Moving color, Write your own opens the colour picked as code, and the weapon follows as you type.",
+			"It runs once for each band along the weapon (i of count), or at 64 places along it when it reads along (0 at its back, 1 at its front), and sets color and alpha (painted over the weapon, keeping its light and dark), glow, sheen and shade.",
+			"Your skin keeps it, every player's machine runs it within the same budget as the stock ones, and Stock lets it go again.",
+		}, """
+			-- A heat haze: hot white at the muzzle cooling to deep red at the back, flickering as if it just fired
+			local heat = Math.Pow( along, 2 ) * (0.8 + 0.2 * Math.Sin( t * 30 + along * 12 ))
+			color = Color.Lerp( Color.Parse( "#3a0000" ), Color.Parse( "#fff2c0" ), heat )
+			alpha = 0.3 + 0.6 * along
+			glow = color * (heat * 0.8)
+			""", ScriptKind.Skin ),
 	};
 }

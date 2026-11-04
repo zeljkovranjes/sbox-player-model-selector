@@ -10,7 +10,8 @@ namespace PlayerModels.Core.Script;
 /// the weapon and how much it covers, its glow and sheen, the shade its own colour is multiplied by, and how far its
 /// pattern is scrolled and spun. Its motion's script (see <see cref="PresetScripts.SkinMotionScript"/>) runs once a band
 /// along the weapon, or at every texel when it reads <c>along</c>, or once in all when it reads neither (a pulse); its
-/// pattern's script (<see cref="PresetScripts.SkinPatternMotion"/>) once. Filled once a frame for each different skin,
+/// pattern's script (<see cref="PresetScripts.SkinPatternMotion"/>) once. A skin with a script of its own (see
+/// <see cref="WeaponSkin.Script"/>) runs that in place of its motion's, within the same per-run budget. Filled once a frame for each different skin,
 /// whoever wears it; <see cref="Fill"/> allocates nothing. Colours are in linear light, as the shader lights them: a
 /// skin's palette reaches its script that way (a colour it works out itself, like the rainbow's, is used as it is).
 /// </summary>
@@ -51,7 +52,7 @@ public sealed class SkinColours
 
 	/// <summary>Whether <paramref name="skin"/> moves at all: a moving colour, or a pattern that scrolls or spins.</summary>
 	public static bool Moves( WeaponSkin skin ) => skin is not null
-		&& (skin.AnimationIs != WeaponSkin.Motion.None || skin.PatternIs != WeaponSkin.Pattern.None && (skin.PatternScroll != 0f || skin.PatternSpin != 0f));
+		&& (skin.AnimationIs != WeaponSkin.Motion.None || skin.Script is not null || skin.PatternIs != WeaponSkin.Pattern.None && (skin.PatternScroll != 0f || skin.PatternSpin != 0f));
 
 	/// <summary>What tells one skin's moving colours from another's, as text: two skins alike here share one table.</summary>
 	public static string KeyOf( WeaponSkin skin )
@@ -61,7 +62,7 @@ public sealed class SkinColours
 
 		var patterned = skin.PatternIs != WeaponSkin.Pattern.None;
 		return string.Join( "|", skin.AnimationIs, string.Join( ",", skin.Colours() ), Number( skin.Speed ), skin.Bands,
-			Number( patterned ? skin.PatternScroll : 0f ), Number( patterned ? skin.PatternSpin : 0f ) );
+			Number( patterned ? skin.PatternScroll : 0f ), Number( patterned ? skin.PatternSpin : 0f ), skin.Script );
 	}
 
 	/// <summary>
@@ -74,8 +75,10 @@ public sealed class SkinColours
 		if ( !Moves( skin ) )
 			return null;
 
+		// The player's own script moves it, or the stock one of its motion when theirs doesn't compile
 		ScriptMachine motion = null;
-		if ( PresetScripts.SkinMotionScript( skin.AnimationIs ) is { } script && cache.Compile( script, ScriptKind.Skin ) is { Succeeded: true } compiled )
+		if ( (skin.Script is not null && cache.Compile( skin.Script, ScriptKind.Skin ) is { Succeeded: true } own ? own
+			: PresetScripts.SkinMotionScript( skin.AnimationIs ) is { } script ? cache.Compile( script, ScriptKind.Skin ) : null) is { Succeeded: true } compiled )
 		{
 			motion = new ScriptMachine( compiled.Program );
 			motion.SetPalette( skin.Colours(), linear: true );

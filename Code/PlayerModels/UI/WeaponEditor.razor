@@ -116,14 +116,26 @@
             <UIDropdown Items=@MotionChoices() Value=@( Skin?.AnimationIs.ToString() ?? nameof( WeaponSkin.Motion.None ) )
                         ValueChanged=@(( object v ) => ChangeSkin( s => s.Animation = (string)v == nameof( WeaponSkin.Motion.None ) ? null : (string)v )) Tokenize=@false></UIDropdown>
         </div>
-        @if ( Skin is { } moving && moving.AnimationIs != WeaponSkin.Motion.None )
+        <div class="row">
+            @if ( Skin?.Script is not null )
+            {
+                <div class="label">Moved by your own script</div>
+                <div class="reset" Tooltip="Open the skin's own script in the code editor" @onclick=@(() => OpenSkinCode?.Invoke())>Edit script</div>
+                <div class="reset" Tooltip="Let the moving color picked above move it again (the script is let go)" @onclick=@(() => ChangeSkin( s => s.Script = null ))>Stock</div>
+            }
+            else
+            {
+                <div class="reset" Tooltip="Write the moving color as a script of your own, starting from the one picked above" @onclick=@(() => OpenSkinCode?.Invoke())>Write your own</div>
+            }
+        </div>
+        @if ( Skin is { } moving && (moving.AnimationIs != WeaponSkin.Motion.None || moving.Script is not null) )
         {
             <NumberRow Label="Speed" Unit=@NumberRow.Field.SkinSpeed Value=@moving.Speed OnChanged=@(( float v ) => ChangeSkin( s => s.Speed = v ))></NumberRow>
-            @if ( moving.AnimationIs is WeaponSkin.Motion.Rain or WeaponSkin.Motion.Cycl or WeaponSkin.Motion.Cyln )
+            @if ( moving.AnimationIs is WeaponSkin.Motion.Rain or WeaponSkin.Motion.Cycl or WeaponSkin.Motion.Cyln || moving.Script is not null )
             {
                 <NumberRow Label="Bands along it" Unit=@NumberRow.Field.Bands Value=@moving.Bands OnChanged=@(( float v ) => ChangeSkin( s => s.Bands = (int)MathF.Round( v ) ))></NumberRow>
             }
-            @if ( moving.AnimationIs != WeaponSkin.Motion.Rainbow )
+            @if ( moving.AnimationIs != WeaponSkin.Motion.Rainbow || moving.Script is not null )
             {
                 var colours = moving.Colours();
                 @for ( var i = 0; i < colours.Count; i++ )
@@ -369,6 +381,9 @@
 
     /// <summary>Opens this weapon's design in the code editor; and whether it is open on it now (it keeps the script in step itself).</summary>
     [Parameter] public Action OpenCode { get; set; }
+
+    /// <summary>Opens the skin's own moving colour script in the code editor (see <see cref="WeaponSkin.Script"/>).</summary>
+    [Parameter] public Action OpenSkinCode { get; set; }
     [Parameter] public Func<bool> CodeOpen { get; set; }
 
     /// <summary>Called with the item selected on the panel (its kind and place), so the code editor shows its lines.</summary>

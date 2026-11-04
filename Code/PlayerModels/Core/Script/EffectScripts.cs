@@ -158,7 +158,7 @@ public static class EffectScripts
 	/// </summary>
 	public static PlayerLook WithoutScripts( PlayerLook look, int mostBytes = 0 )
 	{
-		if ( !EffectsOf( look ).Any( x => TooLong( x, mostBytes ) ) && !(look?.Weapons ?? new List<WeaponDesign>()).Any( x => TooLong( x.Script, mostBytes ) ) )
+		if ( !EffectsOf( look ).Any( x => TooLong( x, mostBytes ) ) && !(look?.Weapons ?? new List<WeaponDesign>()).Any( x => TooLong( x.Script, mostBytes ) || TooLong( x.Skin?.Script, mostBytes ) ) )
 			return look;
 
 		var copy = look.Sanitized();
@@ -175,6 +175,10 @@ public static class EffectScripts
 		{
 			if ( TooLong( design.Script, mostBytes ) )
 				design.Script = null;
+
+			// A skin's own script gives way to its stock motion
+			if ( design.Skin is { } skin && TooLong( skin.Script, mostBytes ) )
+				skin.Script = null;
 		}
 
 		return copy;

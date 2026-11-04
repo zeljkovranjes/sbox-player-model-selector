@@ -69,7 +69,7 @@ public static class WeaponScripts
 
 	/// <summary>
 	/// What <paramref name="stored"/> shows as once its script built <paramref name="build"/>: the build's design on the
-	/// stored one's weapon, with its script and origin; null when the build has nothing.
+	/// stored one's weapon, with its script, origin and its skin's own script; null when the build has nothing.
 	/// </summary>
 	public static WeaponDesign Shown( WeaponDesign stored, ScriptBuild build )
 	{
@@ -80,6 +80,14 @@ public static class WeaponScripts
 		copy.Weapon = stored.Weapon;
 		copy.ForkedFrom = stored.ForkedFrom;
 		copy.Script = stored.Script;
+
+		// The skin's own script is kept beside the design's, as an effect's id is: the design's script doesn't write it
+		if ( stored.Skin?.Script is { } skin )
+		{
+			copy.Skin ??= new WeaponSkin();
+			copy.Skin.Script = skin;
+		}
+
 		return copy;
 	}
 

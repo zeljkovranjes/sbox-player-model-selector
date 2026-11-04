@@ -283,4 +283,56 @@ public class SkinColoursCostTests
 		_output.WriteLine( $"100 different skins filled in {perFrame:0.000} ms a frame ({perFrame * 10:0.0} µs a skin); one skin shared by 100 players fills once: {perFrame / 100:0.000} ms" );
 		Assert.True( perFrame < 4, $"{perFrame} ms a frame" );
 	}
+
+	[Fact]
+	public void APlayersOwnSkinScriptMovesTheColourInPlaceOfItsMotion()
+	{
+		// Red at the back fading to blue at the front, a quarter covering; written by the player, run once a texel
+		var skin = new WeaponSkin { Animation = nameof( WeaponSkin.Motion.Rainbow ), Script = "color = Color.Lerp( Color.Red, Color.Blue, along )\nalpha = 0.25" }.Sanitized();
+		Assert.NotNull( skin.Script );
+		Assert.True( SkinColours.Moves( skin ) );
+		Assert.NotEqual( SkinColours.KeyOf( skin ), SkinColours.KeyOf( new WeaponSkin { Animation = nameof( WeaponSkin.Motion.Rainbow ) }.Sanitized() ) );
+
+		var table = SkinColours.Of( skin, new ScriptCache(), new ScriptStack() );
+		Assert.False( table.Banded );
+		var back = table.At( SkinColours.PaintRow, 0 );
+		var front = table.At( SkinColours.PaintRow, SkinColours.Texels - 1 );
+		Assert.True( back.X > 0.95f && back.Z < 0.05f && front.Z > 0.95f && front.X < 0.05f, $"{back} {front}" );
+		Assert.Equal( 0.25f, back.W, 4 );
+
+		// A script alone moves a skin with no motion of its own; one that doesn't compile leaves its stock motion
+		Assert.NotNull( new WeaponSkin { Script = "glow = Color.White" }.Sanitized() );
+		var broken = SkinColours.Of( new WeaponSkin { Animation = nameof( WeaponSkin.Motion.Rainbow ), Script = "color = " }.Sanitized(), new ScriptCache(), new ScriptStack() );
+		var rainbow = SkinColours.Of( new WeaponSkin { Animation = nameof( WeaponSkin.Motion.Rainbow ) }.Sanitized(), new ScriptCache(), new ScriptStack() );
+		Assert.Equal( rainbow.At( SkinColours.PaintRow, 10 ), broken.At( SkinColours.PaintRow, 10 ) );
+	}
+
+	[Fact]
+	public void ASkinScriptIsHeldToTheScriptCaps()
+	{
+		var huge = "-- " + new string( 'x', ScriptLimits.MaxScriptBytes ) + "\ncolor = Color.Red";
+		Assert.Null( new WeaponSkin { Animation = nameof( WeaponSkin.Motion.Pulse ), Script = huge }.Sanitized().Script );
+
+		// With the look's other scripts it is held to the look's total: past it, the stock motion moves the skin
+		var script = "-- " + new string( 'x', ScriptLimits.MaxScriptBytes - 40 ) + "\ncolor = Color.Red";
+		var designs = new List<WeaponDesign>();
+		for ( var i = 0; i < 3; i++ )
+			designs.Add( new WeaponDesign { Weapon = $"weapons/test_{i}.vmdl", Skin = new WeaponSkin { Animation = nameof( WeaponSkin.Motion.Pulse ), Script = script } } );
+
+		var look = new PlayerLook { Weapons = designs }.Sanitized();
+		Assert.Equal( 2, look.Weapons.FindAll( x => x.Skin.Script is not null ).Count );
+		Assert.All( look.Weapons, x => Assert.Equal( nameof( WeaponSkin.Motion.Pulse ), x.Skin.Animation ) );
+
+		// Where scripts are switched off, every skin moves as its stock motion says
+		var off = EffectScripts.WithoutScripts( look );
+		Assert.All( off.Weapons, x => Assert.Null( x.Skin.Script ) );
+	}
+
+	[Fact]
+	public void ADesignScriptKeepsTheSkinsOwnScript()
+	{
+		var stored = new WeaponDesign { Weapon = "weapons/test.vmdl", Skin = new WeaponSkin { Script = "glow = Color.White" } };
+		var build = ScriptKit.Build( "Weapon.Finish = Finish.Gold", ScriptKind.Weapon ).Build;
+		Assert.Equal( "glow = Color.White", WeaponScripts.Shown( stored, build ).Skin.Script );
+	}
 }

@@ -408,6 +408,7 @@
             OpenCode = OpenCode,
             OpenCodeAt = OpenCodeAt,
             OpenWeaponCode = OpenWeaponCode,
+            OpenSkinCode = OpenSkinCode,
             WeaponCodeOpen = weapon => _code.IsValid() && _code.Weapon == weapon,
             WeaponItemPicked = ( weapon, kind, index ) =>
             {
@@ -443,14 +444,17 @@
     // A weapon's whole design in code: the weapon panel and the code in step, as an effect's layers are
     void OpenWeaponCode( string weapon ) => OpenCodeWith( null, null, weapon );
 
-    void OpenCodeWith( string effect, Draft draft, string weapon = null )
+    // A weapon's skin's own moving colour in code (see WeaponSkin.Script)
+    void OpenSkinCode( string weapon ) => OpenCodeWith( null, null, weapon, true );
+
+    void OpenCodeWith( string effect, Draft draft, string weapon = null, bool skin = false )
     {
         if ( _look is null )
             return;
 
         if ( _code.IsValid() )
         {
-            if ( _code.EffectId == effect && _code.Weapon == weapon && draft is null )
+            if ( _code.EffectId == effect && _code.Weapon == weapon && _code.Skin == skin && draft is null )
                 return;
 
             // One script at a time: the open one is closed first (asking what to do with its changes)
@@ -469,6 +473,7 @@
             CaretInLayer = layer => _advanced?.ShowLayer( _code?.EffectId, layer ),
             CaretInWeaponItem = ( kind, index ) => _advanced?.ShowWeaponItem( kind, index ),
             Weapon = weapon,
+            Skin = skin,
             Closed = () => _code = null,
             Draft = draft,
             BesideOptions = _advanced.IsValid(),

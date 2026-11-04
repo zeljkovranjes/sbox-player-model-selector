@@ -9,9 +9,9 @@
 @namespace PlayerModels.UI
 
 <root>
-    @if ( Look is null || Look.IsDefault )
+    @if ( Look is null )
     {
-        <div class="note">Pick a model to wear effects on it. The default citizen wears your avatar.</div>
+        <div class="note">Loading your look...</div>
     }
     else
     {

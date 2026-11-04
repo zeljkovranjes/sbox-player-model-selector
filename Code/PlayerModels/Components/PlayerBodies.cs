@@ -9,7 +9,8 @@ namespace PlayerModels.Components;
 
 /// <summary>
 /// Keeps every body in the scene showing its owner's pick: living players, the ragdolls Sandbox makes when one dies,
-/// and the bodies other addons show players as. Each client does this for itself from the picks the host shares.
+/// and the bodies other addons show players as. Each client does this for itself from the picks the host shares. A
+/// player who picked no model still wears their effects, on the citizen itself (see <see cref="CitizenEffects"/>).
 /// </summary>
 internal sealed class PlayerBodies
 {
@@ -97,11 +98,14 @@ internal sealed class PlayerBodies
 		return null;
 	}
 
-	/// <summary>Takes every picked model off, showing the citizens again.</summary>
+	/// <summary>Takes every picked model and the citizens' effects off, showing the citizens again.</summary>
 	internal void Clear( Scene scene )
 	{
 		foreach ( var body in scene.GetAll<ModelBody>() )
 			body.TakeOff();
+
+		foreach ( var effects in scene.GetAll<CitizenEffects>() )
+			effects.TakeOff();
 
 		_loading.Clear();
 	}
@@ -125,8 +129,11 @@ internal sealed class PlayerBodies
 			if ( body.IsValid() )
 				body.TakeOff();
 
+			ShowCitizenEffects( citizen, look, owner, selector, health );
 			return;
 		}
+
+		CitizenEffects.On( citizen )?.TakeOff();
 
 		// The same model posed the same way only needs the rest of the look; bones picked differently need a new pose plan
 		if ( body.IsValid() && body.ModelId == pick && body.BonesKey == bones )
@@ -138,6 +145,23 @@ internal sealed class PlayerBodies
 
 		if ( _loading.Add( citizen ) )
 			_ = ShowAsync( citizen, look, owner, dressedAs ?? citizen );
+	}
+
+	// The citizen's own effects, for a player who picked no model (or one that can't be worn); none for a look without any
+	private static void ShowCitizenEffects( SkinnedModelRenderer citizen, PlayerLook look, Connection owner, PlayerModelSelector selector, Player health )
+	{
+		var worn = CitizenEffects.On( citizen );
+		if ( worn.IsValid() && ReferenceEquals( worn.ShownLook, look ) )
+			return;
+
+		if ( look.Effects.Count == 0 )
+		{
+			worn?.TakeOff();
+			return;
+		}
+
+		using ( citizen.Scene.Push() )
+			CitizenEffects.Wear( citizen, look, KeyShownFor( selector, owner ), HealthOf( health ) );
 	}
 
 	// Whether owner's effect with a key shows now, by its id: made once a look changes, read every frame

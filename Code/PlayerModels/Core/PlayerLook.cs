@@ -256,6 +256,15 @@ public sealed class PlayerLook
 	}
 
 	/// <summary>
+	/// The default citizen wearing this look's effects and nothing else: what a look without a model keeps, as the
+	/// citizen has nothing else to customise.
+	/// </summary>
+	public PlayerLook EffectsAlone()
+	{
+		return new PlayerLook { Effects = Sanitized().Effects };
+	}
+
+	/// <summary>
 	/// The look with its effects within <paramref name="budget"/> (see <see cref="EffectBudget.Trim"/>): this very look
 	/// when they fit, as they mostly do, else a copy.
 	/// </summary>

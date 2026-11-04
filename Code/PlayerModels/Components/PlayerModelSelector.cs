@@ -382,10 +382,13 @@ public sealed partial class PlayerModelSelector : Component
 		foreach ( var ident in (rules.BlockedMounts ?? new()).Where( MountModels.IsGameIdent ).Distinct() )
 			BlockedMounts.Add( ident );
 
-		// Whoever wears what is no longer allowed goes back to the citizen, or to their own pick
+		// Whoever wears what is no longer allowed goes back to the citizen (keeping their effects), or to their own pick
 		foreach ( var id in Picks.Keys.ToList() )
 		{
 			var look = PlayerLook.Parse( Picks[ id ] );
+			if ( look.IsDefault )
+				continue;
+
 			if ( !Offers( look.Model ) )
 				Picks.Remove( id );
 			else if ( BlockArmature && id != KeyOf( Connection.Local ) && look.Bones.Count > 0 )
@@ -410,11 +413,11 @@ public sealed partial class PlayerModelSelector : Component
 
 	/// <summary>
 	/// Shows <paramref name="model"/> on the local player for everyone, customised the way the player left it last time.
-	/// Null or empty is the default citizen.
+	/// Null or empty is the default citizen, with the effects it wore last.
 	/// </summary>
 	public void Pick( string model )
 	{
-		Wear( string.IsNullOrEmpty( model ) ? new PlayerLook() : LocalPrefs.LookFor( model ) );
+		Wear( LocalPrefs.LookFor( model ?? "" ) );
 	}
 
 	/// <summary>Shows <paramref name="look"/> on the local player for everyone, and keeps it for next time.</summary>
@@ -508,5 +511,7 @@ public sealed partial class PlayerModelSelector : Component
 		var saved = LocalPrefs.Pick;
 		if ( !string.IsNullOrEmpty( saved ) && Offers( saved ) && PickOf( Connection.Local ) != saved )
 			Pick( saved );
+		else if ( string.IsNullOrEmpty( saved ) && LocalPrefs.LookFor( "" ).Effects.Count > 0 && LookOf( Connection.Local ).Effects.Count == 0 )
+			Pick( "" );
 	}
 }

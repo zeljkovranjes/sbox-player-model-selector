@@ -225,6 +225,8 @@ public sealed class ModelPreview : Panel
 		else if ( _body is not null )
 			ShowAgain();
 
+		ShowCitizenEffects();
+
 		if ( FillsWindow )
 			Viewport?.Tick();
 
@@ -498,6 +500,37 @@ public sealed class ModelPreview : Panel
 				|| bone.StartsWith( "ik", StringComparison.OrdinalIgnoreCase ) || bone.Contains( "ikrule", StringComparison.OrdinalIgnoreCase ))
 			|| bone.Contains( "aim_matrix", StringComparison.OrdinalIgnoreCase )
 			|| bone.Contains( "attach", StringComparison.OrdinalIgnoreCase );
+	}
+
+	// The default citizen wears its effects itself, when it is what is shown and its look has any
+	private void ShowCitizenEffects()
+	{
+		var worn = CitizenEffects.On( _citizen );
+		if ( _shown == "" && Look is { IsDefault: true, Effects.Count: > 0 } )
+		{
+			if ( !worn.IsValid() )
+			{
+				using ( _scene.RenderScene.Push() )
+					worn = CitizenEffects.Wear( _citizen, Look, null, null );
+			}
+			else
+			{
+				worn.Apply( Look );
+			}
+
+			worn.Tick();
+			return;
+		}
+
+		if ( !worn.IsValid() )
+			return;
+
+		// Right away: this scene doesn't run the game loop, which a deferred destroy waits for
+		using ( _scene.RenderScene.Push() )
+		{
+			worn.TakeOff();
+			worn.GameObject.DestroyImmediate();
+		}
 	}
 
 	// The same model again: the body took itself off (it couldn't pose after a hot reload), or the bone picks changed

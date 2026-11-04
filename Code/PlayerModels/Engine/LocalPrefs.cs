@@ -77,14 +77,20 @@ internal static class LocalPrefs
 		return looks.TryGetValue( model ?? "", out var saved ) ? PlayerLook.Parse( saved ).WithModel( model ) : new PlayerLook { Model = model ?? "" };
 	}
 
-	/// <summary>Keeps <paramref name="look"/> as how its model is customised.</summary>
+	/// <summary>
+	/// Keeps <paramref name="look"/> as how its model is customised; for the default citizen, the effects it wears (see
+	/// <see cref="PlayerLook.EffectsAlone"/>), and nothing once it wears none.
+	/// </summary>
 	internal static void Remember( PlayerLook look )
 	{
-		if ( look.IsDefault )
+		var looks = Game.Cookies.Get( LooksCookie, new Dictionary<string, string>() );
+		if ( !look.IsDefault )
+			looks[ look.Model ] = look.Serialize();
+		else if ( look.Effects.Count > 0 )
+			looks[ "" ] = look.EffectsAlone().Serialize();
+		else if ( !looks.Remove( "" ) )
 			return;
 
-		var looks = Game.Cookies.Get( LooksCookie, new Dictionary<string, string>() );
-		looks[ look.Model ] = look.Serialize();
 		Game.Cookies.Set( LooksCookie, looks );
 	}
 

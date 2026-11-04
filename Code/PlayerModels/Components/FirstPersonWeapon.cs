@@ -28,21 +28,39 @@ internal sealed class FirstPersonWeapon
 	private string _weapon;
 	private bool _extras;
 
+	// What it was last updated with, the local player and the body's dresser it follows, and what they were then: a
+	// weapon swapped on the body, or a switch between first and third person, is followed the frame it happens (see
+	// Place), not at the next update
+	private Scene _scene;
+	private PlayerLook _lastLook;
+	private bool _lastExtras;
+	private Player _player;
+	private WeaponDresser _worn;
+	private string _wornWeapon;
+	private bool _thirdPerson;
+
+	// Whether its effects show now: in first person alone
+	private bool _shown;
+
 	/// <summary>
 	/// Dresses the local player's view model in <paramref name="scene"/> as <paramref name="look"/> (theirs, as shown) says,
 	/// for the weapon they hold; <paramref name="extras"/> says whether props, stickers and effects show too. A few times a
-	/// second.
+	/// second, and the frame the weapon or the view changes. In third person the view model is dressed all the same,
+	/// unseen, so switching to first person shows it dressed from its first frame; its effects show in first person alone.
 	/// </summary>
 	internal void Update( Scene scene, PlayerLook look, bool extras )
 	{
-		var player = LocalPlayer( scene );
+		(_scene, _lastLook, _lastExtras) = (scene, look, extras);
+		var player = _player = LocalPlayer( scene );
 		var citizen = player?.Controller?.Renderer;
 		var viewModel = ViewModelOf( scene );
 		var worn = citizen.IsValid() ? Worn( citizen ) : default;
 		var renderer = viewModel.IsValid() ? viewModel.Components.Get<ViewModel>()?.Renderer : null;
+		_worn = worn.Dresser;
+		_wornWeapon = worn.Dresser?.Weapon;
+		_thirdPerson = player?.Controller?.ThirdPerson == true;
 
-		// In third person the view model stays about, unseen: the world model's effects are the ones to show then
-		if ( look is null || player?.Controller?.ThirdPerson == true || !viewModel.IsValid() || !renderer.IsValid() || worn.Dresser?.Renderer is not { Model: { } worldModel } )
+		if ( look is null || worn.Dresser?.Renderer is not { Model: { } worldModel } )
 		{
 			Release();
 			return;
@@ -50,7 +68,8 @@ internal sealed class FirstPersonWeapon
 
 		// Worked out again only when the look, the view model or the choice changes: the selector hands out the same look
 		// until it does
-		if ( !ReferenceEquals( look, _look ) || viewModel != _viewModel || citizen != _citizen || extras != _extras || worn.Dresser.Weapon != _weapon )
+		if ( viewModel.IsValid() && renderer.IsValid()
+			&& (!ReferenceEquals( look, _look ) || viewModel != _viewModel || citizen != _citizen || extras != _extras || worn.Dresser.Weapon != _weapon) )
 		{
 			_look = look;
 			_citizen = citizen;
@@ -58,15 +77,16 @@ internal sealed class FirstPersonWeapon
 			_extras = extras;
 			_weapon = worn.Dresser.Weapon;
 			_held.Hold( renderer.GameObject );
-			_rack ??= new EffectRack();
-			_rack.SizeScale = EffectsScale;
-			_rack.NearCameraShown = true;
-			_rack.Apply( extras ? OnWeapon( look.Effects ) : null, null, look.DrawnShapes, viewModel, null, citizen, citizen.Model, null,
-				new EffectWearer { Aim = () => player.IsValid() && player.Controller.IsValid() ? player.Controller.EyeAngles.Forward : Vector3.Forward, Shooter = player.GameObject } );
-
+			_shown = false;
 			_dresser.Apply( look.Weapons, look.DrawnShapes );
-			_dresser.Dress( viewModel, _rack, _weapon, WeaponDresser.Mapping.Between( worldModel, renderer.Model ), extras, renderer );
+			_dresser.Dress( viewModel, null, _weapon, WeaponDresser.Mapping.Between( worldModel, renderer.Model ), extras, renderer );
 		}
+
+		var shows = !_thirdPerson && viewModel.IsValid() && viewModel == _viewModel;
+		if ( shows && !_shown )
+			ShowEffects( player, citizen, viewModel, look, extras );
+		else if ( !shows && _shown )
+			HideEffects();
 
 		// The world model's weapon effects would show a second time, from where the hidden world model is
 		if ( _bodyRack != worn.Rack && _bodyRack is not null )
@@ -74,16 +94,25 @@ internal sealed class FirstPersonWeapon
 
 		_bodyRack = worn.Rack;
 		if ( _bodyRack is not null )
-			_bodyRack.HidesWeaponEffects = extras;
+			_bodyRack.HidesWeaponEffects = _shown && extras;
 	}
 
-	/// <summary>Places the first-person weapon's effects and colours its moving stickers. Every frame: no allocations.</summary>
+	/// <summary>
+	/// Follows a weapon swapped or a view switched this frame, places the first-person weapon's effects and colours its
+	/// moving stickers. Every frame: no allocations, but on the frame something changes.
+	/// </summary>
 	internal void Place()
 	{
-		if ( !_viewModel.IsValid() || !_citizen.IsValid() )
+		var thirdPerson = _player.IsValid() && _player.Controller.IsValid() && _player.Controller.ThirdPerson;
+		if ( _scene.IsValid() && (_worn is not null && _worn.Weapon != _wornWeapon || _player.IsValid() && thirdPerson != _thirdPerson) )
+			Update( _scene, _lastLook, _lastExtras );
+
+		if ( !_viewModel.IsValid() )
 			return;
 
-		_rack?.Place( _citizen, _citizen, null, null, _held );
+		if ( _shown && _citizen.IsValid() )
+			_rack?.Place( _citizen, _citizen, null, null, _held );
+
 		_dresser.Animate();
 	}
 
@@ -91,16 +120,34 @@ internal sealed class FirstPersonWeapon
 	internal void Release()
 	{
 		_dresser.Release();
-		_rack?.Release();
-		_held.Hold( null );
+		HideEffects();
 		if ( _bodyRack is not null )
 			_bodyRack.HidesWeaponEffects = false;
 
+		_held.Hold( null );
 		_bodyRack = null;
 		_viewModel = null;
 		_citizen = null;
 		_look = null;
 		_weapon = null;
+	}
+
+	// The effects that come from the weapon, the look's and its design's, worn on the view model as it shows
+	private void ShowEffects( Player player, SkinnedModelRenderer citizen, GameObject viewModel, PlayerLook look, bool extras )
+	{
+		_shown = true;
+		_rack ??= new EffectRack();
+		_rack.SizeScale = EffectsScale;
+		_rack.NearCameraShown = true;
+		_rack.Apply( extras ? OnWeapon( look.Effects ) : null, null, look.DrawnShapes, viewModel, null, citizen, citizen.Model, null,
+			new EffectWearer { Aim = () => player.IsValid() && player.Controller.IsValid() ? player.Controller.EyeAngles.Forward : Vector3.Forward, Shooter = player.GameObject } );
+		_rack.ApplyWeapon( extras ? _dresser.Design?.Effects : null );
+	}
+
+	private void HideEffects()
+	{
+		_shown = false;
+		_rack?.Release();
 	}
 
 	// The effects of a look that come from the weapon held: the only ones that show in first person

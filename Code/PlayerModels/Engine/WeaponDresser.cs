@@ -127,6 +127,7 @@ internal sealed class WeaponDresser
 
 		_designsKey = key;
 		_changed = true;
+		_ = WeaponPrewarm.WarmAsync( designs, shapes );
 	}
 
 	/// <summary>
@@ -170,7 +171,7 @@ internal sealed class WeaponDresser
 		rack?.ApplyWeapon( extras ? design?.Effects : null );
 	}
 
-	/// <summary>Colours moving stickers, and keeps props drawn the way the weapon is (hidden in first person). Every frame: no allocations.</summary>
+	/// <summary>Colours moving stickers, and keeps props and stickers drawn the way the weapon is (hidden in first person, or with it). Every frame: no allocations.</summary>
 	internal void Animate()
 	{
 		if ( _stickers.Count == 0 && _props.Count == 0 )
@@ -179,11 +180,19 @@ internal sealed class WeaponDresser
 		if ( !_renderer.IsValid() )
 			return;
 
+		// What is added shows as the weapon does: a view model kept dressed unseen in third person hides it all
 		var shadows = _renderer.RenderType;
+		var drawn = _renderer.Enabled;
 		for ( var i = 0; i < _props.Count; i++ )
 		{
-			if ( _props[ i ].IsValid() && _props[ i ].RenderType != shadows )
+			if ( !_props[ i ].IsValid() )
+				continue;
+
+			if ( _props[ i ].RenderType != shadows )
 				_props[ i ].RenderType = shadows;
+
+			if ( _props[ i ].Enabled != drawn )
+				_props[ i ].Enabled = drawn;
 		}
 
 		var ms = (long)((RealTime.Now - _startedAt) * MillisecondsPerSecond);
@@ -192,6 +201,9 @@ internal sealed class WeaponDresser
 			var stuck = _stickers[ i ];
 			if ( !stuck.Decal.IsValid() )
 				continue;
+
+			if ( stuck.Decal.Enabled != drawn )
+				stuck.Decal.Enabled = drawn;
 
 			if ( stuck.Drawn is not null && stuck.Generation != ShapeTextures.Generation )
 				UseDrawn( stuck );
@@ -329,7 +341,8 @@ internal sealed class WeaponDresser
 			if ( !PropCatalog.IsStock( prop.Model ) )
 				continue;
 
-			var model = await ModelLoader.LoadAsync( prop.Model );
+			// Loaded ahead (see WeaponPrewarm), it goes on in the frame the weapon is dressed
+			var model = WeaponPrewarm.PropModel( prop.Model ) ?? await ModelLoader.LoadAsync( prop.Model );
 			if ( request != _request || !renderer.IsValid() )
 				return;
 

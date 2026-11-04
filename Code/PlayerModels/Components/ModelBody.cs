@@ -177,7 +177,8 @@ public sealed class ModelBody : Component
 
 		try
 		{
-			if ( _sinceHidden > HideInterval )
+			// A weapon drawn, put away or swapped is dressed the frame it is noticed, not at the next look round
+			if ( _sinceHidden > HideInterval || _held.MayHaveChanged() )
 			{
 				FindOwnRenderers();
 				HideSource();

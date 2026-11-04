@@ -36,6 +36,12 @@ internal sealed class HeldItems
 
 	private readonly List<Held> _held = new();
 
+	// What was held when last looked for, by how many of its objects showed, and the bone object the first hung from
+	// with how many children it had: a weapon drawn, put away or swapped changes one of them (see MayHaveChanged)
+	private int _shownWhenFound = -1;
+	private GameObject _hand;
+	private int _handChildren = -1;
+
 	/// <summary>
 	/// Starts moving anything new the citizen holds into the model's hand; without a <paramref name="transfer"/> (the citizen
 	/// wears no model) it is only kept track of, for its tip.
@@ -49,6 +55,43 @@ internal sealed class HeldItems
 				_held.RemoveAt( i );
 		}
 
+		FindNew( citizen, transfer, body );
+		_shownWhenFound = Shown();
+		for ( var i = 0; i < _held.Count; i++ )
+		{
+			if ( _held[ i ].Root.IsValid() && _held[ i ].Root.Parent.IsValid() )
+			{
+				_hand = _held[ i ].Root.Parent;
+				break;
+			}
+		}
+
+		_handChildren = _hand.IsValid() ? _hand.Children.Count : -1;
+	}
+
+	/// <summary>
+	/// Whether what the citizen holds may have changed since <see cref="Find"/>: something held went away or was hidden or
+	/// shown, or the bone it hung from holds more or fewer things (a weapon drawn, put away or swapped). Cheap enough for
+	/// every frame, so the weapon drawn is found and dressed the frame it appears: no allocations.
+	/// </summary>
+	internal bool MayHaveChanged() => _shownWhenFound >= 0 && (Shown() != _shownWhenFound || _hand.IsValid() && _hand.Children.Count != _handChildren);
+
+	// How many of what is held show: valid, still hanging off the body and active
+	private int Shown()
+	{
+		var shown = 0;
+		for ( var i = 0; i < _held.Count; i++ )
+		{
+			var root = _held[ i ].Root;
+			if ( root.IsValid() && root.Parent.IsValid() && root.Active )
+				shown++;
+		}
+
+		return shown;
+	}
+
+	private void FindNew( SkinnedModelRenderer citizen, PoseTransfer transfer, GameObject body )
+	{
 		foreach ( var renderer in citizen.GameObject.Components.GetAll<ModelRenderer>( FindMode.EverythingInDescendants ) )
 		{
 			// The citizen itself and the clothes merged onto it are hidden, not held

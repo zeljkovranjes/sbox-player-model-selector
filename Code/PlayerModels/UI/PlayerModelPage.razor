@@ -23,19 +23,21 @@
         <div class="spacer"></div>
         @if ( !_viewModel && !_server )
         {
-            @if ( _pane != Pane.Models )
-            {
-                <div class="action @( _lookDirty ? "" : "disabled" )" @onclick=@RevertLook>Revert</div>
-                <div class="action apply @( _lookDirty ? "" : "disabled" )" @onclick=@ApplyLook>Apply</div>
-                <div class="gap"></div>
-            }
-            <div class="view @( _pane == Pane.Models ? "active" : "" )" @onclick=@(() => SetPane( Pane.Models ))>Models</div>
-            <div class="view @( _pane == Pane.Customize ? "active" : "" )" @onclick=@(() => SetPane( Pane.Customize ))>Customize</div>
-            <div class="view @( _pane == Pane.Effects ? "active" : "" )" @onclick=@(() => SetPane( Pane.Effects ))>Effects</div>
-            @if ( !ArmatureLocked )
-            {
-                <div class="view @( _pane == Pane.Armature ? "active" : "" )" @onclick=@(() => SetPane( Pane.Armature ))>Armature</div>
-            }
+            <div class="pane-views">
+                @if ( _pane != Pane.Models )
+                {
+                    <div class="action @( _lookDirty ? "" : "disabled" )" Tooltip="Back to what you wear" @onclick=@RevertLook>Revert</div>
+                    <div class="action apply @( _lookDirty ? "" : "disabled" )" Tooltip="Wear your changes" @onclick=@ApplyLook>Apply</div>
+                    <div class="gap"></div>
+                }
+                <div class="view @( _pane == Pane.Models ? "active" : "" )" @onclick=@(() => SetPane( Pane.Models ))>Models</div>
+                <div class="view @( _pane == Pane.Customize ? "active" : "" )" @onclick=@(() => SetPane( Pane.Customize ))>Customize</div>
+                <div class="view @( _pane == Pane.Effects ? "active" : "" )" @onclick=@(() => SetPane( Pane.Effects ))>Effects</div>
+                @if ( !ArmatureLocked )
+                {
+                    <div class="view @( _pane == Pane.Armature ? "active" : "" )" @onclick=@(() => SetPane( Pane.Armature ))>Armature</div>
+                }
+            </div>
         }
     </div>
 

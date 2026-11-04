@@ -16,14 +16,28 @@ PlayerModelPage
 	font-family: $body-font;
 
 	// the same buttons as the window's own tabs
+	// on a narrow screen the switches on the right go under the others together, rather than squeezing them
 	> .views
 	{
 		flex-direction: row;
+		flex-wrap: wrap;
 		flex-shrink: 0;
 		gap: 2px;
+
+		> *
+		{
+			flex-shrink: 0;
+		}
+
+		> .pane-views
+		{
+			flex-direction: row;
+			margin-left: auto;
+			gap: 2px;
+		}
 	}
 
-	> .views > .view
+	> .views .view
 	{
 		@include ui-tab;
 		border: 1px solid $ui-tab-border;
@@ -50,13 +64,13 @@ PlayerModelPage
 		flex-grow: 1;
 	}
 
-	> .views > .gap
+	> .views .gap
 	{
 		width: 8px;
 	}
 
 	// Revert / Apply while customizing: lit up only when there are changes to wear
-	> .views > .action
+	> .views .action
 	{
 		@include ui-button;
 

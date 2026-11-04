@@ -293,6 +293,15 @@ internal static class LocalPrefs
 			Game.Cookies.Set( MyEffectsCookie, kept );
 	}
 
+	/// <summary>Counts up whenever My shapes changes on this machine: what lists them reads them again when it does.</summary>
+	internal static int MyShapesVersion { get; private set; }
+
+	private static void SetMyShapes( List<DrawnShape> kept )
+	{
+		Game.Cookies.Set( MyShapesCookie, kept );
+		MyShapesVersion++;
+	}
+
 	/// <summary>
 	/// The shapes and stickers this player made, used or forked, kept to use and change again (My shapes), in the order
 	/// they were kept, each read within bounds; one that no longer reads is left out.
@@ -322,7 +331,7 @@ internal static class LocalPrefs
 		else
 			kept.Add( saved );
 
-		Game.Cookies.Set( MyShapesCookie, kept );
+		SetMyShapes( kept );
 		return true;
 	}
 
@@ -331,7 +340,7 @@ internal static class LocalPrefs
 	{
 		var kept = MyShapes();
 		if ( kept.RemoveAll( x => x.Name == name ) > 0 )
-			Game.Cookies.Set( MyShapesCookie, kept );
+			SetMyShapes( kept );
 	}
 
 	/// <summary>Whether the code editor is light (VS Code's Light+) rather than dark (Dark+, the default).</summary>

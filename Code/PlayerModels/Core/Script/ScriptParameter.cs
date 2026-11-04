@@ -68,7 +68,8 @@ public sealed record ScriptParameter
 	/// Reads a chosen value's <paramref name="text"/> into value slots, held to this parameter: a number clamped to its
 	/// range (and whole for an integer), a choice one of its choices, a colour <c>#rrggbb[aa]</c>, a palette of up to
 	/// <see cref="EffectLayer.MaxPalette"/> colours joined by commas, a vector "x,y,z", a key, a stock shape or picture by
-	/// name. False for text that isn't one: the default stays. <paramref name="strings"/> are the machine's (a choice is
+	/// name, or one of the player's own shapes (see <see cref="OwnShapeText"/>). False for text that isn't one: the default
+	/// stays. <paramref name="strings"/> are the machine's (a choice is
 	/// one of them; new text is added); a palette's colours come back flattened r, g, b, a.
 	/// </summary>
 	public bool TryRead( string text, List<string> strings, out double[] value )
@@ -132,7 +133,7 @@ public sealed record ScriptParameter
 				value = new double[] { Compiler.KeyIndex( key ) };
 				return true;
 			case ParameterKind.Shape or ParameterKind.Picture:
-				return TryShape( text, out value );
+				return TryShape( text, strings, out value );
 			case ParameterKind.Choice:
 			{
 				var choice = IndexOf( Choices, text );
@@ -161,7 +162,7 @@ public sealed record ScriptParameter
 		}
 	}
 
-	private bool TryShape( string text, out double[] value )
+	private bool TryShape( string text, List<string> strings, out double[] value )
 	{
 		value = null;
 		if ( Kind == ParameterKind.Picture && Enum.TryParse<LayerPicture>( text, false, out var picture ) && Enum.IsDefined( picture ) )
@@ -170,11 +171,67 @@ public sealed record ScriptParameter
 			return true;
 		}
 
-		// shortcut: only the stock shapes can be chosen as a value yet; the player's own need the library (4b)
+		if ( OwnShapeOf( text ) is { } own )
+		{
+			if ( strings is null )
+				return false;
+
+			var index = IndexOf( strings, own.Name );
+			if ( index < 0 )
+			{
+				strings.Add( own.Name );
+				index = strings.Count - 1;
+			}
+
+			value = new double[] { -(1 + (int)own.Kind + OwnKinds * index) };
+			return true;
+		}
+
 		if ( !Enum.TryParse<StandardShape>( text, false, out var shape ) || !Enum.IsDefined( shape ) )
 			return false;
 
 		value = new double[] { (int)shape };
+		return true;
+	}
+
+	// A shape value naming one of the player's own is "@shape:Name", "@sticker:Name" or "@emblem:Name"; held as minus one
+	// more than its kind plus OwnKinds times its name's place among the machine's strings, until the build draws it from
+	// the library (see ScriptMachine.Build)
+	private const char OwnMark = '@';
+	private const int OwnKinds = 3;
+
+	/// <summary>
+	/// The value naming the player's own shape, sticker or emblem <paramref name="name"/> (see <see cref="IPlayerLibrary"/>),
+	/// for a shape or picture parameter.
+	/// </summary>
+	public static string OwnShapeText( LibraryItemKind kind, string name ) => $"{OwnMark}{kind.ToString().ToLowerInvariant()}:{name}";
+
+	/// <summary>The kind and name a value naming one of the player's own shapes gives (see <see cref="OwnShapeText"/>); null for another value.</summary>
+	public static (LibraryItemKind Kind, string Name)? OwnShapeOf( string text )
+	{
+		if ( text is not { Length: > 2 } || text[ 0 ] != OwnMark || text.IndexOf( ':' ) is var colon && colon < 0 )
+			return null;
+
+		var name = text[ (colon + 1).. ];
+		if ( name.Length == 0 || name.Length > DrawnShape.MaxNameLength || !Enum.TryParse<LibraryItemKind>( text[ 1..colon ], true, out var kind )
+			|| kind is not (LibraryItemKind.Shape or LibraryItemKind.Sticker or LibraryItemKind.Emblem) || text[ 1..colon ] != kind.ToString().ToLowerInvariant() )
+			return null;
+
+		return (kind, name);
+	}
+
+	/// <summary>
+	/// The player's own shape a shape value names (one <see cref="TryRead"/> made of <see cref="OwnShapeText"/>, with the
+	/// machine's <paramref name="strings"/>); false for any other value.
+	/// </summary>
+	internal static bool TryOwnShape( double value, IReadOnlyList<string> strings, out LibraryItemKind kind, out string name )
+	{
+		(kind, name) = (LibraryItemKind.Shape, null);
+		var code = -(long)value - 1;
+		if ( value >= 0 || code / OwnKinds >= (strings?.Count ?? 0) )
+			return false;
+
+		(kind, name) = ((LibraryItemKind)(code % OwnKinds), strings[ (int)(code / OwnKinds) ]);
 		return true;
 	}
 
@@ -241,6 +298,9 @@ public sealed record ScriptParameter
 			case ParameterKind.Key: return Effect.Keys[ (int)value[ 0 ] ];
 			case ParameterKind.Shape or ParameterKind.Picture:
 			{
+				if ( TryOwnShape( value[ 0 ], strings, out var kind, out var name ) )
+					return OwnShapeText( kind, name );
+
 				var handle = (int)value[ 0 ];
 				return handle >= Handles.PictureBase ? ((LayerPicture)(handle - Handles.PictureBase)).ToString() : ((StandardShape)handle).ToString();
 			}

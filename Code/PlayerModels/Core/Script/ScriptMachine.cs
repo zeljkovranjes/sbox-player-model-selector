@@ -97,6 +97,7 @@ public sealed partial class ScriptMachine
 		_builder = new ScriptBuilder( this, library );
 		_io = _ownIO ??= new ScriptIO();
 		_host = null;
+		DrawOwnShapes();
 		var finished = Execute( 0, stack, ScriptLimits.BuildInstructions );
 		var builder = _builder;
 		_builder = null;
@@ -109,6 +110,22 @@ public sealed partial class ScriptMachine
 
 		builder.FillLive();
 		return build;
+	}
+
+	// Shape parameters set to one of the player's own (see ScriptParameter.OwnShapeText): drawn into the build from the
+	// library as Shapes.Mine draws one, so the build carries it; one the library hasn't leaves the script's own default
+	private void DrawOwnShapes()
+	{
+		var parameters = Program.Parameters;
+		for ( var i = 0; i < (_parameterValues?.Length ?? 0); i++ )
+		{
+			if ( parameters[ i ].Kind is not (ParameterKind.Shape or ParameterKind.Picture) || _parameterValues[ i ] is not { Length: 1 } value
+				|| !ScriptParameter.TryOwnShape( value[ 0 ], Strings, out var kind, out var name ) )
+				continue;
+
+			var handle = _builder.OwnShape( name, kind );
+			_parameterValues[ i ] = handle >= 0 ? new double[] { handle } : null;
+		}
 	}
 
 	/// <summary>Runs the handler of <paramref name="scriptEvent"/>, if the script has one; false when it faulted.</summary>

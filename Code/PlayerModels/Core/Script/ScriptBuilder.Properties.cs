@@ -169,6 +169,7 @@ internal sealed partial class ScriptBuilder
 
 	private bool SetShape( PropertyId property, Draft draft, double[] from, int at )
 	{
+		draft.Edited = true;
 		var sticker = draft.Sticker ??= new Sticker();
 		switch ( property )
 		{

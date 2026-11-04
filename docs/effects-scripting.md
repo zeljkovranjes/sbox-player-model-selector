@@ -263,7 +263,11 @@ default; a player's choice is kept with the effect, held to the parameter's
 range. The widget comes from the type: a slider for a number (a stepper for a
 whole `Step`), a toggle for a bool, a colour picker, a palette editor for a list
 of colours, a text box, a shape picker, a key picker, a dropdown for a choice
-(like `Joint`) or `Choices`, three number rows for a `Vector3`.
+(like `Joint`) or `Choices`, three number rows for a `Vector3`. A shape picker
+offers the stock shapes and the player's own shapes and stickers from My shapes
+(made, used from the Workshop or forked): a chosen one of theirs is carried in
+the look, so every player sees it without having it, and one that is gone from
+both leaves the script's own value.
 
 ```lua effect
 [Parameter( "Glow size", Min = 0.5, Max = 10, Step = 0.1, Group = "Look", Tip = "How big each glow is" )]

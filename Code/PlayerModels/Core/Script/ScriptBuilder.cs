@@ -22,6 +22,12 @@ internal sealed partial class ScriptBuilder
 		public float FadeFrom, FadeTo;
 		public DrawnShape Made;
 		public bool IsMade;
+
+		// The player's own shape it was drawn from (Shapes.Mine and the like), and how many strokes that gave it: one the
+		// script doesn't change is that shape whole (a sticker of layers, its finish), not just its lines
+		public DrawnShape Own;
+		public int OwnStrokes;
+		public bool Edited;
 	}
 
 	// While building, a layer's shape or picture naming a drawn shape not made yet: this, then the draft's index
@@ -211,6 +217,20 @@ internal sealed partial class ScriptBuilder
 		return draft;
 	}
 
+	/// <summary>
+	/// The handle of the player's own shape <paramref name="name"/> of <paramref name="kind"/>, drawn from the library as
+	/// <c>Shapes.Mine</c> draws one (a shape parameter set to it); -1 when the library hasn't it.
+	/// </summary>
+	public int OwnShape( string name, LibraryItemKind kind )
+	{
+		var draft = MyShape( name, kind );
+		if ( draft >= 0 )
+			return Handles.DraftBase + draft;
+
+		Error = null;
+		return -1;
+	}
+
 	private int MyShape( string name, LibraryItemKind kind )
 	{
 		var shape = _library?.Shape( name, kind )?.Sanitized();
@@ -221,9 +241,11 @@ internal sealed partial class ScriptBuilder
 		if ( draft < 0 )
 			return -1;
 
-		_drafts[ draft ].Strokes.AddRange( shape.Decode() );
-		_drafts[ draft ].Sticker = shape.Sticker;
-		(_drafts[ draft ].FadeFrom, _drafts[ draft ].FadeTo) = (shape.FadeFrom, shape.FadeFrom + shape.FadeArc);
+		var made = _drafts[ draft ];
+		made.Strokes.AddRange( shape.Decode() );
+		made.Sticker = shape.Sticker;
+		(made.FadeFrom, made.FadeTo) = (shape.FadeFrom, shape.FadeFrom + shape.FadeArc);
+		(made.Own, made.OwnStrokes) = (shape, made.Strokes.Count);
 		return draft;
 	}
 

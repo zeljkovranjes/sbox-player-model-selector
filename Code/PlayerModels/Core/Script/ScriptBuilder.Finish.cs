@@ -103,6 +103,13 @@ internal sealed partial class ScriptBuilder
 		if ( draft.Pending.Count > 0 )
 			EndStroke( Handles.DraftBase + index, false );
 
+		if ( draft.Own is { } own && !draft.Edited && draft.Strokes.Count == draft.OwnStrokes && draft.Parts.Count == 0
+			&& draft.FadeFrom == own.FadeFrom && draft.FadeTo == own.FadeFrom + own.FadeArc )
+		{
+			(draft.Made, draft.IsMade) = (own, true);
+			return own;
+		}
+
 		var strokes = draft.Strokes;
 		if ( strokes.Count == 0 && draft.Parts.Count > 0 )
 		{

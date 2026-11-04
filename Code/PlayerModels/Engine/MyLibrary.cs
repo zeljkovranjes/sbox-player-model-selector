@@ -35,7 +35,10 @@ internal sealed class MyLibrary : IPlayerLibrary
 
 	public Effect Effect( string name ) => _effects.Find( x => x.Name == name );
 
-	public DrawnShape Shape( string name, LibraryItemKind kind ) => _shapes.Find( x => x.Name == name && LookLibrary.KindOf( x ) == kind );
+	public DrawnShape Shape( string name, LibraryItemKind kind ) => _shapes.Find( x => x.Name == name && LookLibrary.Is( x, kind ) );
+
+	/// <summary>The player's own shapes and stickers, in My shapes then the look's order (a shape parameter's choices).</summary>
+	internal IReadOnlyList<DrawnShape> Shapes => _shapes;
 
 	/// <summary>The drawn shape called <paramref name="name"/>, of any kind (for a completion's picture); null for none.</summary>
 	internal DrawnShape ShapeNamed( string name ) => _shapes.Find( x => x.Name == name );
@@ -43,6 +46,6 @@ internal sealed class MyLibrary : IPlayerLibrary
 	private void Add( DrawnShape shape )
 	{
 		_shapes.Add( shape );
-		_items.Add( new LibraryItem( shape.Name, LookLibrary.KindOf( shape ), shape.Content ) );
+		LookLibrary.AddItems( _items, shape );
 	}
 }

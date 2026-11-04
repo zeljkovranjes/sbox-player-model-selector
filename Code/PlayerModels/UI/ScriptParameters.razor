@@ -69,7 +69,17 @@
                                         <KeyGlyph class="key-glyph" Key=@value></KeyGlyph>
                                     </div>
                                     break;
-                                case ParameterKind.Shape or ParameterKind.Picture or ParameterKind.Choice:
+                                case ParameterKind.Shape or ParameterKind.Picture:
+                                    <div class="row">
+                                        <TextLabel class="label" Text=@shown.Title Tooltip=@shown.Tip></TextLabel>
+                                        <UIDropdown Items=@ShapeChoices( shown, value ) Value=@value ValueChanged=@(( object v ) => Set( shown, (string)v )) Tokenize=@false></UIDropdown>
+                                        @if ( OwnShape( value ) is { } own )
+                                        {
+                                            <ShapeIcon class="shape-picture" Shape=@own></ShapeIcon>
+                                        }
+                                    </div>
+                                    break;
+                                case ParameterKind.Choice:
                                     <div class="row">
                                         <TextLabel class="label" Text=@shown.Title Tooltip=@shown.Tip></TextLabel>
                                         <UIDropdown Items=@ChoicesOf( shown ) Value=@value ValueChanged=@(( object v ) => Set( shown, (string)v )) Tokenize=@false></UIDropdown>
@@ -119,7 +129,7 @@
         if ( Effect?.Script is not { } script )
             return null;
 
-        var compiled = ScriptPrograms.Cache.Compile( script, ScriptKind.Effect, new LookLibrary( Look?.DrawnShapes ) );
+        var compiled = ScriptPrograms.Cache.Compile( script, ScriptKind.Effect, Library() );
         return compiled.Program?.Parameters.OrderBy( x => double.IsNaN( x.Order ) ? 0 : x.Order ).ToList();
     }
 
@@ -161,7 +171,7 @@
             return;
 
         var source = Formatter.Format( Effect.Script ) ?? Effect.Script;
-        var compiled = ScriptCompiler.Compile( source, ScriptKind.Effect, new LookLibrary( Look?.DrawnShapes ) );
+        var compiled = ScriptCompiler.Compile( source, ScriptKind.Effect, Library() );
         if ( !compiled.Succeeded )
             return;
 
@@ -185,7 +195,7 @@
     // The effect built again from its script with the values chosen (each held to its parameter; stale ones dropped)
     void Rebuild()
     {
-        var library = new LookLibrary( Look?.DrawnShapes );
+        var library = Library();
         var compiled = ScriptPrograms.Cache.Compile( Effect.Script, ScriptKind.Effect, library );
         if ( !compiled.Succeeded )
             return;
@@ -198,6 +208,14 @@
             _status = build.Error?.ToString();
             StateHasChanged();
             return;
+        }
+
+        // The look carries the shapes the build drew (one of the player's own a parameter names among them), so
+        // everyone sees them without having them
+        foreach ( var shape in build.Effect.Shapes ?? new List<DrawnShape>() )
+        {
+            if ( Look?.Carry( shape ) == false )
+                _status = $"A look carries at most {DrawnShape.MaxPerLook} drawn shapes: this one isn't kept";
         }
 
         ScriptSync.Adopt( Effect, build.Effect );
@@ -255,15 +273,43 @@
 
     static List<UIDropdown.Item> KeyChoices() => Effect.Keys.Select( x => new UIDropdown.Item( x.ToUpperInvariant(), x ) ).ToList();
 
-    static List<UIDropdown.Item> ChoicesOf( ScriptParameter parameter )
-    {
-        IEnumerable<string> names = parameter.Kind switch
-        {
-            ParameterKind.Shape => Enum.GetNames<StandardShape>(),
-            ParameterKind.Picture => Enum.GetNames<LayerPicture>().Concat( Enum.GetNames<StandardShape>() ),
-            _ => parameter.Choices ?? Array.Empty<string>(),
-        };
+    static List<UIDropdown.Item> ChoicesOf( ScriptParameter parameter ) =>
+        (parameter.Choices ?? Array.Empty<string>()).Select( x => new UIDropdown.Item( x, x ) ).ToList();
 
-        return names.Select( x => new UIDropdown.Item( x, x ) ).ToList();
+    // What the script may name (the player's own, with the shapes the look carries), made once per change to what shows
+    MyLibrary _library;
+    int _libraryFor;
+
+    MyLibrary Library()
+    {
+        var key = HashCode.Combine( Look, Look?.DrawnShapes.Count, LocalPrefs.MyShapesVersion );
+        if ( _library is null || key != _libraryFor )
+            (_library, _libraryFor) = (new MyLibrary( Look?.DrawnShapes ), key);
+
+        return _library;
     }
+
+    // A shape or picture parameter's choices: the stock ones, then the player's own shapes and stickers (My shapes, the
+    // Workshop ones they used, those the look carries), and the one chosen even when it is gone from them
+    List<UIDropdown.Item> ShapeChoices( ScriptParameter parameter, string value )
+    {
+        var stock = parameter.Kind == ParameterKind.Picture ? Enum.GetNames<LayerPicture>().Concat( Enum.GetNames<StandardShape>() ) : Enum.GetNames<StandardShape>();
+        var items = stock.Select( x => new UIDropdown.Item( x, x ) ).ToList();
+        foreach ( var shape in Library().Shapes )
+        {
+            var kind = LookLibrary.KindOf( shape );
+            var text = ScriptParameter.OwnShapeText( kind, shape.Name );
+            if ( !items.Exists( x => (string)x.Value == text ) )
+                items.Add( new UIDropdown.Item( $"{(kind == LibraryItemKind.Sticker ? "My sticker" : "My shape")}: {shape.Name}", text ) );
+        }
+
+        if ( ScriptParameter.OwnShapeOf( value ) is { } chosen && !items.Exists( x => (string)x.Value == value ) )
+            items.Add( new UIDropdown.Item( $"{chosen.Name} (not in My shapes)", value ) );
+
+        return items;
+    }
+
+    // The player's own shape a value names, as the look carries it or My shapes has it; null for a stock one
+    DrawnShape OwnShape( string value ) =>
+        ScriptParameter.OwnShapeOf( value ) is { } own ? Library().Shape( own.Name, own.Kind ) : null;
 }

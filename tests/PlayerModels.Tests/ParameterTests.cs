@@ -97,6 +97,55 @@ public class ParameterTests
 		Assert.Equal( "Vector3( 1, -2, 3 )", machine.Variable( "nudge" ) );
 	}
 
+	// A player's own library holding one sticker made of layers
+	private sealed class OwnStickers : IPlayerLibrary
+	{
+		public static readonly PlayerModels.Core.DrawnShape Badge = new PlayerModels.Core.DrawnShape
+		{
+			Name = "Clan badge", Finish = "Holo", Emblem = new List<PlayerModels.Core.EmblemLayer>
+			{
+				new() { Shape = "Circle", Color = "#202020" }, new() { Shape = "Star5", Color = "#ffcc00", ScaleX = 0.6f, ScaleY = 0.6f },
+			},
+		}.Sanitized();
+
+		public IReadOnlyList<LibraryItem> Items { get; } = new[] { new LibraryItem( "Clan badge", LibraryItemKind.Sticker, Badge.Content ) };
+		public PlayerModels.Core.Effect Effect( string name ) => null;
+		public PlayerModels.Core.DrawnShape Shape( string name, LibraryItemKind kind ) => name == Badge.Name && LookLibrary.Is( Badge, kind ) ? Badge : null;
+	}
+
+	[Fact]
+	public void AShapeParameterTakesThePlayersOwnWholeAndCarriesIt()
+	{
+		const string script = """
+			[Parameter]
+			local badge = Shapes.Heart
+
+			local glow = Sprite()
+			glow.LooksLike = badge
+			""";
+
+		var chosen = new Dictionary<string, string> { ["badge"] = ScriptParameter.OwnShapeText( LibraryItemKind.Sticker, "Clan badge" ) };
+		var machine = new ScriptMachine( ScriptKit.Compile( script ) );
+		Assert.Equal( chosen, machine.SetParameters( chosen ) );
+		var build = machine.Build( new OwnStickers() );
+		Assert.True( build.Succeeded, build.Error?.ToString() );
+		Assert.Equal( OwnStickers.Badge.Reference, build.Effect.Layers[ 0 ].Picture );
+		var carried = Assert.Single( build.Effect.Shapes );
+		Assert.Equal( OwnStickers.Badge.Content, carried.Content );
+		Assert.Equal( 2, carried.Emblem.Count );
+
+		// Without it (another machine whose look doesn't carry it, or it was deleted) the script's own default shows
+		var without = new ScriptMachine( ScriptKit.Compile( script ) );
+		without.SetParameters( chosen );
+		var fallback = without.Build( new LookLibrary( null ) );
+		Assert.True( fallback.Succeeded );
+		Assert.Equal( "Heart", fallback.Effect.Layers[ 0 ].Picture );
+
+		Assert.Equal( chosen, ScriptParameter.Sanitized( ScriptKit.Compile( script ), chosen ) );
+		Assert.Empty( ScriptParameter.Sanitized( ScriptKit.Compile( script ), new Dictionary<string, string> { ["badge"] = "@effect:Fire hands" } ) );
+		Assert.Empty( ScriptParameter.Sanitized( ScriptKit.Compile( script ), new Dictionary<string, string> { ["badge"] = "@sticker:" + new string( 'x', 200 ) } ) );
+	}
+
 	[Fact]
 	public void TamperedValuesAreClampedOrDropped()
 	{

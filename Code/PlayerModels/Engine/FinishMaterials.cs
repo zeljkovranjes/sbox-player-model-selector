@@ -12,7 +12,6 @@ internal static class FinishMaterials
 {
 	private const string Shiny = "materials/shine.vmat";
 	private const string Plain = "materials/default.vmat";
-	private const string Black = "materials/black_matte.vmat";
 
 	private const string TintAttribute = "g_vColorTint";
 	private const string MetalnessAttribute = "g_flMetalness";
@@ -39,7 +38,8 @@ internal static class FinishMaterials
 		"Copper" => new( Shiny, new Color( 0.85f, 0.45f, 0.27f ), 1f, ShinyRoughness ),
 		"Bronze" => new( Shiny, new Color( 0.55f, 0.36f, 0.18f ), 1f, ShinyRoughness ),
 		"Gloss" => new( Shiny, Color.White, 0f, ShinyRoughness ),
-		"Matte black" => new( Black, new Color( 0.08f, 0.08f, 0.08f ), 0f, MatteRoughness ),
+		// The plain material coloured black: the engine's own black_matte.vmat draws with the error shader (a red checker)
+		"Matte black" => new( Plain, new Color( 0.08f, 0.08f, 0.08f ), 0f, MatteRoughness ),
 		_ => new( Plain, Color.White, 0f, PlainRoughness ),
 	};
 

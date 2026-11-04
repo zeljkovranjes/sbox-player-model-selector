@@ -59,6 +59,7 @@ internal sealed class FirstPersonWeapon
 			_held.Hold( renderer.GameObject );
 			_rack ??= new EffectRack();
 			_rack.SizeScale = EffectsScale;
+			_rack.NearCameraShown = true;
 			_rack.Apply( extras ? OnWeapon( look.Effects ) : null, null, look.DrawnShapes, viewModel, null, citizen, citizen.Model, null,
 				new EffectWearer { Aim = () => player.IsValid() && player.Controller.IsValid() ? player.Controller.EyeAngles.Forward : Vector3.Forward, Shooter = player.GameObject } );
 

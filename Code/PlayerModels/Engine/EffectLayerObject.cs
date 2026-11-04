@@ -41,6 +41,12 @@ internal sealed class EffectLayerObject
 	// A light switching on or off for its moment, or its key, takes this long to fade
 	private const float FadeSeconds = 0.3f;
 
+	// Near the camera a layer fades: all of it shows from this far away, none of it this close, so nobody's effect (one's
+	// own in third person, or another player's standing in one's face) can fill the view or blind it. Sprites fade each
+	// on its own, on the GPU; a light or a trail by where its place is
+	private const float NearFadeFull = 60f;
+	private const float NearFadeGone = 20f;
+
 	// Fading with speed: the place moving this fast (citizen units a second) shows fully; how quickly the speed read
 	// follows it
 	private const float FullSpeed = 160f;
@@ -63,6 +69,9 @@ internal sealed class EffectLayerObject
 
 	/// <summary>The object itself.</summary>
 	internal GameObject Root { get; }
+
+	/// <summary>Whether it shows whole however near the camera it is: a first-person weapon's, which is always near.</summary>
+	internal bool NearCameraShown { get; set; }
 
 	/// <summary>What it shows: sprites, a light or a trail.</summary>
 	internal LayerKind Kind { get; }
@@ -364,7 +373,8 @@ internal sealed class EffectLayerObject
 		FollowSpeed( placed.Position, delta );
 		_level = Approach( _level, wanted ? 1f : 0f, delta / FadeSeconds );
 
-		var shown = gate * (_fadesWithSpeed ? Math.Clamp( _speed / (FullSpeed * _motion), 0f, 1f ) : 1f);
+		var shown = gate * (_fadesWithSpeed ? Math.Clamp( _speed / (FullSpeed * _motion), 0f, 1f ) : 1f)
+			* (Kind == LayerKind.Sprite || NearCameraShown ? 1f : NearCamera( placed.Position ));
 		Show( wanted, shown );
 		if ( _bursting )
 			Burst();
@@ -466,6 +476,16 @@ internal sealed class EffectLayerObject
 		_emitter.Rate = rate > 0f ? MathF.Max( 1f, rate ) : 0f;
 		if ( restart && _emitting )
 			_emitter.ResetEmitter();
+	}
+
+	// How much of it shows at position for the camera drawing its scene: eased from none to all (see NearFadeFull)
+	private float NearCamera( Vector3 position )
+	{
+		if ( Root.Scene?.Camera is not { } camera )
+			return 1f;
+
+		var near = Math.Clamp( ((position - camera.WorldPosition).Length - NearFadeGone) / (NearFadeFull - NearFadeGone), 0f, 1f );
+		return near * near * (3f - 2f * near);
 	}
 
 	private void FollowSpeed( Vector3 position, float delta )
@@ -633,6 +653,8 @@ internal sealed class EffectLayerObject
 		_renderer.Lighting = false;
 		_renderer.Shadows = false;
 		_renderer.Opaque = false;
+		_renderer.CameraFadeNear = NearCameraShown ? 0f : NearFadeGone;
+		_renderer.CameraFadeFar = NearCameraShown ? 0f : NearFadeFull;
 		_renderer.Scale = 1f;
 		_renderer.Enabled = true;
 	}

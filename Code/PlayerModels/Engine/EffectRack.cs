@@ -93,6 +93,9 @@ internal sealed class EffectRack
 	/// <summary>How much smaller (or larger) than on a body the effects are made: a first-person weapon's are smaller, as it is right by the eye.</summary>
 	internal float SizeScale { get; set; } = 1f;
 
+	/// <summary>Whether its layers show whole however near the camera they are (see <see cref="EffectLayerObject.NearCameraShown"/>).</summary>
+	internal bool NearCameraShown { get; set; }
+
 	/// <summary>
 	/// Whether the effects coming from the weapon held send nothing: their player sees them on their first-person weapon
 	/// instead. Changing it never builds anything again.
@@ -427,6 +430,7 @@ internal sealed class EffectRack
 					var kind = data.KindIs;
 					var layer = schedule?.Take( kind ) ?? EffectLayerObject.Make( kind );
 					layer.Root.SetParent( _parent, false );
+					layer.NearCameraShown = NearCameraShown;
 					layer.Configure( effect, shown, data, index++, motion, _shapes, FootOf( effect, data ) );
 					_wantsShot |= data.ShapeIs == LayerShape.Shot || data.AtHit || data.WhenIs == LayerWhen.OnHit || data.AlignIs == LayerAlign.Swing;
 					layer.Root.Enabled = true;

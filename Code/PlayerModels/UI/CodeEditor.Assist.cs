@@ -286,6 +286,8 @@ public partial class CodeEditor
 	// As many overlay panels as wanted, made or let go of only when the count changes
 	private static void Fit<T>( List<T> panels, int count, Func<T> make ) where T : Panel
 	{
+		// The body draws itself again now and then, and may let go of what was added to it
+		panels.RemoveAll( x => !x.IsValid() );
 		while ( panels.Count < count )
 			panels.Add( make() );
 

@@ -2261,7 +2261,7 @@ end
 
 #### `Particle.Origin: Vector3  (read only)`
 
-Where it appeared on its layer's shape, from the layer's place: forwards, to the body's left and up.
+Where it appeared on its layer's shape, from the layer's place, the way that faces: forwards, left and up (a joint faces the way the body does; an item or weapon its own way).
 
 Set: read only.
 
@@ -2326,7 +2326,7 @@ end
 
 #### `Particle.Offset: Vector3  (-96 to 96)`
 
-How far it is moved from where it would be: forwards, to the body's left and up (body-sized moves: up to 96 each way).
+How far it is moved from where it would be, the way its layer's place faces: forwards, left and up (a joint faces the way the body does; an item or weapon its own way). Up to 96 each way.
 
 Set: while it runs (in its functions).
 

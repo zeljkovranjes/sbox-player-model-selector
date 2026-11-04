@@ -51,7 +51,7 @@
                 @if ( !string.IsNullOrEmpty( open.Example ) )
                 {
                     <TextLabel class="subheading" Text="Try it: change the example, the result follows"></TextLabel>
-                    <CodePlayground Example=@open.Example Kind=@open.ExampleKind CopyInto=@CopyInto></CodePlayground>
+                    <CodePlayground Example=@open.Example Kind=@open.ExampleKind CopyInto=@CopyInto Wearer=@Wearer></CodePlayground>
                 }
             }
             else if ( _page is { } page )
@@ -68,7 +68,7 @@
                 @if ( page.Example is not null )
                 {
                     <TextLabel class="subheading" Text="Try it"></TextLabel>
-                    <CodePlayground Example=@page.Example Kind=@ScriptKind.Effect CopyInto=@CopyInto></CodePlayground>
+                    <CodePlayground Example=@page.Example Kind=@ScriptKind.Effect CopyInto=@CopyInto Wearer=@Wearer></CodePlayground>
                 }
             }
         </div>
@@ -82,6 +82,9 @@
 
     /// <summary>Puts an example's code in the player's own script.</summary>
     public Action<string> CopyInto { get; init; }
+
+    /// <summary>The look examples show on: the player's own, being edited (see <see cref="CodePlayground.Wearer"/>).</summary>
+    public Func<PlayerLook> Wearer { get; init; }
 
     // The clips recorded in the editor for the pages below, beside the effects guides'
     const string ClipFolder = "ui/effects/guides/";

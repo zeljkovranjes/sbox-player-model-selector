@@ -478,7 +478,7 @@
             return;
         }
 
-        _reference = new ScriptReferencePanel { Entry = entry, CopyInto = CopyExample };
+        _reference = new ScriptReferencePanel { Entry = entry, CopyInto = CopyExample, Wearer = () => _look };
         _reference.Parent = SpawnMenuHost.ModalLayer ?? FindPopupPanel();
     }
 

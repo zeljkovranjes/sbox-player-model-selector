@@ -48,6 +48,12 @@
     /// <summary>Puts the code (as it is now) in the player's own script.</summary>
     [Parameter] public Action<string> CopyInto { get; set; }
 
+    /// <summary>
+    /// The look an effect example is shown on: the player's own (the model they wear or are editing, as they made it),
+    /// without its effects; the citizen for none.
+    /// </summary>
+    [Parameter] public Func<PlayerLook> Wearer { get; set; }
+
     // It updates this long after typing pauses
     const float RunAfter = 0.15f;
 
@@ -95,7 +101,7 @@
         if ( _preview is not null && _preview.IsValid() )
         {
             _preview.Look = _look;
-            _ = _preview.ShowAsync( "" );
+            _ = _preview.ShowAsync( _look.Model ?? "" );
         }
     }
 
@@ -150,7 +156,7 @@
         {
             effect.Script = Minifier.Minify( source );
             effect.Id = "e1";
-            var look = new PlayerLook();
+            var look = Wearer?.Invoke()?.WithoutEffects() ?? new PlayerLook();
             if ( effect.Sanitized() is { } worn )
                 look.Adopt( worn );
 

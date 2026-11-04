@@ -162,8 +162,11 @@ public sealed class CodeEntry : TextEntry
 		MoveCaret( moved );
 	}
 
-	/// <summary>Where <paramref name="offset"/> of <see cref="Source"/> is drawn now, in screen pixels (a caret's rect there).</summary>
-	public Rect RectOf( int offset ) => Label.GetCaretRect( ElementOf( offset ) );
+	/// <summary>
+	/// Where <paramref name="offset"/> of <see cref="Source"/> is drawn now, in screen pixels (a caret's rect there); an
+	/// empty rect before the text is first laid out, when there is nowhere yet.
+	/// </summary>
+	public Rect RectOf( int offset ) => Label.Box.Rect.Width > 0f ? Label.GetCaretRect( ElementOf( offset ) ) : default;
 
 	/// <summary>
 	/// Colours the text: <paramref name="spans"/> by their kind, <paramref name="errors"/> underlined, <paramref name="marks"/>

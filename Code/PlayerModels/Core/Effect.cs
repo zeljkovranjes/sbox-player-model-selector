@@ -7,7 +7,8 @@ namespace PlayerModels.Core;
 
 /// <summary>
 /// Something worn that isn't a model: glowing eyes, fire in the hands, a halo. Its layers (see <see cref="EffectLayer"/>)
-/// come from a joint (see <see cref="EffectAnchor"/>), each layer from its effect's unless it names its own, and four
+/// come from a joint, an item or the weapon held (see <see cref="EffectAnchor"/>), each layer from its effect's unless it
+/// names a joint of its own, and four
 /// sliders change all of them at once: colour, size, amount and speed. Lives in the look, so it saves, shares and
 /// networks with it; every client builds it for itself, within the host's budget (see <see cref="EffectBudget"/>).
 /// </summary>
@@ -122,17 +123,30 @@ public sealed class Effect
 		return live;
 	}
 
-	/// <summary>How many of its layers are lights.</summary>
+	/// <summary>How many of its layers are lights, those switched off aside.</summary>
 	public int Lights()
 	{
 		var lights = 0;
 		foreach ( var layer in Layers )
 		{
-			if ( layer.KindIs == LayerKind.Light )
+			if ( layer.KindIs == LayerKind.Light && !layer.Off )
 				lights++;
 		}
 
 		return lights;
+	}
+
+	/// <summary>How many of its layers show, those switched off aside.</summary>
+	public int LayersOn()
+	{
+		var on = 0;
+		foreach ( var layer in Layers )
+		{
+			if ( !layer.Off )
+				on++;
+		}
+
+		return on;
 	}
 
 	/// <summary>
@@ -259,19 +273,72 @@ public sealed class Effect
 	}
 }
 
+/// <summary>What an effect comes from: a joint of the body, an item worn, or the weapon held.</summary>
+public enum AnchorKind { Joint, Item, HeldWeapon }
+
 /// <summary>
-/// Where an effect comes from: a joint of the body (see <see cref="Effect.Joint"/>). A joint a model doesn't have is
-/// stood in for (the eyes by a point in front of the head), so an effect always shows.
+/// Where an effect comes from: a joint of the body (see <see cref="Effect.Joint"/>), an item worn (by the item itself,
+/// so it follows it however the items are ordered), or the weapon held (its muzzle or tip), moved from there by an
+/// offset. What isn't there stands in for itself: a joint a model doesn't have (the eyes by a point in front of the head,
+/// the feet under the hips), an item no longer worn or a weapon not held by the joint it was on, so an effect always shows.
 /// </summary>
 public sealed class EffectAnchor
 {
-	/// <summary>The <see cref="Effect.Joint"/> it comes from, by name.</summary>
+	/// <summary>The longest item an anchor names: as long as an item can be.</summary>
+	public const int MaxItemLength = 256;
+
+	/// <summary>
+	/// The <see cref="Effect.Joint"/> it comes from, by name: for an item or a weapon, the joint it falls back to while
+	/// that isn't there (the item's own, the hand).
+	/// </summary>
 	[JsonPropertyName( "j" )]
 	public string Joint { get; set; } = nameof( Effect.Joint.Head );
 
-	/// <summary>A copy within bounds: a joint this version doesn't know is the head.</summary>
+	/// <summary>Its <see cref="AnchorKind"/> by name; null for a joint.</summary>
+	[JsonPropertyName( "k" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public string Kind { get; set; }
+
+	/// <summary>The item it comes from (see <see cref="Accessory.Item"/>), for an anchor on an item: the first one worn.</summary>
+	[JsonPropertyName( "i" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public string Item { get; set; }
+
+	/// <summary>How far it is moved from where it comes from: forwards, to the left, and up, in that place's own directions.</summary>
+	[JsonPropertyName( "f" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public float Forward { get; set; }
+
+	/// <inheritdoc cref="Forward"/>
+	[JsonPropertyName( "l" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public float Left { get; set; }
+
+	/// <inheritdoc cref="Forward"/>
+	[JsonPropertyName( "u" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public float Up { get; set; }
+
+	/// <summary>What it comes from; only right on an anchor within bounds (see <see cref="Sanitized"/>).</summary>
+	[JsonIgnore]
+	public AnchorKind KindIs => Kind is not null && Enum.TryParse<AnchorKind>( Kind, false, out var kind ) && Enum.IsDefined( typeof( AnchorKind ), kind ) ? kind : AnchorKind.Joint;
+
+	/// <summary>
+	/// A copy within bounds: a joint this version doesn't know is the head, a kind it doesn't know (or an item anchor
+	/// without an item) is the joint, and the offset is limited like a layer's.
+	/// </summary>
 	public EffectAnchor Sanitized()
 	{
-		return new EffectAnchor { Joint = Joint is not null && Enum.IsDefined( typeof( Effect.Joint ), Joint ) ? Joint : nameof( Effect.Joint.Head ) };
+		var item = Item?.Trim();
+		var kind = Kind is not null && Enum.IsDefined( typeof( AnchorKind ), Kind ) && Kind != nameof( AnchorKind.Joint ) ? Kind : null;
+		if ( kind == nameof( AnchorKind.Item ) && (string.IsNullOrEmpty( item ) || item.Length > MaxItemLength) )
+			kind = null;
+
+		return new EffectAnchor
+		{
+			Joint = Joint is not null && Enum.IsDefined( typeof( Effect.Joint ), Joint ) ? Joint : nameof( Effect.Joint.Head ),
+			Kind = kind,
+			Item = kind == nameof( AnchorKind.Item ) ? item : null,
+			Forward = Offset( Forward ),
+			Left = Offset( Left ),
+			Up = Offset( Up ),
+		};
 	}
+
+	private static float Offset( float value ) => float.IsFinite( value ) ? Math.Clamp( value, -EffectLayer.MaxOffset, EffectLayer.MaxOffset ) : 0f;
 }

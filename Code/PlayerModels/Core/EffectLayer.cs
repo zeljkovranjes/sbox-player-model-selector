@@ -4,35 +4,55 @@ using System.Text.Json.Serialization;
 
 namespace PlayerModels.Core;
 
-/// <summary>What a layer of an effect is: sprites (flames, sparks, hearts), or a light.</summary>
-public enum LayerKind { Sprite, Light }
+/// <summary>What a layer of an effect is: sprites (flames, sparks, hearts), a light, or a trail left behind as it moves.</summary>
+public enum LayerKind { Sprite, Light, Trail }
 
 /// <summary>
-/// Where a layer's sprites come from, around its place: one point, a ball, a flat ring, or all around the body (an
-/// upright ball as tall as the body, wherever the layer sits).
+/// Where a layer's sprites come from, around its place: one point, a ball, a flat ring, all around the body (an upright
+/// ball as tall as the body, wherever the layer sits), a box, a cone opening the way the layer faces, a line (to another
+/// joint, or across the way it faces), or a standard shape (see <see cref="StandardShape"/>).
 /// </summary>
-public enum LayerShape { Point, Sphere, Ring, AroundBody }
+public enum LayerShape { Point, Sphere, Ring, AroundBody, Box, Cone, Line, Shape }
 
 /// <summary>
 /// What a sprite looks like: the curated pictures every client draws for itself from lines (see <see cref="EffectShape"/>).
-/// Saved by name, so pictures and shapes added later join without changing what is saved.
+/// Saved by name, so pictures and shapes added later join without changing what is saved; a standard shape's name (see
+/// <see cref="StandardShape"/>) is a picture too.
 /// </summary>
 public enum LayerPicture { Glow, Spark, Flame, Smoke, Sparkle, Heart, Snowflake, Droplet }
 
-/// <summary>How a layer changes over time: not at all, brighter and dimmer, flickering, through every colour, or turning.</summary>
-public enum LayerRhythm { Steady, Pulse, Flicker, Rainbow, Spin }
-
 /// <summary>
-/// How a layer's sprites are coloured: each fading from its colour to its end colour, or one by one in the order they
-/// appear, by one of World at War's clan tag animations (see <see cref="ColorCycle"/>) over a palette.
+/// How a layer changes over time: not at all, brighter and dimmer, flickering, through every colour, turning round its
+/// joint (so a layer set off from it circles it), or wobbling about its place.
 /// </summary>
-public enum LayerColorMode { Fixed, Rain, Cycl, Cyln }
+public enum LayerRhythm { Steady, Pulse, Flicker, Rainbow, Spin, Jiggle }
 
 /// <summary>
-/// One layer of an <see cref="Effect"/>: sprites coming from a shape on the body, or a light there. Sizes and distances
-/// are for the citizen; a body of another size gets them in proportion. Saved under short names, without what is at its
-/// default, so a look full of effects stays small. Kinds, shapes and pictures are saved by name: a layer of a kind this
-/// version doesn't know (added later) is dropped when it is read, never the look.
+/// How a layer's sprites are coloured: each fading from its colour to its end colour; one by one in the order they
+/// appear, by one of World at War's clan tag animations (see <see cref="ColorCycle"/>) over a palette; or each one of the
+/// palette's colours in turn, kept for its life (confetti).
+/// </summary>
+public enum LayerColorMode { Fixed, Rain, Cycl, Cyln, Mix }
+
+/// <summary>The way a layer faces from its joint: where a cone opens, a line runs and a shape looks.</summary>
+public enum LayerFacing { Forward, Up, Down, Back, Left, Right }
+
+/// <summary>
+/// When a layer shows: always; while its wearer moves, stands on the ground, is in the air, crouches or holds a weapon;
+/// or for a moment when something happens (the events effects share, by the names scripts will use): they jump, land,
+/// get hurt, start or stop moving, crouch or stand up, shoot or swing (attack), or hit something hard.
+/// </summary>
+public enum LayerWhen
+{
+	Always, Moving, Grounded, InAir, Crouching, HoldingWeapon,
+	OnJump, OnLand, OnHurt, OnStartMoving, OnStopMoving, OnCrouch, OnUncrouch, OnShoot, OnImpact,
+}
+
+/// <summary>
+/// One layer of an <see cref="Effect"/>: sprites coming from a shape on the body, a light there, or a trail it leaves.
+/// Sizes and distances are for the citizen; a body of another size gets them in proportion. Saved under short names,
+/// without what is at its default, so a look full of effects stays small. Kinds, shapes and pictures are saved by name: a
+/// layer of a kind this version doesn't know (added later) is dropped when it is read, never the look.
 /// </summary>
 public sealed class EffectLayer
 {
@@ -40,7 +60,7 @@ public sealed class EffectLayer
 	public const float MaxSpread = 48f;
 	public const float MaxOffset = 24f;
 
-	/// <summary>The size of a sprite, across.</summary>
+	/// <summary>The size of a sprite, across, or how wide a trail is.</summary>
 	public const float MinSize = 0.1f;
 	public const float MaxSize = 48f;
 
@@ -52,7 +72,7 @@ public sealed class EffectLayer
 	public const float MaxSpeed = 200f;
 	public const float MaxGravity = 400f;
 
-	/// <summary>How long a sprite lives, in seconds.</summary>
+	/// <summary>How long a sprite lives, or how long a trail stays behind, in seconds.</summary>
 	public const float MinLifetime = 0.1f;
 	public const float MaxLifetime = 5f;
 
@@ -63,6 +83,15 @@ public sealed class EffectLayer
 	/// <summary>How many times a second a rhythm beats (or turns, for <see cref="LayerRhythm.Spin"/>).</summary>
 	public const float MaxRhythmSpeed = 10f;
 
+	/// <summary>How wide a cone opens, in degrees from its middle.</summary>
+	public const float MaxAngle = 45f;
+
+	/// <summary>How many sprites appear at once when the layer's moment comes (see <see cref="When"/>).</summary>
+	public const float MaxBurst = 100f;
+
+	/// <summary>How long a layer shows after its moment, in seconds.</summary>
+	public const float MaxShowFor = 5f;
+
 	/// <summary>The most colours a palette of the player's own has.</summary>
 	public const int MaxPalette = 32;
 
@@ -71,6 +100,10 @@ public sealed class EffectLayer
 	/// <summary>What the layer is, a <see cref="LayerKind"/> by name.</summary>
 	[JsonPropertyName( "k" )]
 	public string Kind { get; set; } = nameof( LayerKind.Sprite );
+
+	/// <summary>Whether it is switched off: kept with its effect, but not shown.</summary>
+	[JsonPropertyName( "off" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public bool Off { get; set; }
 
 	/// <summary>The <see cref="Effect.Joint"/> it comes from, by name, in place of its effect's; null for its effect's.</summary>
 	[JsonPropertyName( "j" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
@@ -96,15 +129,35 @@ public sealed class EffectLayer
 	[JsonPropertyName( "u" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public float Up { get; set; }
 
-	/// <summary>Its sprites' <see cref="LayerPicture"/> by name; null for a glow.</summary>
+	/// <summary>Its <see cref="LayerFacing"/> by name; null for forwards.</summary>
+	[JsonPropertyName( "fc" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public string Facing { get; set; }
+
+	/// <summary>How wide a cone opens, in degrees from its middle.</summary>
+	[JsonPropertyName( "an" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public float Angle { get; set; }
+
+	/// <summary>The <see cref="Effect.Joint"/> a line runs to, by name; null for a line across the way it faces.</summary>
+	[JsonPropertyName( "jt" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public string ToJoint { get; set; }
+
+	/// <summary>The <see cref="StandardShape"/> sprites come from, by name, for a layer from a shape.</summary>
+	[JsonPropertyName( "fm" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public string Formation { get; set; }
+
+	/// <summary>Whether sprites come from all over the shape (all through a solid) rather than along its outline (its surface).</summary>
+	[JsonPropertyName( "fi" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public bool Fill { get; set; }
+
+	/// <summary>Its sprites' <see cref="LayerPicture"/> or <see cref="StandardShape"/> by name; null for a glow.</summary>
 	[JsonPropertyName( "p" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public string Picture { get; set; }
 
-	/// <summary>Its colour as <c>#rrggbb</c>: a sprite's when it appears, or the light's.</summary>
+	/// <summary>Its colour as <c>#rrggbb</c>: a sprite's when it appears, the light's, or a trail's where it starts.</summary>
 	[JsonPropertyName( "c" )]
 	public string Color { get; set; } = White;
 
-	/// <summary>A sprite's colour as it fades away, as <c>#rrggbb</c>; null to keep <see cref="Color"/>.</summary>
+	/// <summary>A sprite's colour as it fades away (a trail's at its end), as <c>#rrggbb</c>; null to keep <see cref="Color"/>.</summary>
 	[JsonPropertyName( "c2" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public string ColorEnd { get; set; }
 
@@ -119,11 +172,11 @@ public sealed class EffectLayer
 	[JsonPropertyName( "pal" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public List<string> Palette { get; set; }
 
-	/// <summary>A sprite's size when it appears, or how far the light reaches.</summary>
+	/// <summary>A sprite's size when it appears, how far the light reaches, or how wide a trail is where it starts.</summary>
 	[JsonPropertyName( "a" )]
 	public float Size { get; set; } = 2f;
 
-	/// <summary>A sprite's size as it fades away; null to keep <see cref="Size"/>.</summary>
+	/// <summary>A sprite's size as it fades away (a trail's width at its end); null to keep <see cref="Size"/>.</summary>
 	[JsonPropertyName( "b" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public float? SizeEnd { get; set; }
 
@@ -135,7 +188,7 @@ public sealed class EffectLayer
 	[JsonPropertyName( "g" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public float Gravity { get; set; }
 
-	/// <summary>How long a sprite lives, in seconds.</summary>
+	/// <summary>How long a sprite lives, or how long a trail stays behind, in seconds.</summary>
 	[JsonPropertyName( "t" )]
 	public float Lifetime { get; set; } = 1f;
 
@@ -147,7 +200,7 @@ public sealed class EffectLayer
 	[JsonPropertyName( "fo" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public bool Follow { get; set; }
 
-	/// <summary>Whether sprites cover what is behind them (smoke, hearts) instead of glowing over it.</summary>
+	/// <summary>Whether sprites (or a trail) cover what is behind them (smoke, hearts) instead of glowing over it.</summary>
 	[JsonPropertyName( "so" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public bool Solid { get; set; }
 
@@ -163,6 +216,22 @@ public sealed class EffectLayer
 	[JsonPropertyName( "ra" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public float RhythmAmount { get; set; }
 
+	/// <summary>When it shows, a <see cref="LayerWhen"/> by name; null for always.</summary>
+	[JsonPropertyName( "wh" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public string When { get; set; }
+
+	/// <summary>How many sprites appear at once when its moment comes (see <see cref="When"/>).</summary>
+	[JsonPropertyName( "bu" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public float Burst { get; set; }
+
+	/// <summary>How long it shows after its moment, in seconds: sprites keep coming, a light shines, a trail is drawn.</summary>
+	[JsonPropertyName( "sf" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public float ShowFor { get; set; }
+
+	/// <summary>Whether it shows only as much as its place moves: none standing still, fully at a run or a swing.</summary>
+	[JsonPropertyName( "fs" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public bool FadeWithSpeed { get; set; }
+
 	/// <summary>What the layer is; only right on a layer within bounds (see <see cref="Sanitized"/>).</summary>
 	[JsonIgnore]
 	public LayerKind KindIs => Parsed( Kind, LayerKind.Sprite );
@@ -171,9 +240,15 @@ public sealed class EffectLayer
 	[JsonIgnore]
 	public LayerShape ShapeIs => Parsed( Shape, LayerShape.Point );
 
-	/// <summary>What its sprites look like.</summary>
+	/// <summary>What its sprites look like, when it is one of the curated pictures (see <see cref="PictureShape"/> for a shape).</summary>
 	[JsonIgnore]
 	public LayerPicture PictureIs => Parsed( Picture, LayerPicture.Glow );
+
+	/// <summary>The standard shape its sprites look like, or null for a curated picture.</summary>
+	[JsonIgnore]
+	public StandardShape? PictureShape => Picture is not null && !Known<LayerPicture>( Picture ) && Known<StandardShape>( Picture )
+		? Parsed( Picture, StandardShape.Circle )
+		: null;
 
 	/// <summary>How it changes over time.</summary>
 	[JsonIgnore]
@@ -182,6 +257,22 @@ public sealed class EffectLayer
 	/// <summary>How its sprites are coloured.</summary>
 	[JsonIgnore]
 	public LayerColorMode ColorModeIs => Parsed( ColorMode, LayerColorMode.Fixed );
+
+	/// <summary>The way it faces.</summary>
+	[JsonIgnore]
+	public LayerFacing FacingIs => Parsed( Facing, LayerFacing.Forward );
+
+	/// <summary>The standard shape its sprites come from, for a layer from a shape.</summary>
+	[JsonIgnore]
+	public StandardShape FormationIs => Parsed( Formation, StandardShape.Circle );
+
+	/// <summary>When it shows.</summary>
+	[JsonIgnore]
+	public LayerWhen WhenIs => Parsed( When, LayerWhen.Always );
+
+	/// <summary>Whether it shows for a moment (see <see cref="When"/>) rather than while something is so.</summary>
+	[JsonIgnore]
+	public bool IsMoment => WhenIs >= LayerWhen.OnJump;
 
 	/// <summary>
 	/// The colours its colour cycle goes through: its own palette, or the game's five, and for
@@ -195,19 +286,24 @@ public sealed class EffectLayer
 		return Palette is { Count: > 0 } ? Palette : ColorCycle.GamePalette;
 	}
 
-	/// <summary>How many of its sprites are out at once, at <paramref name="amount"/> times its own amount; a light has none.</summary>
-	public float LiveSprites( float amount = 1f ) => KindIs == LayerKind.Sprite ? Amount * amount * Lifetime : 0f;
+	/// <summary>
+	/// How many of its sprites are out at once at most, at <paramref name="amount"/> times its own amount: what it makes
+	/// over a lifetime, and a moment's burst on top; a light, a trail or a layer switched off has none.
+	/// </summary>
+	public float LiveSprites( float amount = 1f ) => KindIs == LayerKind.Sprite && !Off ? (Amount * Lifetime + Burst) * amount : 0f;
 
 	/// <summary>
-	/// A copy within bounds, or null for a layer of a kind (or from a joint, shape, picture, rhythm or colour mode) this
-	/// version doesn't know: numbers finite and limited, colours valid hex colours (a palette keeps only those, at most
-	/// <see cref="MaxPalette"/>), and what is at its default left out.
+	/// A copy within bounds, or null for a layer of a kind (or from a joint, shape, picture, rhythm, colour mode, facing or
+	/// moment) this version doesn't know: numbers finite and limited, colours valid hex colours (a palette keeps only those,
+	/// at most <see cref="MaxPalette"/>), and what is at its default left out.
 	/// </summary>
 	public EffectLayer Sanitized()
 	{
 		if ( !Known<LayerKind>( Kind ) || Joint is not null && !Known<Effect.Joint>( Joint ) || Shape is not null && !Known<LayerShape>( Shape )
-			|| Picture is not null && !Known<LayerPicture>( Picture ) || Rhythm is not null && !Known<LayerRhythm>( Rhythm )
-			|| ColorMode is not null && !Known<LayerColorMode>( ColorMode ) )
+			|| Picture is not null && !Known<LayerPicture>( Picture ) && !Known<StandardShape>( Picture )
+			|| Rhythm is not null && !Known<LayerRhythm>( Rhythm ) || ColorMode is not null && !Known<LayerColorMode>( ColorMode )
+			|| Facing is not null && !Known<LayerFacing>( Facing ) || ToJoint is not null && !Known<Effect.Joint>( ToJoint )
+			|| Formation is not null && !Known<StandardShape>( Formation ) || When is not null && !Known<LayerWhen>( When ) )
 			return null;
 
 		var palette = new List<string>();
@@ -222,16 +318,23 @@ public sealed class EffectLayer
 		var colourEnd = PlayerLook.IsColour( ColorEnd ) ? ColorEnd.ToLowerInvariant() : null;
 		var size = isLight ? Limited( Size, MinReach, MaxReach, MinReach ) : Limited( Size, MinSize, MaxSize, MinSize );
 		var sizeEnd = SizeEnd is { } end && !isLight ? Limited( end, MinSize, MaxSize, size ) : (float?)null;
+		var isMoment = When is not null && Parsed( When, LayerWhen.Always ) >= LayerWhen.OnJump;
 
 		return new EffectLayer
 		{
 			Kind = Kind,
+			Off = Off,
 			Joint = Joint,
 			Shape = Shape == nameof( LayerShape.Point ) ? null : Shape,
 			Spread = Limited( Spread, 0f, MaxSpread, 0f ),
 			Forward = Limited( Forward, -MaxOffset, MaxOffset, 0f ),
 			Left = Limited( Left, -MaxOffset, MaxOffset, 0f ),
 			Up = Limited( Up, -MaxOffset, MaxOffset, 0f ),
+			Facing = Facing == nameof( LayerFacing.Forward ) ? null : Facing,
+			Angle = Limited( Angle, 0f, MaxAngle, 0f ),
+			ToJoint = ToJoint,
+			Formation = Formation,
+			Fill = Fill,
 			Picture = Picture == nameof( LayerPicture.Glow ) ? null : Picture,
 			Color = colour,
 			ColorEnd = colourEnd == colour ? null : colourEnd,
@@ -248,6 +351,10 @@ public sealed class EffectLayer
 			Rhythm = Rhythm == nameof( LayerRhythm.Steady ) ? null : Rhythm,
 			RhythmSpeed = Limited( RhythmSpeed, 0f, MaxRhythmSpeed, 0f ),
 			RhythmAmount = Limited( RhythmAmount, 0f, 1f, 0f ),
+			When = When == nameof( LayerWhen.Always ) ? null : When,
+			Burst = isMoment && !isLight ? MathF.Round( Limited( Burst, 0f, MaxBurst, 0f ) ) : 0f,
+			ShowFor = isMoment ? Limited( ShowFor, 0f, MaxShowFor, 0f ) : 0f,
+			FadeWithSpeed = FadeWithSpeed,
 		};
 	}
 

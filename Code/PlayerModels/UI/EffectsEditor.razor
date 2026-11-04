@@ -5,6 +5,7 @@
 @using Sandbox.UI
 @using PlayerModels.Components
 @using PlayerModels.Core
+@using PlayerModels.Core.Script
 @using PlayerModels.Engine
 @inherits Panel
 @namespace PlayerModels.UI
@@ -51,6 +52,8 @@
             <div class="reset" Tooltip="Effects, shapes and stickers players shared" @onclick=@(() => ShowWorkshop?.Invoke( true ))>Workshop</div>
             <div class="reset @( Selected is null ? "disabled" : "" )" Tooltip=@( Selected is null ? "Select an effect you wear first" : "Every layer of it, placed by hand" )
                  @onclick=@(() => OpenAdvanced?.Invoke( Selected?.Id ))>Edit in Advanced editor</div>
+            <div class="reset" Tooltip=@( Selected is null ? "Write a new effect in code" : "Open it in the code editor: the script it is (or would be)" )
+                 @onclick=@(() => OpenCode?.Invoke( Selected?.Id ))>Edit as code</div>
         </div>
 
         @if ( Locked )
@@ -91,6 +94,26 @@
         }
 
         <div class="section-header">My Effects</div>
+        @if ( Drafts.Count > 0 )
+        {
+            <div class="grid">
+                @foreach ( var draft in Drafts )
+                {
+                    var shown = draft;
+                    <div class="tile effect draft" Tooltip=@( $"Draft, {ScriptDraft.Age( shown.Edited, DateTimeOffset.UtcNow.ToUnixTimeSeconds() )}: open it in the code editor as you left it" )
+                         @onclick=@(() => OpenDraft?.Invoke( shown ))>
+                        <div class="thumb draft-icon">code</div>
+                        <div class="draft-badge" Tooltip="Draft">edit</div>
+                        <TextLabel class="title" Text=@shown.Name></TextLabel>
+                        <div class="forget" Tooltip="Delete the draft" @onclick=@(( PanelEvent e ) => ForgetDraft( shown, e ))>delete</div>
+                    </div>
+                }
+                @for ( var i = 0; i < FillersFor( Drafts.Count ); i++ )
+                {
+                    <div class="tile-filler"></div>
+                }
+            </div>
+        }
         @if ( Mine.Count == 0 )
         {
             <div class="note">Effects you keep show here, to put on again. Select one you wear and save it below its sliders.</div>
@@ -160,6 +183,7 @@
             <SliderRow Label="Size" Signed=@true Value=@selected.Size OnChanged=@(( float value ) => Set( () => selected.Size = value ))></SliderRow>
             <SliderRow Label="Amount" Signed=@true Value=@selected.Amount OnChanged=@(( float value ) => Set( () => selected.Amount = value ))></SliderRow>
             <SliderRow Label="Speed" Signed=@true Value=@selected.Speed OnChanged=@(( float value ) => Set( () => selected.Speed = value ))></SliderRow>
+            <ScriptParameters Look=@Look Effect=@selected Changed=@Changed></ScriptParameters>
             <div class="row">
                 <div class="reset @( IsAsMade( selected ) ? "disabled" : "" )" @onclick=@(() => ResetSliders( selected ))>Reset sliders</div>
                 <div class="reset" Tooltip="A few changed copies of it to pick from" @onclick=@(() => ShowVariations( selected ))>Variations</div>
@@ -201,6 +225,13 @@
                 <KeyGlyph class="key-glyph" Key=@selected.Key></KeyGlyph>
                 <div class="reset @( selected.Key is null ? "disabled" : "" )" @onclick=@(() => SetKey( selected, null ))>Clear</div>
             </div>
+            @if ( selected.Key is not null )
+            {
+                <div class="row">
+                    <div class="label">The key</div>
+                    <UIDropdown Items=@KeyActions() Value=@selected.KeyActionIs.ToString() ValueChanged=@(( object v ) => SetKeyAction( selected, (string)v )) Tokenize=@false></UIDropdown>
+                </div>
+            }
             <div class="note">@KeyNote( selected )</div>
 
             @if ( CycleOf( selected ) is { } cycle )
@@ -265,6 +296,36 @@
     /// <summary>Opens the Advanced editor's shape creator on a copy of the shape given (a fork from the Workshop).</summary>
     [Parameter] public Action<DrawnShape> OpenShapeCreator { get; set; }
 
+    /// <summary>Opens the code editor on a worn effect (by id; null for a new one), or on a draft as it was left.</summary>
+    [Parameter] public Action<string> OpenCode { get; set; }
+    [Parameter] public Action<ScriptDraft> OpenDraft { get; set; }
+
+    // The scripts left as drafts, read again whenever one is kept or let go of
+    List<ScriptDraft> _drafts;
+    int _draftsRead = -1;
+
+    List<ScriptDraft> Drafts
+    {
+        get
+        {
+            if ( _drafts is null || _draftsRead != LocalPrefs.ScriptDraftsRevision )
+            {
+                _draftsRead = LocalPrefs.ScriptDraftsRevision;
+                _drafts = LocalPrefs.ScriptDrafts();
+            }
+
+            return _drafts;
+        }
+    }
+
+    void ForgetDraft( ScriptDraft draft, PanelEvent e )
+    {
+        e.StopPropagation();
+        LocalPrefs.DeleteScriptDraft( draft.Name );
+        _drafts = null;
+        StateHasChanged();
+    }
+
     /// <summary>The steps back and forward through changes to the effects, and what takes them.</summary>
     [Parameter] public EditHistory History { get; set; }
     [Parameter] public Action Undo { get; set; }
@@ -299,7 +360,7 @@
     protected override int BuildHash() => HashCode.Combine( _lookText = Look?.Serialize(), _selected, _guides, Locked, Selector?.EffectsBudget, Selector?.EffectsQuality,
         string.Join( ";", Others().Select( x => $"{x.Id}{Selector?.HidesEffectsOf( x )}" ) ),
         HashCode.Combine( (int)(Selector?.TriggerWait() ?? 0f), History?.CanUndo, History?.CanRedo, _mineRevision, _status, _variationsOf, _variations,
-            HashCode.Combine( Workshop, _shapesTab, Muted, Selector?.BlockWorkshopEffects, Selector?.BlockDrawnShapes, Selector?.BlockEffectLights, Selector?.BlockedShares?.Count ) ) );
+            HashCode.Combine( Workshop, _shapesTab, Muted, LocalPrefs.ScriptDraftsRevision, Selector?.BlockWorkshopEffects, Selector?.BlockDrawnShapes, Selector?.BlockEffectLights, Selector?.BlockedShares?.Count ) ) );
 
     // Effects and shapes are shared for everyone, not for a model
     const string Everywhere = "";
@@ -680,16 +741,39 @@
         StateHasChanged();
     }
 
+    // What a key can do: show the effect for a moment, switch it on and off, or show it while held
+    static List<UIDropdown.Item> KeyActions() => new()
+    {
+        new( $"Shows it for {Effect.TriggerSeconds:0} seconds", nameof( Effect.KeyAction.Fire ) ),
+        new( "Switches it on and off", nameof( Effect.KeyAction.Toggle ) ),
+        new( "Shows it while held", nameof( Effect.KeyAction.Hold ) ),
+    };
+
+    void SetKeyAction( Effect effect, string action )
+    {
+        effect.KeyMode = action == nameof( Effect.KeyAction.Fire ) ? null : action;
+        Changed?.Invoke();
+        StateHasChanged();
+    }
+
     // What a key does, and how long until one works again
     string KeyNote( Effect effect )
     {
         var minutes = (int)(Effect.TriggerCooldownSeconds / 60f);
         if ( effect.Key is null )
-            return $"Give it a key and it shows only when you press it, for {Effect.TriggerSeconds:0} seconds. Effect keys work once every {minutes} minutes.";
+            return $"Give it a key and it shows only when you press it: for {Effect.TriggerSeconds:0} seconds, until you press it again, or while you hold it. Starting an effect with a key works once every {minutes} minutes.";
 
         var wait = Selector?.TriggerWait() ?? 0f;
         var ready = wait > 0f ? $" Your next one in {(int)wait / 60}:{(int)wait % 60:00}." : "";
-        return $"Press {effect.Key.ToUpperInvariant()} and it shows for {Effect.TriggerSeconds:0} seconds, for everyone. Effect keys work once every {minutes} minutes, whichever effect they are for.{ready}";
+        var key = effect.Key.ToUpperInvariant();
+        var does = effect.KeyActionIs switch
+        {
+            Effect.KeyAction.Toggle => $"Press {key} to switch it on for everyone, and again to switch it off.",
+            Effect.KeyAction.Hold => $"Hold {key} and it shows for everyone until you let go.",
+            _ => $"Press {key} and it shows for {Effect.TriggerSeconds:0} seconds, for everyone.",
+        };
+
+        return $"{does} Starting an effect with a key works once every {minutes} minutes, whichever effect it is for; switching one off or letting go is always free.{ready}";
     }
 
     // The first layer of the effect whose colours cycle; the colours set here go to every such layer of it

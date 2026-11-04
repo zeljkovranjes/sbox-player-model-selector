@@ -1,0 +1,74 @@
+{
+  "id": "",
+  "n": "Matrix rain",
+  "a": {
+    "j": "Hips"
+  },
+  "l": [
+    {
+      "k": "Sprite",
+      "c": "#3aff6a",
+      "a": 3.2,
+      "t": 1.6,
+      "n": 90,
+      "fo": true,
+      "ps": [
+        "@4934956710acfe5b",
+        "@f7e5d94283c8c257",
+        "@d0728a084d1ee12a",
+        "@929b1d5d6eca994e",
+        "@77bf81b8bd1e3690",
+        "@f65ca5ab240ab727"
+      ]
+    }
+  ],
+  "sh": [
+    {
+      "id": "4934956710acfe5b",
+      "n": "0",
+      "s": [
+        "odQ8yVC6DPjx0MzkHMzb4PjOLVCF8dQDNivDNq-F8wcOLzMb4zMkHwcx0q-6Div8ydQ8y"
+      ]
+    },
+    {
+      "id": "f7e5d94283c8c257",
+      "n": "1",
+      "s": [
+        "oZJx0eo0km28ym2DN"
+      ]
+    },
+    {
+      "id": "d0728a084d1ee12a",
+      "n": "7",
+      "s": [
+        "ozM8yXxDN",
+        "oMz8yzM8y"
+      ]
+    },
+    {
+      "id": "929b1d5d6eca994e",
+      "n": "Z",
+      "s": [
+        "ozM8yMzDN",
+        "oMz8yzM8y",
+        "oMzDNzMDN"
+      ]
+    },
+    {
+      "id": "77bf81b8bd1e3690",
+      "n": "X",
+      "s": [
+        "oMz8yzMDN",
+        "ozM8yMzDN"
+      ]
+    },
+    {
+      "id": "f65ca5ab240ab727",
+      "n": "V",
+      "s": [
+        "oKE8ygADN",
+        "o188ygADN"
+      ]
+    }
+  ]
+}

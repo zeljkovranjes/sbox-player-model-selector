@@ -1,0 +1,13 @@
+@import "SelectorTheme.scss";
+
+// The fields of a layer its script works out: each a chip with its line, to go to it in code
+ScriptFieldsNote
+{
+	flex-direction: column;
+	flex-shrink: 0;
+	gap: 4px;
+
+	.note { font-size: $ui-settings-font; color: $ui-text-muted; }
+	.chips { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+	.chip { @include ui-button; padding: 1px 6px; font-size: 11px; cursor: pointer; }
+}

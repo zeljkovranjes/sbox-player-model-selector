@@ -449,6 +449,9 @@ public sealed class PlayerLook
 
 			if ( layer.DrawnPicture is { } picture && plain.Contains( picture ) )
 				layer.Picture = null;
+
+			if ( layer.Pictures?.Exists( x => DrawnShape.IsReference( x ) && plain.Contains( x[ 1.. ] ) ) == true )
+				layer.Pictures = null;
 		}
 
 		copy.DrawnShapes.RemoveAll( x => plain.Contains( x.Id ) );
@@ -468,7 +471,7 @@ public sealed class PlayerLook
 			return null;
 
 		var copy = JsonSerializer.Deserialize<Effect>( JsonSerializer.Serialize( effect ) );
-		copy.Shapes = DrawnShapes.Where( x => effect.Layers.Exists( l => l.DrawnFormation == x.Id || l.DrawnPicture == x.Id ) ).ToList();
+		copy.Shapes = DrawnShapes.Where( x => effect.Layers.Exists( l => l.DrawnShapeIds().Contains( x.Id ) ) ).ToList();
 		return copy.Sanitized();
 	}
 
@@ -519,7 +522,7 @@ public sealed class PlayerLook
 	// The ids of the drawn shapes effects' layers and the look's weapon designs name
 	private HashSet<string> Named( IEnumerable<Effect> effects )
 	{
-		var named = effects.SelectMany( x => x.Layers ).SelectMany( x => new[] { x.DrawnFormation, x.DrawnPicture } ).Where( x => x is not null ).ToHashSet();
+		var named = effects.SelectMany( x => x.Layers ).SelectMany( x => x.DrawnShapeIds() ).ToHashSet();
 		foreach ( var design in Weapons )
 			named.UnionWith( design.DrawnShapeIds() );
 

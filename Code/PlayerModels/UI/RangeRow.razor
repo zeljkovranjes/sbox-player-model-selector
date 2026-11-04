@@ -1,0 +1,81 @@
+@using System
+@using System.Globalization
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Core
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    <TextLabel class="label" Text=@Label Tooltip=@Tip></TextLabel>
+    <UISlider Property=@_so?.GetProperty( nameof( Along ) )></UISlider>
+    <TextEntry @ref="_entry" class="number" Tooltip="Type a number or a sum, like 2*3+1" @onsubmit=@Commit @onblur=@Commit></TextEntry>
+</root>
+
+@code
+{
+    /// <summary>What the number sets, and a tip for it.</summary>
+    [Parameter] public string Label { get; set; }
+    [Parameter] public string Tip { get; set; }
+
+    /// <summary>The number now, and its range and step (a whole step: whole numbers only).</summary>
+    [Parameter] public double Value { get; set; }
+    [Parameter] public double Min { get; set; }
+    [Parameter] public double Max { get; set; } = 1;
+    [Parameter] public double Step { get; set; }
+
+    /// <summary>Called with the new number while the slider is dragged or a number is typed.</summary>
+    [Parameter] public Action<double> OnChanged { get; set; }
+
+    SerializedObject _so;
+    TextEntry _entry;
+    double _shown = double.NaN;
+    bool _typed;
+
+    // The slider runs along the range (a script's range is its own, so the slider's is 0 to 1 over it)
+    [Range( 0f, 1f ), Step( 0.001f )]
+    public float Along
+    {
+        get => Max > Min ? (float)((Value - Min) / (Max - Min)) : 0f;
+        set => Set( Min + value * (Max - Min) );
+    }
+
+    void Set( double value )
+    {
+        if ( Step > 0 )
+            value = Min + Math.Round( (value - Min) / Step ) * Step;
+
+        value = Math.Clamp( value, Math.Min( Min, Max ), Math.Max( Min, Max ) );
+        if ( value == Value )
+            return;
+
+        Value = value;
+        OnChanged?.Invoke( value );
+    }
+
+    void Commit()
+    {
+        _typed = true;
+        if ( _entry is not null && MathText.TryEvaluate( _entry.Text, out var typed ) )
+            Set( typed );
+    }
+
+    public override void Tick()
+    {
+        base.Tick();
+        if ( _entry is null || _entry.HasFocus || !_typed && Value == _shown )
+            return;
+
+        _typed = false;
+        _shown = Value;
+        _entry.Text = Value.ToString( Step >= 1 ? "0" : "0.###", CultureInfo.InvariantCulture );
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        _so ??= TypeLibrary.GetSerializedObject( this );
+    }
+
+    protected override int BuildHash() => HashCode.Combine( Label, Tip, Min, Max, Step );
+}

@@ -188,6 +188,22 @@ internal sealed class HeldItems
 		return false;
 	}
 
+	/// <summary>What draws the first thing held (for its ghosts); false while nothing is held. Every frame: no allocations.</summary>
+	internal bool TryGetRenderer( out ModelRenderer renderer )
+	{
+		for ( var i = 0; i < _held.Count; i++ )
+		{
+			if ( _held[ i ].Root.IsValid() && _held[ i ].Root.Components.Get<ModelRenderer>( FindMode.EverythingInSelfAndDescendants ) is { } found )
+			{
+				renderer = found;
+				return true;
+			}
+		}
+
+		renderer = null;
+		return false;
+	}
+
 	// Looked for once: an object named for the muzzle under it, a model attachment of that name, or the far end of its
 	// model's longest side
 	private static void FindTip( Held held )

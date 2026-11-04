@@ -37,6 +37,8 @@ internal sealed class EffectSchedule : GameObjectSystem<EffectSchedule>
 	// Made where used: a hot reload keeps this system but not fields added since
 	private List<EffectRack> _wornRacks;
 	private Stack<EffectLayerObject> _keptTrails;
+	private Stack<EffectLayerObject> _keptBeams;
+	private Stack<EffectLayerObject> _keptGhosts;
 
 	private List<EffectRack> Worn => _wornRacks ??= new();
 	private GameObject _pool;
@@ -134,6 +136,8 @@ internal sealed class EffectSchedule : GameObjectSystem<EffectSchedule>
 	{
 		LayerKind.Light => _keptLights,
 		LayerKind.Trail => _keptTrails ??= new(),
+		LayerKind.Beam => _keptBeams ??= new(),
+		LayerKind.Ghost => _keptGhosts ??= new(),
 		_ => _keptSprites,
 	};
 

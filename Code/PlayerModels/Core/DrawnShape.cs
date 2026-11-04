@@ -58,6 +58,18 @@ public sealed class DrawnShape
 	[JsonPropertyName( "st" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public Sticker Sticker { get; set; }
 
+	/// <summary>
+	/// For a shape drawn as a sprite's picture, where a fade round its middle starts, in degrees anticlockwise from the
+	/// right (0 up to 360): nothing of it there (a slash's tail), growing to all of it <see cref="FadeArc"/> further round
+	/// (its front). See <see cref="FadeAt"/>.
+	/// </summary>
+	[JsonPropertyName( "fa" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public float FadeFrom { get; set; }
+
+	/// <summary>How far round the fade reaches all of it, in degrees: anticlockwise, or clockwise below 0; 0 for no fade.</summary>
+	[JsonPropertyName( "fr" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public float FadeArc { get; set; }
+
 	/// <summary>The Workshop share it was used or forked from; null for one made here.</summary>
 	[JsonPropertyName( "ff" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public ShareOrigin ForkedFrom { get; set; }
@@ -67,7 +79,7 @@ public sealed class DrawnShape
 	/// exactly when this is, so what each looks like is kept by it, never by the shorter id.
 	/// </summary>
 	[JsonIgnore]
-	public string Content => _content ??= ContentOf( Strokes, Sticker );
+	public string Content => _content ??= ContentOf( Strokes, Sticker, FadeFrom, FadeArc );
 
 	// Worked out once: a shape is never changed once read, only copied
 	private string _content;
@@ -208,12 +220,15 @@ public sealed class DrawnShape
 
 		var name = SharePost.Tidy( Name, MaxNameLength );
 		var sticker = Sticker?.Sanitized();
+		var (from, arc) = Fade( FadeFrom, FadeArc );
 		return new DrawnShape
 		{
-			Id = IdOf( ContentOf( kept, sticker ) ),
+			Id = IdOf( ContentOf( kept, sticker, from, arc ) ),
 			Name = name == "" ? null : name,
 			Strokes = kept,
 			Sticker = sticker,
+			FadeFrom = from,
+			FadeArc = arc,
 			ForkedFrom = ForkedFrom?.Sanitized(),
 		};
 	}
@@ -241,12 +256,54 @@ public sealed class DrawnShape
 	public string SharedForm() => Sanitized() is { } copy ? JsonSerializer.Serialize( copy ) : "";
 
 	/// <summary>A copy with another name, kept within bounds.</summary>
-	public DrawnShape Named( string name ) => new DrawnShape { Name = name, Strokes = Strokes, Sticker = Sticker, ForkedFrom = ForkedFrom }.Sanitized();
+	public DrawnShape Named( string name ) =>
+		new DrawnShape { Name = name, Strokes = Strokes, Sticker = Sticker, FadeFrom = FadeFrom, FadeArc = FadeArc, ForkedFrom = ForkedFrom }.Sanitized();
 
-	private static string ContentOf( List<string> strokes, Sticker sticker )
+	/// <summary>
+	/// A copy fading round its middle as a picture: nothing at <paramref name="fromDegrees"/>, all of it at
+	/// <paramref name="toDegrees"/> (anticlockwise when it is the larger, else clockwise; at most a whole turn); the same
+	/// two for no fade.
+	/// </summary>
+	public DrawnShape Faded( float fromDegrees, float toDegrees ) =>
+		new DrawnShape { Name = Name, Strokes = Strokes, Sticker = Sticker, FadeFrom = fromDegrees, FadeArc = toDegrees - fromDegrees, ForkedFrom = ForkedFrom }.Sanitized();
+
+	/// <summary>
+	/// How much of the picture shows at (<paramref name="x"/>, <paramref name="y"/>) on its square, 0 to 1, for its fade:
+	/// rising smoothly from nothing at its start to all of it at its end; past its end all of it, behind its start none
+	/// (the rest of the turn split between the two). 1 everywhere without a fade, and at the very middle.
+	/// </summary>
+	public float FadeAt( float x, float y )
+	{
+		if ( FadeArc == 0f || x == 0f && y == 0f )
+			return 1f;
+
+		var angle = MathF.Atan2( y, x ) * 180f / MathF.PI;
+		var round = FadeArc > 0f ? angle - FadeFrom : FadeFrom - angle;
+		round -= MathF.Floor( round / FullTurn ) * FullTurn;
+		var arc = MathF.Abs( FadeArc );
+		if ( round > arc )
+			return round - arc < (FullTurn - arc) / 2f ? 1f : 0f;
+
+		var along = round / arc;
+		return along * along * (3f - 2f * along);
+	}
+
+	private const float FullTurn = 360f;
+
+	// A fade within bounds: its start 0 up to 360, its reach at most a turn either way; none for anything not finite
+	private static (float From, float Arc) Fade( float from, float arc )
+	{
+		if ( !float.IsFinite( from ) || !float.IsFinite( arc ) || arc == 0f )
+			return (0f, 0f);
+
+		return (from - MathF.Floor( from / FullTurn ) * FullTurn, Math.Clamp( arc, -FullTurn, FullTurn ));
+	}
+
+	private static string ContentOf( List<string> strokes, Sticker sticker, float fadeFrom, float fadeArc )
 	{
 		var style = sticker is null ? "" : JsonSerializer.Serialize( sticker );
-		return string.Join( "|", strokes ?? new() ) + "#" + style;
+		var fade = fadeArc == 0f ? "" : "~" + fadeFrom.ToString( "R", System.Globalization.CultureInfo.InvariantCulture ) + "," + fadeArc.ToString( "R", System.Globalization.CultureInfo.InvariantCulture );
+		return string.Join( "|", strokes ?? new() ) + "#" + style + fade;
 	}
 
 	private static string IdOf( string content )

@@ -185,6 +185,32 @@ EffectsEditor
 		opacity: 1;
 	}
 
+	// a draft: a script left unfinished, marked with a pencil in its top-left corner
+	.tile.draft .draft-icon
+	{
+		justify-content: center;
+		align-items: center;
+		font-family: "Material Icons";
+		font-size: 36px;
+		color: $ui-text-muted;
+	}
+
+	.tile .draft-badge
+	{
+		position: absolute;
+		top: 2px;
+		left: 2px;
+		width: 20px;
+		height: 20px;
+		justify-content: center;
+		align-items: center;
+		border-radius: 10px;
+		background-color: #e2a400;
+		font-family: "Material Icons";
+		font-size: 13px;
+		color: white;
+	}
+
 	// variations under the sliders: the same tiles, a row of them
 	.grid.variations
 	{

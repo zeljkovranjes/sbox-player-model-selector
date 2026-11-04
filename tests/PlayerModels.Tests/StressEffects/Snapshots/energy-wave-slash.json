@@ -1,0 +1,43 @@
+{
+  "id": "",
+  "n": "Flying slash",
+  "a": {
+    "j": "RightHand",
+    "k": "HeldWeapon"
+  },
+  "l": [
+    {
+      "k": "Sprite",
+      "p": "@b341c312259bbc21",
+      "c": "#ff5a3a",
+      "a": 32,
+      "t": 1,
+      "n": 0,
+      "kp": 3,
+      "al": "Swing"
+    },
+    {
+      "k": "Sprite",
+      "s": "Sphere",
+      "r": 6,
+      "p": "Spark",
+      "c": "#ffd27a",
+      "c2": "#ff5a3a",
+      "a": 1.2,
+      "b": 0.2,
+      "v": 30,
+      "g": 100,
+      "t": 0.4,
+      "n": 0
+    }
+  ],
+  "sh": [
+    {
+      "id": "b341c312259bbc21",
+      "n": "Wave",
+      "s": [
+        "cgABmj9B3n3CproD6vMFrygH41fKg4HNf6UQz8FUX9WYI-IcC-ZgA-Ij99Wn38Fro6UvM4Hyg1f1fyg4HvM6Uro8Fn39Wj9-IgA-ZgA-Zjv8enA6Kpw3jr_0xtwx7vFvFwDsUwuppxKnGxakqxjiTxmgAxjdsxabVxKY5wuWWwDTrvFQ6twOEr_LOpwIcnAF1jvDhgABm"
+      ]
+    }
+  ]
+}

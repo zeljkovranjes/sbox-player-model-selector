@@ -1,0 +1,60 @@
+{
+  "id": "",
+  "n": "Anime slash",
+  "a": {
+    "j": "RightHand",
+    "k": "HeldWeapon"
+  },
+  "l": [
+    {
+      "k": "Sprite",
+      "j": "Chest",
+      "f": 8,
+      "p": "@2c8c382275c02cc5",
+      "c": "#5ad8ff",
+      "a": 48,
+      "t": 0.3,
+      "n": 0,
+      "fo": true,
+      "al": "Swing"
+    },
+    {
+      "k": "Sprite",
+      "j": "Chest",
+      "f": 8,
+      "p": "@2c8c382275c02cc5",
+      "c": "#ffffff",
+      "a": 43.2,
+      "t": 0.3,
+      "n": 0,
+      "fo": true,
+      "al": "Swing"
+    },
+    {
+      "k": "Sprite",
+      "j": "Chest",
+      "s": "Sphere",
+      "r": 19.2,
+      "f": 8,
+      "p": "Spark",
+      "c": "#ffffff",
+      "c2": "#5ad8ff",
+      "a": 1.5,
+      "b": 0.2,
+      "v": 120,
+      "t": 0.2,
+      "n": 0
+    }
+  ],
+  "sh": [
+    {
+      "id": "2c8c382275c02cc5",
+      "n": "Crescent slash",
+      "s": [
+        "cvMFrxSHAzRIg1IKK22L94aN55zP87CSH8FUX87Ws9mZG-Ebi-UeA-Ygf-Pi-95lc9Wn38nqP7rsi6kuw5Rw43zy52L0x0a2hyg4Hwe5iuU6zsF74px8xnY9ek89_ie-SgA-ZgA-ZiO7Jj_4Llb1qmqzpn2yHpFw_qawKr4vftfu5vNuQxAtfyzsk0lrc2RqF31oh5Nmw6Zkz7Wis8Dgd8feI8pbv8jZV8MW87kUl6tSS5nQE4TN-2zMA1HKLzRIgxSHAvMFr"
+      ],
+      "fa": 300,
+      "fr": 100
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "id": "",
+  "n": "Lightning arcs",
+  "a": {
+    "j": "LeftHand"
+  },
+  "l": [
+    {
+      "k": "Beam",
+      "s": "Line",
+      "jt": "RightHand",
+      "c": "#ffffff",
+      "c2": "#8ac8ff",
+      "a": 0.7,
+      "t": 1,
+      "n": 10,
+      "kp": 20
+    },
+    {
+      "k": "Beam",
+      "s": "Line",
+      "jt": "RightHand",
+      "c": "#8ac8ff",
+      "a": 0.35,
+      "t": 1,
+      "n": 10,
+      "kp": 14
+    },
+    {
+      "k": "Sprite",
+      "s": "Sphere",
+      "r": 1,
+      "p": "Spark",
+      "c": "#ffffff",
+      "c2": "#8ac8ff",
+      "a": 0.8,
+      "b": 0.1,
+      "v": 40,
+      "t": 0.25,
+      "n": 20
+    },
+    {
+      "k": "Sprite",
+      "j": "RightHand",
+      "s": "Sphere",
+      "r": 1,
+      "p": "Spark",
+      "c": "#ffffff",
+      "c2": "#8ac8ff",
+      "a": 0.8,
+      "b": 0.1,
+      "v": 40,
+      "t": 0.25,
+      "n": 20
+    },
+    {
+      "k": "Light",
+      "j": "Chest",
+      "f": 10,
+      "c": "#8ac8ff",
+      "a": 80,
+      "t": 1,
+      "n": 1.4,
+      "rh": "Flicker",
+      "rs": 10,
+      "ra": 0.6
+    }
+  ]
+}

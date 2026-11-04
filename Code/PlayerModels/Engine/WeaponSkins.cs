@@ -88,7 +88,7 @@ internal static class WeaponSkins
 		var (metalness, roughness) = FinishMaterials.SurfaceOf( design.Finish );
 		var finish = string.IsNullOrEmpty( design.Finish ) ? Color.White : FinishMaterials.ColourOf( design.Finish );
 		var tint = Color.Parse( design.Tint ?? "" ) ?? Color.White;
-		made.Set( "g_vSkinTint", new Vector3( finish.r * tint.r, finish.g * tint.g, finish.b * tint.b ) );
+		made.Set( "g_vSkinTint", Linear( finish ) * Linear( tint ) );
 		made.Set( "g_flSkinMetalness", metalness );
 		made.Set( "g_flSkinRoughness", roughness );
 
@@ -138,9 +138,11 @@ internal static class WeaponSkins
 		return EffectAtlas.TextureOf( name );
 	}
 
-	private static Vector3 Rgb( string hex )
-	{
-		var colour = Color.Parse( hex ?? "" ) ?? Color.White;
-		return new Vector3( colour.r, colour.g, colour.b );
-	}
+	private static Vector3 Rgb( string hex ) => Linear( Color.Parse( hex ?? "" ) ?? Color.White );
+
+	// The shader lights colours as linear light, as it reads textures; a colour picked (or a finish's, which the standard
+	// shader turns linear itself) is sRGB, and given as it is would show washed out
+	private static Vector3 Linear( Color colour ) => new( Linear( colour.r ), Linear( colour.g ), Linear( colour.b ) );
+
+	private static float Linear( float srgb ) => srgb <= 0.04045f ? srgb / 12.92f : MathF.Pow( (srgb + 0.055f) / 1.055f, 2.4f );
 }

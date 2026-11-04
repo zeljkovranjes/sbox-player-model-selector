@@ -232,6 +232,26 @@ AdvancedEditor
 		width: 100%;
 	}
 
+	// the options as far from the pane's right edge as from its left (6px), clearing the scrollbar as well only while
+	// there is one, as on the page
+	SlowScroll > *
+	{
+		padding-right: 6px;
+	}
+
+	SlowScroll.scrolling > *
+	{
+		padding-right: 14px;
+	}
+
+	// a color fills its row: the swatch reaches to the hex code, the Reset at the row's end
+	ColorRow > UIColor > .swatch
+	{
+		flex-grow: 1;
+		flex-shrink: 1;
+		min-width: 47px;
+	}
+
 	> .bar
 	{
 		position: absolute;

@@ -83,6 +83,21 @@ LookEditor
 		}
 	}
 
+	// finding a part, group or morph by name, over the Advanced editor's long lists
+	.find-row
+	{
+		gap: 6px;
+		margin-bottom: 2px;
+
+		> .find-icon
+		{
+			flex-shrink: 0;
+			font-family: "Material Icons";
+			font-size: 16px;
+			color: $ui-text-muted;
+		}
+	}
+
 	// saving the look shown under a name, and the looks saved for this model
 	.save-row
 	{

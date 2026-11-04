@@ -21,6 +21,13 @@
     }
     else
     {
+        @if ( Advanced && PartRows() >= FindFrom )
+        {
+            <div class="row find-row">
+                <div class="find-icon">search</div>
+                <TextEntry class="name-entry find" Placeholder="Find a part, group or morph" Value:bind=@_find></TextEntry>
+            </div>
+        }
         @if ( Advanced )
         {
             <FoldingSection Title="Styles" Key=@FoldKey( "Styles" ) Summary=@SavedSummary()>
@@ -95,7 +102,7 @@
                     </div>
                 }
                 <ColorRow Label=@WholeLabel Hex=@Look.Tint OnChanged=@SetTint></ColorRow>
-                @foreach ( var part in ColorParts() )
+                @foreach ( var part in ColorParts().Where( Found ) )
                 {
                     var name = part;
                     <ColorRow Label=@( name.Replace( '_', ' ' ) ) Hex=@PartColour( name ) OnChanged=@(( string hex ) => SetPartColour( name, hex ))
@@ -112,7 +119,7 @@
                         <div class="label">@WholeLabel</div>
                         <ScrollingDropdown Items=@Finishes() Value=@( Look.Finish ?? "" ) ValueChanged=@SetFinish Tokenize=@false></ScrollingDropdown>
                     </div>
-                    @foreach ( var part in FinishParts() )
+                    @foreach ( var part in FinishParts().Where( Found ) )
                     {
                         var name = part;
                         <div class="row" @onmouseenter=@(() => Point( PartHighlight.Part( name ) )) @onmouseleave=@(() => Point( null ))>
@@ -146,7 +153,7 @@
         {
             <FoldingSection Title="Body Groups" Key=@FoldKey( "Body Groups" ) Summary=@( Look.BodyGroups.Count > 0 ? $"{Look.BodyGroups.Count} changed" : "As made" )>
                 <Body>
-                    @foreach ( var part in BodyParts() )
+                    @foreach ( var part in BodyParts().Where( x => Found( x.Name ) ) )
                     {
                         var name = part.Name;
                         var current = ChoiceOf( name );
@@ -176,7 +183,7 @@
         {
             <FoldingSection Title="Morphs" Key=@FoldKey( "Morphs" ) Summary=@( Look.Morphs.Count > 0 ? $"{Look.Morphs.Count} set" : "As made" )>
                 <Body>
-                    @foreach ( var morph in MorphNames() )
+                    @foreach ( var morph in MorphNames().Where( Found ) )
                     {
                         var name = morph;
                         <SliderRow Label=@name Value=@WeightOf( name ) OnChanged=@(( float weight ) => SetMorph( name, weight ))></SliderRow>
@@ -309,7 +316,16 @@
     string _lookName = "";
     int _savedRevision;
 
-    protected override int BuildHash() => HashCode.Combine( Model, Look?.Serialize(), _savedRevision, Workshop, Shared.Looks.CountOf( Look?.Model ), _style );
+    protected override int BuildHash() => HashCode.Combine( Model, Look?.Serialize(), _savedRevision, Workshop, Shared.Looks.CountOf( Look?.Model ), _style, _find );
+
+    // In the Advanced editor, a model with this many parts, groups and morphs gets a box to find one by name
+    const int FindFrom = 12;
+    string _find = "";
+
+    int PartRows() => ColorParts().Count() + FinishParts().Count() + BodyParts().Count() + MorphNames().Count();
+
+    // Whether a part, group or morph is listed: all of them until something is typed in the find box
+    bool Found( string name ) => string.IsNullOrWhiteSpace( _find ) || name.Replace( '_', ' ' ).Contains( _find.Trim().Replace( '_', ' ' ), StringComparison.OrdinalIgnoreCase );
 
     string WholeLabel => Compact ? "Whole item" : "Whole model";
 

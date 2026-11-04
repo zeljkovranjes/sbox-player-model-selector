@@ -19,6 +19,9 @@ public sealed class DragHandle : Panel
 	/// <summary>Called on a double-click.</summary>
 	[Parameter] public Action DoubleClicked { get; set; }
 
+	// A panel only gets drag events when it asks for them; without this nothing could be dragged or sized
+	public override bool WantsDrag => true;
+
 	protected override void OnDragStart( DragEvent e )
 	{
 		e.StopPropagation();

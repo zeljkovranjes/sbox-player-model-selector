@@ -113,6 +113,9 @@ internal sealed partial class ScriptBuilder
 		}
 
 		draft.Made = strokes.Count > 0 ? DrawnShape.From( strokes, string.IsNullOrEmpty( draft.Name ) ? null : draft.Name, draft.Sticker?.Sanitized() ) : null;
+		if ( draft.FadeFrom != draft.FadeTo )
+			draft.Made = draft.Made?.Faded( draft.FadeFrom, draft.FadeTo );
+
 		draft.IsMade = true;
 		return draft.Made;
 	}

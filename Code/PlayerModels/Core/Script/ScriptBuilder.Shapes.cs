@@ -90,6 +90,15 @@ internal sealed partial class ScriptBuilder
 		return true;
 	}
 
+	private bool Fade( int handle, double from, double to )
+	{
+		if ( DraftOf( handle ) is not { } draft )
+			return false;
+
+		(draft.FadeFrom, draft.FadeTo) = ((float)ScriptMath.Safe( from ), (float)ScriptMath.Safe( to ));
+		return true;
+	}
+
 	private bool Letter( int handle, string text, double x, double y, double size, double angle )
 	{
 		// Hershey text is fitted to the square (2 across): size 2 keeps it that size

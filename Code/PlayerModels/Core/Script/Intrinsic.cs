@@ -13,7 +13,7 @@ public enum Intrinsic
 	VectorNew, VectorLerp, VectorDot, VectorCross, VectorDistance, VectorLength, VectorNormal,
 
 	Sprite, Light, Trail, Beam, Ghost, ListCreate, ShapeNew, ShapeText, ShapesMine, StickersMine, EmblemsMine, EffectsMine, EffectsPreset, EffectInclude,
-	ShapePoint, ShapePoints, ShapeEndLine, ShapeEndOutline, ShapeLetter, ShapeAdd, ShapeFit, ShapeAddLayer,
+	ShapePoint, ShapePoints, ShapeEndLine, ShapeEndOutline, ShapeLetter, ShapeAdd, ShapeFit, ShapeFade, ShapeAddLayer,
 
 	LayerEmit, LayerEmitAt,
 }

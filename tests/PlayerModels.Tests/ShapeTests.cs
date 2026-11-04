@@ -89,6 +89,48 @@ public class ShapeTests
 		Assert.Equal( 1 + 6, effect.Layers.Count );
 		Assert.Equal( "Chest", effect.Layers[ 0 ].Joint );
 	}
+
+	[Theory]
+	[InlineData( 1f, 0f, 0.352f )]
+	[InlineData( 0f, 1f, 1f )]
+	[InlineData( -1f, 0f, 1f )]
+	[InlineData( 0.5f, -0.866f, 0f )]
+	[InlineData( 0.866f, -0.5f, 0.104f )]
+	[InlineData( 0.9659f, 0.2588f, 0.5f )]
+	[InlineData( -0.5f, -0.866f, 0f )]
+	public void AFadedPictureGoesFromNothingAtItsTailToWholeAtItsFront( float x, float y, float shown )
+	{
+		// From -60 degrees (the tail) round anticlockwise to 90 (the front, straight up)
+		var shape = ScriptKit.Build( "shape.Add( Shapes.Crescent )\nshape.Fade( -60, 90 )", ScriptKind.Shape ).Build.Shape;
+		Assert.Equal( (300f, 150f), (shape.FadeFrom, shape.FadeArc) );
+		Assert.Equal( shown, shape.FadeAt( x, y ), 2 );
+	}
+
+	[Fact]
+	public void AFadeCanGoClockwiseAndIsKeptWithinATurn()
+	{
+		var clockwise = ScriptKit.Build( "shape.Add( Shapes.Crescent )\nshape.Fade( 90, -60 )", ScriptKind.Shape ).Build.Shape;
+		Assert.Equal( (90f, -150f), (clockwise.FadeFrom, clockwise.FadeArc) );
+		Assert.Equal( 0f, clockwise.FadeAt( 0f, 1f ), 3 );
+		Assert.Equal( 1f, clockwise.FadeAt( 0.5f, -0.866f ), 2 );
+		Assert.Equal( 360f, new DrawnShape { Strokes = clockwise.Strokes, FadeFrom = 5, FadeArc = 9000 }.Sanitized().FadeArc );
+		Assert.Equal( 0f, new DrawnShape { Strokes = clockwise.Strokes, FadeFrom = float.NaN, FadeArc = 30 }.Sanitized().FadeArc );
+	}
+
+	[Fact]
+	public void AFadeIsPartOfWhatAShapeIsAndCodegenGivesItBack()
+	{
+		var plain = ScriptKit.Build( "shape.Add( Shapes.Crescent )", ScriptKind.Shape ).Build.Shape;
+		var faded = ScriptKit.Build( "shape.Add( Shapes.Crescent )\nshape.Fade( -60, 90 )", ScriptKind.Shape ).Build.Shape;
+		Assert.NotEqual( plain.Id, faded.Id );
+		Assert.Equal( plain.Id, plain.Faded( 10, 10 ).Id );
+		Assert.Equal( faded.Content, ScriptKit.Build( ScriptCodegen.Shape( faded ), ScriptKind.Shape ).Build.Shape.Content );
+		Assert.Equal( faded.Content, faded.Named( "Swoosh" ).Content );
+
+		var effect = ScriptKit.BuildEffect( "local swoosh = Shapes.New( \"Swoosh\" )\nswoosh.Add( Shapes.Crescent )\nswoosh.Fade( -60, 90 )\nlocal slash = Sprite()\nslash.LooksLike = swoosh" );
+		Assert.Equal( 150f, effect.Shapes[ 0 ].FadeArc );
+		ScriptKit.SameEffect( effect, ScriptKit.BuildEffect( ScriptCodegen.Effect( effect ) ) );
+	}
 }
 
 /// <summary>The machine running an effect: events and their inputs, particle functions, live layer changes and their limits.</summary>

@@ -19,6 +19,7 @@ internal sealed partial class ScriptBuilder
 		public readonly List<float> Pending = new();
 		public readonly List<int> Parts = new();
 		public Sticker Sticker;
+		public float FadeFrom, FadeTo;
 		public DrawnShape Made;
 		public bool IsMade;
 	}
@@ -119,6 +120,7 @@ internal sealed partial class ScriptBuilder
 			case Intrinsic.ShapePoints: return Points( (int)s[ sp - 3 ], (int)s[ sp - 2 ], (int)s[ sp - 1 ] ) ? sp - 3 : -1;
 			case Intrinsic.ShapeEndLine or Intrinsic.ShapeEndOutline: return EndStroke( (int)s[ sp - 1 ], op == Intrinsic.ShapeEndOutline ) ? sp - 1 : -1;
 			case Intrinsic.ShapeFit: return Fit( (int)s[ sp - 1 ] ) ? sp - 1 : -1;
+			case Intrinsic.ShapeFade: return Fade( (int)s[ sp - 3 ], s[ sp - 2 ], s[ sp - 1 ] ) ? sp - 3 : -1;
 			case Intrinsic.ShapeLetter:
 				return Letter( (int)s[ sp - 6 ], Text( s[ sp - 5 ] ), s[ sp - 4 ], s[ sp - 3 ], s[ sp - 2 ], s[ sp - 1 ] ) ? sp - 6 : -1;
 			case Intrinsic.ShapeAdd:
@@ -216,6 +218,7 @@ internal sealed partial class ScriptBuilder
 
 		_drafts[ draft ].Strokes.AddRange( shape.Decode() );
 		_drafts[ draft ].Sticker = shape.Sticker;
+		(_drafts[ draft ].FadeFrom, _drafts[ draft ].FadeTo) = (shape.FadeFrom, shape.FadeFrom + shape.FadeArc);
 		return draft;
 	}
 

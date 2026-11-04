@@ -2630,6 +2630,21 @@ small.EndLine()
 small.Fit()
 ```
 
+#### `Shape.Fade( from: number, to: number )`
+
+As a sprite's picture, the shape fades round its middle: nothing at angle from, growing smoothly to all of it at angle to (anticlockwise when to is the larger, else clockwise): a slash bright at its front, gone at its tail. Past to it stays whole; behind from, clear.
+
+| Parameter | Type | Range | What it is |
+|---|---|---|---|
+| `from` | number | any | Where it starts from nothing, in degrees anticlockwise from the right |
+| `to` | number | at most a turn from from | Where it is whole |
+
+```lua effect
+local swoosh = Shapes.New( "Swoosh" )
+swoosh.Add( Shapes.Crescent )
+swoosh.Fade( -60, 90 )
+```
+
 #### Stock shapes
 
 `Shapes.Circle`, `Shapes.Ellipse`, `Shapes.Semicircle`, `Shapes.Arc`, `Shapes.Ring`, `Shapes.Crescent`, `Shapes.Triangle`, `Shapes.RightTriangle`, `Shapes.Square`, `Shapes.Rectangle`, `Shapes.RoundedRectangle`, `Shapes.Diamond`, `Shapes.Parallelogram`, `Shapes.Trapezoid`, `Shapes.Kite`, `Shapes.Pentagon`, `Shapes.Hexagon`, `Shapes.Octagon`, `Shapes.Star4`, `Shapes.Star5`, `Shapes.Star6`, `Shapes.Star8`, `Shapes.Plus`, `Shapes.Cross`, `Shapes.Heart`, `Shapes.Teardrop`, `Shapes.Line`, `Shapes.SineWave`, `Shapes.Zigzag`, `Shapes.Spiral`, `Shapes.Infinity`, `Shapes.Helix`, `Shapes.Sphere`, `Shapes.Hemisphere`, `Shapes.Cube`, `Shapes.Cylinder`, `Shapes.Cone`, `Shapes.Pyramid`, `Shapes.Torus`, `Shapes.Capsule`

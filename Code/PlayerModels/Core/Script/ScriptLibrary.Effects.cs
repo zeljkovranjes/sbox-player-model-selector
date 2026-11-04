@@ -109,6 +109,9 @@ public static partial class ScriptLibrary
 			P( "other", s, "The shape to draw" ), P( "x", N, "Its middle, across", "-1 to 1", new[] { 0.0 } ), P( "y", N, "Its middle, up", "-1 to 1", new[] { 0.0 } ),
 			P( "size", N, "1 is its own size", null, new[] { 1.0 } ), P( "angle", N, "Turned, in degrees", null, new[] { 0.0 } ) ) );
 		entries.Add( Method( "Shape.Fit", Intrinsic.ShapeFit, ScriptType.Void, shape, "Moves the shape to the middle and sizes it to fill the square, keeping its proportions.", "local small = Shapes.New( \"Small\" )\nsmall.Points( { 0, 0, 0.1, 0.1 } )\nsmall.EndLine()\nsmall.Fit()", build ) );
+		entries.Add( Method( "Shape.Fade", Intrinsic.ShapeFade, ScriptType.Void, shape, "As a sprite's picture, the shape fades round its middle: nothing at angle from, growing smoothly to all of it at angle to (anticlockwise when to is the larger, else clockwise): a slash bright at its front, gone at its tail. Past to it stays whole; behind from, clear.",
+			"local swoosh = Shapes.New( \"Swoosh\" )\nswoosh.Add( Shapes.Crescent )\nswoosh.Fade( -60, 90 )", build,
+			P( "from", N, "Where it starts from nothing, in degrees anticlockwise from the right" ), P( "to", N, "Where it is whole", "at most a turn from from" ) ) );
 		entries.Add( Method( "Shape.AddLayer", Intrinsic.ShapeAddLayer, ScriptType.EmblemLayer, emblem, "Adds a layer to the shape, making it an emblem: a stack of shapes, each moved, turned, scaled and coloured (at most 32).", "local badge = Shapes.New( \"Badge\" )\nlocal star = badge.AddLayer( Shapes.Star5 )\nlocal drawn = star.Shape --> Shapes.Star5", build,
 			P( "shape", s, "What the layer draws" ) ) );
 

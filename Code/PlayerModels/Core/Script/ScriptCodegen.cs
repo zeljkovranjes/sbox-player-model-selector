@@ -110,6 +110,12 @@ public static class ScriptCodegen
 			text.Append( name ).Append( stroke.Closed ? ".EndOutline()\n" : ".EndLine()\n" );
 		}
 
+		if ( shape.FadeArc != 0f )
+		{
+			text.Append( name ).Append( ".Fade( " ).Append( ScriptLiteral.Number( shape.FadeFrom ) ).Append( ", " )
+				.Append( ScriptLiteral.Number( shape.FadeFrom + shape.FadeArc ) ).Append( " )\n" );
+		}
+
 		if ( shape.Sticker is not { } sticker )
 			return;
 

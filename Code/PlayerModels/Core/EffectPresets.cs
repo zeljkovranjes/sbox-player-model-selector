@@ -213,32 +213,32 @@ public static class EffectPresets
 	private static Effect HolyAura() => Made( "Holy aura", Effect.Joint.Hips,
 		Sprite( LayerPicture.Glow, "#b89a5a", "#7a5a24", 9f, 15f, 1.6f, 16f ).From( LayerShape.AroundBody, 34f ).Moving( 0f, 0f, true )
 			.Beating( LayerRhythm.Pulse, 0.5f, 0.3f ),
-		Sprite( LayerPicture.Sparkle, "#fff6d0", "#ffd27a", 1.6f, 0.3f, 1.5f, 10f ).From( LayerShape.AroundBody, 34f ).Moving( 2f, -20f ),
+		Sprite( LayerPicture.Sparkle, "#fff6d0", "#ffd27a", 1.6f, 0.3f, 1.5f, 10f ).From( LayerShape.AroundBody, 34f ).Moving( 2f, -20f, true ),
 		Light( "#ffe2a0", 90f, 0.8f ).From( LayerShape.Point, 0f, 0f, 0f, 10f ).Beating( LayerRhythm.Pulse, 0.5f, 0.3f ) );
 
 	// Dark smoke rolling off the body, big enough to read as smoke in daylight, with a purple glow inside it that shows it
 	// on a dark night
 	private static Effect DarkAura() => Made( "Dark aura", Effect.Joint.Hips,
-		Sprite( LayerPicture.Smoke, "#2a1238", "#08040c", 14f, 22f, 2.4f, 18f ).From( LayerShape.AroundBody, 32f ).Moving( 3f, -5f ).Covering(),
+		Sprite( LayerPicture.Smoke, "#2a1238", "#08040c", 14f, 22f, 2.4f, 18f ).From( LayerShape.AroundBody, 32f ).Moving( 3f, -5f, true ).Covering(),
 		Sprite( LayerPicture.Glow, "#6a2a9a", "#1a0628", 8f, 13f, 1.8f, 9f ).From( LayerShape.AroundBody, 30f ).Moving( 0f, 0f, true ) );
 
 	// Hearts floating up from the chest
 	private static Effect Hearts() => Made( "Hearts", Effect.Joint.Chest,
-		Sprite( LayerPicture.Heart, "#ff3d7f", "#ff6f9f", 2.6f, 3.4f, 2.4f, 5f ).From( LayerShape.Sphere, 3f, 5f ).Moving( 6f, -8f ).Covering() );
+		Sprite( LayerPicture.Heart, "#ff3d7f", "#ff6f9f", 2.6f, 3.4f, 2.4f, 5f ).From( LayerShape.Sphere, 3f, 5f ).Moving( 6f, -8f, true ).Covering() );
 
 	// A little white cloud over the head, snowing
 	private static Effect SnowCloud() => Made( "Snow cloud", Effect.Joint.Crown,
 		Sprite( LayerPicture.Smoke, "#f4f6fa", "#d8dde6", 8f, 10f, 2f, 8f ).From( LayerShape.Sphere, 6f, 0f, 0f, 10f ).Moving( 0f, 0f, true ).Covering(),
-		Sprite( LayerPicture.Snowflake, "#ffffff", null, 2f, 1.6f, 2f, 18f ).From( LayerShape.Sphere, 7f, 0f, 0f, 8f ).Moving( 0f, 25f ).Covering() );
+		Sprite( LayerPicture.Snowflake, "#ffffff", null, 2f, 1.6f, 2f, 18f ).From( LayerShape.Sphere, 7f, 0f, 0f, 8f ).Moving( 0f, 25f, true ).Covering() );
 
 	// A dark cloud over the head, raining
 	private static Effect RainCloud() => Made( "Rain cloud", Effect.Joint.Crown,
 		Sprite( LayerPicture.Smoke, "#5a6270", "#3a404a", 8f, 10f, 2f, 8f ).From( LayerShape.Sphere, 6f, 0f, 0f, 10f ).Moving( 0f, 0f, true ).Covering(),
-		Sprite( LayerPicture.Droplet, "#9fc6ff", null, 3.5f, 3.5f, 0.5f, 40f ).From( LayerShape.Sphere, 6f, 0f, 0f, 7f ).Moving( 0f, 260f ) );
+		Sprite( LayerPicture.Droplet, "#9fc6ff", null, 3.5f, 3.5f, 0.5f, 40f ).From( LayerShape.Sphere, 6f, 0f, 0f, 7f ).Moving( 0f, 260f, true ) );
 
 	// Sparks crackling all over the body, flashes of blue between them, and a flickering blue light
 	private static Effect ElectricBody() => Made( "Electric body", Effect.Joint.Hips,
-		Sprite( LayerPicture.Sparkle, "#ffffff", "#7ab8ff", 6f, 1f, 0.3f, 70f ).From( LayerShape.AroundBody, 32f ).Moving( 40f, 0f )
+		Sprite( LayerPicture.Sparkle, "#ffffff", "#7ab8ff", 6f, 1f, 0.3f, 70f ).From( LayerShape.AroundBody, 32f ).Moving( 40f, 0f, true )
 			.Beating( LayerRhythm.Flicker, 12f, 0.4f ),
 		Sprite( LayerPicture.Glow, "#9ccaff", "#3a6aff", 14f, 6f, 0.12f, 40f ).From( LayerShape.AroundBody, 30f ).Moving( 0f, 0f, true )
 			.Beating( LayerRhythm.Flicker, 14f, 0.6f ),
@@ -339,6 +339,6 @@ public static class EffectPresets
 	private static Effect Rainbow() => Made( "Rainbow", Effect.Joint.Hips,
 		Sprite( LayerPicture.Glow, "#ffffff", null, 3.5f, 2.5f, 1.2f, 20f ).From( LayerShape.Ring, 14f, 0f, 0f, 4f ).Moving( 0f, 0f, true )
 			.Beating( LayerRhythm.Spin, 0.25f, 1f ).Cycling( LayerColorMode.Rain ),
-		Sprite( LayerPicture.Sparkle, "#ffffff", null, 2.2f, 0.4f, 1.4f, 16f ).From( LayerShape.AroundBody, 30f ).Moving( 2f, -18f )
+		Sprite( LayerPicture.Sparkle, "#ffffff", null, 2.2f, 0.4f, 1.4f, 16f ).From( LayerShape.AroundBody, 30f ).Moving( 2f, -18f, true )
 			.Cycling( LayerColorMode.Rain ) );
 }

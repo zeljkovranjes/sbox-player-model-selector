@@ -271,6 +271,7 @@ internal sealed partial class EffectLayerObject
 		var count = particles.Count;
 		var alignment = AlignmentOf( place );
 		var pictures = _pictures?.Count ?? 0;
+		var (across, turned) = pictures > 0 && _lenticular ? Lenticular( place ) : (Vector3.Zero, 0f);
 		for ( var i = 0; i < count; i++ )
 		{
 			var p = particles[ i ];
@@ -315,15 +316,34 @@ internal sealed partial class EffectLayerObject
 			if ( pictures == 0 )
 				continue;
 
-			// Which picture it shows: as its particle function picks, else each in turn
+			// Which picture it shows: as its particle function picks, else a lenticular look, else each in turn
 			if ( frame < 0 )
-				frame = index % pictures;
+				frame = _lenticular ? LenticularLook( p.Position - place.Position, across, turned, now ) : index % pictures;
 
 			_pictures.Put( p, frame );
 		}
 
 		if ( pictures > 0 )
 			_pictures.Finish( Distance );
+	}
+
+	// For a lenticular sticker's looks this frame: the camera's right, and how far it has gone round the layer's place (in
+	// half turns)
+	private (Vector3 Across, float Turned) Lenticular( Transform place )
+	{
+		if ( Root.Scene?.Camera is not { } camera || !camera.IsValid() )
+			return (Vector3.Zero, 0f);
+
+		var rotation = camera.WorldRotation;
+		return (rotation.Right, (rotation.Yaw() - place.Rotation.Yaw()) / 180f);
+	}
+
+	// The look (0 or 1) of a lenticular sticker's sprite fromPlace off its layer's place: the looks swap as the camera
+	// goes round, as time passes and in bands across the screen, as a lenticular print does when it is tilted
+	private static int LenticularLook( Vector3 fromPlace, Vector3 across, float turned, float now )
+	{
+		var phase = now / (2f * LenticularSeconds) + turned + Vector3.Dot( fromPlace, across ) / LenticularBand;
+		return phase - MathF.Floor( phase ) < 0.5f ? 0 : 1;
 	}
 
 	// One sprite through its layer's particle function: its colour, solidity, size, turn, offset and place as it left them

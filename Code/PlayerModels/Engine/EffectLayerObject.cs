@@ -702,13 +702,22 @@ internal sealed partial class EffectLayerObject
 		ConfigurePictures( data, shapes );
 	}
 
-	// The pictures its sprites take one each, when it has several (see EffectPictures)
+	// A lenticular sticker's sprites swap between its two looks as the camera goes round, as time passes and across the
+	// layer: whole looks this often, a band this wide (citizen units)
+	private const float LenticularSeconds = 0.8f;
+	private const float LenticularBand = 24f;
+
+	// The pictures its sprites take one each, when it has several (see EffectPictures): its own, or a lenticular sticker's
+	// two looks
 	private EffectPictures _pictures;
+	private bool _lenticular;
 
 	private void ConfigurePictures( EffectLayer data, IReadOnlyList<DrawnShape> shapes )
 	{
+		var second = data.Pictures is { Count: > 1 } ? null : _drawn?.SecondLook();
+		_lenticular = second is not null;
 		_pictures ??= new EffectPictures( Root );
-		_pictures.Configure( data.Pictures, null, shapes, _renderer, _most );
+		_pictures.Configure( data.Pictures, _lenticular ? new[] { _drawn, second } : null, shapes, _renderer, _most );
 		_renderer.Enabled = _pictures.Count == 0;
 	}
 

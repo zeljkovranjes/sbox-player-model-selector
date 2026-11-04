@@ -29,7 +29,8 @@ public static class StickerFinishes
 	/// <paramref name="layer"/> as it shows with a sticker of <paramref name="finish"/> as its picture: sprites face the
 	/// camera, so a finish is shown by how it changes over time (a holo's rainbow going round, foil and gold catching the
 	/// light, glitter twinkling) unless the layer has a rhythm or colour cycle of its own, which wins. A copy when anything
-	/// changes; a lenticular sticker shows its first look.
+	/// changes; a lenticular sticker's sprites take its two looks, swapping as the camera goes round and as time passes (see
+	/// the engine's EffectPictures).
 	/// </summary>
 	public static EffectLayer Drive( EffectLayer layer, StickerFinish finish )
 	{

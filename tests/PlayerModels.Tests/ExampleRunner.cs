@@ -65,13 +65,10 @@ internal static class ExampleRunner
 		return io;
 	}
 
-	// An effect needs a layer: an example that makes none is run with one added after it
-	private static readonly Regex MakesLayer = new( @"\b(Sprite|Light|Trail|Beam|Ghost)\(\)|Effect\.Include" );
-
 	/// <summary>Runs <paramref name="code"/> as a script of <paramref name="kind"/> and checks its expectations; gives how many it checked.</summary>
 	public static int Run( string code, ScriptKind kind )
 	{
-		var source = kind == ScriptKind.Effect && !MakesLayer.IsMatch( code ) ? code + "\nlocal exampleLayer = Sprite()" : code;
+		var source = ScriptReference.Runnable( code, kind );
 		var result = ScriptCompiler.Compile( source, kind, Library );
 		Assert.True( result.Succeeded, "Example doesn't compile:\n" + string.Join( "\n", result.Errors ) + "\n---\n" + code );
 		var machine = new ScriptMachine( result.Program );

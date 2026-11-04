@@ -110,7 +110,7 @@
     void Run()
     {
         _pending = false;
-        var source = _entry?.Source ?? "";
+        var source = ScriptReference.Runnable( _entry?.Source ?? "", Kind );
         var compiled = ScriptCompiler.Compile( source, Kind );
         if ( !compiled.Succeeded )
         {

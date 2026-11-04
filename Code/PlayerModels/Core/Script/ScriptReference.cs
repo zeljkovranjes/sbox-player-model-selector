@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace PlayerModels.Core.Script;
 
@@ -12,6 +13,16 @@ namespace PlayerModels.Core.Script;
 /// </summary>
 public static class ScriptReference
 {
+	// An effect needs a layer: an example that makes none (a sum, a colour) runs with one added after it
+	private static readonly Regex MakesLayer = new( @"\b(Sprite|Light|Trail|Beam|Ghost)\(\)|Effect\.Include" );
+
+	/// <summary>
+	/// <paramref name="example"/> as it runs, in the playground and the tests alike: an effect example that makes no layer
+	/// has one added after it, so it builds and shows; anything else as it is.
+	/// </summary>
+	public static string Runnable( string example, ScriptKind kind ) =>
+		kind == ScriptKind.Effect && !MakesLayer.IsMatch( example ) ? example + "\nlocal exampleLayer = Sprite()" : example;
+
 	/// <summary>The fence a runnable example of <paramref name="kind"/> starts with.</summary>
 	public static string Fence( ScriptKind kind ) => "```lua " + kind.ToString().ToLowerInvariant();
 

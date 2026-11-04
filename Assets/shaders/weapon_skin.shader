@@ -1,6 +1,6 @@
 HEADER
 {
-	Description = "Player Model Selector: a weapon's skin. Its own colour and bumps, tinted and finished, with a pattern laid over it from every side, colours moving along it and stickers pressed onto it, worked out from the model's own space so no UVs are needed";
+	Description = "Player Model Selector: a weapon's skin. Its own surface (colour, bumps, roughness, metalness, shadows, glow), tinted and finished, with a pattern laid over it from every side, colours moving along it and stickers pressed onto it, worked out from the model's own space so no UVs are needed";
 }
 
 FEATURES
@@ -55,11 +55,29 @@ PS
 	#include "common/utils/Material.CommonInputs.hlsl"
 	#include "common/pixel.hlsl"
 
-	// The finish: its colour (the tint over it), how metal and how rough
+	// The weapon's own surface, read the way its own material reads it, so a skinned weapon is the same gun underneath:
+	// its colour, bumps, how rough and metal it is, its shadows and its glow, given as that material's own textures
+	// (g_tColor, g_tNormal, g_tRma, and its glow's mask). A complex material (most weapons) keeps its bumps in two channels
+	// with its roughness in a third, its metalness in its colour's alpha (or as one number) and its shadows in a texture of
+	// their own (given as g_tRma); a standard one keeps roughness, metalness and shadows in g_tRma; anything else gives its
+	// colour alone. Which: 0 colour alone, 1 complex, 2 standard
+	CreateInputTexture2D( TextureSourceGlow, Srgb, 8, "", "_selfillum", "Material,10/80", Default3( 0.0, 0.0, 0.0 ) );
+	Texture2D g_tSourceGlow < Channel( RGB, Box( TextureSourceGlow ), Srgb ); OutputFormat( BC7 ); SrgbRead( true ); >;
+	float g_flSourceKind < Default( 0.0 ); Range( 0.0, 2.0 ); >;
+	float g_flSourceHasNormal < Default( 0.0 ); Range( 0.0, 1.0 ); >;
+	float g_flSourceMetalness < Default( 0.0 ); Range( 0.0, 1.0 ); >;
+	float g_flMetalnessInColor < Default( 0.0 ); Range( 0.0, 1.0 ); >;
+	float g_flSourceRoughnessPower < Default( 1.0 ); Range( 0.0, 8.0 ); >;
+	float3 g_vSourceTint < Default3( 1.0, 1.0, 1.0 ); >;
+	float3 g_vSourceGlow < Default3( 0.0, 0.0, 0.0 ); >;
+	float g_flSourceGlowAlbedo < Default( 0.0 ); Range( 0.0, 1.0 ); >;
+	float g_flAlphaTest < Default( 0.0 ); Range( 0.0, 1.0 ); >;
+
+	// The finish, when there is one: its colour (the tint over it), how metal and how rough, in place of the surface's own
 	float3 g_vSkinTint < Default3( 1.0, 1.0, 1.0 ); >;
+	float g_flFinished < Default( 0.0 ); Range( 0.0, 1.0 ); >;
 	float g_flSkinMetalness < Default( 0.0 ); Range( 0.0, 1.0 ); >;
 	float g_flSkinRoughness < Default( 0.6 ); Range( 0.0, 1.0 ); >;
-	float g_flAlphaTest < Default( 0.0 ); Range( 0.0, 1.0 ); >;
 
 	// The model's bounds in its own space: its middle, its size, the long way along it and where it starts and ends
 	float3 g_vCenter < Default3( 0.0, 0.0, 0.0 ); >;
@@ -75,7 +93,8 @@ PS
 	float g_flPatternTurn < Default( 0.0 ); Range( 0.0, 3.2 ); >;
 	float g_flPatternScroll < Default( 0.0 ); Range( -4.0, 4.0 ); >;
 	float g_flPatternSpin < Default( 0.0 ); Range( -2.0, 2.0 ); >;
-	Texture2D g_tPatternShape < Attribute( "PatternShape" ); SrgbRead( false ); >;
+	CreateInputTexture2D( TexturePatternShape, Linear, 8, "", "_pattern", "Material,10/90", Default4( 1.0, 1.0, 1.0, 1.0 ) );
+	Texture2D g_tPatternShape < Channel( RGBA, Box( TexturePatternShape ), Linear ); OutputFormat( BC7 ); SrgbRead( false ); >;
 	SamplerState g_sPatternShape < Filter( BILINEAR ); AddressU( WRAP ); AddressV( WRAP ); >;
 
 	// The moving colour: which (0 none, 1 rainbow, 2 rain, 3 cycl, 4 cyln, 5 pulse, 6 glow, 7 shimmer, 8 palette), its
@@ -369,21 +388,55 @@ PS
 		emission += glow * alpha;
 	}
 
+	// A complex material's bumps, kept as a point on a folded square (Source 2's hemi-octahedral encoding)
+	float3 HemiOctahedronNormal( float2 folded )
+	{
+		float2 turned = float2( folded.x + folded.y - 1.00392163, folded.x - folded.y );
+		return normalize( float3( turned, 1.0 - abs( turned.x ) - abs( turned.y ) ) );
+	}
+
+	// The weapon's own surface at a point: its colour (alpha for cut-outs), bumps, roughness, metalness, shadows and glow
+	void Surface( PixelInput i, inout Material m, out float4 colour, out float3 glow )
+	{
+		float2 uv = i.vTextureCoords.xy;
+		colour = g_tColor.Sample( TextureFiltering, uv );
+		float4 normalTexel = g_tNormal.Sample( TextureFiltering, uv );
+		float4 rma = g_tRma.Sample( TextureFiltering, uv );
+		bool complex = g_flSourceKind > 0.5 && g_flSourceKind < 1.5;
+		bool standard = g_flSourceKind > 1.5;
+
+		if ( g_flSourceHasNormal > 0.5 )
+		{
+			float3 normalTs = complex ? HemiOctahedronNormal( normalTexel.rg ) : DecodeNormal( normalTexel.rgb );
+			m.Normal = TransformNormal( normalTs, i.vNormalWs, i.vTangentUWs, i.vTangentVWs );
+		}
+
+		m.Roughness = complex && g_flSourceHasNormal > 0.5 ? pow( saturate( normalTexel.b ), g_flSourceRoughnessPower ) : standard ? rma.r : 0.6;
+		m.Metalness = complex ? ( g_flMetalnessInColor > 0.5 ? colour.a : g_flSourceMetalness ) : standard ? rma.g : 0.0;
+		m.AmbientOcclusion = complex ? rma.r : standard ? rma.b : 1.0;
+
+		glow = g_tSourceGlow.Sample( TextureFiltering, uv ).rgb * g_vSourceGlow;
+		glow = lerp( glow, glow * colour.rgb * g_vSourceTint, g_flSourceGlowAlbedo );
+	}
+
 	float4 MainPs( PixelInput i ) : SV_Target0
 	{
 		Material m = Material::Init( i );
-		float2 uv = i.vTextureCoords.xy;
-		float4 colour = g_tColor.Sample( TextureFiltering, uv );
+		float4 colour;
+		float3 sourceGlow;
+		Surface( i, m, colour, sourceGlow );
 		if ( g_flAlphaTest > 0.5 )
 			clip( colour.a - 0.5 );
 
-		float4 normalTs = g_tNormal.Sample( TextureFiltering, uv );
-		m.Normal = TransformNormal( DecodeNormal( normalTs.xyz ), i.vNormalWs, i.vTangentUWs, i.vTangentVWs );
-		m.Metalness = g_flSkinMetalness;
-		m.Roughness = g_flSkinRoughness;
+		if ( g_flFinished > 0.5 )
+		{
+			m.Metalness = g_flSkinMetalness;
+			m.Roughness = g_flSkinRoughness;
+		}
+
 		m.Opacity = 1.0;
 
-		float3 albedo = colour.rgb * g_vSkinTint;
+		float3 albedo = colour.rgb * g_vSourceTint * g_vSkinTint;
 		float shade = dot( colour.rgb, float3( 0.3, 0.59, 0.11 ) );
 		float along = saturate( ( dot( i.vPositionOs, g_vAxis ) - g_vAxisRange.x ) / max( g_vAxisRange.y - g_vAxisRange.x, 0.001 ) );
 
@@ -450,7 +503,7 @@ PS
 		}
 
 		m.Albedo = albedo;
-		m.Emission = emission;
+		m.Emission = emission + sourceGlow;
 		return ShadingModelStandard::Shade( i, m );
 	}
 }

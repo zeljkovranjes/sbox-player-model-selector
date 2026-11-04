@@ -8,7 +8,8 @@ namespace PlayerModels.Engine;
 
 /// <summary>
 /// The materials a weapon's skin (see <see cref="WeaponSkin"/>) is drawn with: each of the weapon's own materials made
-/// again on the selector's skin shader, keeping its colour and bumps, with the finish, tint, pattern and moving colours
+/// again on the selector's skin shader, keeping its whole surface (colour, bumps, roughness, metalness, shadows and glow,
+/// read as its own shader reads them), with the finish, tint, pattern and moving colours
 /// as its settings, and the design's stickers pressed onto it (see <see cref="Stuck"/>). The shader moves the colours
 /// itself, from the time of the frame, so nothing is set per frame but a moving sticker's colour. Made once for each
 /// material, skin and set of stickers and shared by everyone showing the same: a hundred players with the same skin on
@@ -25,9 +26,20 @@ internal static class WeaponSkins
 	// A pattern repeats this many units on the weapon at scale 1
 	private const float PatternUnits = 4f;
 
+	// What the weapon's own materials keep their surface in, and how the skin shader is given it
 	private const string ColorTexture = "g_tColor";
 	private const string NormalTexture = "g_tNormal";
+	private const string RmaTexture = "g_tRma";
+	private const string OcclusionTexture = "g_tAmbientOcclusion";
+	private const string GlowTexture = "g_tSelfIllumMask";
 	private const string AlphaTestFeature = "F_ALPHA_TEST";
+	private const string MetalnessTextureFeature = "F_METALNESS_TEXTURE";
+	private const string GlowFeature = "F_SELF_ILLUM";
+
+	// Which way the skin shader reads the weapon's own surface (see weapon_skin.shader): its colour alone, a complex
+	// material's (bumps folded into two channels, roughness in the third), or a standard one's (roughness, metalness and
+	// shadows in one texture)
+	private enum SourceKind { ColourOnly, Complex, Standard }
 
 	private static readonly Dictionary<string, Material> Kept = new();
 	private static int _made;
@@ -131,18 +143,14 @@ internal static class WeaponSkins
 
 	private static void Dress( Material made, Material source, WeaponDesign design, Frame frame, IReadOnlyList<DrawnShape> shapes )
 	{
-		var colour = source?.GetTexture( ColorTexture );
-		made.Set( ColorTexture, colour is { IsValid: true, IsError: false } ? colour : Texture.White );
-		if ( source?.GetTexture( NormalTexture ) is { IsValid: true, IsError: false } normal )
-			made.Set( NormalTexture, normal );
+		Surface( made, source );
 
-		made.Set( "g_flAlphaTest", (source?.GetFeature( AlphaTestFeature ) ?? 0) > 0 ? 1f : 0f );
-
-		// The finish: its colour under the tint, how metal and rough
+		// The finish: its colour under the tint, how metal and rough in place of the surface's own; a tint alone keeps them
 		var (metalness, roughness) = FinishMaterials.SurfaceOf( design.Finish );
 		var finish = string.IsNullOrEmpty( design.Finish ) ? Color.White : FinishMaterials.ColourOf( design.Finish );
 		var tint = Color.Parse( design.Tint ?? "" ) ?? Color.White;
 		made.Set( "g_vSkinTint", Linear( finish ) * Linear( tint ) );
+		made.Set( "g_flFinished", string.IsNullOrEmpty( design.Finish ) ? 0f : 1f );
 		made.Set( "g_flSkinMetalness", metalness );
 		made.Set( "g_flSkinRoughness", roughness );
 
@@ -162,7 +170,7 @@ internal static class WeaponSkins
 		made.Set( "g_flPatternScroll", skin.PatternScroll );
 		made.Set( "g_flPatternSpin", skin.PatternSpin );
 		if ( skin.PatternIs == WeaponSkin.Pattern.Shapes )
-			made.Set( "PatternShape", PatternTexture( skin.PatternShape, shapes ) );
+			made.Set( "g_tPatternShape", PatternTexture( skin.PatternShape, shapes ) );
 
 		made.Set( "g_flMotion", (float)skin.AnimationIs );
 		var colours = skin.Colours();
@@ -173,6 +181,59 @@ internal static class WeaponSkins
 		made.Set( "g_flSpeed", skin.Speed );
 		made.Set( "g_flBands", (float)skin.Bands );
 	}
+
+	// The weapon's own surface, as its material keeps it: the skin draws it the same, so a sticker on a plain weapon is the
+	// gun as it was plus the sticker
+	private static void Surface( Material made, Material source )
+	{
+		var colour = Usable( source?.GetTexture( ColorTexture ) );
+		var normal = Usable( source?.GetTexture( NormalTexture ) );
+		var kind = SourceKindOf( source );
+		var surface = kind == SourceKind.Complex ? Usable( source.GetTexture( OcclusionTexture ) ) : kind == SourceKind.Standard ? Usable( source.GetTexture( RmaTexture ) ) : null;
+		var alphaTest = (source?.GetFeature( AlphaTestFeature ) ?? 0) > 0;
+		made.Set( ColorTexture, colour ?? Texture.White );
+		made.Set( NormalTexture, normal ?? Texture.White );
+		made.Set( RmaTexture, surface ?? Texture.White );
+		made.Set( "g_tSourceGlow", Texture.Black );
+		made.Set( "g_flSourceKind", (float)kind );
+		made.Set( "g_flSourceHasNormal", normal is null ? 0f : 1f );
+		made.Set( "g_flAlphaTest", alphaTest ? 1f : 0f );
+		if ( kind != SourceKind.Complex )
+			return;
+
+		// A cut-out's colour alpha is where it is cut, so its metalness is the one number
+		made.Set( "g_flMetalnessInColor", source.GetFeature( MetalnessTextureFeature ) > 0 && !alphaTest ? 1f : 0f );
+		made.Set( "g_flSourceMetalness", source.GetVector4( "g_flMetalness" ).x );
+		made.Set( "g_flSourceRoughnessPower", RoughnessPower( source.GetVector4( "g_flRoughnessScaleFactor" ).x ) );
+		var colourTint = source.GetVector4( "g_vColorTint" );
+		made.Set( "g_vSourceTint", Linear( new Color( colourTint.x, colourTint.y, colourTint.z ) ) );
+
+		// Its glow, as the complex shader lights it: the mask in the tint's colour, 2 to the brightness, at most its scale
+		if ( source.GetFeature( GlowFeature ) <= 0 || Usable( source.GetTexture( GlowTexture ) ) is not { } glow )
+			return;
+
+		var glowTint = source.GetVector4( "g_vSelfIllumTint" );
+		var strength = MathF.Pow( 2f, source.GetVector4( "g_flSelfIllumBrightness" ).x ) * Math.Clamp( source.GetVector4( "g_flSelfIllumScale" ).x, 0f, 1f );
+		made.Set( "g_tSourceGlow", glow );
+		made.Set( "g_vSourceGlow", Linear( new Color( glowTint.x, glowTint.y, glowTint.z ) ) * strength );
+		made.Set( "g_flSourceGlowAlbedo", Math.Clamp( source.GetVector4( "g_flSelfIllumAlbedoFactor" ).x, 0f, 1f ) );
+	}
+
+	// Complex (and Half-Life: Alyx's vr_) materials fold their bumps and keep roughness beside them; standard ones keep a
+	// roughness-metalness-shadow texture
+	private static SourceKind SourceKindOf( Material source )
+	{
+		var shader = source?.ShaderName ?? "";
+		if ( shader.Contains( "complex", StringComparison.OrdinalIgnoreCase ) || shader.Contains( "/vr_", StringComparison.OrdinalIgnoreCase ) )
+			return SourceKind.Complex;
+
+		return Usable( source?.GetTexture( RmaTexture ) ) is not null ? SourceKind.Standard : SourceKind.ColourOnly;
+	}
+
+	private static Texture Usable( Texture texture ) => texture is { IsValid: true, IsError: false } ? texture : null;
+
+	// A material that never set its roughness scale reads as 0: as made
+	private static float RoughnessPower( float scale ) => float.IsFinite( scale ) && scale > 0f ? Math.Clamp( scale, 0.05f, 8f ) : 1f;
 
 	// The stickers on the surface, each as it is placed, looks and is coloured
 	private static void Press( Material made, IReadOnlyList<Stuck> stickers )

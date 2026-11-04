@@ -66,7 +66,10 @@ internal static class WeaponPrewarm
 			}
 
 			// A design with stickers has them pressed into its skin, worked out where they lie on the weapon dressed: that
-			// skin is made when it is
+			// skin is made when it is, its weapon's mesh (where each sticker lands) read now
+			if ( design.Stickers is { Count: > 0 } && await ModelLoader.LoadAsync( design.Weapon ) is { } stickered )
+				StickerSurface.Prepare( stickered );
+
 			if ( design.Skin is null || design.Stickers is { Count: > 0 } || await ModelLoader.LoadAsync( design.Weapon ) is not { } weapon )
 				continue;
 

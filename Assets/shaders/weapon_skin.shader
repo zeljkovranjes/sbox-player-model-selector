@@ -283,6 +283,14 @@ PS
 		return lerp( PaletteAt( floor( step ) ), PaletteAt( floor( step ) + 1.0 ), smoothstep( 0.0, 1.0, frac( step ) ) );
 	}
 
+	// How much longer the way along a surface is than its straight projection, where the surface has turned so its normal
+	// leans sideways by this much (the sine of the turn): the angle over its sine, 1 on a flat face
+	float Unrolled( float lean )
+	{
+		float s = min( abs( lean ), 0.999 );
+		return s < 0.001 ? 1.0 : asin( s ) / s;
+	}
+
 	// A sticker over the surface where it is pressed on: its colour (its finish's, by the angle it is seen from) over the
 	// surface's, as rough and metal as its finish, scraped away in patches as worn as it is, with a white border cut round it
 	void Sticker( inout float3 albedo, inout float metal, inout float rough, inout float3 emission, float3 positionOs, float3 normalOs,
@@ -295,11 +303,20 @@ PS
 		if ( abs( p.x ) > 0.5 || abs( p.y ) > 0.5 || abs( p.z ) > 0.5 )
 			return;
 
-		// Only on the side it is pressed onto: the surfaces facing back where it is pressed from
-		if ( dot( normalOs, normalize( rowX.xyz ) ) > -0.2 )
+		// Only on the faces turned towards where it is pressed from, fading out as they turn away, so it never smears along
+		// a curve or the side of a rail; and it fades towards the faces of its slab rather than stopping in a hard line
+		float pressedOn = smoothstep( 0.5, 0.75, -dot( normalOs, normalize( rowX.xyz ) ) );
+		if ( pressedOn <= 0.0 )
 			return;
 
-		float2 uv = float2( 0.5 - p.y, 0.5 - p.z );
+		pressedOn *= 1.0 - smoothstep( 0.35, 0.5, abs( p.x ) );
+
+		// Unrolled over a curve: the picture keeps its size along the surface, as a real sticker wraps a barrel, rather than
+		// stretching where the surface turns away (exact on a cylinder or a ball); clipped at its own edges
+		float2 turn = float2( dot( normalOs, normalize( rowY.xyz ) ), dot( normalOs, normalize( rowZ.xyz ) ) );
+		float2 uv = float2( 0.5 - p.y * Unrolled( turn.x ), 0.5 - p.z * Unrolled( turn.y ) );
+		if ( any( uv < 0.0 ) || any( uv > 1.0 ) )
+			return;
 		float finish = look.x;
 		float facing = dot( toCamera, normalWs );
 		float across = dot( toCamera, tangentWs );
@@ -338,6 +355,7 @@ PS
 			alpha *= smoothstep( look.y * 0.85 - 0.03, look.y * 0.85 + 0.03, worn );
 		}
 
+		alpha *= pressedOn;
 		if ( alpha <= 0.001 )
 			return;
 

@@ -22,9 +22,11 @@ internal sealed class WeaponDresser
 {
 	private const string PropName = "Weapon prop";
 
-	// A sticker presses at least this deep (as deep as it is wide when wider): deep enough to wrap over a barrel's curve;
-	// the skin draws it only on the side it is pressed onto, and only on the weapon
-	private const float StickerDepth = 2.5f;
+	// A sticker is pressed onto the first surface it meets coming in from outside (see StickerSurface), in a slab around
+	// that surface this thick (a share of its width when wider): enough for the curve of a rail or a stock under it, never
+	// what lies behind (the far side, a cable). The skin draws it only on faces turned towards it, and only on the weapon
+	private const float SlabDepth = 1.2f;
+	private const float SlabShare = 0.4f;
 
 	private const float MillisecondsPerSecond = 1000f;
 
@@ -417,13 +419,18 @@ internal sealed class WeaponDresser
 			if ( mapping is { } map )
 				place = map.FromWorldModel.ToWorld( place );
 
+			var press = place.Rotation.Forward;
+			var reach = renderer.Model.Bounds.Size.Length;
+			if ( StickerSurface.Along( renderer.Model, place.Position - press * reach, press, reach * 2f ) is { } distance )
+				place.Position += press * (distance - reach);
+
 			var stuck = new Stuck
 			{
 				Sticker = fitted, Drawn = Find( fitted.DrawnPicture ),
 				Colour = MovingColour.OfSticker( fitted.AnimationIs, fitted.CycleColours(), fitted.Color, ScriptPrograms.Cache, ScriptPrograms.Stack ),
 			};
 			var size = fitted.Size * scale;
-			var depth = MathF.Max( StickerDepth * scale, size );
+			var depth = MathF.Max( SlabDepth * scale, size * SlabShare );
 			var finish = fitted.Finish is null ? stuck.Drawn?.FinishIs ?? StickerFinish.Paper : StickerFinishes.Of( fitted.Finish );
 			var tint = stuck.Drawn?.HasOwnColours == true ? Color.White : Color.Parse( fitted.Color ?? "" ) ?? Color.White;
 			if ( stuck.Drawn is not null )

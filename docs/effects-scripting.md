@@ -713,7 +713,7 @@ local six = f( 3 ) --> 6
 
 ### Parameters
 
-#### `Parameter`
+#### `Parameter( [title: string] )`
 
 Makes a top-level local an option players adjust in the Effects tab (the widget comes from its type); the script's value is the default.
 
@@ -730,7 +730,7 @@ local glowColor = Color.Parse( "#7af0ff" )
 local size = glowSize --> 2.6
 ```
 
-#### `Parameter.Min`
+#### `Parameter.Min: number`
 
 The least a number (or each part of a Vector3) can be set to; give Max too.
 
@@ -739,7 +739,7 @@ The least a number (or each part of a Vector3) can be set to; give Max too.
 local strength = 0.5
 ```
 
-#### `Parameter.Max`
+#### `Parameter.Max: number`
 
 The most a number (or each part of a Vector3) can be set to; give Min too.
 
@@ -748,7 +748,7 @@ The most a number (or each part of a Vector3) can be set to; give Min too.
 local height = 2
 ```
 
-#### `Parameter.Step`
+#### `Parameter.Step: number`
 
 How far one notch of its slider moves; a whole Step of 1 or more makes a whole-number stepper.
 
@@ -757,7 +757,7 @@ How far one notch of its slider moves; a whole Step of 1 or more makes a whole-n
 local points = 5
 ```
 
-#### `Parameter.Group`
+#### `Parameter.Group: string`
 
 The fold it is shown in, with the others of its group.
 
@@ -766,7 +766,7 @@ The fold it is shown in, with the others of its group.
 local tint = Color.White
 ```
 
-#### `Parameter.Tip`
+#### `Parameter.Tip: string`
 
 What it does, shown when hovering it.
 
@@ -775,7 +775,7 @@ What it does, shown when hovering it.
 local spin = 1
 ```
 
-#### `Parameter.Choices`
+#### `Parameter.Choices: {string}`
 
 For text: the choices it is picked from, as a dropdown.
 
@@ -784,7 +784,7 @@ For text: the choices it is picked from, as a dropdown.
 local motion = "Spin"
 ```
 
-#### `Parameter.Order`
+#### `Parameter.Order: number`
 
 Where it is shown among the others (lowest first); they are in the script's order otherwise.
 

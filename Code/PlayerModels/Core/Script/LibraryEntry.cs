@@ -125,6 +125,7 @@ public sealed class LibraryEntry
 		switch ( Kind )
 		{
 			case EntryKind.Function or EntryKind.Method or EntryKind.Event:
+			case EntryKind.Attribute when Owner is null:
 			{
 				text.Append( Kind == EntryKind.Event ? "function " : "" ).Append( Name ).Append( Parameters.Count > 0 ? "( " : "(" );
 				for ( var i = 0; i < Parameters.Count; i++ )
@@ -141,7 +142,7 @@ public sealed class LibraryEntry
 				return text.ToString();
 			}
 
-			case EntryKind.Constant or EntryKind.Property or EntryKind.Input or EntryKind.Output:
+			case EntryKind.Constant or EntryKind.Property or EntryKind.Input or EntryKind.Output or EntryKind.Attribute:
 				text.Append( Name ).Append( ": " ).Append( Type );
 				if ( !double.IsNaN( Min ) )
 					text.Append( "  (" ).Append( Number( Min ) ).Append( " to " ).Append( Number( Max ) ).Append( ')' );

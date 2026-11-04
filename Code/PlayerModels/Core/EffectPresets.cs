@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 
 namespace PlayerModels.Core;
@@ -17,7 +18,11 @@ public static class EffectPresets
 	{
 		GlowingEyes(), FireHands(), SparkleHalo(), HolyAura(), DarkAura(), Hearts(), SnowCloud(), RainCloud(),
 		ElectricBody(), MagicOrbs(), FlameHead(), LanternHand(), SpeedTrail(), SwordSlash(), ConfettiBurst(), Rainbow(),
+		BulletTracer(), MuzzleFlash(), ImpactSparks(),
 	};
+
+	/// <summary>The presets for a weapon: those that come from the weapon held, offered first in a weapon's design.</summary>
+	public static IEnumerable<Effect> ForWeapons => All.Where( x => x.Anchor.KindIs == AnchorKind.HeldWeapon );
 
 	/// <summary>A copy of <paramref name="preset"/> to wear beside <paramref name="worn"/>, with an id none of them has.</summary>
 	public static Effect Copy( Effect preset, IReadOnlyList<Effect> worn )
@@ -264,6 +269,34 @@ public static class EffectPresets
 			Sprite( LayerPicture.Spark, "#fff4c8", "#ff9a3a", 1.8f, 0.4f, 0.45f, 0f ).From( LayerShape.Sphere, 1f ).Moving( 90f, 220f )
 				.At( LayerWhen.OnShoot, 16f ) )
 		.From( AnchorKind.HeldWeapon, Effect.Joint.RightHand );
+
+	// A streak of light from the muzzle to where each shot hits, gone in a blink
+	private static Effect BulletTracer() => Made( "Bullet tracer", Effect.Joint.RightHand,
+			Sprite( LayerPicture.Glow, "#fff6c8", "#ffb040", 2.4f, 0.6f, 0.16f, 0f ).From( LayerShape.Shot, 0f ).Moving( 200f, 0f ).At( LayerWhen.OnShoot, 100f ) )
+		.From( AnchorKind.HeldWeapon, Effect.Joint.RightHand );
+
+	// A burst of fire at the muzzle with each shot, lighting up around it for a moment
+	private static Effect MuzzleFlash() => Made( "Muzzle flash", Effect.Joint.RightHand,
+			Sprite( LayerPicture.Flame, "#fff0a0", "#ff6a1a", 5f, 1.5f, 0.07f, 0f ).From( LayerShape.Cone, 3f ).Moving( 40f, 0f, true )
+				.At( LayerWhen.OnShoot, 6f ),
+			Sprite( LayerPicture.Glow, "#ffe08a", "#ff8a2a", 7f, 3f, 0.06f, 0f ).At( LayerWhen.OnShoot, 2f ),
+			Light( "#ffb25a", 140f, 2f ).At( LayerWhen.OnShoot, 0f, 0.06f ) )
+		.From( AnchorKind.HeldWeapon, Effect.Joint.RightHand );
+
+	// Sparks thrown off whatever a shot or a swing hits, falling away
+	private static Effect ImpactSparks() => Made( "Impact sparks", Effect.Joint.RightHand,
+			Sprite( LayerPicture.Spark, "#fff4c8", "#ff9a3a", 1.8f, 0.4f, 0.45f, 0f ).From( LayerShape.Cone, 1f ).Hitting().Moving( 140f, 320f )
+				.At( LayerWhen.OnHit, 24f ),
+			Sprite( LayerPicture.Smoke, "#8a8a8a", "#4a4a4a", 3f, 6f, 0.6f, 0f ).From( LayerShape.Sphere, 1f ).Hitting().Moving( 8f, -10f ).Covering()
+				.At( LayerWhen.OnHit, 3f ) )
+		.From( AnchorKind.HeldWeapon, Effect.Joint.RightHand );
+
+	private static EffectLayer Hitting( this EffectLayer layer )
+	{
+		layer.AtHit = true;
+		layer.Angle = 35f;
+		return layer;
+	}
 
 	// Confetti thrown up when you jump, and a ring of it when you land
 	private static Effect ConfettiBurst() => Made( "Confetti burst", Effect.Joint.Chest,

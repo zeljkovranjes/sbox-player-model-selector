@@ -73,6 +73,20 @@ internal sealed class HeldItems
 		}
 	}
 
+	/// <summary>
+	/// Keeps track of <paramref name="root"/> alone as what is held, as it is, never moved (a first-person weapon), for
+	/// its tip; null holds nothing.
+	/// </summary>
+	internal void Hold( GameObject root )
+	{
+		if ( _held.Count == 1 && _held[ 0 ].Root == root )
+			return;
+
+		_held.Clear();
+		if ( root.IsValid() )
+			_held.Add( new Held { Root = root, GameLocal = root.LocalTransform } );
+	}
+
 	/// <summary>Moves each held thing into the model's hand, aimed the way the citizen aims it right now.</summary>
 	internal void Place( SkinnedModelRenderer citizen, SkinnedModelRenderer model, PoseTransfer transfer )
 	{

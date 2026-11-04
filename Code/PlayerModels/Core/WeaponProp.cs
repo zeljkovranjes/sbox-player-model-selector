@@ -42,7 +42,22 @@ public sealed class WeaponProp
 	[JsonPropertyName( "m" )]
 	public string Model { get; set; } = "";
 
-	/// <summary>Where it sits on the weapon: forwards (along the barrel), to the left and up, from the weapon's own origin.</summary>
+	/// <summary>
+	/// The part of the weapon it is on (a magazine, a slide: see <see cref="WeaponDesign.IsPartName"/>), by name: it
+	/// follows that part through the weapon's animations where the weapon has it, the weapon itself where it doesn't;
+	/// null for the weapon as a whole. Where it is, is from the part's middle.
+	/// </summary>
+	[JsonPropertyName( "pt" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public string Part { get; set; }
+
+	/// <summary>Whether it takes its part's place: the part is hidden, and the prop may be as large as the part.</summary>
+	[JsonPropertyName( "rp" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public bool Replaces { get; set; }
+
+	/// <summary>
+	/// Where its middle sits on the weapon: forwards (along the barrel), to the left and up, from its part's middle, or
+	/// the weapon's own origin.
+	/// </summary>
 	[JsonPropertyName( "f" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public float Forward { get; set; }
 
@@ -115,25 +130,31 @@ public sealed class WeaponProp
 	/// <summary>Whether a model <paramref name="size"/> long (its longest side, as made) can be a prop: not degenerate, not absurd.</summary>
 	public static bool IsUsableSize( float size ) => float.IsFinite( size ) && size >= DegenerateSize && size <= AbsurdSize;
 
-	/// <summary>The largest scale a model <paramref name="size"/> long may have: its longest side at most <see cref="MaxLength"/>.</summary>
-	public static float MaxScaleFor( float size ) => IsUsableSize( size ) ? Math.Clamp( MaxLength / size, MinScale, MostScale ) : MinScale;
+	/// <summary>
+	/// The largest scale a model <paramref name="size"/> long may have: its longest side at most <see cref="MaxLength"/>,
+	/// or <paramref name="partSize"/> for one taking the place of a part that long, if that is larger.
+	/// </summary>
+	public static float MaxScaleFor( float size, float partSize = 0f ) => IsUsableSize( size )
+		? Math.Clamp( MathF.Max( MaxLength, float.IsFinite( partSize ) ? partSize : 0f ) / size, MinScale, MostScale )
+		: MinScale;
 
 	/// <summary>The scale a model <paramref name="size"/> long starts at: as made, or smaller to fit <see cref="MaxLength"/>.</summary>
 	public static float StartingScale( float size ) => Math.Min( 1f, MaxScaleFor( size ) );
 
 	/// <summary>
-	/// A copy fitted to the weapon: for a model <paramref name="size"/> long whose middle is <paramref name="middle"/> from
-	/// its origin (in the weapon's directions, at scale 1), on a weapon of <paramref name="weapon"/> bounds. Its scale keeps
-	/// its longest side within <see cref="MaxLength"/>, and its middle stays inside the weapon's bounds grown by
-	/// <see cref="Reach"/>, less half its length. Null for a model that can't be a prop (see <see cref="IsUsableSize"/>).
+	/// A copy fitted to the weapon: for a model <paramref name="size"/> long placed from <paramref name="middle"/> (its
+	/// part's middle, or the weapon's origin), on a weapon of <paramref name="weapon"/> bounds; replacing a part
+	/// <paramref name="partSize"/> long. Its scale keeps its longest side within <see cref="MaxLength"/> (or the part's
+	/// length), and its middle stays inside the weapon's bounds grown by <see cref="Reach"/>, less half its length. Null
+	/// for a model that can't be a prop (see <see cref="IsUsableSize"/>).
 	/// </summary>
-	public WeaponProp FittedTo( float size, WeaponBounds middle, WeaponBounds weapon )
+	public WeaponProp FittedTo( float size, WeaponBounds middle, WeaponBounds weapon, float partSize = 0f )
 	{
 		var copy = Sanitized();
 		if ( copy is null || !IsUsableSize( size ) )
 			return null;
 
-		copy.Scale = Math.Clamp( copy.Scale, MinScale, MaxScaleFor( size ) );
+		copy.Scale = Math.Clamp( copy.Scale, MinScale, MaxScaleFor( size, copy.Replaces ? partSize : 0f ) );
 		var half = size * copy.Scale * 0.5f;
 		copy.Forward = Inside( copy.Forward, middle.MinX * copy.Scale, weapon.MinX, weapon.MaxX, half );
 		copy.Left = Inside( copy.Left, middle.MinY * copy.Scale, weapon.MinY, weapon.MaxY, half );
@@ -160,9 +181,12 @@ public sealed class WeaponProp
 		if ( !IsModelPath( model ) )
 			return null;
 
+		var part = Part?.Trim();
 		return new WeaponProp
 		{
 			Model = model,
+			Part = WeaponDesign.IsPartName( part ) ? part : null,
+			Replaces = Replaces && WeaponDesign.IsPartName( part ),
 			Forward = Limited( Forward, MostOffset ),
 			Left = Limited( Left, MostOffset ),
 			Up = Limited( Up, MostOffset ),

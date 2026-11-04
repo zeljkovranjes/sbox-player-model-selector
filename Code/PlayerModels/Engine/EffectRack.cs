@@ -56,6 +56,7 @@ internal sealed class EffectRack
 	private int[] _itemIndices = Array.Empty<int>();
 	private int[] _anchorJoints = Array.Empty<int>();
 	private bool[] _keyed = Array.Empty<bool>();
+	private bool[] _onWeapon = Array.Empty<bool>();
 	private float[] _gates = Array.Empty<float>();
 	private Transform[] _from = Array.Empty<Transform>();
 	private int _effects;
@@ -79,6 +80,15 @@ internal sealed class EffectRack
 
 	/// <summary>The citizen the effects are worn over: where they are, for how much of them shows.</summary>
 	internal SkinnedModelRenderer Source { get; private set; }
+
+	/// <summary>How much smaller (or larger) than on a body the effects are made: a first-person weapon's are smaller, as it is right by the eye.</summary>
+	internal float SizeScale { get; set; } = 1f;
+
+	/// <summary>
+	/// Whether the effects coming from the weapon held send nothing: their player sees them on their first-person weapon
+	/// instead. Changing it never builds anything again.
+	/// </summary>
+	internal bool HidesWeaponEffects { get; set; }
 
 	/// <summary>How many sprites it has out at once, all shown; and how many lights it has.</summary>
 	internal float WantedSprites { get; private set; }
@@ -167,7 +177,7 @@ internal sealed class EffectRack
 
 		for ( var e = 0; e < _effects; e++ )
 		{
-			var shows = !_keyed[ e ] || (_keyShown?.Invoke( _ids[ e ] ) ?? true);
+			var shows = (!_keyed[ e ] || (_keyShown?.Invoke( _ids[ e ] ) ?? true)) && !(HidesWeaponEffects && _onWeapon[ e ]);
 			_gates[ e ] = Approach( _gates[ e ], shows ? 1f : 0f, delta / KeyFadeSeconds );
 			_from[ e ] = Anchored( e, citizen, model, transfer );
 		}
@@ -357,7 +367,7 @@ internal sealed class EffectRack
 		ReturnLayers();
 
 		var schedule = Schedule();
-		var motion = _joints.BodyScale * model.WorldScale.x;
+		var motion = _joints.BodyScale * model.WorldScale.x * SizeScale;
 		var index = 0;
 		Size( _wanted.Count + WeaponEffects.Count );
 		_wantsShot = false;
@@ -375,6 +385,7 @@ internal sealed class EffectRack
 				_itemIndices[ shown ] = IndexOfItem( effect.Anchor, _items );
 				_anchorJoints[ shown ] = JointOf( _anchors[ shown ] );
 				_keyed[ shown ] = effect.Key is not null;
+				_onWeapon[ shown ] = _anchors[ shown ].KindIs == AnchorKind.HeldWeapon;
 				_gates[ shown ] = _keyed[ shown ] ? 0f : 1f;
 
 				foreach ( var data in effect.Layers )
@@ -405,7 +416,8 @@ internal sealed class EffectRack
 	// Room for every effect, made only when there are more than ever before
 	private void Size( int effects )
 	{
-		if ( _ids.Length >= effects )
+		// A rack kept by a hot reload may lack arrays added since
+		if ( _ids.Length >= effects && _onWeapon is not null )
 			return;
 
 		_ids = new string[ effects ];
@@ -413,6 +425,7 @@ internal sealed class EffectRack
 		_itemIndices = new int[ effects ];
 		_anchorJoints = new int[ effects ];
 		_keyed = new bool[ effects ];
+		_onWeapon = new bool[ effects ];
 		_gates = new float[ effects ];
 		_from = new Transform[ effects ];
 	}

@@ -108,6 +108,7 @@ public sealed partial class PlayerModelSelector : Component
 
 	private readonly PlayerBodies _bodies = new();
 	private readonly ViewModelHands _hands = new();
+	private FirstPersonWeapon _firstPerson;
 	private TimeSince _sinceScan;
 	private bool _restored;
 
@@ -482,18 +483,24 @@ public sealed partial class PlayerModelSelector : Component
 		RestoreSavedPick();
 		_bodies.Update( Scene, this );
 		_hands.Update( Scene, LocalPrefs.ViewModel, ArmsLook() );
+
+		// Made here: a hot reload keeps this component but not fields added since
+		_firstPerson ??= new FirstPersonWeapon();
+		_firstPerson.Update( Scene, ShownLookOf( Connection.Local ), LocalPrefs.ShowWeaponInFirstPerson );
 	}
 
 	// Bodies other addons show players as are looked for every frame, so each shows its player's pick from its first frame
 	protected override void OnPreRender()
 	{
 		_bodies.ShowNewStandIns( Scene, this );
+		_firstPerson?.Place();
 	}
 
 	protected override void OnDestroy()
 	{
 		_bodies.Clear( Scene );
 		_hands.Update( Scene, "", null );
+		_firstPerson?.Release();
 	}
 
 	/// <summary>

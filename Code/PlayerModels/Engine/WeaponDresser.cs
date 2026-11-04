@@ -56,6 +56,10 @@ internal sealed class WeaponDresser
 	private int _request;
 	private float _startedAt;
 
+	// The body groups the weapon had before parts were hidden, to put back; and whether any were
+	private ulong _bodyGroups;
+	private bool _hidParts;
+
 	/// <summary>The design dressed now; null for none.</summary>
 	internal WeaponDesign Design => _design;
 
@@ -66,11 +70,44 @@ internal sealed class WeaponDresser
 	internal ModelRenderer Renderer => _renderer;
 
 	/// <summary>
-	/// How a first-person weapon lies against its world model: a turn, scale and move from the world model's own space
-	/// into the first-person model's, so props and stickers sit on it alike, and the world model's bounds, which props
-	/// and stickers are fitted to.
+	/// How a first-person weapon lies against its world model (<paramref name="WorldModel"/>): a turn, scale and move from
+	/// the world model's own space into the first-person model's (<paramref name="FromWorldModel"/>), so props and
+	/// stickers sit on it alike; they are fitted to the world model, as everyone else sees them.
 	/// </summary>
-	internal readonly record struct Mapping( Transform FromWorldModel, BBox WorldModelBounds );
+	internal readonly record struct Mapping( Transform FromWorldModel, Model WorldModel )
+	{
+		// What a first-person model's weapon moves with as it sways and kicks: everything on it hangs off this bone
+		private const string RootBone = "weapon_root";
+		private const string MuzzleName = "muzzle";
+
+		/// <summary>The bone of <paramref name="firstPerson"/> the whole weapon moves with; null when it has none.</summary>
+		internal static string RootOf( Model firstPerson ) => firstPerson?.Bones.GetBone( RootBone ) is not null ? RootBone : null;
+
+		/// <summary>
+		/// How <paramref name="firstPerson"/> lies against <paramref name="worldModel"/>: their muzzles together where both
+		/// mark one, else their middles, sized by their lengths.
+		/// </summary>
+		internal static Mapping Between( Model worldModel, Model firstPerson )
+		{
+			var scale = AccessoryCatalog.SizeOf( firstPerson ) / MathF.Max( AccessoryCatalog.SizeOf( worldModel ), 0.01f );
+			scale = float.IsFinite( scale ) && scale > 0f ? scale : 1f;
+			if ( MuzzleOf( worldModel ) is { } from && MuzzleOf( firstPerson ) is { } to )
+			{
+				var turn = to.Rotation * from.Rotation.Inverse;
+				return new Mapping( new Transform( to.Position - turn * (from.Position * scale), turn, scale ), worldModel );
+			}
+
+			return new Mapping( new Transform( firstPerson.Bounds.Center - worldModel.Bounds.Center * scale, Rotation.Identity, scale ), worldModel );
+		}
+
+		private static Transform? MuzzleOf( Model model )
+		{
+			if ( model?.Attachments?.Get( MuzzleName ) is not { } attachment )
+				return null;
+
+			return attachment.Bone is { } bone ? bone.LocalTransform.ToWorld( attachment.LocalTransform ) : attachment.LocalTransform;
+		}
+	}
 
 	/// <summary>The weapon designs a look wears, and the drawn shapes it carries for their stickers.</summary>
 	internal void Apply( IReadOnlyList<WeaponDesign> designs, IReadOnlyList<DrawnShape> shapes )
@@ -86,17 +123,21 @@ internal sealed class WeaponDresser
 
 	/// <summary>
 	/// Dresses <paramref name="held"/> (a weapon's object, or null when nothing is held) as its design says, and wears its
-	/// effects on <paramref name="rack"/>. A first-person weapon gives the world model it stands for
-	/// (<paramref name="worldModel"/>: whose design it wears) and how it lies against it (<paramref name="mapping"/>);
-	/// without <paramref name="extras"/> it is only skinned. Nothing happens while the weapon and its design stay the same.
+	/// effects on <paramref name="rack"/>. A first-person weapon gives its renderer (<paramref name="main"/>: its arms are
+	/// under it too), the world model it stands for (<paramref name="worldModel"/>: whose design it wears) and how it lies
+	/// against it (<paramref name="mapping"/>); without <paramref name="extras"/> it is only skinned. Nothing happens
+	/// while the weapon and its design stay the same.
 	/// </summary>
-	internal void Dress( GameObject held, EffectRack rack, string worldModel = null, Mapping? mapping = null, bool extras = true )
+	internal void Dress( GameObject held, EffectRack rack, string worldModel = null, Mapping? mapping = null, bool extras = true, ModelRenderer main = null )
 	{
-		var renderer = held.IsValid() ? MainRenderer( held ) : null;
+		// The same weapon as before, with the same designs to choose from, is dressed already: asked of every body twice a
+		// second, so it costs nothing
+		if ( !_changed && held == _root && (held is null || _renderer.IsValid()) && (worldModel is null || worldModel == Weapon) )
+			return;
+
+		var renderer = main.IsValid() ? main : held.IsValid() ? MainRenderer( held ) : null;
 		var weapon = worldModel ?? renderer?.Model?.ResourcePath;
 		var design = weapon is null ? null : DesignFor( weapon );
-		if ( !_changed && held == _root && renderer == _renderer && ReferenceEquals( design, _design ) )
-			return;
 
 		_changed = false;
 		Undress();
@@ -108,9 +149,10 @@ internal sealed class WeaponDresser
 
 		if ( design is not null && renderer.IsValid() )
 		{
-			Skin( held, renderer, design );
+			Skin( main.IsValid() ? main.GameObject : held, renderer, design, main.IsValid() );
 			if ( extras )
 			{
+				HideParts( renderer, design );
 				_ = PropsAsync( renderer, design, mapping, ++_request );
 				Stick( renderer, design, mapping );
 			}
@@ -178,7 +220,7 @@ internal sealed class WeaponDresser
 		var largest = -1f;
 		foreach ( var renderer in held.Components.GetAll<ModelRenderer>( FindMode.EverythingInSelfAndDescendants ) )
 		{
-			if ( renderer.Model is null || renderer.GameObject.Name == PropName || renderer is SkinnedModelRenderer { BoneMergeTarget: not null } )
+			if ( !IsWeapon( renderer ) )
 				continue;
 
 			var size = renderer.Model.Bounds.Size.Length;
@@ -192,16 +234,21 @@ internal sealed class WeaponDresser
 		return main;
 	}
 
+	// Whether a renderer under a weapon's object draws the weapon: not a prop added to it, nor what is merged onto it
+	private static bool IsWeapon( ModelRenderer renderer ) => renderer.Model is not null && renderer.GameObject.Name != PropName
+		&& renderer is not SkinnedModelRenderer { BoneMergeTarget: not null };
+
 	// Every renderer of the weapon drawn with its skin: its own materials, finished or skinned; a tint alone is the
 	// renderer's tint, which keeps every material as it is
-	private void Skin( GameObject held, ModelRenderer main, WeaponDesign design )
+	private void Skin( GameObject held, ModelRenderer main, WeaponDesign design, bool mainAlone )
 	{
 		var painted = design.Skin is not null;
 		var key = painted ? WeaponSkins.KeyOf( design ) : null;
 		var frame = WeaponSkins.Frame.Of( main.Model.Bounds );
 		foreach ( var renderer in held.Components.GetAll<ModelRenderer>( FindMode.EverythingInSelfAndDescendants ) )
 		{
-			if ( renderer.Model is null || renderer.GameObject.Name == PropName )
+			// What is merged onto the weapon is someone else's: a first-person weapon's arms
+			if ( !IsWeapon( renderer ) || mainAlone && renderer != main )
 				continue;
 
 			if ( !painted && design.Tint is { } tint )
@@ -228,11 +275,41 @@ internal sealed class WeaponDresser
 		}
 	}
 
-	// Each prop as a model of its own on the weapon, once its model is loaded, fitted to the caps
+	// The parts the design hides, and those its props take the place of, through their body groups; a part the weapon
+	// can't hide shows
+	private void HideParts( ModelRenderer renderer, WeaponDesign design )
+	{
+		_bodyGroups = renderer.BodyGroups;
+		foreach ( var part in PartsHidden( design ) )
+		{
+			var empty = WeaponParts.EmptyChoice( renderer.Model, part );
+			if ( empty < 0 )
+				continue;
+
+			renderer.SetBodyGroup( WeaponParts.NameIn( renderer.Model, part ), empty );
+			_hidParts = true;
+		}
+	}
+
+	private static IEnumerable<string> PartsHidden( WeaponDesign design )
+	{
+		foreach ( var part in design.HiddenParts ?? new List<string>() )
+			yield return part;
+
+		foreach ( var prop in design.Props ?? new List<WeaponProp>() )
+		{
+			if ( prop.Replaces )
+				yield return prop.Part;
+		}
+	}
+
+	// Each prop as a model of its own on the weapon, once its model is loaded, fitted to the caps: on its part (from the
+	// part's middle) or on the weapon, and on a first-person weapon hung off the bone that moves that part, so it follows
+	// the part's animation (a magazine coming out on a reload)
 	private async Task PropsAsync( ModelRenderer renderer, WeaponDesign design, Mapping? mapping, int request )
 	{
-		var bounds = mapping?.WorldModelBounds ?? renderer.Model.Bounds;
-		var weapon = new WeaponBounds( bounds.Mins.x, bounds.Mins.y, bounds.Mins.z, bounds.Maxs.x, bounds.Maxs.y, bounds.Maxs.z );
+		var worldModel = mapping?.WorldModel ?? renderer.Model;
+		var weapon = BoundsOf( worldModel.Bounds );
 		foreach ( var prop in design.Props ?? new List<WeaponProp>() )
 		{
 			if ( !PropCatalog.IsStock( prop.Model ) )
@@ -242,17 +319,23 @@ internal sealed class WeaponDresser
 			if ( request != _request || !renderer.IsValid() )
 				return;
 
+			// Where a prop is, is where its middle is: from its part's middle, or the weapon's origin
+			var part = prop.Part is null ? null : WeaponParts.BoundsOf( worldModel, prop.Part );
+			var from = part?.Center ?? Vector3.Zero;
 			var size = AccessoryCatalog.SizeOf( model );
-			var turn = Rotation.From( prop.Pitch, prop.Yaw, prop.Roll );
-			var middle = turn * (model?.Bounds.Center ?? Vector3.Zero);
-			if ( model is null || prop.FittedTo( size, WeaponBounds.Point( middle.x, middle.y, middle.z ), weapon ) is not { } fitted )
+			var partSize = part is { } box ? MathF.Max( box.Size.x, MathF.Max( box.Size.y, box.Size.z ) ) : 0f;
+			if ( model is null || prop.FittedTo( size, WeaponBounds.Point( from.x, from.y, from.z ), weapon, partSize ) is not { } fitted )
 				continue;
 
-			var place = new Transform( new Vector3( fitted.Forward, fitted.Left, fitted.Up ), Rotation.From( fitted.Pitch, fitted.Yaw, fitted.Roll ), fitted.Scale );
+			var turn = Rotation.From( fitted.Pitch, fitted.Yaw, fitted.Roll );
+			var middle = from + new Vector3( fitted.Forward, fitted.Left, fitted.Up );
+			var place = new Transform( middle - turn * (model.Bounds.Center * fitted.Scale), turn, fitted.Scale );
+			var parent = renderer.GameObject;
 			if ( mapping is { } map )
 			{
 				var nudge = new Transform( new Vector3( fitted.NudgeForward, fitted.NudgeLeft, fitted.NudgeUp ), Rotation.From( fitted.NudgePitch, fitted.NudgeYaw, fitted.NudgeRoll ) );
 				place = map.FromWorldModel.ToWorld( place ).ToWorld( nudge );
+				(parent, place) = OnBone( renderer, prop.Part, place );
 			}
 
 			using ( renderer.Scene.Push() )
@@ -260,7 +343,7 @@ internal sealed class WeaponDresser
 				var go = new GameObject( false, PropName );
 				go.NetworkMode = NetworkMode.Never;
 				go.Flags |= GameObjectFlags.NotSaved;
-				go.SetParent( renderer.GameObject, false );
+				go.SetParent( parent, false );
 				go.LocalTransform = place;
 				var made = go.AddComponent<ModelRenderer>();
 				made.Model = model;
@@ -271,11 +354,24 @@ internal sealed class WeaponDresser
 		}
 	}
 
+	// A place on a first-person weapon (in its model's own space) as hung off the bone that moves part (or, for none,
+	// the whole weapon), relative to that bone's rest; the model itself when it has no such bone
+	private static (GameObject Parent, Transform Place) OnBone( ModelRenderer renderer, string part, Transform place )
+	{
+		var model = renderer.Model;
+		var bone = (part is null ? null : WeaponParts.BoneOf( model, part )) ?? Mapping.RootOf( model );
+		if ( bone is null || renderer is not SkinnedModelRenderer skinned || skinned.GetBoneObject( bone ) is not { } boneObject )
+			return (renderer.GameObject, place);
+
+		return (boneObject, model.Bones.GetBone( bone ).LocalTransform.ToLocal( place ));
+	}
+
+	private static WeaponBounds BoundsOf( BBox bounds ) => new( bounds.Mins.x, bounds.Mins.y, bounds.Mins.z, bounds.Maxs.x, bounds.Maxs.y, bounds.Maxs.z );
+
 	// Each sticker as a decal pressed onto the weapon from its side, its picture from the atlas or its drawn shape
 	private void Stick( ModelRenderer renderer, WeaponDesign design, Mapping? mapping )
 	{
-		var bounds = mapping?.WorldModelBounds ?? renderer.Model.Bounds;
-		var weapon = new WeaponBounds( bounds.Mins.x, bounds.Mins.y, bounds.Mins.z, bounds.Maxs.x, bounds.Maxs.y, bounds.Maxs.z );
+		var weapon = BoundsOf( (mapping?.WorldModel ?? renderer.Model).Bounds );
 		var scale = mapping?.FromWorldModel.Scale.x ?? 1f;
 		using ( renderer.Scene.Push() )
 		{
@@ -283,13 +379,14 @@ internal sealed class WeaponDresser
 			{
 				var fitted = sticker.FittedTo( weapon );
 				var place = new Transform( new Vector3( fitted.Forward, fitted.Left, fitted.Up ), Rotation.From( fitted.Pitch, fitted.Yaw, fitted.Roll ) * Rotation.FromPitch( 90f ) );
+				var parent = renderer.GameObject;
 				if ( mapping is { } map )
-					place = map.FromWorldModel.ToWorld( place );
+					(parent, place) = OnBone( renderer, null, map.FromWorldModel.ToWorld( place ) );
 
 				var go = new GameObject( false, StickerName );
 				go.NetworkMode = NetworkMode.Never;
 				go.Flags |= GameObjectFlags.NotSaved;
-				go.SetParent( renderer.GameObject, false );
+				go.SetParent( parent, false );
 				go.LocalTransform = place.WithScale( 1f );
 
 				var stuck = new Stuck { Sticker = fitted, Drawn = Find( fitted.DrawnPicture ) };
@@ -400,6 +497,11 @@ internal sealed class WeaponDresser
 			if ( renderer.IsValid() )
 				renderer.Tint = tint;
 		}
+
+		if ( _hidParts && _renderer.IsValid() )
+			_renderer.BodyGroups = _bodyGroups;
+
+		_hidParts = false;
 
 		foreach ( var prop in _props )
 		{

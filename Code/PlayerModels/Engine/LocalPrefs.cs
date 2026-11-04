@@ -36,6 +36,7 @@ internal static class LocalPrefs
 
 	private const string MyShapesCookie = "player_model_selector.my_shapes";
 	private const string WeaponDesignsCookie = "player_model_selector.weapon_designs";
+	private const string FirstPersonWeaponCookie = "player_model_selector.first_person_weapon";
 
 	/// <summary>The most shapes kept in My shapes.</summary>
 	internal const int MaxMyShapes = 50;
@@ -109,6 +110,16 @@ internal static class LocalPrefs
 			return;
 
 		Game.Cookies.Set( LooksCookie, looks );
+	}
+
+	/// <summary>
+	/// Whether the weapon in first person shows its design's props, stickers and effects (and the effects that come from
+	/// the weapon held); off, it only shows its skin. On until the player turns it off.
+	/// </summary>
+	internal static bool ShowWeaponInFirstPerson
+	{
+		get => Game.Cookies.Get( FirstPersonWeaponCookie, true );
+		set => Game.Cookies.Set( FirstPersonWeaponCookie, value );
 	}
 
 	/// <summary>The player's weapon designs as kept last, each on its own (carrying its drawn shapes), within bounds.</summary>

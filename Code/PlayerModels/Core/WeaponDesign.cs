@@ -31,6 +31,10 @@ public sealed class WeaponDesign
 	/// </summary>
 	public const int MaxLookBytes = 20 * 1024;
 
+	/// <summary>The most parts a design hides, and the longest a part's name is.</summary>
+	public const int MaxHiddenParts = 16;
+	public const int MaxPartLength = 64;
+
 	/// <summary>The longest design read from the Workshop or a code, as JSON: past the longest a design within its caps can be.</summary>
 	public const int MaxSharedLength = 32 * 1024;
 
@@ -61,6 +65,13 @@ public sealed class WeaponDesign
 	[JsonPropertyName( "s" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public List<WeaponSticker> Stickers { get; set; }
 
+	/// <summary>
+	/// The parts of it hidden (a magazine, a rail: see <see cref="IsPartName"/>), by name; a part the weapon doesn't
+	/// have, or can't hide, is passed over. Null for none.
+	/// </summary>
+	[JsonPropertyName( "hp" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public List<string> HiddenParts { get; set; }
+
 	/// <summary>The effects coming from it: anchored on the weapon held, never on a key.</summary>
 	[JsonPropertyName( "e" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public List<Effect> Effects { get; set; }
@@ -79,7 +90,25 @@ public sealed class WeaponDesign
 	/// <summary>Whether it changes anything about its weapon.</summary>
 	[JsonIgnore]
 	public bool IsEmpty => Finish is null && Tint is null && Skin is null && (Props?.Count ?? 0) == 0 && (Stickers?.Count ?? 0) == 0
-		&& (Effects?.Count ?? 0) == 0;
+		&& (Effects?.Count ?? 0) == 0 && (HiddenParts?.Count ?? 0) == 0;
+
+	/// <summary>
+	/// Whether <paramref name="name"/> could name a part of a weapon (a body group of its model, or a bone of its first-person
+	/// model): not empty, not too long, on one line.
+	/// </summary>
+	public static bool IsPartName( string name )
+	{
+		if ( string.IsNullOrWhiteSpace( name ) || name.Length > MaxPartLength )
+			return false;
+
+		foreach ( var character in name )
+		{
+			if ( char.IsControl( character ) )
+				return false;
+		}
+
+		return true;
+	}
 
 	/// <summary>The weapon's name, from its model's file: "w_m4a1.vmdl" is "M4a1".</summary>
 	public static string NameOf( string weapon )
@@ -155,9 +184,18 @@ public sealed class WeaponDesign
 			effects.Add( kept );
 		}
 
+		var hidden = new List<string>();
+		foreach ( var part in HiddenParts ?? new() )
+		{
+			var name = part?.Trim();
+			if ( hidden.Count < MaxHiddenParts && IsPartName( name ) && !hidden.Contains( name ) )
+				hidden.Add( name );
+		}
+
 		var design = new WeaponDesign
 		{
 			Weapon = weapon,
+			HiddenParts = hidden.Count > 0 ? hidden : null,
 			Finish = MaterialFinish.IsKnown( Finish ) ? Finish : null,
 			Tint = PlayerLook.IsColour( Tint ) ? Tint.ToLowerInvariant() : null,
 			Skin = Skin?.Sanitized( pool.Resolve ),

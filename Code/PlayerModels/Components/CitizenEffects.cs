@@ -24,6 +24,9 @@ public sealed class CitizenEffects : Component
 	/// <summary>The effects worn; null before a look is first put on.</summary>
 	internal EffectRack Effects => _effects;
 
+	/// <summary>Dresses the weapon held as its design says; null before a look is first put on.</summary>
+	internal WeaponDresser Weapons => _weapons;
+
 	/// <summary>The look put on last, the very object the selector handed out, so a citizen already wearing it is passed over.</summary>
 	internal PlayerLook ShownLook { get; set; }
 

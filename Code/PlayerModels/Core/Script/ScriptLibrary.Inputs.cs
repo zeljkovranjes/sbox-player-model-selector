@@ -125,6 +125,7 @@ public static partial class ScriptLibrary
 		Event( entries, ScriptEvent.Equip, "When the player takes out a weapon.", "local shine = Sprite()\nfunction OnEquip()\n\tshine.Emit( 8 )\nend", others );
 		Event( entries, ScriptEvent.Holster, "When the player puts a weapon away.", "local shine = Sprite()\nfunction OnHolster()\n\tshine.Emit( 8 )\nend", others );
 		Event( entries, ScriptEvent.Hit, "When the player's weapon hits something.", "local spark = Sprite()\nfunction OnHit()\n\tspark.Emit( 10 )\nend", others );
+		Event( entries, ScriptEvent.Kill, "When someone the player shot or hit dies a moment after (every client works it out from the shots and deaths it sees).", "local kills = 0\nlocal glow = Sprite()\nfunction OnKill()\n\tkills = kills + 1\n\tglow.Emit( 10 )\nend", others );
 		Event( entries, ScriptEvent.Key, "When the effect's key is pressed (one key start per player every 2 minutes, for everyone).", "local flash = Sprite()\nfunction OnKey( key )\n\tif key == \"g\" then\n\t\tflash.Emit( 50 )\n\tend\nend", others,
 			P( "key", ScriptType.Key, "The key, by name" ) with { Input = ScriptInput.Key } );
 	}

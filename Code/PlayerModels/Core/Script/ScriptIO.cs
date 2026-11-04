@@ -29,7 +29,7 @@ public enum ScriptOutput
 public enum ScriptEvent
 {
 	None, Spawn, Update, Jump, Land, Hurt, Death, Respawn, Footstep, StartMoving, StopMoving, Crouch, Uncrouch, Impact,
-	Shoot, Reload, Equip, Holster, Hit, Key,
+	Shoot, Reload, Equip, Holster, Hit, Kill, Key,
 	Total,
 }
 

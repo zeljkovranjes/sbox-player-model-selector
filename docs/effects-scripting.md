@@ -3311,6 +3311,21 @@ function OnHit()
 end
 ```
 
+#### `function OnKill()`
+
+When someone the player shot or hit dies a moment after (every client works it out from the shots and deaths it sees).
+
+At most 10 a second for each player.
+
+```lua effect
+local kills = 0
+local glow = Sprite()
+function OnKill()
+	kills = kills + 1
+	glow.Emit( 10 )
+end
+```
+
 #### `function OnKey( key: Key )`
 
 When the effect's key is pressed (one key start per player every 2 minutes, for everyone).

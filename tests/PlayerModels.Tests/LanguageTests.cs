@@ -254,6 +254,17 @@ public class LanguageTests
 	}
 
 	[Fact]
+	public void OnKillRunsForEachKill()
+	{
+		var (machine, _) = ScriptKit.Build( "local glow = Sprite()\nlocal kills = 0\nfunction OnKill()\n\tkills = kills + 1\nend" );
+		Assert.True( machine.Program.Handles( ScriptEvent.Kill ) );
+		for ( var i = 0; i < 3; i++ )
+			Assert.True( machine.RunEvent( ScriptEvent.Kill, new ScriptIO() ) );
+
+		Assert.Equal( "3", machine.Variable( "kills" ) );
+	}
+
+	[Fact]
 	public void UnsafeInputsReadSafe()
 	{
 		var io = ExampleRunner.Inputs();

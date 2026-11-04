@@ -318,11 +318,7 @@
             return;
 
         _sinceHeld = 0;
-        var player = Game.ActiveScene?.GetAll<Player>().FirstOrDefault( x => x.IsLocalPlayer );
-        var citizen = player?.Controller?.Renderer;
-        var root = HeldItems.HeldBy( citizen );
-        var renderer = root is null ? null : WeaponDresser.MainRenderer( root );
-        if ( renderer?.Model is not { } model || !WeaponProp.IsModelPath( model.ResourcePath ) )
+        if ( ModelPreview.HeldInGame( out var root ) is not { } held )
         {
             _held = null;
             _weaponPath = null;
@@ -332,12 +328,11 @@
             return;
         }
 
-        var held = new ModelPreview.HeldWeapon( model, root.Parent.Name, root.WorldTransform.ToLocal( renderer.WorldTransform ), citizen.ReadInt( "holdtype" ) );
         if ( held.Model == _held?.Model && held.Bone == _held?.Bone && held.HoldType == _held?.HoldType )
             return;
 
         _held = held;
-        _weaponPath = model.ResourcePath;
+        _weaponPath = held.Model.ResourcePath;
         var weapon = Game.ActiveScene.GetAll<BaseCombatWeapon>().FirstOrDefault( x => x.WorldModel == root );
         _weaponName = string.IsNullOrWhiteSpace( weapon?.DisplayName ) ? WeaponDesign.NameOf( _weaponPath ) : weapon.DisplayName;
         StateHasChanged();

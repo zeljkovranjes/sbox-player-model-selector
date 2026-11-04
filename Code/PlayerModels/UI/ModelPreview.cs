@@ -87,6 +87,22 @@ public sealed class ModelPreview : Panel
 	/// <summary>The weapon the citizen holds (it is dressed as the look designs it); null for none.</summary>
 	internal HeldWeapon? Weapon { get; set; }
 
+	/// <summary>
+	/// The weapon the local player holds in the game now, held the same way in a preview, and its world model (the
+	/// object it hangs from); null when they hold none (or one that isn't a model).
+	/// </summary>
+	internal static HeldWeapon? HeldInGame( out GameObject root )
+	{
+		var player = Game.ActiveScene?.GetAll<Player>().FirstOrDefault( x => x.IsLocalPlayer );
+		var citizen = player?.Controller?.Renderer;
+		root = HeldItems.HeldBy( citizen );
+		var renderer = root is null ? null : WeaponDresser.MainRenderer( root );
+		if ( renderer?.Model is not { } model || !WeaponProp.IsModelPath( model.ResourcePath ) )
+			return null;
+
+		return new HeldWeapon( model, root.Parent.Name, root.WorldTransform.ToLocal( renderer.WorldTransform ), citizen.ReadInt( "holdtype" ) );
+	}
+
 	/// <summary>The renderer of the weapon held, once it is there.</summary>
 	internal ModelRenderer WeaponRenderer => _weaponRenderer;
 

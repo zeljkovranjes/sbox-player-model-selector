@@ -1,5 +1,7 @@
 // The code editor: a floating window in VS Code's colours, dark (Dark Modern around Dark+ text) by default or light
 // (Light Modern, Light+). The text's own colours are set from code (see CodeTheme); these are the window's
+@import "PreviewTheme.scss";
+
 $code-font: "Roboto Mono";
 $ui-font: "Inter";
 $line: 18px;
@@ -28,6 +30,7 @@ CodeEditor
 		color: #cccccc;
 
 		.titlebar, .toolbar, .statusbar { background-color: #181818; border-color: #2b2b2b; }
+		.preview-pane { border-color: #2b2b2b; }
 		.gutter { color: #6e7681; background-color: #1f1f1f; }
 		.code-entry { color: #cccccc; }
 		.popup { background-color: #202020; border-color: #454545; color: #cccccc; }
@@ -56,6 +59,7 @@ CodeEditor
 		color: #3b3b3b;
 
 		.titlebar, .toolbar, .statusbar { background-color: #f8f8f8; border-color: #e5e5e5; }
+		.preview-pane { border-color: #e5e5e5; }
 		.gutter { color: #6e7681; background-color: #ffffff; }
 		.code-entry { color: #3b3b3b; }
 		.popup { background-color: #f8f8f8; border-color: #cecece; color: #3b3b3b; }
@@ -141,12 +145,33 @@ CodeEditor
 		.find-toggle { width: 24px; height: 22px; justify-content: center; align-items: center; border: 1px solid transparent; border-radius: 3px; font-family: $code-font; font-size: 11px; cursor: pointer; }
 	}
 
+	// The code, and the preview beside it taking a share of the width (never too narrow to show the body)
+	.main
+	{
+		flex-direction: row;
+		flex-grow: 1;
+		min-height: 0;
+	}
+
 	.body
 	{
 		position: relative;
 		flex-grow: 1;
+		min-width: 0;
 		min-height: 0;
 		overflow: hidden;
+	}
+
+	.preview-pane
+	{
+		flex-direction: column;
+		flex-shrink: 0;
+		width: 38%;
+		min-width: 200px;
+		border-left: 1px solid;
+
+		.stage { flex-grow: 1; min-height: 0; }
+		TestBar { flex-shrink: 0; border-radius: 0; }
 	}
 
 	.gutter

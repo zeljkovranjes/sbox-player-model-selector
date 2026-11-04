@@ -41,6 +41,7 @@
             <div class="tool" Tooltip="Keep as draft: come back to it from My effects" @onclick=@(() => KeepDraft( false ))>edit_note</div>
         }
         <div class="tool" Tooltip=@( Theme == CodeTheme.Dark ? "Light theme" : "Dark theme" ) @onclick=@ToggleTheme>@( Theme == CodeTheme.Dark ? "light_mode" : "dark_mode" )</div>
+        <div class="tool @( _previewOn ? "on" : "" )" Tooltip=@( _previewOn ? "Hide the preview of your character" : "Show your character beside the code, wearing it as you write" ) @onclick=@TogglePreview>@( _previewOn ? "visibility" : "visibility_off" )</div>
         <div class="tool" Tooltip="Reference: everything a script can use, with live examples (F1)" @onclick=@(() => OpenReference( null ))>help</div>
     </div>
 
@@ -79,6 +80,7 @@
         </div>
     }
 
+    <div class="main">
     <div class="body" @ref="_body">
         <div class="gutter"><TextLabel @ref="_numbers" class="numbers" Text=@( _lineNumbers )></TextLabel></div>
         <CodeEntry @ref="_entry" Theme=@Theme Edited=@TextEdited Shortcut=@Key Hovered=@Hover></CodeEntry>
@@ -174,6 +176,15 @@
                 <ColorRow Label="Color" Hex=@picking.Hex OnChanged=@PickColour ResetLabel="Done" CanReset=@true></ColorRow>
             </div>
         }
+    </div>
+
+    @if ( _previewOn )
+    {
+        <div class="preview-pane">
+            <ModelPreview @ref="_stage" class="stage"></ModelPreview>
+            <TestBar Stage=@_stage Compact=@true></TestBar>
+        </div>
+    }
     </div>
 
     @if ( _showErrors && _errors.Count > 0 )
@@ -303,7 +314,7 @@
 
     protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Theme, _maximized, IsDirty, _bar, _matches.Count, _match, _completions, _completionIndex ),
         HashCode.Combine( _completionTop, _signature, _hover, _picking, _showErrors, _errors, _lineNumbers, _position ),
-        HashCode.Combine( _storedBytes, _note, _autoApply, _closing, _name, _entry?.CanUndo, _entry?.CanRedo, _confirmDrop ) );
+        HashCode.Combine( _storedBytes, _note, _autoApply, _closing, _name, _entry?.CanUndo, _entry?.CanRedo, HashCode.Combine( _confirmDrop, _previewOn ) ) );
 
     protected override void OnAfterTreeRender( bool firstTime )
     {
@@ -332,6 +343,7 @@
         TickCompile();
         TickCaret();
         TickOverlays();
+        TickPreview();
     }
 
     void SetClosing( bool closing )

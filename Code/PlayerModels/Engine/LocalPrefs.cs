@@ -42,6 +42,7 @@ internal static class LocalPrefs
 	private const string CodeThemeCookie = "player_model_selector.code_theme";
 	private const string CodeAutoApplyCookie = "player_model_selector.code_auto_apply";
 	private const string CodeWindowCookie = "player_model_selector.code_window";
+	private const string CodePreviewCookie = "player_model_selector.code_preview";
 	private const string CodeFindCookie = "player_model_selector.code_find";
 	private const string CodeReferenceCookie = "player_model_selector.code_reference";
 	private const string TestBarCookie = "player_model_selector.test_bar";
@@ -355,6 +356,13 @@ internal static class LocalPrefs
 	{
 		get => Game.Cookies.Get( CodeAutoApplyCookie, true );
 		set => Game.Cookies.Set( CodeAutoApplyCookie, value );
+	}
+
+	/// <summary>Whether the code editor shows the player's own character beside the code (the default).</summary>
+	internal static bool CodePreview
+	{
+		get => Game.Cookies.Get( CodePreviewCookie, true );
+		set => Game.Cookies.Set( CodePreviewCookie, value );
 	}
 
 	/// <summary>

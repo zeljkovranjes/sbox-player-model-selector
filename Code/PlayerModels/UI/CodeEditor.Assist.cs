@@ -18,8 +18,10 @@ public partial class CodeEditor
 	// How many completions show at once
 	private const int CompletionRows = 10;
 
-	// How long the mouse rests on a word before its docs show
-	private const float HoverAfter = 0.5f;
+	// How long the mouse rests on a word before its docs show, and how long they stay once it has left both the word and
+	// them: long enough to move onto them (and click More…) without their closing on the way, as VS Code's do
+	private const float HoverAfter = 0.35f;
+	private const float HoverCloseAfter = 0.5f;
 
 	// A swatch's and a key picture's size, and how far before its literal it sits, in the UI's units
 	private const float SwatchSize = 11f;
@@ -34,10 +36,10 @@ public partial class CodeEditor
 	private int _completionStart;
 	private SignatureInfo _signature;
 	private HoverInfo _hover;
-	private bool _overHover;
 	private int _hoverAt = -1;
 	private int _hoverShownAt = -1;
 	private RealTimeSince _sinceHoverMove;
+	private RealTimeSince _sinceHoverLeft;
 
 	private List<ColorLiteral> _colours = new();
 	private (ColorLiteral Literal, string Hex)? _picking;
@@ -247,12 +249,31 @@ public partial class CodeEditor
 			StateHasChanged();
 		}
 
-		if ( _hoverAt != _hoverShownAt && _sinceHoverMove >= HoverAfter && !_overHover )
+		TickHover();
+	}
+
+	// The docs of the word the mouse rests on: shown once it has rested there a moment, kept while the mouse is on the
+	// word or on them (on its way there too), and gone a while after it has left both, or on typing or Esc
+	private void TickHover()
+	{
+		var overPopup = _hover is not null && _hoverPanel.IsValid() && _hoverPanel.HasHovered;
+		var overWord = _hover is { } shown && _hoverAt >= shown.Start && _hoverAt < shown.Start + Math.Max( 1, shown.Length );
+		if ( _hover is null || overPopup || overWord )
+			_sinceHoverLeft = 0;
+		else if ( _sinceHoverLeft >= HoverCloseAfter )
 		{
-			_hoverShownAt = _hoverAt;
-			_hover = _hoverAt < 0 ? null : ScriptHover.At( _source, _hoverAt, ScriptKind.Effect, _library );
+			_hover = null;
+			_hoverShownAt = -1;
 			StateHasChanged();
 		}
+
+		// Another word's docs show once the mouse rests on it with none open (the open ones close first)
+		if ( _hover is not null || _hoverAt < 0 || _hoverAt == _hoverShownAt || _sinceHoverMove < HoverAfter )
+			return;
+
+		_hoverShownAt = _hoverAt;
+		_hover = ScriptHover.At( _source, _hoverAt, ScriptKind.Effect, _library );
+		StateHasChanged();
 	}
 
 	// The swatches and key pictures before their literals, the line numbers and the popups follow the text as it scrolls.

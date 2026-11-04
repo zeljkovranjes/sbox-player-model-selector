@@ -141,7 +141,7 @@
 
         @if ( _hover is { } hover )
         {
-            <div @ref="_hoverPanel" class="popup hover" @onmouseover=@(() => _overHover = true) @onmouseout=@(() => _overHover = false)>
+            <div @ref="_hoverPanel" class="popup hover">
                 <div class="hover-top">
                     @if ( hover.Key is { } key )
                     {

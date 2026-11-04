@@ -214,12 +214,12 @@ public static class EffectPresets
 	// Dark smoke rolling off the body, big enough to read as smoke in daylight, with a purple glow inside it that shows it
 	// on a dark night
 	private static Effect DarkAura() => Made( "Dark aura", Effect.Joint.Hips,
-		Sprite( LayerPicture.Smoke, "#2a1238", "#08040c", 14f, 22f, 2.4f, 18f ).From( LayerShape.AroundBody, 32f ).Moving( 3f, -10f ).Covering(),
+		Sprite( LayerPicture.Smoke, "#2a1238", "#08040c", 14f, 22f, 2.4f, 18f ).From( LayerShape.AroundBody, 32f ).Moving( 3f, -5f ).Covering(),
 		Sprite( LayerPicture.Glow, "#6a2a9a", "#1a0628", 8f, 13f, 1.8f, 9f ).From( LayerShape.AroundBody, 30f ).Moving( 0f, 0f, true ) );
 
 	// Hearts floating up from the chest
 	private static Effect Hearts() => Made( "Hearts", Effect.Joint.Chest,
-		Sprite( LayerPicture.Heart, "#ff3d7f", "#ff9ec2", 2.4f, 3.2f, 2.4f, 3f ).From( LayerShape.Sphere, 3f, 5f ).Moving( 6f, -14f ).Covering() );
+		Sprite( LayerPicture.Heart, "#ff3d7f", "#ff6f9f", 2.6f, 3.4f, 2.4f, 5f ).From( LayerShape.Sphere, 3f, 5f ).Moving( 6f, -8f ).Covering() );
 
 	// A little white cloud over the head, snowing
 	private static Effect SnowCloud() => Made( "Snow cloud", Effect.Joint.Crown,

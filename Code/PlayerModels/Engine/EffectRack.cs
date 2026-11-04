@@ -324,7 +324,8 @@ internal sealed partial class EffectRack
 
 	/// <summary>
 	/// Counts the drawn shapes its sprites look like as showing <paramref name="distance"/> from the camera (see
-	/// <see cref="ShapeTextures.Count"/>). A few times a second, nearest body first: no allocations.
+	/// <see cref="ShapeTextures.Count"/>), and what its weapon designs were made with. A few times a second, nearest body
+	/// first: no allocations.
 	/// </summary>
 	internal void CountShapes( float distance )
 	{
@@ -337,7 +338,30 @@ internal sealed partial class EffectRack
 
 		for ( var i = 0; i < Stickers.Count; i++ )
 			ShapeTextures.Count( Stickers[ i ].Content, distance );
+
+		Dresser?.CountKept( distance );
 	}
+
+	/// <summary>
+	/// The weapon designs its body's look wears (see <see cref="WeaponDresser"/>): counted with its layers, so the furthest
+	/// players' prebuilt designs are let go of first. Set as the weapon is dressed; a body with designs is counted even
+	/// while it shows no effects.
+	/// </summary>
+	internal WeaponDresser Dresser
+	{
+		get => _dresser;
+		set
+		{
+			_dresser = value;
+			if ( value?.HasDesigns == true )
+				Schedule()?.Wear( this );
+		}
+	}
+
+	private WeaponDresser _dresser;
+
+	/// <summary>Whether the schedule counts it: it shows effects, or its look has weapon designs.</summary>
+	internal bool IsCounted => IsWorn || _dresser?.HasDesigns == true;
 
 	/// <summary>The drawn shapes the stickers on the weapon held are (see <see cref="WeaponDresser"/>), counted with its layers'.</summary>
 	internal IReadOnlyList<DrawnShape> Stickers { get; set; } = Array.Empty<DrawnShape>();
@@ -471,7 +495,7 @@ internal sealed partial class EffectRack
 			}
 		}
 
-		if ( _layers.Count > 0 )
+		if ( IsCounted )
 			schedule?.Wear( this );
 
 		ApplyShare( true );

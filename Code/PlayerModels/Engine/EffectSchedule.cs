@@ -187,7 +187,7 @@ internal sealed class EffectSchedule : GameObjectSystem<EffectSchedule>
 		var count = 0;
 		foreach ( var rack in Worn )
 		{
-			if ( !rack.IsWorn || !rack.Source.IsValid() )
+			if ( !rack.IsCounted || !rack.Source.IsValid() )
 				continue;
 
 			if ( count == _racks.Length )

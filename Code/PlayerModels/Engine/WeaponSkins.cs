@@ -21,7 +21,7 @@ internal static class WeaponSkins
 	/// <summary>The skin shader: a weapon's own surface, finished, tinted and painted (Assets/shaders/weapon_skin.shader).</summary>
 	internal const string Shader = "shaders/weapon_skin.shader";
 
-	// The most materials kept: past it the one used longest ago is let go of, made again if it is needed
+	// The most materials kept: past it the furthest players', then the one used longest ago, is let go of, made again if it is needed
 	private const int MostKept = 256;
 
 	// A pattern repeats this many units on the weapon at scale 1
@@ -138,9 +138,18 @@ internal static class WeaponSkins
 
 		Dress( made, source, design, frame, shapes );
 		Press( made, stickers );
-		Kept.Set( name, made );
+		Kept.Set( name, made, GroupOf( design ) );
 		return made;
 	}
+
+	/// <summary>
+	/// The design a material is made for, as text: its weapon and its surface (see <see cref="KeyOf(WeaponDesign)"/>), for
+	/// counting which players use it (see <see cref="Count"/>).
+	/// </summary>
+	internal static string GroupOf( WeaponDesign design ) => design.Weapon + "|" + KeyOf( design );
+
+	/// <summary>Counts the materials made for <paramref name="group"/> (see <see cref="GroupOf"/>) as used by a body <paramref name="distance"/> away.</summary>
+	internal static void Count( string group, float distance ) => Kept.Count( group, distance );
 
 	/// <summary>What tells <paramref name="design"/>'s surface from another's: its skin, finish and tint, as text.</summary>
 	internal static string KeyOf( WeaponDesign design ) => $"{JsonSerializer.Serialize( design.Skin )}|{design.Finish}|{design.Tint}";

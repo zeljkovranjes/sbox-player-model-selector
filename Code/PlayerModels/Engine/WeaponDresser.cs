@@ -135,7 +135,36 @@ internal sealed class WeaponDresser
 
 		_designsKey = key;
 		_changed = true;
+		_groups = new string[ designs.Count ];
+		for ( var i = 0; i < designs.Count; i++ )
+			_groups[ i ] = WeaponSkins.GroupOf( designs[ i ] );
+
 		_ = WeaponPrewarm.WarmAsync( designs, shapes );
+	}
+
+	// What each design's materials are made for (see WeaponSkins.GroupOf), worked out as the designs change
+	private string[] _groups = Array.Empty<string>();
+
+	/// <summary>Whether its look has any weapon designs, made ahead (see <see cref="WeaponPrewarm"/>) whether held or not.</summary>
+	internal bool HasDesigns => _designs.Count > 0;
+
+	/// <summary>
+	/// Counts what its look's designs were made with (materials, sticker meshes, prop models) as used by a body
+	/// <paramref name="distance"/> from the camera, so the caches let the furthest players' go first. A few times a
+	/// second: no allocations.
+	/// </summary>
+	internal void CountKept( float distance )
+	{
+		for ( var i = 0; i < _designs.Count && i < _groups.Length; i++ )
+		{
+			var design = _designs[ i ];
+			WeaponSkins.Count( _groups[ i ], distance );
+			if ( design.Stickers is { Count: > 0 } )
+				StickerSurface.Count( design.Weapon, distance );
+
+			for ( var p = 0; p < (design.Props?.Count ?? 0); p++ )
+				WeaponPrewarm.Count( design.Props[ p ].Model, distance );
+		}
 	}
 
 	/// <summary>
@@ -178,7 +207,10 @@ internal sealed class WeaponDresser
 
 		rack?.ApplyWeapon( extras ? design?.Effects : null );
 		if ( rack is not null )
+		{
 			rack.Stickers = _drawnStickers;
+			rack.Dresser = this;
+		}
 	}
 
 	// The drawn shapes the weapon's stickers are, counted with its body's (see EffectRack.CountShapes), so an emblem on a

@@ -51,6 +51,9 @@ internal static class StickerSurface
 		return found;
 	}
 
+	/// <summary>Counts the mesh of the weapon <paramref name="model"/> (its path) as used by a body <paramref name="distance"/> away (see <see cref="RecentCache{TKey,TValue}.Count"/>).</summary>
+	internal static void Count( string model, float distance ) => Meshes.Count( model, distance );
+
 	/// <summary>Reads <paramref name="model"/>'s mesh now, so the first sticker on it doesn't: as a look's designs arrive.</summary>
 	internal static void Prepare( Model model )
 	{
@@ -88,7 +91,7 @@ internal static class StickerSurface
 			mesh = new Mesh( points, indices );
 		}
 
-		Meshes.Set( name, mesh );
+		Meshes.Set( name, mesh, name );
 		return mesh;
 	}
 

@@ -12,7 +12,7 @@ namespace PlayerModels.Engine;
 /// models loaded and its moving stickers' scripts compiled. Dressing a weapon when it is drawn, swapped or seen in first
 /// person then finds them made and puts everything on in the same frame, rather than over the frames after. Once per
 /// look change; nothing per frame. The materials are kept within <see cref="WeaponSkins"/>'s cap, the models within
-/// <see cref="MostProps"/>.
+/// <see cref="MostProps"/>; past a cap the furthest players' go first (see <see cref="WeaponDresser.CountKept"/>).
 /// </summary>
 internal static class WeaponPrewarm
 {
@@ -42,7 +42,10 @@ internal static class WeaponPrewarm
 		return model;
 	}
 
-	private static void Keep( string path, Model model ) => Props.Set( path, model );
+	private static void Keep( string path, Model model ) => Props.Set( path, model, path );
+
+	/// <summary>Counts the prop model at <paramref name="path"/> as used by a body <paramref name="distance"/> away (see <see cref="RecentCache{TKey,TValue}.Count"/>).</summary>
+	internal static void Count( string path, float distance ) => Props.Count( path, distance );
 
 	/// <summary>
 	/// Readies every design of <paramref name="designs"/> (whose stickers and patterns name <paramref name="shapes"/>). A

@@ -1,0 +1,58 @@
+@import "SelectorTheme.scss";
+
+// A dropdown closed: a box like the text boxes, the item picked in it and a chevron at its end; lit while its list is open
+uidropdown.picker
+{
+	flex-direction: row;
+	align-items: center;
+	flex-grow: 1;
+	flex-shrink: 1;
+	min-width: 0px;
+	height: 24px;
+	padding: 0px 4px 0px 8px;
+	gap: 4px;
+	font-family: $body-font;
+	font-size: $ui-settings-font;
+	font-weight: 500;
+	color: $ui-text;
+	background-image: none;
+	background-color: $ui-input-bg;
+	border: 1px solid $ui-input-border;
+	border-radius: 2px;
+	box-shadow: none;
+	cursor: pointer;
+
+	&:hover
+	{
+		border-color: $ui-control-border-hover;
+		sound-in: ui.hover;
+	}
+
+	&.open, &:focus
+	{
+		border-color: $ui-blue;
+	}
+
+	> .value
+	{
+		flex-grow: 1;
+		flex-shrink: 1;
+		min-width: 0px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		color: $ui-text;
+	}
+
+	> .chevron
+	{
+		flex-shrink: 0;
+		font-size: 16px;
+		color: $ui-text-muted;
+	}
+
+	&:hover > .chevron, &.open > .chevron
+	{
+		color: $ui-text-strong;
+	}
+}

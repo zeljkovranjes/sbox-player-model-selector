@@ -162,7 +162,7 @@
                     <div class="row">
                         <div class="label">Shape</div>
                         <ScrollingDropdown Items=@ShapePickerChoices( StandardShapeChoices() ) Value=@( selected.DrawnFormation is null ? selected.FormationIs.ToString() : selected.Formation )
-                                    ValueChanged=@(( object v ) => PickShape( v as string, false )) Tokenize=@false></ScrollingDropdown>
+                                    ValueChanged=@(( object v ) => PickShape( v as string, false )) Tokenize=@false Grouped=@true Thumbnail=@ShapeThumbnails()></ScrollingDropdown>
                         @if ( Look.DrawnShapeOf( selected.DrawnFormation ) is { } formation )
                         {
                             <div class="tool" Tooltip="Change it in the shape creator" @onclick=@(() => OpenCreator( formation ))>edit</div>
@@ -178,7 +178,7 @@
                 <div class="row">
                     <div class="label">Looks like</div>
                     <ScrollingDropdown Items=@ShapePickerChoices( PictureChoices() ) Value=@( selected.Picture ?? nameof( LayerPicture.Glow ) ) ValueChanged=@(( object v ) => PickShape( v as string, true ))
-                                Tokenize=@false></ScrollingDropdown>
+                                Tokenize=@false Grouped=@true Thumbnail=@ShapeThumbnails()></ScrollingDropdown>
                     @if ( Look.DrawnShapeOf( selected.DrawnPicture ) is { } picture )
                     {
                         <div class="tool" Tooltip="Change it in the shape creator" @onclick=@(() => OpenCreator( picture ))>edit</div>
@@ -540,6 +540,33 @@
         choices.Add( new UIDropdown.Item( "Workshop shapes...", WorkshopChoice ) );
         choices.Add( new UIDropdown.Item( "Workshop stickers...", StickersChoice ) );
         return choices;
+    }
+
+    // Each pick's picture in the shape lists: a curated picture or standard shape, or the drawn shape itself; My shapes
+    // read once a list
+    Func<object, Panel> ShapeThumbnails()
+    {
+        List<DrawnShape> mine = null;
+        return value =>
+        {
+            if ( value is not string choice )
+                return null;
+
+            if ( Look?.DrawnShapes.Find( x => x.Reference == choice ) is { } drawn )
+                return new ShapeIcon { Shape = drawn };
+
+            if ( choice.StartsWith( MineChoice ) )
+                return (mine ??= LocalPrefs.MyShapes()).Find( x => x.Name == choice[ MineChoice.Length.. ] ) is { } kept ? new ShapeIcon { Shape = kept } : null;
+
+            var named = Enum.TryParse<LayerPicture>( choice, out var picture ) && Enum.IsDefined( picture )
+                || Enum.TryParse<StandardShape>( choice, out var shape ) && Enum.IsDefined( shape );
+            if ( !named )
+                return null;
+
+            var thumb = new Panel();
+            thumb.Style.BackgroundImage = EffectAtlas.TextureOf( choice );
+            return thumb;
+        };
     }
 
     // A shape from the Workshop: kept in My shapes, crediting the share, and put on the selected layer when it is sprites

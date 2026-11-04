@@ -48,6 +48,8 @@
         <div class="row">
             <div class="label">Effect</div>
             <UIDropdown Items=@EffectChoices() Value=@effect.Id ValueChanged=@SelectEffect Tokenize=@false></UIDropdown>
+        </div>
+        <div class="row actions">
             <div class="reset @( CanStart ? "" : "disabled" )" Tooltip=@( CanStart ? "An effect of your own, from scratch" : $"A look wears up to {Effect.MaxWorn} effects and {Effect.MaxLookLayers} layers" )
                  @onclick=@NewEffect>New effect</div>
             <div class="reset" Tooltip="Keep it unfinished, to come back to from My effects: it shows here, and isn't worn until you finish it" @onclick=@(() => SaveDraft( effect, false ))>Save draft</div>

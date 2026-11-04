@@ -39,6 +39,12 @@ LayerEditor
 		gap: 8px;
 	}
 
+	// buttons under what they act on, wrapping onto another line in a narrow pane
+	.row.actions
+	{
+		flex-wrap: wrap;
+	}
+
 	// direct children only: s&box gives every text in a div the class "label" too
 	.row > .label
 	{

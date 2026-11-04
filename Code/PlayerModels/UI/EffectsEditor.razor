@@ -25,7 +25,7 @@
             <SharingPanel T="DrawnShape" Library=@Shared.Shapes Noun="shape" ModelId=@Shared.Everyone Scope=@Everywhere Workshop=@true Pictures=@true Searchable=@true
                           Intro="Shapes and stickers players made: Top lists the best rated first, New the newest. Use one to keep it in My shapes; Fork opens it in the shape creator."
                           Facets=@ShapeFacets UseEntry=@UseSharedShape Fork=@ForkShape ForkTip="Open a copy of it in the shape creator, to change and publish as your own"
-                          OriginOf=@(( DrawnShape x ) => x.ForkedFrom) Describe=@ShapeCreator.DescribeShape
+                          OriginOf=@(( DrawnShape x ) => x.ForkedFrom) Block=@BlockShape IsBlocked=@IsShapeBlocked Describe=@ShapeCreator.DescribeShape
                           Back=@(() => ShowWorkshop?.Invoke( false ))></SharingPanel>
         }
         else
@@ -33,7 +33,7 @@
             <SharingPanel T="Effect" Library=@Shared.Effects Noun="effect" ModelId=@Shared.Everyone Scope=@Everywhere Workshop=@true Pictures=@true Searchable=@true
                           Intro="Effects and single layers players shared: Top lists the best rated first, New the newest. Use one to wear a copy (a layer joins the effect you selected); Fork opens a copy in the Advanced editor."
                           Facets=@EffectFacets UseEntry=@UseSharedEffect Fork=@ForkEffect ForkTip="Open a copy of it in the Advanced editor, to change and publish as your own"
-                          OriginOf=@(( Effect x ) => x.ForkedFrom) Describe=@DescribeEffect
+                          OriginOf=@(( Effect x ) => x.ForkedFrom) Block=@BlockEffect IsBlocked=@IsEffectBlocked Describe=@DescribeEffect
                           Back=@(() => ShowWorkshop?.Invoke( false ))></SharingPanel>
         }
     }
@@ -56,6 +56,10 @@
         @if ( Locked )
         {
             <div class="note">The host keeps effects off on this server, so nobody sees yours. They stay with your look and come back when the host turns them on.</div>
+        }
+        else if ( Muted )
+        {
+            <div class="note">The host muted your effects on this server, so nobody sees them. They stay with your look and come back when the host unmutes you.</div>
         }
 
         <div class="section-header">Effects</div>
@@ -123,7 +127,11 @@
                     <div class="switch @( effect.Off ? "" : "on" )" Tooltip=@( effect.Off ? "Turn on" : "Turn off" )
                          @onclick=@(( PanelEvent e ) => Toggle( effect, e ))>check</div>
                     <div class="worn-name">@effect.Name</div>
-                    @if ( waiting > 0 )
+                    @if ( HiddenWhy( effect ) is { } why )
+                    {
+                        <div class="over-note" Tooltip=@why>Hidden on this server</div>
+                    }
+                    else if ( waiting > 0 )
                     {
                         <div class="over-note">Over this server's budget</div>
                     }
@@ -139,6 +147,10 @@
             @if ( selected.ForkedFrom is { } origin )
             {
                 <div class="note">@ShapeCreator.BasedOn( origin )</div>
+            }
+            @if ( HiddenWhy( selected ) is { } hidden )
+            {
+                <div class="note">@hidden</div>
             }
             <SliderRow Label="Color" Value=@selected.Hue OnChanged=@(( float value ) => Set( () => selected.Hue = value ))></SliderRow>
             <SliderRow Label="Size" Signed=@true Value=@selected.Size OnChanged=@(( float value ) => Set( () => selected.Size = value ))></SliderRow>
@@ -283,7 +295,7 @@
     protected override int BuildHash() => HashCode.Combine( _lookText = Look?.Serialize(), _selected, _guides, Locked, Selector?.EffectsBudget, Selector?.EffectsQuality,
         string.Join( ";", Others().Select( x => $"{x.Id}{Selector?.HidesEffectsOf( x )}" ) ),
         HashCode.Combine( (int)(Selector?.TriggerWait() ?? 0f), History?.CanUndo, History?.CanRedo, _mineRevision, _status, _variationsOf, _variations,
-            HashCode.Combine( Workshop, _shapesTab ) ) );
+            HashCode.Combine( Workshop, _shapesTab, Muted, Selector?.BlockWorkshopEffects, Selector?.BlockDrawnShapes, Selector?.BlockEffectLights, Selector?.BlockedShares?.Count ) ) );
 
     // Effects and shapes are shared for everyone, not for a model
     const string Everywhere = "";
@@ -295,6 +307,29 @@
     {
         _shapesTab = shapes;
         StateHasChanged();
+    }
+
+    static bool IsHost => Networking.IsHost;
+
+    // Whether the host muted this player's effects
+    static bool Muted => !IsHost && Selector?.IsEffectsMuted( Connection.Local ) == true;
+
+    // Why the host keeps an effect worn from showing (or showing whole) to others, in plain words; null when it shows
+    static string HiddenWhy( Effect effect )
+    {
+        if ( IsHost || Selector is not { } selector )
+            return null;
+
+        if ( effect.ForkedFrom is { } origin && selector.IsShareBlocked( origin.Key ) )
+            return "The host blocked the Workshop share this is based on, so nobody here sees it. It stays with your look.";
+
+        if ( effect.ForkedFrom is not null && selector.BlockWorkshopEffects )
+            return "The host keeps effects from the Workshop off here, so nobody sees this one. It stays with your look.";
+
+        if ( selector.BlockDrawnShapes && effect.Layers.Any( x => x.DrawnFormation is not null || x.DrawnPicture is not null ) )
+            return "The host keeps drawn shapes off here: others see a plain circle or glow in their place.";
+
+        return selector.BlockEffectLights && effect.Lights() > 0 ? "The host keeps effects' lights off here: others see it without them." : null;
     }
 
     // The selected effect as it would be shared, carrying its drawn shapes: made again only when the look changes
@@ -439,6 +474,13 @@
         var name = string.IsNullOrWhiteSpace( entry.Name ) ? "Shape" : entry.Name;
         return DrawnShape.From( entry.Item.Decode(), name, entry.Item.Sticker, OriginOf( entry, ShareOrigin.ShapeKind ) );
     }
+
+    // The host blocks a share on their server from its details
+    Action<SharedLibrary<Effect>.Entry, bool> BlockEffect => IsHost ? ( entry, blocked ) => Selector?.SetShareBlocked( ShareOrigin.KeyOf( ShareOrigin.EffectKind, entry.Id ), entry.Name, blocked ) : null;
+    Action<SharedLibrary<DrawnShape>.Entry, bool> BlockShape => IsHost ? ( entry, blocked ) => Selector?.SetShareBlocked( ShareOrigin.KeyOf( ShareOrigin.ShapeKind, entry.Id ), entry.Name, blocked ) : null;
+
+    static bool IsEffectBlocked( SharedLibrary<Effect>.Entry entry ) => Selector?.IsShareBlocked( ShareOrigin.KeyOf( ShareOrigin.EffectKind, entry.Id ) ) == true;
+    static bool IsShapeBlocked( SharedLibrary<DrawnShape>.Entry entry ) => Selector?.IsShareBlocked( ShareOrigin.KeyOf( ShareOrigin.ShapeKind, entry.Id ) ) == true;
 
     // My effects, read once and again after each change to them
     List<Effect> _mine;

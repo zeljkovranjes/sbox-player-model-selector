@@ -141,7 +141,8 @@ public sealed partial class PlayerModelSelector : Component
 		var id = KeyOf( connection );
 		var text = LookTextOf( id );
 		var isHost = (connection ?? Connection.Local)?.IsHost ?? true;
-		var rules = isHost ? 0 : 1 | (BlockBodyGroups ? 2 : 0) | (BlockAccessories ? 4 : 0) | (BlockCloudModels ? 8 : 0) | (BlockEffects ? 16 : 0);
+		var rules = isHost ? 0 : HashCode.Combine( 1 | (BlockBodyGroups ? 2 : 0) | (BlockAccessories ? 4 : 0) | (BlockCloudModels ? 8 : 0) | (BlockEffects ? 16 : 0),
+			EffectsRulesFor( connection ?? Connection.Local ) );
 		var effects = ViewedBudget( connection );
 
 		_shownLooks ??= new();
@@ -150,7 +151,7 @@ public sealed partial class PlayerModelSelector : Component
 		if ( isKnown && known.Rules == rules && known.Effects == effects )
 			return known.Look;
 
-		var look = Shown( read, isHost, effects );
+		var look = Shown( read, isHost, effects, connection ?? Connection.Local );
 		_shownLooks[ id ] = (text, read, rules, effects, look);
 		return look;
 	}
@@ -171,11 +172,11 @@ public sealed partial class PlayerModelSelector : Component
 	/// </summary>
 	public PlayerLook Shown( PlayerLook look, bool isHost )
 	{
-		return Shown( look, isHost, EffectsBudget );
+		return Shown( look, isHost, EffectsBudget, Connection.Local );
 	}
 
-	// The same, with the effects within the budget given
-	private PlayerLook Shown( PlayerLook look, bool isHost, EffectBudget effects )
+	// The same, with the effects within the budget given, worn by connection (whose effects the host may have muted)
+	private PlayerLook Shown( PlayerLook look, bool isHost, EffectBudget effects, Connection connection )
 	{
 		if ( look is null )
 			return null;
@@ -193,7 +194,13 @@ public sealed partial class PlayerModelSelector : Component
 		if ( shown.Effects.Count == 0 )
 			return shown;
 
-		return !isHost && BlockEffects ? shown.WithoutEffects() : shown.WithinBudget( effects );
+		if ( !isHost && BlockEffects )
+			return shown.WithoutEffects();
+
+		if ( !isHost )
+			shown = EffectsAllowed( shown, connection, ref effects );
+
+		return shown.WithinBudget( effects );
 	}
 
 	/// <summary>Whether the host chose this connection's model in place of their own pick.</summary>
@@ -327,7 +334,7 @@ public sealed partial class PlayerModelSelector : Component
 	// The rules the server has now, as its synced state says
 	private ServerRules CurrentRules()
 	{
-		return new ServerRules
+		var rules = new ServerRules
 		{
 			AllowCloudModels = !BlockCloudModels,
 			AllowMountedModels = !BlockMountedModels,
@@ -345,6 +352,9 @@ public sealed partial class PlayerModelSelector : Component
 			Blocked = (BlockedModels ?? Enumerable.Empty<string>()).ToList(),
 			BlockedMounts = (BlockedMounts ?? Enumerable.Empty<string>()).ToList(),
 		};
+
+		EffectsRulesInto( rules );
+		return rules;
 	}
 
 	// When the host leaves, another player takes over the server and this selector with it (see OnStart). Everyone then

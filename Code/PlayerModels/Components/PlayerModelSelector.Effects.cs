@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using PlayerModels.Core;
 using PlayerModels.Engine;
 using Sandbox;
@@ -28,6 +29,30 @@ public sealed partial class PlayerModelSelector
 
 	/// <inheritdoc cref="EffectLayers"/>
 	[Sync( SyncFlags.FromHost )] public int EffectSprites { get; set; } = EffectBudget.NormalSprites;
+
+	/// <summary>
+	/// Whether effects from the Workshop (used or forked from a share), and Workshop shapes, are kept off for players other
+	/// than the host. The host sets it on the Server page; nothing is taken from anyone's look.
+	/// </summary>
+	[Sync( SyncFlags.FromHost )] public bool BlockWorkshopEffects { get; set; }
+
+	/// <summary>Whether the lights of effects players other than the host wear are kept off. The host sets it on the Server page.</summary>
+	[Sync( SyncFlags.FromHost )] public bool BlockEffectLights { get; set; }
+
+	/// <summary>
+	/// Whether shapes players other than the host drew show as plain ones (a circle, a glow). The host sets it on the Server
+	/// page.
+	/// </summary>
+	[Sync( SyncFlags.FromHost )] public bool BlockDrawnShapes { get; set; }
+
+	/// <summary>Players (by Steam id) whose effects nobody sees on this server. The host mutes them on the Server page.</summary>
+	[Sync( SyncFlags.FromHost )] public NetList<long> MutedEffects { get; set; } = new();
+
+	/// <summary>
+	/// Workshop shares (see <see cref="ShareOrigin.Key"/>) whose copies nobody but the host sees on this server: effects
+	/// from them hidden, shapes from them plain. The host blocks them from the Workshop.
+	/// </summary>
+	[Sync( SyncFlags.FromHost )] public NetList<string> BlockedShares { get; set; } = new();
 
 	/// <summary>The budget every player's effects show within on this server, the host's too.</summary>
 	public EffectBudget EffectsBudget => EffectBudget.Of( EffectsLevel, EffectLayers, EffectLights, EffectSprites );
@@ -75,6 +100,75 @@ public sealed partial class PlayerModelSelector
 			rules.EffectSprites = within.Sprites;
 		} );
 	}
+
+	/// <summary>Lets players other than the host show effects and shapes from the Workshop, or keeps them off. Host only.</summary>
+	public void SetAllowWorkshopEffects( bool allow )
+	{
+		ChangeRules( rules => rules.AllowWorkshopEffects = allow );
+	}
+
+	/// <summary>Lets the effects of players other than the host light up, or keeps their lights off. Host only.</summary>
+	public void SetAllowEffectLights( bool allow )
+	{
+		ChangeRules( rules => rules.AllowEffectLights = allow );
+	}
+
+	/// <summary>Shows the shapes players other than the host drew, or plain ones in their place. Host only.</summary>
+	public void SetAllowDrawnShapes( bool allow )
+	{
+		ChangeRules( rules => rules.AllowDrawnShapes = allow );
+	}
+
+	/// <summary>Whether the host muted <paramref name="connection"/>'s effects: nobody sees them.</summary>
+	public bool IsEffectsMuted( Connection connection )
+	{
+		return connection is not null && Contains( MutedEffects, (long)connection.SteamId.Value );
+	}
+
+	/// <summary>Mutes <paramref name="connection"/>'s effects for everyone on this server, or lets them show again. Host only.</summary>
+	public void SetEffectsMuted( Connection connection, bool muted )
+	{
+		if ( connection is null )
+			return;
+
+		var player = (long)connection.SteamId.Value;
+		ChangeRules( rules =>
+		{
+			rules.MutedEffects.Remove( player );
+			if ( muted )
+				rules.MutedEffects.Add( player );
+		} );
+	}
+
+	/// <summary>Whether the host blocked the Workshop share <paramref name="key"/> (see <see cref="ShareOrigin.Key"/>) on this server.</summary>
+	public bool IsShareBlocked( string key )
+	{
+		return key is not null && Contains( BlockedShares, key );
+	}
+
+	/// <summary>
+	/// Blocks the Workshop share <paramref name="key"/> (named <paramref name="name"/>, for the Server page to list) on this
+	/// server, or allows it again. Host only.
+	/// </summary>
+	public void SetShareBlocked( string key, string name, bool blocked )
+	{
+		if ( string.IsNullOrEmpty( key ) || key.Length > MaxShareKeyLength )
+			return;
+
+		ChangeRules( rules =>
+		{
+			rules.BlockedShares.RemoveAll( x => x.Key == key );
+			if ( blocked )
+				rules.BlockedShares.Add( new BlockedShare { Key = key, Name = SharePost.Tidy( name, SharePost.MaxNameLength ) } );
+		} );
+	}
+
+	// The longest share key kept: a kind and a record number
+	private const int MaxShareKeyLength = 64;
+
+	// The most players muted and shares blocked a server keeps
+	private const int MaxMuted = 256;
+	private const int MaxBlockedShares = 256;
 
 	/// <summary>How much of everyone's effects this player sees, within the server's budget. Kept on their machine.</summary>
 	internal EffectBudget.Quality EffectsQuality
@@ -217,6 +311,57 @@ public sealed partial class PlayerModelSelector
 		return !isLocal && HidesEffectsOf( connection ) ? EffectBudget.None : budget;
 	}
 
+	// What of the host's effects rules apply to connection, as one number to tell when they change: the switches, whether
+	// they are muted, and which shares are blocked. Read for every player every scan: no allocations
+	private int EffectsRulesFor( Connection connection )
+	{
+		var rules = (BlockWorkshopEffects ? 1 : 0) | (BlockEffectLights ? 2 : 0) | (BlockDrawnShapes ? 4 : 0) | (IsEffectsMuted( connection ) ? 8 : 0);
+		var blocked = 0;
+		for ( var i = 0; i < (BlockedShares?.Count ?? 0); i++ )
+			blocked = HashCode.Combine( blocked, BlockedShares[ i ] );
+
+		return HashCode.Combine( rules, blocked );
+	}
+
+	// look's effects as the host allows them for a player other than the host: none while they are muted, no lights while
+	// lights are off, and without what came from the Workshop (or a blocked share), and drawn shapes plain, as the host says
+	private PlayerLook EffectsAllowed( PlayerLook look, Connection connection, ref EffectBudget budget )
+	{
+		if ( IsEffectsMuted( connection ) )
+			return look.WithoutEffects();
+
+		if ( BlockEffectLights )
+			budget = budget with { Lights = 0 };
+
+		return look.WithEffectsAllowed( !BlockWorkshopEffects, !BlockDrawnShapes, IsShareBlocked );
+	}
+
+	private static bool Contains<T>( NetList<T> list, T value )
+	{
+		if ( list is null )
+			return false;
+
+		for ( var i = 0; i < list.Count; i++ )
+		{
+			if ( EqualityComparer<T>.Default.Equals( list[ i ], value ) )
+				return true;
+		}
+
+		return false;
+	}
+
+	// The effects rules into rules, as the server has them now; the names of blocked shares from the host's own saved ones
+	private void EffectsRulesInto( ServerRules rules )
+	{
+		rules.AllowWorkshopEffects = !BlockWorkshopEffects;
+		rules.AllowEffectLights = !BlockEffectLights;
+		rules.AllowDrawnShapes = !BlockDrawnShapes;
+		rules.MutedEffects = new List<long>( MutedEffects ?? new NetList<long>() );
+
+		var names = LocalPrefs.ServerRules.BlockedShares ?? new();
+		rules.BlockedShares = (BlockedShares ?? new NetList<string>()).Select( key => names.Find( x => x?.Key == key ) ?? new BlockedShare { Key = key } ).ToList();
+	}
+
 	// The server's effects rules from saved ones, each within its range
 	private void UseEffectsRules( ServerRules rules )
 	{
@@ -227,5 +372,19 @@ public sealed partial class PlayerModelSelector
 		EffectLayers = custom.Layers;
 		EffectLights = custom.Lights;
 		EffectSprites = custom.Sprites;
+
+		BlockWorkshopEffects = !rules.AllowWorkshopEffects;
+		BlockEffectLights = !rules.AllowEffectLights;
+		BlockDrawnShapes = !rules.AllowDrawnShapes;
+
+		MutedEffects ??= new();
+		MutedEffects.Clear();
+		foreach ( var player in (rules.MutedEffects ?? new()).Distinct().Take( MaxMuted ) )
+			MutedEffects.Add( player );
+
+		BlockedShares ??= new();
+		BlockedShares.Clear();
+		foreach ( var key in (rules.BlockedShares ?? new()).Select( x => x?.Key ).Where( x => !string.IsNullOrEmpty( x ) && x.Length <= MaxShareKeyLength ).Distinct().Take( MaxBlockedShares ) )
+			BlockedShares.Add( key );
 	}
 }

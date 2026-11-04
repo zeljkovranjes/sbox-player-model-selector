@@ -32,6 +32,21 @@ public sealed class ServerRules
 	/// <summary>How much of their effects each player shows (see <see cref="EffectBudget"/>).</summary>
 	public EffectBudget.Level EffectsBudget { get; set; } = EffectBudget.Level.Normal;
 
+	/// <summary>Whether effects from the Workshop (used or forked from a share) show, and the shapes from it.</summary>
+	public bool AllowWorkshopEffects { get; set; } = true;
+
+	/// <summary>Whether effects' lights show.</summary>
+	public bool AllowEffectLights { get; set; } = true;
+
+	/// <summary>Whether shapes players drew show; off, only the standard shapes do.</summary>
+	public bool AllowDrawnShapes { get; set; } = true;
+
+	/// <summary>Players (by Steam id) whose effects nobody sees here.</summary>
+	public List<long> MutedEffects { get; set; } = new();
+
+	/// <summary>Workshop shares (see <see cref="ShareOrigin.Key"/>) whose copies nobody sees here, with their names.</summary>
+	public List<BlockedShare> BlockedShares { get; set; } = new();
+
 	/// <summary>The budget when <see cref="EffectsBudget"/> is <see cref="EffectBudget.Level.Custom"/>: layers, lights and sprites.</summary>
 	public int EffectLayers { get; set; } = EffectBudget.NormalLayers;
 	public int EffectLights { get; set; } = EffectBudget.NormalLights;
@@ -59,4 +74,11 @@ public sealed class ServerRules
 
 	/// <summary>Models nobody may wear, whatever else allows them.</summary>
 	public List<string> Blocked { get; set; } = new();
+}
+
+/// <summary>A Workshop share a host blocked: which it is (see <see cref="ShareOrigin.Key"/>), and its name to list it by.</summary>
+public sealed class BlockedShare
+{
+	public string Key { get; set; } = "";
+	public string Name { get; set; } = "";
 }

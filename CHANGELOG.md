@@ -102,6 +102,7 @@ Package vetting - the host checks every sbox.game pick against the same rules (a
 Download limit - everyone here downloads each sbox.game model a player puts on, so each player other than the host brings in 3 new ones every 5 minutes, both set on the Server page (up to 50, over up to 60 minutes); every machine starts downloading a model as soon as the host takes it, so it is there when its player comes into view
 Effects switch - the host can keep players' effects off; they stay with their looks and show again when it is turned back on
 Effects budget - the host picks how much of their effects each player shows: Low (6 layers, 1 light and 150 sprites at once), Normal (16, 4 and 400, so any three presets fit), High (24, 6 and 1,000) or Custom (up to 32, 8 and 2,000); past it a player's last layers and lights wait and their sprites thin out, and nothing is taken from their look; the Effects tab marks what waits (Over this server's budget), and the preview shows a look as others see it
+Effects switches - on the Server page the host can turn off effects from the Workshop, effects' lights, and shapes players drew (shown as plain circles and glows), mute any player's effects (Mute effects, in Players), and block one Workshop share and every copy of it (Block on this server, in its details), listed under Blocked from the Workshop to unblock; nothing is deleted, players are told why theirs are hidden, the host's own always show, and it is all kept with the server's rules
 # Preview
 Zoom - scroll over the preview to zoom in towards the face
 ### Improved

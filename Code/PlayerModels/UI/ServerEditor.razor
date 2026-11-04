@@ -54,6 +54,9 @@
                 {
                     <div class="button" @onclick=@(() => Revert( connection ))>Revert</div>
                 }
+                @{ var muted = selector.IsEffectsMuted( connection ); }
+                <div class="button" Tooltip=@( muted ? "Let everyone see their effects again" : "Hide their effects from everyone here; nothing is taken from their look" )
+                     @onclick=@(() => Mute( connection, !muted ))>@( muted ? "Unmute effects" : "Mute effects" )</div>
             </div>
         }
 
@@ -142,6 +145,35 @@
         </div>
     }
     <div class="note">Turned off, nobody sees players' effects; they stay with their looks and come back when you turn them on. You always can wear yours. Each player's effects show within this: Low is @BudgetText( EffectBudget.Low ), Normal @BudgetText( EffectBudget.Normal ) and High @BudgetText( EffectBudget.High ); past it their last layers wait and their sprites thin out. Players can see less of everyone's on their own screen, never more.</div>
+    <ToggleRow Label="Effects from the Workshop" Value=@( !selector.BlockWorkshopEffects ) OnChanged=@AllowWorkshopEffects></ToggleRow>
+    <ToggleRow Label="Effects can light things up" Value=@( !selector.BlockEffectLights ) OnChanged=@AllowEffectLights></ToggleRow>
+    <ToggleRow Label="Shapes players drew" Value=@( !selector.BlockDrawnShapes ) OnChanged=@AllowDrawnShapes></ToggleRow>
+    <div class="note">Off, effects used or forked from the Workshop don't show, effects shine no light, or drawn shapes and stickers show as plain circles and glows: nothing is deleted, and it all comes back when you turn it on. Mute one player's effects in Players above, or block one share from the Workshop's details.</div>
+
+    <div class="subheading">Blocked from the Workshop</div>
+    @{ var blockedShares = BlockedShares(); }
+    @if ( blockedShares.Count == 0 )
+    {
+        <div class="note">None. Open a share's details in the Effects Workshop and press Block on this server to hide it, and every copy of it, here.</div>
+    }
+    else
+    {
+        var sharePages = PageCount( blockedShares.Count );
+        var sharePage = Math.Clamp( _sharePage, 0, sharePages - 1 );
+        @foreach ( var share in OnPage( blockedShares, sharePage ) )
+        {
+            var key = share.Key;
+            <div class="row">
+                <div class="player">
+                    <div class="name">@( string.IsNullOrEmpty( share.Name ) ? "Untitled" : share.Name )</div>
+                    <div class="detail">@( key.StartsWith( ShareOrigin.ShapeKind ) ? "A shape or sticker" : "An effect" )</div>
+                </div>
+                <div class="button" @onclick=@(() => UnblockShare( key ))>Unblock</div>
+            </div>
+        }
+
+        <Pager Page=@sharePage Pages=@sharePages OnPage=@ShowSharePage></Pager>
+    }
 
     <div class="section-header">Armature</div>
     <ToggleRow Label="Players can set up armatures" Value=@( !selector.BlockArmature ) OnChanged=@AllowArmature></ToggleRow>
@@ -279,6 +311,8 @@
 
     protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Selector?.BlockCloudModels, Selector?.BlockMountedModels, Selector?.BlockModelFolders,
             Selector?.BlockArmature, Selector?.BlockBodyGroups, Selector?.BlockAccessories, Selector?.BlockEffects, Selector?.EffectsBudget ),
+        HashCode.Combine( Selector?.BlockWorkshopEffects, Selector?.BlockEffectLights, Selector?.BlockDrawnShapes, string.Join( ";", Selector?.MutedEffects ?? Enumerable.Empty<long>() ),
+            string.Join( ";", Selector?.BlockedShares ?? Enumerable.Empty<string>() ), _sharePage ),
         string.Join( ";", Selector?.BlockedModels ?? Enumerable.Empty<string>() ),
         string.Join( ";", Others().Select( x => $"{x.Id}={Selector?.PickOf( x )}{Selector?.IsPickedByHost( x )}" ) ),
         string.Join( ";", Selector?.PlayersMounts().Select( x => $"{x.Ident}={x.Players}" ) ?? Enumerable.Empty<string>() ),
@@ -383,6 +417,51 @@
 
         selector.SetCustomEffectsBudget( new EffectBudget( layers as int? ?? selector.EffectLayers, lights as int? ?? selector.EffectLights,
             sprites as int? ?? selector.EffectSprites ) );
+        StateHasChanged();
+    }
+
+    void AllowWorkshopEffects( bool allow )
+    {
+        Selector?.SetAllowWorkshopEffects( allow );
+        StateHasChanged();
+    }
+
+    void AllowEffectLights( bool allow )
+    {
+        Selector?.SetAllowEffectLights( allow );
+        StateHasChanged();
+    }
+
+    void AllowDrawnShapes( bool allow )
+    {
+        Selector?.SetAllowDrawnShapes( allow );
+        StateHasChanged();
+    }
+
+    void Mute( Connection connection, bool muted )
+    {
+        Selector?.SetEffectsMuted( connection, muted );
+        StateHasChanged();
+    }
+
+    // The shares blocked here, the latest first, with the names they were blocked under (kept on this machine)
+    int _sharePage;
+
+    static List<BlockedShare> BlockedShares()
+    {
+        var names = LocalPrefs.ServerRules.BlockedShares ?? new();
+        return (Selector?.BlockedShares ?? Enumerable.Empty<string>()).Reverse().Select( key => names.Find( x => x?.Key == key ) ?? new BlockedShare { Key = key } ).ToList();
+    }
+
+    void ShowSharePage( int page )
+    {
+        _sharePage = Math.Max( 0, page );
+        StateHasChanged();
+    }
+
+    void UnblockShare( string key )
+    {
+        Selector?.SetShareBlocked( key, null, false );
         StateHasChanged();
     }
 

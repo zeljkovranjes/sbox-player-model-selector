@@ -291,6 +291,37 @@ public sealed class PlayerLook
 		return new PlayerLook { Effects = copy.Effects, DrawnShapes = copy.DrawnShapes };
 	}
 
+	/// <summary>
+	/// The look with only the effects a server allows, for anyone but its host: none from a Workshop share while
+	/// <paramref name="workshop"/> is off, none from a share <paramref name="blocked"/> says the host blocked (by its
+	/// <see cref="ShareOrigin.Key"/>), and drawn shapes (all of them while <paramref name="drawnShapes"/> is off, else
+	/// those from a Workshop that isn't allowed or blocked) shown as plain ones: a circle to come from, a glow to look like.
+	/// This very look when nothing is held back, as mostly nothing is; else a copy. Nothing is taken from the look itself.
+	/// </summary>
+	public PlayerLook WithEffectsAllowed( bool workshop, bool drawnShapes, Func<string, bool> blocked )
+	{
+		bool Refused( ShareOrigin origin ) => origin is not null && (!workshop || blocked( origin.Key ));
+		bool Plain( DrawnShape shape ) => !drawnShapes || Refused( shape.ForkedFrom );
+
+		if ( !Effects.Exists( x => Refused( x.ForkedFrom ) ) && !DrawnShapes.Exists( Plain ) )
+			return this;
+
+		var copy = Sanitized();
+		copy.Effects.RemoveAll( x => Refused( x.ForkedFrom ) );
+		var plain = copy.DrawnShapes.Where( Plain ).Select( x => x.Id ).ToHashSet();
+		foreach ( var layer in copy.Effects.SelectMany( x => x.Layers ) )
+		{
+			if ( layer.DrawnFormation is { } formation && plain.Contains( formation ) )
+				layer.Formation = null;
+
+			if ( layer.DrawnPicture is { } picture && plain.Contains( picture ) )
+				layer.Picture = null;
+		}
+
+		copy.DrawnShapes.RemoveAll( x => plain.Contains( x.Id ) );
+		return copy;
+	}
+
 	/// <summary>The drawn shape the look carries with id <paramref name="id"/>; null for none.</summary>
 	public DrawnShape DrawnShapeOf( string id ) => id is null ? null : DrawnShapes.Find( x => x.Id == id );
 

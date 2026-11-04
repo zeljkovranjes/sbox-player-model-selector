@@ -129,11 +129,9 @@ internal sealed partial class EffectLayerObject
 			? ParticleSpriteRenderer.BillboardAlignment.Particle
 			: ParticleSpriteRenderer.BillboardAlignment.LookAtCamera;
 
+		// Room for what its script emits, past what it makes itself (the colours still count through only those)
 		if ( _run is not null )
-		{
 			_most += EmitRoom;
-			_cycleCount = Math.Max( 1, _most );
-		}
 
 		_perSprite = true;
 		if ( _keep <= 0 )

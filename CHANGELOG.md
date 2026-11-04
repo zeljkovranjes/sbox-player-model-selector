@@ -40,6 +40,10 @@ Share details - sharing a look or an armature asks what to call it (up to 32 cha
 Publishing - what you publish stays as it was published: to share changes, publish again as a new one (5 at once per model); your own can be taken down from the info button
 Workshop status - a red bar reads "Facepunch Workshop is currently unresponsive" while Facepunch's service isn't answering, and goes away by itself when it is back (asked every 30 seconds)
 # Effects
+Effects - the Effects tab beside Customize puts effects on your model from 12 presets (glowing eyes, fire hands, sparkle halo, holy aura, dark aura, hearts, snow cloud, rain cloud, electric body, flame head, lantern hand and rainbow), each tile moving as its effect does; the preview shows them at once and Apply wears them, up to 8 at a time
+Effect sliders - Color, Size, Amount and Speed change the selected effect all at once: Color turns its colors round the color wheel, Size and Speed go from half to twice, Amount from a quarter to four times; switch an effect off and on, or remove it, in the list of effects you wear
+Clan tag colors - Rainbow colors its sprites one by one with World at War's scrolling clan tag colors (rain); the selected effect's colors can be changed, added to (any number) or put back to the game's five under its sliders
+What you see - Effects quality (High, Normal, Low or Off) shows less of everyone's effects on your screen, never more than the host allows, and any other player's can be hidden; both are kept on your machine
 Any model - effects are made on the citizen and worn in proportion on any model, from its eyes (each eye or between them), the top of its head (however high it reaches over its head bone), head, neck, chest, hips, hands or feet; a joint the model doesn't mark is stood in for, so an effect always shows
 Drawn on your machine - effects' pictures (glow, spark, flame, smoke, sparkle, heart, snowflake, droplet) are drawn from lines on every machine, so effects add nothing to download or publish
 # Armature

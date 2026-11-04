@@ -220,6 +220,7 @@
         if ( !string.IsNullOrEmpty( look.Tint ) || look.Parts.Count > 0 ) changes.Add( "colours" );
         if ( !string.IsNullOrEmpty( look.Finish ) || look.PartFinishes.Count > 0 ) changes.Add( "a finish" );
         if ( look.Accessories.Count > 0 ) changes.Add( "items" );
+        if ( look.Effects.Count > 0 ) changes.Add( "effects" );
         if ( look.BodyGroups.Count > 0 ) changes.Add( "body groups" );
         if ( look.Morphs.Count > 0 ) changes.Add( "morphs" );
         if ( look.Shape.Count > 0 ) changes.Add( "body shape" );

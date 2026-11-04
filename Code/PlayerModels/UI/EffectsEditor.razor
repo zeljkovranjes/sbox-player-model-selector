@@ -1,0 +1,278 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Components
+@using PlayerModels.Core
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    @if ( Look is null || Look.IsDefault )
+    {
+        <div class="note">Pick a model to wear effects on it. The default citizen wears your avatar.</div>
+    }
+    else
+    {
+        <div class="top">
+            <div class="intro">Click an effect to put it on: the preview shows it, and Apply wears it.</div>
+            <div class="reset disabled" Tooltip="Coming soon: every layer of an effect, placed by hand">Edit in Advanced editor</div>
+        </div>
+
+        @if ( Locked )
+        {
+            <div class="note">The host keeps effects off on this server, so nobody sees yours. They stay with your look and come back when the host turns them on.</div>
+        }
+
+        <div class="section-header">Effects</div>
+        <div class="grid">
+            @foreach ( var preset in EffectPresets.All )
+            {
+                var shown = preset;
+                <div class="tile effect @( IsFull ? "disabled" : "" )" @onclick=@(() => Add( shown ))>
+                    <EffectIcon class="thumb" Effect=@shown></EffectIcon>
+                    <div class="title">@shown.Name</div>
+                </div>
+            }
+            @for ( var i = 0; i < FillersFor( EffectPresets.All.Count ); i++ )
+            {
+                <div class="tile-filler"></div>
+            }
+        </div>
+        @if ( IsFull )
+        {
+            <div class="note">You wear as many effects as a look can (@Effect.MaxWorn). Remove one to put on another.</div>
+        }
+
+        @if ( Look.Effects.Count > 0 )
+        {
+            <div class="section-header">Wearing</div>
+            @foreach ( var worn in Look.Effects )
+            {
+                var effect = worn;
+                <div class="row worn @( effect.Id == _selected ? "selected" : "" )" @onclick=@(() => Select( effect ))>
+                    <div class="switch @( effect.Off ? "" : "on" )" Tooltip=@( effect.Off ? "Turn on" : "Turn off" )
+                         @onclick=@(( PanelEvent e ) => Toggle( effect, e ))>@( effect.Off ? "" : "check" )</div>
+                    <div class="worn-name">@effect.Name</div>
+                    <div class="icon-button" Tooltip="Remove" @onclick=@(( PanelEvent e ) => Remove( effect, e ))>delete</div>
+                </div>
+            }
+            <div class="note">@BudgetText()</div>
+        }
+
+        @if ( Selected is { } selected )
+        {
+            <div class="section-header">@selected.Name</div>
+            <SliderRow Label="Color" Value=@selected.Hue OnChanged=@(( float value ) => Set( () => selected.Hue = value ))></SliderRow>
+            <SliderRow Label="Size" Signed=@true Value=@selected.Size OnChanged=@(( float value ) => Set( () => selected.Size = value ))></SliderRow>
+            <SliderRow Label="Amount" Signed=@true Value=@selected.Amount OnChanged=@(( float value ) => Set( () => selected.Amount = value ))></SliderRow>
+            <SliderRow Label="Speed" Signed=@true Value=@selected.Speed OnChanged=@(( float value ) => Set( () => selected.Speed = value ))></SliderRow>
+            <div class="row">
+                <div class="reset @( IsAsMade( selected ) ? "disabled" : "" )" @onclick=@(() => ResetSliders( selected ))>Reset sliders</div>
+            </div>
+
+            @if ( CycleOf( selected ) is { } cycle )
+            {
+                var mode = cycle.ColorModeIs;
+                var colours = cycle.CycleColours();
+                <div class="subheading">@ModeName( mode ) colors</div>
+                @for ( var i = 0; i < colours.Count; i++ )
+                {
+                    var index = i;
+                    <ColorRow Label=@ColourLabel( mode, index ) Hex=@colours[ index ] OnChanged=@(( string hex ) => SetCycleColour( selected, index, hex ))></ColorRow>
+                }
+                <div class="row">
+                    @if ( mode != LayerColorMode.Cyln )
+                    {
+                        <div class="reset @( colours.Count < EffectLayer.MaxPalette ? "" : "disabled" )" @onclick=@(() => AddCycleColour( selected ))>Add color</div>
+                    }
+                    <div class="reset @( cycle.Palette is null ? "disabled" : "" )" @onclick=@(() => UseCycleColours( selected, null ))>Game colors</div>
+                </div>
+            }
+        }
+    }
+
+    @if ( Selector is { } selector )
+    {
+        <div class="section-header">What You See</div>
+        <div class="setting">
+            <div class="label">Effects quality</div>
+            <UIDropdown Items=@Qualities() Value=@selector.EffectsQuality ValueChanged=@SetQuality Tokenize=@false></UIDropdown>
+        </div>
+        @foreach ( var player in Others() )
+        {
+            var connection = player;
+            <ToggleRow Label=@( $"Hide {connection.DisplayName}'s effects" ) Value=@selector.HidesEffectsOf( connection )
+                       OnChanged=@(( bool hidden ) => Hide( connection, hidden ))></ToggleRow>
+        }
+        <div class="note">Only on your screen, and never more than the host allows. Lower quality shows fewer sprites and lights on everyone, you too.</div>
+    }
+</root>
+
+@code
+{
+    /// <summary>The look being edited. Changed in place; <see cref="Changed"/> says when.</summary>
+    [Parameter] public PlayerLook Look { get; set; }
+
+    /// <summary>Called after every change to <see cref="Look"/>.</summary>
+    [Parameter] public Action Changed { get; set; }
+
+    /// <summary>Whether the host keeps this player's effects off: they are kept, and can still be changed.</summary>
+    [Parameter] public bool Locked { get; set; }
+
+    static PlayerModelSelector Selector => PlayerModelSelector.Find( Game.ActiveScene );
+
+    // Five tiles to a row like the Models grid, the last row made up with fillers so its tiles keep their width
+    const int TilesPerRow = 5;
+
+    static int FillersFor( int tiles ) => (TilesPerRow - tiles % TilesPerRow) % TilesPerRow;
+
+    // The worn effect the sliders change, by id
+    string _selected;
+
+    Effect Selected => Look?.Effects.FirstOrDefault( x => x.Id == _selected );
+
+    bool IsFull => Look.Effects.Count >= Effect.MaxWorn;
+
+    protected override int BuildHash() => HashCode.Combine( Look?.Serialize(), _selected, Locked, Selector?.EffectsBudget, Selector?.EffectsQuality,
+        string.Join( ";", Others().Select( x => $"{x.Id}{Selector?.HidesEffectsOf( x )}" ) ) );
+
+    // A copy of the preset, selected for its sliders
+    void Add( Effect preset )
+    {
+        if ( IsFull )
+            return;
+
+        var effect = EffectPresets.Copy( preset, Look.Effects );
+        Look.Effects.Add( effect );
+        _selected = effect.Id;
+        Changed?.Invoke();
+    }
+
+    void Select( Effect effect )
+    {
+        _selected = effect.Id;
+        StateHasChanged();
+    }
+
+    void Toggle( Effect effect, PanelEvent e )
+    {
+        e.StopPropagation();
+        effect.Off = !effect.Off;
+        Changed?.Invoke();
+    }
+
+    void Remove( Effect effect, PanelEvent e )
+    {
+        e.StopPropagation();
+        Look.Effects.Remove( effect );
+        if ( _selected == effect.Id )
+            _selected = null;
+
+        Changed?.Invoke();
+    }
+
+    void Set( Action change )
+    {
+        change();
+        Changed?.Invoke();
+    }
+
+    static bool IsAsMade( Effect effect ) => effect.Hue == 0f && effect.Size == 0f && effect.Amount == 0f && effect.Speed == 0f;
+
+    void ResetSliders( Effect effect )
+    {
+        effect.Hue = effect.Size = effect.Amount = effect.Speed = 0f;
+        Changed?.Invoke();
+        StateHasChanged();
+    }
+
+    // The first layer of the effect whose colours cycle; the colours set here go to every such layer of it
+    static EffectLayer CycleOf( Effect effect ) => effect.Layers.FirstOrDefault( x => x.ColorModeIs != LayerColorMode.Fixed );
+
+    static string ModeName( LayerColorMode mode ) => mode switch
+    {
+        LayerColorMode.Rain => "Rain",
+        LayerColorMode.Cycl => "Cycle",
+        _ => "Scanner",
+    };
+
+    // The scanner has a highlight and the rest; the other cycles go through their colours in order
+    static string ColourLabel( LayerColorMode mode, int index ) => mode == LayerColorMode.Cyln ? (index == 0 ? "Highlight" : "Rest") : $"Color {index + 1}";
+
+    void UseCycleColours( Effect effect, List<string> colours )
+    {
+        foreach ( var layer in effect.Layers.Where( x => x.ColorModeIs != LayerColorMode.Fixed ) )
+            layer.Palette = colours is null ? null : new List<string>( colours );
+
+        Changed?.Invoke();
+        StateHasChanged();
+    }
+
+    // A colour set; reset takes it out of the cycle (the scanner's goes back to the game's)
+    void SetCycleColour( Effect effect, int index, string hex )
+    {
+        var cycle = CycleOf( effect );
+        var colours = cycle.CycleColours().ToList();
+        var defaults = new EffectLayer { ColorMode = cycle.ColorMode }.CycleColours();
+
+        if ( !string.IsNullOrEmpty( hex ) )
+            colours[ index ] = hex;
+        else if ( cycle.ColorModeIs == LayerColorMode.Cyln )
+            colours[ index ] = defaults[ index ];
+        else if ( colours.Count > 1 )
+            colours.RemoveAt( index );
+
+        UseCycleColours( effect, colours.SequenceEqual( defaults, StringComparer.OrdinalIgnoreCase ) ? null : colours );
+    }
+
+    void AddCycleColour( Effect effect )
+    {
+        var colours = CycleOf( effect ).CycleColours().ToList();
+        if ( colours.Count >= EffectLayer.MaxPalette )
+            return;
+
+        colours.Add( colours[ ^1 ] );
+        UseCycleColours( effect, colours );
+    }
+
+    // How much of the server's budget what is worn takes, and what happens past it
+    string BudgetText()
+    {
+        var budget = Selector?.EffectsBudget ?? EffectBudget.Normal;
+        var shown = Look.Effects.Where( x => !x.Off ).ToList();
+        var layers = shown.Sum( x => x.Layers.Count );
+        var lights = shown.Sum( x => x.Lights() );
+        var used = $"Your effects use {layers} of the {budget.Layers} layers and {lights} of the {budget.Lights} lights this server allows each player.";
+
+        return budget.Fits( Look.Effects )
+            ? used
+            : $"{used} Past that, the last layers and lights wait and the sprites thin out until you remove some.";
+    }
+
+    static List<UIDropdown.Item> Qualities() => new()
+    {
+        new( "High (as the host allows)", EffectBudget.Quality.High ),
+        new( "Normal", EffectBudget.Quality.Normal ),
+        new( "Low", EffectBudget.Quality.Low ),
+        new( "Off", EffectBudget.Quality.Off ),
+    };
+
+    void SetQuality( object value )
+    {
+        if ( value is EffectBudget.Quality quality && Selector is { } selector )
+            selector.EffectsQuality = quality;
+
+        StateHasChanged();
+    }
+
+    // Everyone connected but this player
+    static List<Connection> Others() => Connection.All.Where( x => x != Connection.Local ).ToList();
+
+    void Hide( Connection connection, bool hidden )
+    {
+        Selector?.SetEffectsHidden( connection, hidden );
+        StateHasChanged();
+    }
+}

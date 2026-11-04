@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using PlayerModels.Core;
@@ -8,8 +9,8 @@ namespace PlayerModels.Engine;
 /// <summary>
 /// What this player keeps between sessions, on this machine: the model they wear, how they customised each model and the
 /// looks they saved, their favourites, their first-person arms, which grid headings they collapsed, the mounted games'
-/// folders they added, how they rated what others shared, how they sort it and whose they hid and, as a host, which
-/// models their server allows.
+/// folders they added, how they rated what others shared, how they sort it and whose they hid, how much of others'
+/// effects they see and whose they hid and, as a host, which models their server allows.
 /// </summary>
 internal static class LocalPrefs
 {
@@ -25,6 +26,8 @@ internal static class LocalPrefs
 	private const string VotesCookie = "player_model_selector.votes";
 	private const string HiddenAuthorsCookie = "player_model_selector.hidden_authors";
 	private const string SharesByNewestCookie = "player_model_selector.shares_by_newest";
+	private const string EffectsQualityCookie = "player_model_selector.effects_quality";
+	private const string HiddenEffectsCookie = "player_model_selector.hidden_effects";
 
 	/// <summary>The model worn last, empty for the default citizen.</summary>
 	internal static string Pick
@@ -170,6 +173,33 @@ internal static class LocalPrefs
 			authors.Remove( author );
 
 		Game.Cookies.Set( HiddenAuthorsCookie, authors.ToList() );
+	}
+
+	/// <summary>How much of everyone's effects this player sees, within what the host allows.</summary>
+	internal static EffectBudget.Quality EffectsQuality
+	{
+		get => Game.Cookies.Get( EffectsQualityCookie, (int)EffectBudget.Quality.High ) is var quality && Enum.IsDefined( typeof( EffectBudget.Quality ), quality )
+			? (EffectBudget.Quality)quality
+			: EffectBudget.Quality.High;
+		set => Game.Cookies.Set( EffectsQualityCookie, (int)value );
+	}
+
+	/// <summary>The players (by Steam id) whose effects this player hid.</summary>
+	internal static HashSet<long> HiddenEffects()
+	{
+		return new HashSet<long>( Game.Cookies.Get( HiddenEffectsCookie, new List<long>() ) ?? new List<long>() );
+	}
+
+	/// <summary>Hides <paramref name="player"/>'s effects from this player, or shows them again.</summary>
+	internal static void SetEffectsHidden( long player, bool hidden )
+	{
+		var players = HiddenEffects();
+		if ( hidden )
+			players.Add( player );
+		else
+			players.Remove( player );
+
+		Game.Cookies.Set( HiddenEffectsCookie, players.ToList() );
 	}
 
 	/// <summary>The starred models, in the order they were starred.</summary>

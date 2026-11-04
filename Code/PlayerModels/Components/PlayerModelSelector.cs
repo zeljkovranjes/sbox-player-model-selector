@@ -131,8 +131,9 @@ public sealed partial class PlayerModelSelector : Component
 	}
 
 	/// <summary>
-	/// How this connection is shown: <see cref="LookOf"/>, within what the host allows right now. The same object is
-	/// returned until their look or the host's rules change, so read it but never change it.
+	/// How this connection is shown: <see cref="LookOf"/>, within what the host allows right now, with only as much of its
+	/// effects as this player chose to see. The same object is returned until their look, the host's rules or that
+	/// choice change, so read it but never change it.
 	/// </summary>
 	public PlayerLook ShownLookOf( Connection connection )
 	{
@@ -140,7 +141,7 @@ public sealed partial class PlayerModelSelector : Component
 		var text = LookTextOf( id );
 		var isHost = (connection ?? Connection.Local)?.IsHost ?? true;
 		var rules = isHost ? 0 : 1 | (BlockBodyGroups ? 2 : 0) | (BlockAccessories ? 4 : 0) | (BlockCloudModels ? 8 : 0) | (BlockEffects ? 16 : 0);
-		var effects = EffectsBudget;
+		var effects = ViewedBudget( connection );
 
 		_shownLooks ??= new();
 		if ( _shownLooks.TryGetValue( id, out var known ) && known.Rules == rules && known.Effects == effects && known.Text == text )

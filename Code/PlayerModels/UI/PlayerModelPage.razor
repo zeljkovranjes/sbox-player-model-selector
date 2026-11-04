@@ -30,6 +30,7 @@
             }
             <div class="view @( _pane == Pane.Models ? "active" : "" )" @onclick=@(() => SetPane( Pane.Models ))>Models</div>
             <div class="view @( _pane == Pane.Customize ? "active" : "" )" @onclick=@(() => SetPane( Pane.Customize ))>Customize</div>
+            <div class="view @( _pane == Pane.Effects ? "active" : "" )" @onclick=@(() => SetPane( Pane.Effects ))>Effects</div>
             @if ( !ArmatureLocked )
             {
                 <div class="view @( _pane == Pane.Armature ? "active" : "" )" @onclick=@(() => SetPane( Pane.Armature ))>Armature</div>
@@ -63,6 +64,16 @@
                     <SlowScroll class="@( LookWorkshop ? "fill" : "" )"><Content>
                         <LookEditor Model=@_wornModel Look=@_look Changed=@LookChanged Pointed=@PointAt BodyGroupsLocked=@BodyGroupsLocked
                                     Workshop=@LookWorkshop ShowWorkshop=@ShowLookWorkshop OpenAdvanced=@OpenAdvanced></LookEditor>
+                    </Content></SlowScroll>
+                </Body>
+            </UISettingsPane>
+        }
+        else if ( _pane == Pane.Effects && !_viewModel )
+        {
+            <UISettingsPane class="models-pane" Title="Effects" Revision=@BuildHash()>
+                <Body>
+                    <SlowScroll><Content>
+                        <EffectsEditor Look=@_look Changed=@LookChanged Locked=@EffectsLocked></EffectsEditor>
                     </Content></SlowScroll>
                 </Body>
             </UISettingsPane>
@@ -271,8 +282,8 @@
     ModelCatalog _catalog => Selector?.Catalog ?? _noCatalog;
     Func<ModelCatalog.Entry, bool> _isShown;
 
-    // The right pane while showing player models: the grid, the look of the worn model, or its bone picks
-    enum Pane { Models, Customize, Armature }
+    // The right pane while showing player models: the grid, the look of the worn model, its effects, or its bone picks
+    enum Pane { Models, Customize, Effects, Armature }
 
     bool _viewModel;
     Pane _pane;
@@ -392,6 +403,9 @@
     // The host can keep players' body group choices off; the host's never are
     bool BodyGroupsLocked => Selector?.BlockBodyGroups == true && !IsHost;
 
+    // The host can keep players' effects off; the host's never are
+    bool EffectsLocked => Selector?.BlockEffects == true && !IsHost;
+
     // Folders can be added while mounted models are allowed and, for everyone but the host, while the host lets them
     static bool FoldersAllowed => IsHost || Selector?.BlockModelFolders != true;
 
@@ -474,7 +488,7 @@
             HashCode.Combine( _collection, _gridPage, _sharedRevision, _catalog.HasMore, (int)(_catalog.Download.Fraction * 100f), (int)(Selector?.DownloadWait() ?? 0) ) ),
         HashCode.Combine( _server, _search, LocalPrefs.UseModelArms, Selector?.BlockCloudModels, Selector?.BlockMountedModels,
             Selector?.BlockedModels?.Count, HashCode.Combine( _choosingFor, ArmatureLocked, Selector?.IsPickedByHost( Connection.Local ) ),
-            HashCode.Combine( _folders, Selector?.BlockModelFolders, BodyGroupsLocked, LookWorkshop ) ) );
+            HashCode.Combine( _folders, Selector?.BlockModelFolders, BodyGroupsLocked, LookWorkshop, EffectsLocked ) ) );
 
     // Tells the catalog which added folders count, when that changed: they were changed, or the host's rule was
     void UseFolders( PlayerModelSelector selector )

@@ -33,7 +33,10 @@
     {
         <div class="page">
             <div class="page-title">@open.Title</div>
-            <div class="clip" style="background-image: url( @ClipOf( open ) )"></div>
+            @if ( FileSystem.Mounted.FileExists( ClipOf( open ) ) )
+            {
+                <div class="clip" style="background-image: url( @ClipOf( open ) )"></div>
+            }
             @if ( open.Steps is null )
             {
                 <div class="text">@open.Text</div>

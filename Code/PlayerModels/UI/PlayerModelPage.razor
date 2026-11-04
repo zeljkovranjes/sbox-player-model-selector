@@ -561,12 +561,25 @@
             catalog.Shown = null;
     }
 
+    Action _selectedMenu;
+
+    void SelectedMenu()
+    {
+        if ( _pane == Pane.Effects && Descendants.OfType<EffectsEditor>().FirstOrDefault() is { } effects )
+            effects.OpenSelectedMenu();
+    }
+
     // The page's width last frame: a window opened again after being folded away grows back from nothing
     float _lastWidth;
 
     public override void Tick()
     {
         base.Tick();
+
+        // Shift+F10 or the menu key: the menu of what the mouse is over, else of the effect selected on the Effects tab
+        // (the Advanced editor, over the page, has its own)
+        if ( !_advanced.IsValid() )
+            ContextMenu.OpenOnKey( this, _selectedMenu ??= SelectedMenu );
 
         var width = Box.Rect.Width;
         if ( width > _lastWidth + 1f )

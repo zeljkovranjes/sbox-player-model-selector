@@ -9,8 +9,8 @@ namespace PlayerModels.UI;
 /// A right-click menu: a list of entries (see <see cref="Entry"/>), each with its picture, words, the key that does the
 /// same and whether it can be chosen now (and why not), opened at the cursor and kept on the screen. A click on an entry
 /// does it; Esc or a click anywhere else closes it (a see-through backdrop under it takes that click). Every entry is
-/// something the window also does another way, so nothing needs a right click; Shift+F10 or the menu key opens one from
-/// the keyboard where a window asks (see <see cref="KeyPressed"/>). One open at a time: <see cref="Open"/> shows it,
+/// something the window also does another way, so nothing needs a right click; Shift+F10 or the menu key opens the menu
+/// of what the mouse is over, or of what is selected (see <see cref="OpenOnKey"/> and <see cref="KeyPressed"/>). One open at a time: <see cref="Open"/> shows it,
 /// <see cref="Close"/> hides it. Its look is ContextMenu.scss, which a window that opens one imports.
 /// </summary>
 public sealed class ContextMenu : Panel
@@ -100,6 +100,57 @@ public sealed class ContextMenu : Panel
 		var pressed = Input.Keyboard.Pressed( "app" ) || Input.Keyboard.Down( "shift" ) && Input.Keyboard.Pressed( "f10" );
 		Input.Suppressed = suppressed;
 		return pressed;
+	}
+
+	/// <summary>
+	/// Opens, on Shift+F10 or the menu key, the menu of what the mouse is over in <paramref name="window"/> (a window marked
+	/// <see cref="WindowClass"/>): a right click is sent to the panel under the mouse, so whichever row or tile it is in opens
+	/// its own menu, as its right click would; when that opens none, <paramref name="otherwise"/> (the menu of what is
+	/// selected; a delegate the window keeps, as this runs every frame) a moment later. True when the key was pressed. The
+	/// window calls this each frame; a panel with a selection of its own may open its menu itself (see
+	/// <see cref="KeyPressed"/>), and the one under the mouse wins.
+	/// </summary>
+	public static bool OpenOnKey( Panel window, Action otherwise = null )
+	{
+		// What is under the mouse had its moment to open its menu: none did, so the selection's opens
+		if ( _otherwise is not null && _sinceKey > OtherwiseSeconds )
+		{
+			var selected = _otherwise;
+			_otherwise = null;
+			if ( !IsOpen )
+				selected();
+		}
+
+		if ( !KeyPressed() )
+			return false;
+
+		if ( Hovered( window ) is { } under )
+			under.CreateEvent( new MousePanelEvent( "onrightclick", under, "mouseright" ) );
+
+		_otherwise = otherwise;
+		_sinceKey = 0f;
+		return true;
+	}
+
+	// The menu of what is selected, opened when nothing under the mouse opened one this long after the key
+	private const float OtherwiseSeconds = 0.1f;
+	[SkipHotload]
+	private static Action _otherwise;
+	private static RealTimeSince _sinceKey;
+
+	// The deepest panel under the mouse within panel, outside any menu open; null for none
+	private static Panel Hovered( Panel panel )
+	{
+		if ( panel is null || !panel.HasHovered || panel is ContextMenu or Backdrop )
+			return null;
+
+		foreach ( var child in panel.Children )
+		{
+			if ( Hovered( child ) is { } deeper )
+				return deeper;
+		}
+
+		return panel;
 	}
 
 	private void AddEntry( Entry entry )

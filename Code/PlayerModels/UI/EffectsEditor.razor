@@ -877,6 +877,13 @@
         Changed?.Invoke();
     }
 
+    /// <summary>Opens the menu of the effect selected in the list worn (Shift+F10 with nothing under the mouse); nothing for none.</summary>
+    public void OpenSelectedMenu()
+    {
+        if ( Selected is { } effect )
+            WornMenu( effect );
+    }
+
     void WornMenu( Effect effect )
     {
         _selected = effect.Id;

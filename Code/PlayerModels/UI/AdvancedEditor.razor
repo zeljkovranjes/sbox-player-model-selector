@@ -294,6 +294,9 @@
             Stage.Viewport = _viewport;
         }
 
+        // Shift+F10 or the menu key: the menu of what the mouse is over, else (see SelectedMenu) of what is selected
+        ContextMenu.OpenOnKey( this, _selectedMenu ??= SelectedMenu );
+
         SyncSelection();
         FindHeldWeapon();
         Stage.Look = ShownNow?.Invoke() ?? _look;
@@ -430,15 +433,7 @@
         var target = _weaponTargets.At( ray );
         if ( target >= 0 )
         {
-            _weaponTargets.Select( target );
-            var isProp = target < _weaponTargets.PropCount;
-            ContextMenu.Open( this, isProp ? "Prop" : "Sticker", new List<ContextMenu.Entry>
-            {
-                new( "Edit", "edit", () => _weaponTargets.Select( target ), "Click" ),
-                new( "Duplicate", "content_copy", () => _weaponTargets.Duplicate(), "Shift+D" ),
-                new( "First-person nudge", "open_with", () => _weaponTargets.Select( target ), null, isProp, "Only props are nudged in first person" ),
-                new( "Remove", "delete", () => _weaponTargets.Remove(), "Delete" ),
-            } );
+            ItemMenu( target );
             return;
         }
 
@@ -456,6 +451,35 @@
             hidden
                 ? new( "Show part", "visibility", () => _weaponPanel.SetHidden( part, false ) )
                 : new( "Hide part", "visibility_off", () => _weaponPanel.SetHidden( part, true ), null, canHide, "This weapon can't hide this part" ),
+        } );
+    }
+
+    // Shift+F10 with nothing under the mouse that has a menu: in weapon mode the prop or sticker selected, else the one
+    // or the part the mouse points at on the preview (layers and emblem layers open their own, see ContextMenu.KeyPressed)
+    Action _selectedMenu;
+
+    void SelectedMenu()
+    {
+        if ( !_weaponMode )
+            return;
+
+        if ( _weaponTargets.Selected >= 0 )
+            ItemMenu( _weaponTargets.Selected );
+        else if ( _viewport?.Hovered is { } pointed )
+            RightClicked( pointed );
+    }
+
+    // What can be done to the prop or sticker target (props first, then stickers), selecting it
+    void ItemMenu( int target )
+    {
+        _weaponTargets.Select( target );
+        var isProp = target < _weaponTargets.PropCount;
+        ContextMenu.Open( this, isProp ? "Prop" : "Sticker", new List<ContextMenu.Entry>
+        {
+            new( "Edit", "edit", () => _weaponTargets.Select( target ), "Click" ),
+            new( "Duplicate", "content_copy", () => _weaponTargets.Duplicate(), "Shift+D" ),
+            new( "First-person nudge", "open_with", () => _weaponTargets.Select( target ), null, isProp, "Only props are nudged in first person" ),
+            new( "Remove", "delete", () => _weaponTargets.Remove(), "Delete" ),
         } );
     }
 

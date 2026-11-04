@@ -81,6 +81,9 @@ public sealed class ModelPreview : Panel
 	/// <summary>The renderer of the weapon held, once it is there.</summary>
 	internal ModelRenderer WeaponRenderer => _weaponRenderer;
 
+	/// <summary>Whether the weapon is put away (the test bar's Holster): hidden, the hands empty, until it is taken out again.</summary>
+	internal bool WeaponPutAway { get; set; }
+
 	/// <summary>Whether the weapon held is outlined, as one that can be clicked into.</summary>
 	internal bool WeaponOutlined { get; set; }
 
@@ -570,10 +573,13 @@ public sealed class ModelPreview : Panel
 				MakeWeapon( weapon );
 		}
 
+		if ( _weaponRenderer.IsValid() && _weaponRenderer.GameObject.Enabled == WeaponPutAway )
+			_weaponRenderer.GameObject.Enabled = !WeaponPutAway;
+
 		// Held the way the game holds it: its hold type, aimed straight ahead
 		if ( Weapon is { } held )
 		{
-			_citizen.Write( "holdtype", held.HoldType );
+			_citizen.Write( "holdtype", WeaponPutAway ? 0 : held.HoldType );
 			_citizen.Write( "aim_body", Vector3.Forward );
 			_citizen.Write( "aim_head", Vector3.Forward );
 			_citizen.Write( "aim_eyes", Vector3.Forward );

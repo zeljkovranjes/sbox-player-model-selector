@@ -34,6 +34,7 @@ TestBar
 	.test-icon { font-family: "Material Icons"; font-size: 16px; }
 	.test-name { font-size: 11px; }
 	.test-key { width: 18px; height: 18px; background-size: contain; background-repeat: no-repeat; }
+	.test-note { padding: 0 6px; font-size: 11px; color: rgba( 232, 232, 232, 0.75 ); }
 	.separator { width: 1px; height: 16px; margin: 0 3px; background-color: rgba( 255, 255, 255, 0.3 ); }
 
 	&.compact .test { min-width: 22px; height: 22px; padding: 0 2px; }

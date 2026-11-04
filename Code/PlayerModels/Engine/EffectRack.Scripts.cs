@@ -126,6 +126,29 @@ internal sealed partial class EffectRack
 			_runs[ e ]?.Simulate( scriptEvent, amount );
 	}
 
+	/// <summary>
+	/// Whether anything worn here reacts to <paramref name="scriptEvent"/>: a layer shown on it, or a script handling it.
+	/// </summary>
+	internal bool Reacts( ScriptEvent scriptEvent )
+	{
+		for ( var e = 0; e < _effects; e++ )
+		{
+			if ( _runs[ e ]?.Machine.Program.Handles( scriptEvent ) == true )
+				return true;
+		}
+
+		if ( !Enum.TryParse<LayerWhen>( "On" + scriptEvent, out var when ) )
+			return false;
+
+		foreach ( var layer in _layers )
+		{
+			if ( layer.When == when )
+				return true;
+		}
+
+		return false;
+	}
+
 	// Lets go of the effects' scripts with their layers
 	private void ForgetRuns()
 	{

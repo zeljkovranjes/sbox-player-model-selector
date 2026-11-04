@@ -131,6 +131,9 @@ internal sealed partial class EffectLayerObject
 	// When it shows: the moment's burst and how long it shows after, when the last moment ends, whether it is sending
 	// sprites (or drawing its trail) now, a light's level as it fades, and whether it fades with speed
 	private LayerWhen _when;
+
+	/// <summary>When it shows (see <see cref="EffectLayer.WhenIs"/>).</summary>
+	internal LayerWhen When => _when;
 	private float _burst;
 	private float _showFor;
 	private float _momentUntil;

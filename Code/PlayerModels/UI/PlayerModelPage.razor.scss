@@ -338,9 +338,20 @@ PlayerModelPage
 
 	// while the pane scrolls, the grid and what lines up with it clear the scrollbar (8px, drawn over the pane's right
 	// edge and padding) by as much as they clear the pane's left edge (its 4px padding)
-	SlowScroll.scrolling .grid, SlowScroll.scrolling .search
+	SlowScroll.scrolling > .grid, SlowScroll.scrolling > .search
 	{
 		padding-right: 8px;
+	}
+
+	// an editor's right edge is as far in as its left (6px), and clears the scrollbar as well only while there is one
+	SlowScroll > LookEditor, SlowScroll > EffectsEditor
+	{
+		padding-right: 6px;
+	}
+
+	SlowScroll.scrolling > LookEditor, SlowScroll.scrolling > EffectsEditor
+	{
+		padding-right: 14px;
 	}
 
 	SlowScroll.scrolling .collection

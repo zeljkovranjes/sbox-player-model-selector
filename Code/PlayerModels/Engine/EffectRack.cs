@@ -142,9 +142,17 @@ internal sealed partial class EffectRack
 	internal void ApplyWeapon( IReadOnlyList<Effect> effects )
 	{
 		_weaponEffects = effects;
-		if ( _joints is not null )
-			Rebuild();
+		if ( _joints is null )
+			return;
+
+		Rebuild();
+
+		// A weapon drawn shows its effects the frame it appears, not when the frame's share of building comes round
+		_buildNow |= _pending;
 	}
+
+	// Whether the next Place builds without waiting for the schedule: the weapon held changed
+	private bool _buildNow;
 
 	// Built again on the next Place when what is worn changed
 	private void Rebuild()
@@ -165,7 +173,7 @@ internal sealed partial class EffectRack
 	/// </summary>
 	internal void Place( SkinnedModelRenderer citizen, SkinnedModelRenderer model, PoseTransfer transfer, AccessoryRack worn, HeldItems held )
 	{
-		if ( _pending && _parent.IsValid() && (Schedule()?.TryBuild( Count( _wanted ) + Count( WeaponEffects ) ) ?? true) )
+		if ( _pending && _parent.IsValid() && (_buildNow || (Schedule()?.TryBuild( Count( _wanted ) + Count( WeaponEffects ) ) ?? true)) )
 			Build( model );
 
 		if ( _layers.Count == 0 )
@@ -410,6 +418,7 @@ internal sealed partial class EffectRack
 	private void Build( SkinnedModelRenderer model )
 	{
 		_pending = false;
+		_buildNow = false;
 		ReturnLayers();
 
 		var schedule = Schedule();

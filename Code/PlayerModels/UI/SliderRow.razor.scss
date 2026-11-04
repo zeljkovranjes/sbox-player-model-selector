@@ -1,6 +1,6 @@
 @import "SelectorTheme.scss";
 
-// A value on a slider: its name, then the slider across the row and its number at the end, in line with a NumberRow's
+// A value on a slider: its name, then the slider across the row and its number at the end
 SliderRow
 {
 	flex-direction: row;
@@ -19,10 +19,5 @@ SliderRow
 	UISlider .track
 	{
 		max-width: 100%;
-	}
-
-	UISlider .entry
-	{
-		width: 64px;
 	}
 }

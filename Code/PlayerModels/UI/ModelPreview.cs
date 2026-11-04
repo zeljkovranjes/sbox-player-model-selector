@@ -72,6 +72,9 @@ public sealed class ModelPreview : Panel
 	/// <summary>The body shown, once it is.</summary>
 	internal ModelBody Body => _body;
 
+	/// <summary>The citizen the body is posed from, whose animation graph moves it.</summary>
+	internal SkinnedModelRenderer Citizen => _citizen;
+
 	/// <summary>Draws over the preview's scene, on top.</summary>
 	internal DebugOverlaySystem Overlay => _scene.RenderScene.DebugOverlay;
 

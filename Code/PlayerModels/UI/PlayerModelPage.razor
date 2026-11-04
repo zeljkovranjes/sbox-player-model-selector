@@ -323,6 +323,8 @@
     Tile _fixable;
     string _fixableReason;
     string _previewing;
+    // The preview it was asked of: one built anew (the page's layout reloaded) is asked again
+    ModelPreview _previewedOn;
     string _checking;
     readonly HashSet<string> _refused = new();
     List<FavoriteModel> _favorites = LocalPrefs.Favorites();
@@ -630,10 +632,11 @@
 
         // The grid previews what is hovered; Customize and Armature show the model being set up
         var shown = !editing ? Worn : _pane == Pane.Models ? hovered ?? Worn : _look?.Model ?? Worn;
-        if ( shown == _previewing )
+        if ( shown == _previewing && Preview == _previewedOn )
             return;
 
         _previewing = shown;
+        _previewedOn = Preview;
         _ = Preview.ShowAsync( shown );
     }
 

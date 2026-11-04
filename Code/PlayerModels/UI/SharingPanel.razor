@@ -104,8 +104,8 @@
         <div class="section-header sorted">
             <div class="heading">Shared @( Noun )s</div>
             <div class="sort">
-                <div class="sort-choice @( _newest ? "" : "active" )" @onclick=@SortByTop>Top</div>
-                <div class="sort-choice @( _newest ? "active" : "" )" @onclick=@SortByNew>New</div>
+                <div class="sort-choice @( _newest ? "" : "active" )" Tooltip=@SortTip( false ) @onclick=@SortByTop>Top</div>
+                <div class="sort-choice @( _newest ? "active" : "" )" Tooltip=@SortTip( true ) @onclick=@SortByNew>New</div>
             </div>
         </div>
 
@@ -187,7 +187,12 @@
             </div>
         }
 
-        <Pager Page=@_page Pages=@Pages OnPage=@ShowPage></Pager>
+        @if ( _loadingMore )
+        {
+            <div class="note">@( $"Reading more {Noun}s shared{Scope}..." )</div>
+        }
+
+        <Pager Page=@_page Pages=@Pages OnPage=@ShowPage More=@MoreToRead></Pager>
     }
     else
     {
@@ -597,8 +602,15 @@
         ContextMenu.OpenFrom( this, NameOf( entry ), entries );
     }
 
+    // Past the last page, while the Workshop has more than was read, the next of it is read first (see LoadMoreAsync)
     void ShowPage( int page )
     {
+        if ( page >= Pages && MoreToRead )
+        {
+            _ = LoadMoreAsync( page );
+            return;
+        }
+
         _page = Math.Clamp( page, 0, Pages - 1 );
         Redraw();
     }
@@ -973,5 +985,46 @@
     {
         var lit = Library.VoteOn( entry.Id ) == way ? (way > 0 ? "up" : "down") : "";
         return entry.IsMine || _busy ? $"{lit} disabled" : lit;
+    }
+
+    // Added since the first version of this panel, so last: hot reload finds the closures and async methods above by their
+    // place in it
+
+    // Paging past what was read (see ShowPage): the next shares read (see SharedLibrary.MoreAsync) and ranked with those
+    // listed, then the page asked for shown, or the last there is
+    bool _loadingMore;
+
+    bool MoreToRead => _listed && !string.IsNullOrEmpty( ModelId ) && Library?.HasMore( ModelId ) == true;
+
+    // Top and New rank what was read so far: until all of it is, say so
+    string SortTip( bool newest ) => (newest ? "The newest first" : "The best rated first") + (MoreToRead ? ", of those read so far: paging past the last page reads more" : "");
+
+    async Task LoadMoreAsync( int page )
+    {
+        var model = ModelId;
+        if ( _loadingMore || string.IsNullOrEmpty( model ) || Library is null )
+            return;
+
+        _loadingMore = true;
+        Redraw();
+        try
+        {
+            var entries = await Library.MoreAsync( model );
+            if ( model != ModelId )
+                return;
+
+            _entries = entries;
+            Arrange();
+            _page = Math.Clamp( page, 0, Pages - 1 );
+        }
+        catch ( Exception e )
+        {
+            Failed( e );
+        }
+        finally
+        {
+            _loadingMore = false;
+            Redraw();
+        }
     }
 }

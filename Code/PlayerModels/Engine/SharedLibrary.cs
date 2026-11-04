@@ -26,7 +26,8 @@ public sealed class SharedLibrary<T>
 	// How long a model's list is kept before it is asked for again, unless this player changed it meanwhile
 	private const float ListLife = 20f;
 
-	// The most listed for one model: the votes on all of them are counted in one ask, two groups each (100 at most)
+	// The most listed for one model, and how many more each read on lists: the votes on that many are counted in one
+	// ask, two groups each (100 at most)
 	private const int MaxListed = 50;
 
 	// The most groups counted in one ask
@@ -112,38 +113,61 @@ public sealed class SharedLibrary<T>
 		return listing;
 	}
 
-	// What is listed for a model is asked for again next time: this player changed it
-	private void Forget( string model ) => _listed.Remove( model );
-
-	private async Task<List<Entry>> ReadListAsync( string model )
+	// What is listed for a model is asked for again next time, and read again from the start: this player changed it
+	private void Forget( string model )
 	{
-		var records = await Shared.ReadAsync( Database.GetTable( _table ), GroupOf( model ) );
+		_listed.Remove( model );
+		_read?.Remove( model );
+	}
 
-		// Loops and named methods rather than lambdas, here and below: a lambda of a generic type can't be carried over a
-		// hot reload, and LINQ keeps one in a static field once it has run
-		var found = new List<Listed>();
-		foreach ( var record in records )
+	// Reads the model's shares the first time, on from where it stopped when paged past (see MoreAsync), and past the end
+	// of what was read once it got there (what was shared since); else what was read is listed again, its votes counted anew
+	private async Task<List<Entry>> ReadListAsync( string model, bool more = false )
+	{
+		_read ??= new();
+		if ( !_read.TryGetValue( model, out var reading ) )
+			_read[ model ] = reading = new Reading();
+
+		if ( !reading.Started || reading.Ended || more )
 		{
-			var post = SharePost.Parse( record.Value );
-			var item = post is null ? default : Parse( post.Item );
-			if ( item is not null && post.Kind == _kind && post.Model == model && _modelOf( item ) == model )
-				found.Add( new Listed( record, post, item ) );
+			var (records, next) = await Shared.ReadFromAsync( Database.GetTable( _table ), GroupOf( model ), reading.Cursor );
+			reading.Started = true;
+			reading.Ended = next is null;
+			reading.Cursor = next ?? (records.Count > 0 ? records[ ^1 ].Id : reading.Cursor);
+
+			// Loops and named methods rather than lambdas, here and below: a lambda of a generic type can't be carried over
+			// a hot reload, and LINQ keeps one in a static field once it has run
+			foreach ( var record in records )
+			{
+				var post = SharePost.Parse( record.Value );
+				var item = post is null ? default : Parse( post.Item );
+				if ( item is not null && post.Kind == _kind && post.Model == model && _modelOf( item ) == model )
+					reading.Found.Add( new Listed( record, post, item ) );
+			}
 		}
 
-		// The newest first, each player's newest few only
+		if ( more )
+			reading.Listed += MaxListed;
+
+		// The newest first, each player's newest few only, as many as paging on has asked for
 		var shared = new List<Listed>();
 		var perOwner = new Dictionary<long, int>();
-		foreach ( var listed in found.OrderByDescending( CreatedAt ) )
+		reading.MoreToList = false;
+		foreach ( var listed in reading.Found.OrderByDescending( CreatedAt ) )
 		{
 			var owner = listed.Record.OwnerSteamId;
 			var count = perOwner.GetValueOrDefault( owner );
 			if ( count >= _perPlayer )
 				continue;
 
+			if ( shared.Count >= reading.Listed )
+			{
+				reading.MoreToList = true;
+				break;
+			}
+
 			perOwner[ owner ] = count + 1;
 			shared.Add( listed );
-			if ( shared.Count >= MaxListed )
-				break;
 		}
 
 		_counts[ model ] = (shared.Count, 0f);
@@ -157,9 +181,16 @@ public sealed class SharedLibrary<T>
 			groups.Add( DownGroup( listed.Record.Id ) );
 		}
 
+		// How many votes each was given, MaxCounted groups an ask
 		var table = Database.GetTable( _votes );
-		var written = await table.GetPublicGroupInfo( groups.ToArray() );
-		long WrittenIn( string group ) => written.TryGetValue( group, out var info ) ? info.Count : 0;
+		var written = new Dictionary<string, long>();
+		for ( var at = 0; at < groups.Count; at += MaxCounted )
+		{
+			foreach ( var (group, info) in await table.GetPublicGroupInfo( groups.GetRange( at, Math.Min( MaxCounted, groups.Count - at ) ).ToArray() ) )
+				written[ group ] = info.Count;
+		}
+
+		long WrittenIn( string group ) => written.GetValueOrDefault( group );
 
 		var entries = new List<Entry>();
 		foreach ( var (record, post, item) in shared )
@@ -389,4 +420,40 @@ public sealed class SharedLibrary<T>
 
 	// Votes are remembered by table, as two tables can give records the same id
 	private string VoteKey( long id ) => $"{_table}:{id}";
+
+	// Added since the first version of this class, so last: hot reload finds the closures and async methods above by their
+	// place in the class
+
+	/// <summary>
+	/// Whether there is more of <paramref name="model"/>'s shares than is listed (see <see cref="MoreAsync"/>): the group
+	/// goes on past what was read, or more was read than is listed.
+	/// </summary>
+	internal bool HasMore( string model ) => _read is not null && _read.TryGetValue( model, out var reading ) && (!reading.Ended || reading.MoreToList);
+
+	/// <summary>
+	/// Lists more of <paramref name="model"/>'s shares: reads on from where the last read stopped (the next 300 records,
+	/// those made after the ones read, as the service gives them in the order they were made) and lists 50 more of all
+	/// that was read, ranked with the rest. Fails with the backend's own exception.
+	/// </summary>
+	internal Task<List<Entry>> MoreAsync( string model )
+	{
+		var listing = ReadListAsync( model, true );
+		_listed[ model ] = (listing, 0f);
+		return listing;
+	}
+
+	// What has been read of a model's shares: every share found, oldest first; where reading goes on from (after the last
+	// record read); whether it got to the end; how many of them are listed, and whether more could be
+	private sealed class Reading
+	{
+		public readonly List<Listed> Found = new();
+		public long Cursor;
+		public bool Started;
+		public bool Ended;
+		public int Listed = MaxListed;
+		public bool MoreToList;
+	}
+
+	// Made where used: a hot reload keeps this library but not fields added since
+	private Dictionary<string, Reading> _read;
 }

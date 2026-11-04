@@ -13,8 +13,8 @@ namespace PlayerModels.Engine;
 /// </summary>
 internal static class Shared
 {
-	// shortcut: a group is read to 300 records, so a flood past that can still hide what is behind it; raise MaxPages, at a
-	// request a page, if anyone ever does
+	// A group is read 300 records at a time (a request a page), oldest first as the service gives them; paging past them
+	// reads on from where the last read stopped
 	private const int MaxPages = 3;
 	private const int PageSize = 100;
 
@@ -33,19 +33,26 @@ internal static class Shared
 	private const float WriteGap = 1.5f;
 	private static float _nextWrite;
 
+	// The libraries are made afresh on a hot reload ([SkipHotload]): the lambdas they are made with are the static
+	// constructor's, which a hot reload can't match once a method is added to this class
+
 	/// <summary>Armatures: the bones picked by hand for a model's missing body parts.</summary>
+	[SkipHotload]
 	internal static readonly SharedLibrary<SharedArmature> Armatures = new( "armature", "armatures", "armature_votes",
 		SharedArmature.Parse, x => x.Serialize(), x => x.Model, ( a, b ) => a.SameAs( b ) );
 
 	/// <summary>Looks: how a model is customised (colours, skin, body groups, morphs, body shape), without its armature.</summary>
+	[SkipHotload]
 	internal static readonly SharedLibrary<PlayerLook> Looks = new( "look", "looks", "look_votes",
 		PlayerLook.ParseShared, x => x.Customisation().Serialize(), x => x.Model, ( a, b ) => a.SameCustomisationAs( b ) );
 
 	/// <summary>Effects (or single layers of one), with the drawn shapes they use, for anyone to wear on any model.</summary>
+	[SkipHotload]
 	internal static readonly SharedLibrary<Effect> Effects = new( ShareOrigin.EffectKind, "effects", "effect_votes",
 		Effect.ParseShared, x => x.SharedForm(), _ => Everyone, ( a, b ) => a.SameAs( b ), PerPlayerForEveryone );
 
 	/// <summary>Shapes and stickers made in the shape creator, for anyone to use in their effects.</summary>
+	[SkipHotload]
 	internal static readonly SharedLibrary<DrawnShape> Shapes = new( ShareOrigin.ShapeKind, "shapes", "shape_votes",
 		DrawnShape.ParseShared, x => x.SharedForm(), _ => Everyone, ( a, b ) => a.Content == b.Content, PerPlayerForEveryone );
 
@@ -53,6 +60,7 @@ internal static class Shared
 	/// Weapon designs, grouped by the weapon's world model: a design shows on the same weapon in any game, so it is shared
 	/// for that weapon, with the drawn shapes its stickers use.
 	/// </summary>
+	[SkipHotload]
 	internal static readonly SharedLibrary<WeaponDesign> Weapons = new( ShareOrigin.WeaponKind, "weapon_designs", "weapon_votes",
 		WeaponDesign.ParseShared, x => x.SharedForm(), x => x.Weapon, ( a, b ) => a.SameAs( b ) );
 
@@ -75,21 +83,7 @@ internal static class Shared
 	/// </summary>
 	internal static async Task<List<Database.Record>> ReadAsync( Database.Table table, string group )
 	{
-		var records = new List<Database.Record>();
-		var cursor = 0L;
-
-		for ( var page = 0; page < MaxPages; page++ )
-		{
-			var found = await table.List( group, cursor, PageSize );
-			records.AddRange( found.Records );
-
-			if ( found.NextCursor is not { } next )
-				break;
-
-			cursor = next;
-		}
-
-		return records;
+		return (await ReadFromAsync( table, group, 0 )).Records;
 	}
 
 	/// <summary>
@@ -112,5 +106,27 @@ internal static class Shared
 			DatabaseException { StatusCode: 429 } => "Too many changes at once. Try again in a moment.",
 			_ => "Shared designs can't be reached right now.",
 		};
+	}
+
+	/// <summary>
+	/// The next public records of <paramref name="group"/> after <paramref name="cursor"/> (0 for the first, else a
+	/// record's id: records come in the order they were made), as many pages as one read takes, and where reading goes on
+	/// from: null when it reached the end. Fails with the backend's own exception.
+	/// </summary>
+	internal static async Task<(List<Database.Record> Records, long? Next)> ReadFromAsync( Database.Table table, string group, long cursor )
+	{
+		var records = new List<Database.Record>();
+		for ( var page = 0; page < MaxPages; page++ )
+		{
+			var found = await table.List( group, cursor, PageSize );
+			records.AddRange( found.Records );
+
+			if ( found.NextCursor is not { } next )
+				return (records, null);
+
+			cursor = next;
+		}
+
+		return (records, cursor);
 	}
 }

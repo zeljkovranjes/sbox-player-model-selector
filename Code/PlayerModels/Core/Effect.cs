@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using PlayerModels.Core.Script;
 
 namespace PlayerModels.Core;
 
@@ -104,6 +105,24 @@ public sealed class Effect
 	/// </summary>
 	[JsonPropertyName( "sh" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public List<DrawnShape> Shapes { get; set; }
+
+	/// <summary>
+	/// The script it is written in (see <see cref="ScriptCompiler"/>), minified as it is stored and sent; null for
+	/// one only the visual editor made. Its layers and fields are what the script built, kept so a server with scripts
+	/// switched off (or a script that doesn't compile) still shows them; a client that runs scripts builds it again.
+	/// </summary>
+	[JsonPropertyName( "sc" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public string Script { get; set; }
+
+	/// <summary>
+	/// The values chosen for its script's <c>[Parameter]</c> options, as text by parameter name (see
+	/// <see cref="ScriptParameter.TryRead"/>); null for the script's own. Each client holds them to their parameter.
+	/// </summary>
+	[JsonPropertyName( "pm" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public Dictionary<string, string> Parameters { get; set; }
+
+	/// <summary>The longest text a parameter's value is kept with: a palette of 32 colours fits.</summary>
+	public const int MaxParameterLength = 512;
 
 	/// <summary>The Workshop share it was used or forked from (see <see cref="ShareOrigin"/>); null for one made here.</summary>
 	[JsonPropertyName( "ff" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
@@ -210,7 +229,29 @@ public sealed class Effect
 			Amount = Slider( Amount ),
 			Speed = Slider( Speed ),
 			ForkedFrom = ForkedFrom?.Sanitized(),
+			Script = Script is not null && ScriptLimits.Fits( Script ) ? Script : null,
+			Parameters = Script is not null && ScriptLimits.Fits( Script ) ? SanitizedParameters( Parameters ) : null,
 		};
+	}
+
+	// The parameter values kept with a script: by their lengths only (a client holds each to its parameter once the
+	// script compiles), at most as many as a script has parameters; null for none
+	private static Dictionary<string, string> SanitizedParameters( Dictionary<string, string> values )
+	{
+		if ( values is not { Count: > 0 } )
+			return null;
+
+		var kept = new Dictionary<string, string>();
+		foreach ( var (name, value) in values )
+		{
+			if ( kept.Count >= ScriptParameter.MaxPerScript )
+				break;
+
+			if ( !string.IsNullOrEmpty( name ) && name.Length <= Lexer.MaxNameLength && value is not null && value.Length <= MaxParameterLength )
+				kept[ name ] = value;
+		}
+
+		return kept.Count > 0 ? kept : null;
 	}
 
 	/// <summary>
@@ -237,7 +278,32 @@ public sealed class Effect
 			kept.Add( sanitized );
 		}
 
+		HoldScriptsTo( kept, ScriptLimits.MaxLookBytes );
 		return kept;
+	}
+
+	/// <summary>
+	/// Lets go of the scripts of <paramref name="effects"/> past <paramref name="bytes"/> together (stored, minified, in
+	/// order): those effects keep what their scripts built, as if scripts were off.
+	/// </summary>
+	internal static void HoldScriptsTo( List<Effect> effects, int bytes )
+	{
+		var total = 0;
+		foreach ( var effect in effects )
+		{
+			if ( effect.Script is null )
+				continue;
+
+			var size = ScriptLimits.Utf8Bytes( effect.Script );
+			if ( total + size <= bytes )
+			{
+				total += size;
+				continue;
+			}
+
+			effect.Script = null;
+			effect.Parameters = null;
+		}
 	}
 
 	/// <summary>The longest effect read from the Workshop or a code, as JSON: far past any real one.</summary>

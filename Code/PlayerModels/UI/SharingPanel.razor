@@ -151,7 +151,7 @@
         @foreach ( var entry in PageOfEntries )
         {
             var shared = entry;
-            <div class="row shared @( IsHidden( shared ) ? "hidden-author" : "" ) @( Pictures ? "pictured" : "" )">
+            <div class="row shared @( IsHidden( shared ) ? "hidden-author" : "" ) @( Pictures ? "pictured" : "" )" @onrightclick=@Bind.Click( RowMenu, shared )>
                 @if ( Pictures )
                 {
                     <SharedPicture class="picture" Item=@shared.Item></SharedPicture>
@@ -575,6 +575,24 @@
     void ToggleBlocked( object entry ) => SetBlocked( EntryOf( entry ), IsBlocked?.Invoke( EntryOf( entry ) ) != true );
 
     void Detail( object entry ) => ShowDetails( EntryOf( entry ) );
+
+    // A row's right-click menu: what its buttons and its details do (Block for the host alone)
+    void RowMenu( object argument )
+    {
+        var entry = EntryOf( argument );
+        var entries = new List<ContextMenu.Entry> { new( "Use", "add_circle", Bind.Click( UseOne, entry ), "Use" ) };
+        if ( Fork is not null )
+            entries.Add( new( "Fork", "call_split", Bind.Click( ForkOne, entry ), "Fork" ) );
+
+        entries.Add( new( "Details", "info", Bind.Click( Detail, entry ), "info" ) );
+        if ( !entry.IsMine )
+            entries.Add( new( IsHidden( entry ) ? "Unhide author" : "Hide author", "person_off", Bind.Click( ToggleHiddenOf, entry ) ) );
+
+        if ( Block is not null && !entry.IsMine )
+            entries.Add( new( IsBlocked?.Invoke( entry ) == true ? "Unblock on this server" : "Block on this server", "block", Bind.Click( ToggleBlocked, entry ) ) );
+
+        ContextMenu.OpenFrom( this, NameOf( entry ), entries );
+    }
 
     void ShowPage( int page )
     {

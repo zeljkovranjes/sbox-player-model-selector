@@ -45,7 +45,11 @@ internal static class WeaponSkins
 	// Made afresh on a hot reload: what it keeps is made again as it is needed
 	[SkipHotload]
 	private static readonly RecentCache<string, Material> Kept = new( MostKept );
-	private static int _made;
+
+	// Every skin material is a copy of this one, made once: making a material from the shader takes about 5 ms, a copy
+	// 0.02 ms, so a hundred players joining with skins of their own don't stall the game
+	[SkipHotload]
+	private static Material _template;
 
 	/// <summary>The most stickers the skin draws, as many as a design has (see <see cref="WeaponDesign.MaxStickers"/>).</summary>
 	internal const int MostStickers = 8;
@@ -129,7 +133,8 @@ internal static class WeaponSkins
 			return kept;
 		}
 
-		var made = Material.Create( $"weapon_skin_{_made++}", Shader );
+		_template ??= Material.Create( "weapon_skin", Shader );
+		var made = _template?.CreateCopy();
 		if ( made is null )
 		{
 			Log.Warning( $"Player Model Selector: couldn't make a weapon skin with {Shader}." );

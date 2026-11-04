@@ -113,15 +113,17 @@
     else
     {
         <div class="top">
-            <div class="intro">Click an effect to put it on: the preview shows it, and Apply wears it.</div>
-            <div class="tool @( History?.CanUndo == true ? "" : "disabled" )" Tooltip="Undo the last change to your effects" @onclick=@(() => Undo?.Invoke())>undo</div>
-            <div class="tool @( History?.CanRedo == true ? "" : "disabled" )" Tooltip="Redo" @onclick=@(() => Redo?.Invoke())>redo</div>
-            <div class="reset" Tooltip="What each part of an effect is, and how to do the harder things" @onclick=@(() => ShowGuides( true ))>Guides</div>
-            <div class="reset" Tooltip="Effects players shared" @onclick=@(() => ShowWorkshop?.Invoke( true ))>Workshop</div>
-            <div class="reset @( Selected is null ? "disabled" : "" )" Tooltip=@( Selected is null ? "Select an effect you wear first" : "Every layer of it, placed by hand" )
-                 @onclick=@(() => OpenAdvanced?.Invoke( Selected?.Id ))>Edit in Advanced editor</div>
-            <div class="reset" Tooltip=@( Selected is null ? "Write a new effect in code" : "Open it in the code editor: the script it is (or would be)" )
-                 @onclick=@(() => OpenCode?.Invoke( Selected?.Id ))>Edit as code</div>
+            <div class="intro">Click an effect to try it on; Apply wears it.</div>
+            <div class="buttons">
+                <div class="tool @( History?.CanUndo == true ? "" : "disabled" )" Tooltip="Undo the last change to your effects" @onclick=@(() => Undo?.Invoke())>undo</div>
+                <div class="tool @( History?.CanRedo == true ? "" : "disabled" )" Tooltip="Redo" @onclick=@(() => Redo?.Invoke())>redo</div>
+                <div class="reset" Tooltip="What each part of an effect is, and how to do the harder things" @onclick=@(() => ShowGuides( true ))>Guides</div>
+                <div class="reset" Tooltip="Effects players shared" @onclick=@(() => ShowWorkshop?.Invoke( true ))>Workshop</div>
+                <div class="reset @( Selected is null ? "disabled" : "" )" Tooltip=@( Selected is null ? "Select an effect you wear first" : "Every layer of it, placed by hand" )
+                     @onclick=@(() => OpenAdvanced?.Invoke( Selected?.Id ))>Edit in Advanced editor</div>
+                <div class="reset" Tooltip=@( Selected is null ? "Write a new effect in code" : "Open it in the code editor: the script it is (or would be)" )
+                     @onclick=@(() => OpenCode?.Invoke( Selected?.Id ))>Edit as code</div>
+            </div>
         </div>
 
         @if ( Locked )
@@ -133,77 +135,83 @@
             <div class="note">The host muted your effects on this server, so nobody sees them. They stay with your look and come back when the host unmutes you.</div>
         }
 
-        <div class="section-header">Effects</div>
-        <div class="grid">
-            <div class="tile effect new @( IsFull ? "disabled" : "" )" Tooltip="An effect of your own, built layer by layer in the Advanced editor" @onclick=@AddNew>
-                <div class="thumb new-icon">add</div>
-                <div class="title">New effect</div>
-            </div>
-            @foreach ( var preset in EffectPresets.All )
-            {
-                var shown = preset;
-                <div class="tile effect @( IsFull ? "disabled" : "" )" @onclick=@(() => PutOn( shown ))>
-                    <EffectIcon class="thumb" Effect=@shown></EffectIcon>
-                    <div class="title">@shown.Name</div>
+        <FoldingSection Title="Effects" Key="Effects/Effects" Summary=@( $"{EffectPresets.All.Count} to start from" )>
+            <Body>
+                <div class="grid">
+                    <div class="tile effect new @( IsFull ? "disabled" : "" )" Tooltip="An effect of your own, built layer by layer in the Advanced editor" @onclick=@AddNew>
+                        <div class="thumb new-icon">add</div>
+                        <div class="title">New effect</div>
+                    </div>
+                    @foreach ( var preset in EffectPresets.All )
+                    {
+                        var shown = preset;
+                        <div class="tile effect @( IsFull ? "disabled" : "" )" @onclick=@(() => PutOn( shown ))>
+                            <EffectIcon class="thumb" Effect=@shown></EffectIcon>
+                            <div class="title">@shown.Name</div>
+                        </div>
+                    }
+                    <div class="tile effect surprise @( IsFull ? "disabled" : "" )" Tooltip="A new effect from parts of the others, within this server's budget" @onclick=@AddSurprise>
+                        <div class="thumb surprise-icon">casino</div>
+                        <div class="title">Surprise me</div>
+                    </div>
+                    @for ( var i = 0; i < FillersFor( EffectPresets.All.Count + 2 ); i++ )
+                    {
+                        <div class="tile-filler"></div>
+                    }
                 </div>
-            }
-            <div class="tile effect surprise @( IsFull ? "disabled" : "" )" Tooltip="A new effect from parts of the others, within this server's budget" @onclick=@AddSurprise>
-                <div class="thumb surprise-icon">casino</div>
-                <div class="title">Surprise me</div>
-            </div>
-            @for ( var i = 0; i < FillersFor( EffectPresets.All.Count + 2 ); i++ )
-            {
-                <div class="tile-filler"></div>
-            }
-        </div>
+            </Body>
+        </FoldingSection>
         @if ( IsFull )
         {
             <div class="note">You wear as many effects as a look can (@Effect.MaxWorn). Remove one to put on another.</div>
         }
 
-        <div class="section-header">My Effects</div>
-        @if ( Mine.Count == 0 && MyDrafts.Count == 0 )
-        {
-            <div class="note">Effects you keep show here, to put on again; drafts too, marked with a pencil. Select one you wear and save it below its sliders.</div>
-        }
-        else
-        {
-            <div class="grid">
-                @foreach ( var kept in MyDrafts )
+        <FoldingSection Title="My Effects" Key="Effects/My Effects" Summary=@( Mine.Count + MyDrafts.Count is > 0 and var keptCount ? $"{keptCount} kept" : "None yet" )>
+            <Body>
+                @if ( Mine.Count == 0 && MyDrafts.Count == 0 )
                 {
-                    var shown = kept;
-                    var isScript = shown.KindIs == Draft.Of.Script;
-                    <div class="tile effect draft" Tooltip=@( $"Draft: {shown.Name}, {shown.EditedText( PlayerModels.Engine.Drafts.Now )}. Click to go on with it in the {(isScript ? "code editor" : "Advanced editor")}" )
-                         @onclick=@(() => OpenDraft( shown )) @onrightclick=@(() => DraftMenu( shown ))>
-                        @if ( isScript )
+                    <div class="note" Tooltip="Drafts show here too, marked with a pencil">None yet: select an effect you wear and save it.</div>
+                }
+                else
+                {
+                    <div class="grid">
+                        @foreach ( var kept in MyDrafts )
                         {
-                            <div class="thumb draft-icon">code</div>
+                            var shown = kept;
+                            var isScript = shown.KindIs == Draft.Of.Script;
+                            <div class="tile effect draft" Tooltip=@( $"Draft: {shown.Name}, {shown.EditedText( PlayerModels.Engine.Drafts.Now )}. Click to go on with it in the {(isScript ? "code editor" : "Advanced editor")}" )
+                                 @onclick=@(() => OpenDraft( shown )) @onrightclick=@(() => DraftMenu( shown ))>
+                                @if ( isScript )
+                                {
+                                    <div class="thumb draft-icon">code</div>
+                                }
+                                else
+                                {
+                                    <EffectIcon class="thumb" Effect=@DraftEffect( shown )></EffectIcon>
+                                }
+                                <div class="title">@shown.Name</div>
+                                <div class="badge" Tooltip="Draft">edit</div>
+                                <div class="more" Tooltip="More: open, rename, duplicate, delete (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => DraftMenu( shown ) ))>more_vert</div>
+                            </div>
                         }
-                        else
+                        @foreach ( var kept in Mine )
                         {
-                            <EffectIcon class="thumb" Effect=@DraftEffect( shown )></EffectIcon>
+                            var shown = kept;
+                            <div class="tile effect @( IsFull ? "disabled" : "" )" Tooltip=@KeptTooltip( shown ) @onclick=@(() => PutOn( shown )) @onrightclick=@(() => KeptMenu( shown ))>
+                                <EffectIcon class="thumb" Effect=@shown></EffectIcon>
+                                <div class="title">@shown.Name</div>
+                                <div class="more" Tooltip="More: open, rename, duplicate, delete, publish, copy code (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => KeptMenu( shown ) ))>more_vert</div>
+                                <div class="forget" Tooltip="Delete from My effects" @onclick=@(( PanelEvent e ) => Forget( shown, e ))>delete</div>
+                            </div>
                         }
-                        <div class="title">@shown.Name</div>
-                        <div class="badge" Tooltip="Draft">edit</div>
-                        <div class="more" Tooltip="More: open, rename, duplicate, delete (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => DraftMenu( shown ) ))>more_vert</div>
+                        @for ( var i = 0; i < FillersFor( Mine.Count + MyDrafts.Count ); i++ )
+                        {
+                            <div class="tile-filler"></div>
+                        }
                     </div>
                 }
-                @foreach ( var kept in Mine )
-                {
-                    var shown = kept;
-                    <div class="tile effect @( IsFull ? "disabled" : "" )" Tooltip=@KeptTooltip( shown ) @onclick=@(() => PutOn( shown )) @onrightclick=@(() => KeptMenu( shown ))>
-                        <EffectIcon class="thumb" Effect=@shown></EffectIcon>
-                        <div class="title">@shown.Name</div>
-                        <div class="more" Tooltip="More: open, rename, duplicate, delete, publish, copy code (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => KeptMenu( shown ) ))>more_vert</div>
-                        <div class="forget" Tooltip="Delete from My effects" @onclick=@(( PanelEvent e ) => Forget( shown, e ))>delete</div>
-                    </div>
-                }
-                @for ( var i = 0; i < FillersFor( Mine.Count + MyDrafts.Count ); i++ )
-                {
-                    <div class="tile-filler"></div>
-                }
-            </div>
-        }
+            </Body>
+        </FoldingSection>
         @if ( _renaming is not null )
         {
             <div class="row">
@@ -228,35 +236,37 @@
 
         @if ( Look.Effects.Count > 0 )
         {
-            <div class="section-header">Wearing</div>
-            var held = Budget.HeldBack( Look.Effects );
-            @for ( var i = 0; i < Look.Effects.Count; i++ )
-            {
-                var effect = Look.Effects[ i ];
-                var waiting = held[ i ].Count( x => x );
-                <div class="row worn @( effect.Id == _selected ? "selected" : "" ) @( waiting > 0 ? "over" : "" )"
-                     Tooltip=@WaitingText( effect, waiting ) @onclick=@(() => Select( effect )) @onrightclick=@(() => WornMenu( effect ))>
-                    <div class="switch @( effect.Off ? "" : "on" )" Tooltip=@( effect.Off ? "Turn on" : "Turn off" )
-                         @onclick=@(( PanelEvent e ) => Toggle( effect, e ))>check</div>
-                    @if ( IsDraft( effect ) )
+            <FoldingSection Title=@( $"Wearing ({Look.Effects.Count} of {Effect.MaxWorn})" ) Key="Effects/Wearing" Info=@BudgetText()>
+                <Body>
+                    @{ var held = Budget.HeldBack( Look.Effects ); }
+                    @for ( var i = 0; i < Look.Effects.Count; i++ )
                     {
-                        <div class="badge" Tooltip="Draft: shown here, not worn until you finish it in the Advanced editor">edit</div>
+                        var effect = Look.Effects[ i ];
+                        var waiting = held[ i ].Count( x => x );
+                        <div class="row worn @( effect.Id == _selected ? "selected" : "" ) @( waiting > 0 ? "over" : "" )"
+                             Tooltip=@WaitingText( effect, waiting ) @onclick=@(() => Select( effect )) @onrightclick=@(() => WornMenu( effect ))>
+                            <div class="switch @( effect.Off ? "" : "on" )" Tooltip=@( effect.Off ? "Turn on" : "Turn off" )
+                                 @onclick=@(( PanelEvent e ) => Toggle( effect, e ))>check</div>
+                            @if ( IsDraft( effect ) )
+                            {
+                                <div class="badge" Tooltip="Draft: shown here, not worn until you finish it in the Advanced editor">edit</div>
+                            }
+                            <div class="worn-name">@effect.Name</div>
+                            @if ( HiddenWhy( effect ) is { } why )
+                            {
+                                <div class="over-note" Tooltip=@why>Hidden on this server</div>
+                            }
+                            else if ( waiting > 0 )
+                            {
+                                <div class="over-note">Over this server's budget</div>
+                            }
+                            <div class="icon-button @( IsFull ? "disabled" : "" )" Tooltip="Duplicate" @onclick=@(( PanelEvent e ) => Act( e, () => Duplicate( effect ) ))>content_copy</div>
+                            <div class="icon-button" Tooltip="More: edit, duplicate, save, save draft, remove (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => WornMenu( effect ) ))>more_vert</div>
+                            <div class="icon-button" Tooltip="Remove" @onclick=@(( PanelEvent e ) => Remove( effect, e ))>delete</div>
+                        </div>
                     }
-                    <div class="worn-name">@effect.Name</div>
-                    @if ( HiddenWhy( effect ) is { } why )
-                    {
-                        <div class="over-note" Tooltip=@why>Hidden on this server</div>
-                    }
-                    else if ( waiting > 0 )
-                    {
-                        <div class="over-note">Over this server's budget</div>
-                    }
-                    <div class="icon-button @( IsFull ? "disabled" : "" )" Tooltip="Duplicate" @onclick=@(( PanelEvent e ) => Act( e, () => Duplicate( effect ) ))>content_copy</div>
-                    <div class="icon-button" Tooltip="More: edit, duplicate, save, save draft, remove (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => WornMenu( effect ) ))>more_vert</div>
-                    <div class="icon-button" Tooltip="Remove" @onclick=@(( PanelEvent e ) => Remove( effect, e ))>delete</div>
-                </div>
-            }
-            <div class="note">@BudgetText()</div>
+                </Body>
+            </FoldingSection>
         }
 
         @if ( Selected is { } selected )
@@ -301,74 +311,91 @@
                 </div>
             }
 
-            <div class="row">
-                <div class="label">Keep it</div>
-                <TextEntry class="key-entry" Placeholder=@( string.IsNullOrEmpty( selected.Name ) ? "Its name" : selected.Name ) MaxLength=@Effect.MaxNameLength
-                           Value:bind=@_keepName @onsubmit=@(() => Keep( selected ))></TextEntry>
-                <div class="reset @( Mine.Count >= LocalPrefs.MaxMyEffects ? "disabled" : "" )" @onclick=@(() => Keep( selected ))>Save to My effects</div>
-                <div class="reset" Tooltip="Keep it unfinished, to come back to: it shows, and isn't worn until you finish it" @onclick=@(() => KeepDraft( selected, false ))>Save draft</div>
-            </div>
-            @if ( IsDraft( selected ) )
-            {
-                <div class="note">A draft isn't worn, shared or published until you finish it: open it in the Advanced editor and press Finish.</div>
-            }
-            else
-            {
-                <SharingPanel @ref="_sharing" T="Effect" Library=@Shared.Effects Noun="effect" ModelId=@Shared.Everyone Scope=@Everywhere Current=@Shareable( selected )
-                              ShareLabel="Share this effect" Describe=@DescribeEffect Workshop=@false></SharingPanel>
-            }
-
-            <div class="row">
-                <div class="label">Key</div>
-                <TextEntry class="key-entry" Placeholder="None, always shows" Value:bind=@KeyText AutoComplete=@KeysMatching></TextEntry>
-                <KeyGlyph class="key-glyph" Key=@selected.Key></KeyGlyph>
-                <div class="reset @( selected.Key is null ? "disabled" : "" )" @onclick=@(() => SetKey( selected, null ))>Clear</div>
-            </div>
-            @if ( selected.Key is not null )
-            {
-                <div class="row">
-                    <div class="label">The key</div>
-                    <ScrollingDropdown Items=@KeyActions() Value=@selected.KeyActionIs.ToString() ValueChanged=@(( object v ) => SetKeyAction( selected, (string)v )) Tokenize=@false></ScrollingDropdown>
-                </div>
-            }
-            <div class="note">@KeyNote( selected )</div>
-
             @if ( CycleOf( selected ) is { } cycle )
             {
                 var mode = cycle.ColorModeIs;
                 var colours = cycle.CycleColours();
-                <div class="subheading">@ModeName( mode ) colors</div>
-                @for ( var i = 0; i < colours.Count; i++ )
-                {
-                    var index = i;
-                    <ColorRow Label=@ColourLabel( mode, index ) Hex=@colours[ index ] OnChanged=@(( string hex ) => SetCycleColour( selected, index, hex ))
-                              ResetLabel=@( mode == LayerColorMode.Cyln ? "Reset" : "Remove" ) CanReset=@( mode == LayerColorMode.Cyln || colours.Count > 1 )></ColorRow>
-                }
-                <div class="row">
-                    @if ( mode != LayerColorMode.Cyln )
-                    {
-                        <div class="reset @( colours.Count < EffectLayer.MaxPalette ? "" : "disabled" )" @onclick=@(() => AddCycleColour( selected ))>Add color</div>
-                    }
-                    <div class="reset @( cycle.Palette is null ? "disabled" : "" )" @onclick=@(() => UseCycleColours( selected, null ))>Game colors</div>
-                </div>
+                <FoldingSection Title=@( $"{ModeName( mode )} colors" ) Key="Effects/Cycle colors" Summary=@( $"{colours.Count} colors" )>
+                    <Body>
+                        @for ( var i = 0; i < colours.Count; i++ )
+                        {
+                            var index = i;
+                            <ColorRow Label=@ColourLabel( mode, index ) Hex=@colours[ index ] OnChanged=@(( string hex ) => SetCycleColour( selected, index, hex ))
+                                      ResetLabel=@( mode == LayerColorMode.Cyln ? "Reset" : "Remove" ) CanReset=@( mode == LayerColorMode.Cyln || colours.Count > 1 )></ColorRow>
+                        }
+                        <div class="row">
+                            @if ( mode != LayerColorMode.Cyln )
+                            {
+                                <div class="reset @( colours.Count < EffectLayer.MaxPalette ? "" : "disabled" )" @onclick=@(() => AddCycleColour( selected ))>Add color</div>
+                            }
+                            <div class="reset @( cycle.Palette is null ? "disabled" : "" )" @onclick=@(() => UseCycleColours( selected, null ))>Game colors</div>
+                        </div>
+                    </Body>
+                </FoldingSection>
             }
+
+            <FoldingSection Title="Save and Share" Key="Effects/Save and Share">
+                <Body>
+                    <div class="row">
+                        <div class="label">Keep it</div>
+                        <TextEntry class="key-entry" Placeholder=@( string.IsNullOrEmpty( selected.Name ) ? "Its name" : selected.Name ) MaxLength=@Effect.MaxNameLength
+                                   Value:bind=@_keepName @onsubmit=@(() => Keep( selected ))></TextEntry>
+                        <div class="reset @( Mine.Count >= LocalPrefs.MaxMyEffects ? "disabled" : "" )" @onclick=@(() => Keep( selected ))>Save to My effects</div>
+                        <div class="reset" Tooltip="Keep it unfinished, to come back to: it shows, and isn't worn until you finish it" @onclick=@(() => KeepDraft( selected, false ))>Save draft</div>
+                    </div>
+                    @if ( IsDraft( selected ) )
+                    {
+                        <div class="note">A draft isn't worn, shared or published until you finish it: open it in the Advanced editor and press Finish.</div>
+                    }
+                    else
+                    {
+                        <SharingPanel @ref="_sharing" T="Effect" Library=@Shared.Effects Noun="effect" ModelId=@Shared.Everyone Scope=@Everywhere Current=@Shareable( selected )
+                                      ShareLabel="Share this effect" Describe=@DescribeEffect Workshop=@false></SharingPanel>
+                    }
+                </Body>
+            </FoldingSection>
+
+            <FoldingSection Title="Key" Key="Effects/Key" Folded=@true Summary=@KeySummary( selected ) Info=@KeyNote( selected )>
+                <Body>
+                    <div class="row">
+                        <div class="label">Key</div>
+                        <TextEntry class="key-entry" Placeholder="None, always shows" Value:bind=@KeyText AutoComplete=@KeysMatching></TextEntry>
+                        <KeyGlyph class="key-glyph" Key=@selected.Key></KeyGlyph>
+                        <div class="reset @( selected.Key is null ? "disabled" : "" )" @onclick=@(() => SetKey( selected, null ))>Clear</div>
+                    </div>
+                    @if ( selected.Key is not null )
+                    {
+                        <div class="row">
+                            <div class="label">The key</div>
+                            <ScrollingDropdown Items=@KeyActions() Value=@selected.KeyActionIs.ToString() ValueChanged=@(( object v ) => SetKeyAction( selected, (string)v )) Tokenize=@false></ScrollingDropdown>
+                        </div>
+                    }
+                    @if ( (Selector?.TriggerWait() ?? 0f) > 0f )
+                    {
+                        <div class="note">@KeyNote( selected )</div>
+                    }
+                </Body>
+            </FoldingSection>
         }
     }
 
     @if ( Selector is { } selector && !_guides && !Workshop && _category == Category.Effects )
     {
-        <div class="section-header">What You See</div>
-        <div class="setting">
-            <div class="label">Effects quality</div>
-            <ScrollingDropdown Items=@Qualities() Value=@selector.EffectsQuality ValueChanged=@SetQuality Tokenize=@false></ScrollingDropdown>
-        </div>
-        @foreach ( var player in Others() )
-        {
-            var connection = player;
-            <ToggleRow Label=@( $"Hide {connection.DisplayName}'s effects" ) Value=@selector.HidesEffectsOf( connection )
-                       OnChanged=@(( bool hidden ) => Hide( connection, hidden ))></ToggleRow>
-        }
-        <div class="note">Only on your screen, and never more than the host allows. Lower quality shows fewer sprites and lights on everyone, you too.</div>
+        <FoldingSection Title="What You See" Key="Effects/What You See" Folded=@true Summary=@QualityName( selector.EffectsQuality )
+                        Info="Only on your screen, and never more than the host allows. Lower quality shows fewer sprites and lights on everyone, you too.">
+            <Body>
+                <div class="setting">
+                    <div class="label">Effects quality</div>
+                    <ScrollingDropdown Items=@Qualities() Value=@selector.EffectsQuality ValueChanged=@SetQuality Tokenize=@false></ScrollingDropdown>
+                </div>
+                @foreach ( var player in Others() )
+                {
+                    var connection = player;
+                    <ToggleRow Label=@( $"Hide {connection.DisplayName}'s effects" ) Value=@selector.HidesEffectsOf( connection )
+                               OnChanged=@(( bool hidden ) => Hide( connection, hidden ))></ToggleRow>
+                }
+            </Body>
+        </FoldingSection>
     }
 </root>
 
@@ -1226,6 +1253,25 @@
         return budget.Fits( Look.Effects )
             ? used
             : $"{used} Past that, the last layers and lights wait (marked over budget) and the sprites thin out until you remove some. The preview shows what others see.";
+    }
+
+    // The quality picked, in a word, for its folded group to say
+    static string QualityName( EffectBudget.Quality quality ) => quality == EffectBudget.Quality.High ? "High" : quality.ToString();
+
+    // The key that shows the effect and what it does, for its folded group to say
+    static string KeySummary( Effect effect )
+    {
+        if ( effect.Key is null )
+            return "None";
+
+        var does = effect.KeyActionIs switch
+        {
+            Effect.KeyAction.Toggle => "on and off",
+            Effect.KeyAction.Hold => "while held",
+            _ => $"{Effect.TriggerSeconds:0} seconds",
+        };
+
+        return $"{effect.Key.ToUpperInvariant()}, {does}";
     }
 
     static List<UIDropdown.Item> Qualities() => new()

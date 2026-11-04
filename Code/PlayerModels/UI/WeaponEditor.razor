@@ -57,11 +57,12 @@
 
         <div class="top">
             <div class="tool @( _history.CanUndo ? "" : "disabled" )" Tooltip="Undo the last change to this weapon" @onclick=@Undo>undo</div>
-            <div class="tool @( _history.CanRedo ? "" : "disabled" )" Tooltip="Redo" @onclick=@Redo>redo</div>
-            <div class="reset workshop" Tooltip="Designs players shared for this weapon" @onclick=@(() => ShowWorkshop( true ))>@WorkshopLabel</div>
-            <div class="reset" Tooltip="Open this weapon's whole design as a script: the panel and the code stay in step" @onclick=@(() => OpenCode?.Invoke())>Edit as code</div>
-            <div class="reset @( Design is null ? "disabled" : "" )" Tooltip="Take this weapon's design off" @onclick=@Reset>Reset weapon</div>
-            <div class="reset @( Design is null ? "disabled" : "" )" Tooltip="Keep it unfinished, to come back to: it shows here, and isn't worn until you finish it" @onclick=@(() => KeepDraft( false ))>Save draft</div>
+            <div class="tool @( _history.CanRedo ? "" : "disabled" )" Tooltip="Redo the change undone" @onclick=@Redo>redo</div>
+            <div class="tool workshop" Tooltip=@( $"{WorkshopLabel}: designs players shared for this weapon" ) @onclick=@(() => ShowWorkshop( true ))>storefront</div>
+            <div class="tool @( Design is null ? "disabled" : "" )" Tooltip="Save draft: keep it unfinished, to come back to; it shows here, and isn't worn until you finish it" @onclick=@(() => KeepDraft( false ))>edit_note</div>
+            <div class="tool @( Design is null ? "disabled" : "" )" Tooltip="Reset weapon: take this weapon's design off" @onclick=@Reset>refresh</div>
+            <div class="spacer"></div>
+            <div class="reset" Tooltip="Edit as code: this weapon's whole design as a script; the panel and the code stay in step" @onclick=@(() => OpenCode?.Invoke())><div class="glyph code">code</div>Code</div>
         </div>
         @if ( IsDraft )
         {
@@ -80,15 +81,19 @@
             </div>
         }
 
-        <div class="section-header">Finish</div>
+        <FoldingSection Title="Finish" Key="Weapon/Finish" Summary=@( string.IsNullOrEmpty( Design?.Finish ) ? "Its own" : Design.Finish )>
+            <Body>
         <div class="row">
             <div class="label">Finish</div>
             <ScrollingDropdown Items=@FinishChoices() Value=@( Design?.Finish ?? "" ) ValueChanged=@(( object v ) => Change( d => d.Finish = (string)v == "" ? null : (string)v ))
                         Tokenize=@false></ScrollingDropdown>
         </div>
         <ColorRow Label="Tint" Hex=@( Design?.Tint ?? "" ) OnChanged=@(( string hex ) => Change( d => d.Tint = string.IsNullOrEmpty( hex ) ? null : hex ))></ColorRow>
+            </Body>
+        </FoldingSection>
 
-        <div class="section-header">Skin</div>
+        <FoldingSection Title="Skin" Key="Weapon/Skin" Summary=@( Skin is { } skinned && (skinned.PatternIs != WeaponSkin.Pattern.None || skinned.AnimationIs != WeaponSkin.Motion.None || skinned.Script is not null) ? "Patterned or moving" : "None" )>
+            <Body>
         <div class="row">
             <div class="label">Pattern</div>
             <ScrollingDropdown Items=@PatternChoices() Value=@( Skin?.PatternIs.ToString() ?? nameof( WeaponSkin.Pattern.None ) )
@@ -150,16 +155,19 @@
                 </div>
             }
         }
+            </Body>
+        </FoldingSection>
 
-        <div class="section-header">@( $"Stickers ({Design?.Stickers?.Count ?? 0} of {WeaponDesign.MaxStickers})" )</div>
+        <FoldingSection Title=@( $"Stickers ({Design?.Stickers?.Count ?? 0} of {WeaponDesign.MaxStickers})" ) Key="Weapon/Stickers">
+            <Body>
         @for ( var i = 0; i < (Design?.Stickers?.Count ?? 0); i++ )
         {
             var index = i;
             var sticker = Design.Stickers[ index ];
             <div class="row item @( Selected == PropCount + index ? "selected" : "" )" @onclick=@(() => Select( PropCount + index ))>
                 <div class="item-name">@PictureName( sticker.Picture )</div>
-                <div class="icon-button" Tooltip="Duplicate" @onclick=@(( PanelEvent e ) => Act( e, () => DuplicateSticker( sticker ) ))>content_copy</div>
-                <div class="icon-button" Tooltip="Remove" @onclick=@(( PanelEvent e ) => Act( e, () => RemoveSticker( sticker ) ))>delete</div>
+                <div class="icon-button on-hover" Tooltip="Duplicate" @onclick=@(( PanelEvent e ) => Act( e, () => DuplicateSticker( sticker ) ))>library_add</div>
+                <div class="icon-button on-hover" Tooltip="Remove" @onclick=@(( PanelEvent e ) => Act( e, () => RemoveSticker( sticker ) ))>delete</div>
             </div>
         }
         <div class="row">
@@ -188,8 +196,11 @@
             <NumberRow Label="Pressed on, tilted" Unit=@NumberRow.Field.Turn Value=@chosen.Pitch OnChanged=@(( float v ) => Change( _ => chosen.Pitch = v ))></NumberRow>
             <NumberRow Label="Pressed on, turned" Unit=@NumberRow.Field.Turn Value=@chosen.Yaw OnChanged=@(( float v ) => Change( _ => chosen.Yaw = v ))></NumberRow>
         }
+            </Body>
+        </FoldingSection>
 
-        <div class="section-header">@( $"Props ({Design?.Props?.Count ?? 0} of {WeaponDesign.MaxProps})" )</div>
+        <FoldingSection Title=@( $"Props ({Design?.Props?.Count ?? 0} of {WeaponDesign.MaxProps})" ) Key="Weapon/Props">
+            <Body>
         @if ( PropsLocked )
         {
             <div class="note">The host keeps weapon props off on this server: others see your weapon without them.</div>
@@ -200,12 +211,12 @@
             var prop = Design.Props[ index ];
             <div class="row item @( Selected == index ? "selected" : "" )" @onclick=@(() => Select( index ))>
                 <div class="item-name">@( prop.Part is null ? PropCatalog.NameOf( prop.Model ) : $"{PropCatalog.NameOf( prop.Model )} ({(prop.Replaces ? "for" : "on")} {prop.Part})" )</div>
-                <div class="icon-button" Tooltip="Duplicate" @onclick=@(( PanelEvent e ) => Act( e, () => DuplicateProp( prop ) ))>content_copy</div>
-                <div class="icon-button" Tooltip="Remove" @onclick=@(( PanelEvent e ) => Act( e, () => RemoveProp( prop ) ))>delete</div>
+                <div class="icon-button on-hover" Tooltip="Duplicate" @onclick=@(( PanelEvent e ) => Act( e, () => DuplicateProp( prop ) ))>library_add</div>
+                <div class="icon-button on-hover" Tooltip="Remove" @onclick=@(( PanelEvent e ) => Act( e, () => RemoveProp( prop ) ))>delete</div>
             </div>
         }
         <div class="row">
-            <div class="reset @( CanAddProp ? "" : "disabled" )" @onclick=@(() => PickProp( null, false ))>Add a prop</div>
+            <div class="reset @( CanAddProp ? "" : "disabled" )" @onclick=@(() => PickProp( null, false ))><div class="glyph">add</div>Add a prop</div>
         </div>
         @if ( _picking )
         {
@@ -254,11 +265,13 @@
                 <NumberRow Label="Nudge turn" Unit=@NumberRow.Field.NudgeTurn Value=@selectedProp.NudgeYaw OnChanged=@(( float v ) => Change( _ => selectedProp.NudgeYaw = v ))></NumberRow>
             }
         }
+            </Body>
+        </FoldingSection>
 
         @if ( Parts.Count > 0 )
         {
-            <div class="section-header">Parts</div>
-            <div class="note">Point at a part on the weapon to see it; right-click it for the same choices.</div>
+            <FoldingSection Title=@( $"Parts ({Parts.Count})" ) Key="Weapon/Parts" Info="Point at a part on the weapon to see it; right-click it for the same choices.">
+                <Body>
             @foreach ( var part in Parts )
             {
                 var name = part;
@@ -267,13 +280,16 @@
                     <div class="switch @( IsHidden( name ) ? "" : "on" ) @( canHide ? "" : "disabled" )" Tooltip=@( canHide ? (IsHidden( name ) ? "Show it" : "Hide it") : "This weapon can't hide this part" )
                          @onclick=@(( PanelEvent e ) => Act( e, () => SetHidden( name, !IsHidden( name ) ) ))>check</div>
                     <div class="item-name">@name</div>
-                    <div class="reset @( CanAddProp ? "" : "disabled" )" Tooltip="A prop takes its place" @onclick=@(( PanelEvent e ) => Act( e, () => PickProp( name, true ) ))>Replace</div>
-                    <div class="reset @( CanAddProp ? "" : "disabled" )" Tooltip="A prop on it, following it" @onclick=@(( PanelEvent e ) => Act( e, () => PickProp( name, false ) ))>Attach</div>
+                    <div class="icon-button on-hover @( CanAddProp ? "" : "disabled" )" Tooltip="Replace with a prop: a prop takes its place" @onclick=@(( PanelEvent e ) => Act( e, () => PickProp( name, true ) ))>swap_horiz</div>
+                    <div class="icon-button on-hover @( CanAddProp ? "" : "disabled" )" Tooltip="Attach a prop to it, following it" @onclick=@(( PanelEvent e ) => Act( e, () => PickProp( name, false ) ))>attach_file</div>
                 </div>
             }
+                </Body>
+            </FoldingSection>
         }
 
-        <div class="section-header">@( $"Effects ({Design?.Effects?.Count ?? 0} of {WeaponDesign.MaxEffects})" )</div>
+        <FoldingSection Title=@( $"Effects ({Design?.Effects?.Count ?? 0} of {WeaponDesign.MaxEffects})" ) Key="Weapon/Effects">
+            <Body>
         @if ( EffectsLocked )
         {
             <div class="note">The host keeps weapon effects off on this server: others see your weapon without them.</div>
@@ -304,8 +320,11 @@
             <SliderRow Label="Amount" Signed=@true Value=@edited.Amount OnChanged=@(( float value ) => Change( _ => edited.Amount = value ))></SliderRow>
             <SliderRow Label="Speed" Signed=@true Value=@edited.Speed OnChanged=@(( float value ) => Change( _ => edited.Speed = value ))></SliderRow>
         }
+            </Body>
+        </FoldingSection>
 
-        <div class="section-header">Share</div>
+        <FoldingSection Title="Share" Key="Weapon/Share">
+            <Body>
         @if ( IsDraft )
         {
             <div class="note">A draft isn't shared until you finish it.</div>
@@ -315,10 +334,13 @@
             <SharingPanel T="WeaponDesign" Library=@Shared.Weapons Noun="design" ModelId=@Weapon Scope=" for this weapon" Current=@Shareable ShareLabel="Share this design"
                           Describe=@Describe Workshop=@false></SharingPanel>
         }
+            </Body>
+        </FoldingSection>
 
         @if ( WeaponDrafts.Count > 0 )
         {
-            <div class="section-header">Drafts</div>
+            <FoldingSection Title=@( $"Drafts ({WeaponDrafts.Count})" ) Key="Weapon/Drafts">
+                <Body>
             @foreach ( var kept in WeaponDrafts )
             {
                 var shown = kept;
@@ -340,6 +362,8 @@
                     <div class="reset" @onclick=@CancelRename>Cancel</div>
                 </div>
             }
+                </Body>
+            </FoldingSection>
         }
         @if ( _status is not null )
         {

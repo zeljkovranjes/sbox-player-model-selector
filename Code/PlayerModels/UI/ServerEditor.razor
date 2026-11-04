@@ -175,6 +175,12 @@
         <Pager Page=@sharePage Pages=@sharePages OnPage=@ShowSharePage></Pager>
     }
 
+    <div class="section-header">Weapons</div>
+    <ToggleRow Label="Players can customize weapons" Value=@( !selector.BlockWeaponDesigns ) OnChanged=@AllowWeaponDesigns></ToggleRow>
+    <ToggleRow Label="Weapon props" Value=@( !selector.BlockWeaponProps ) OnChanged=@AllowWeaponProps></ToggleRow>
+    <ToggleRow Label="Weapon effects" Value=@( !selector.BlockWeaponEffects ) OnChanged=@AllowWeaponEffects></ToggleRow>
+    <div class="note">Off, players' weapons show as they come, or without the props or effects players gave them: nothing is deleted, and it all comes back when you turn it on. With effects off, weapon effects are off too. Mute one player's in Players above. You always can design yours.</div>
+
     <div class="section-header">Armature</div>
     <ToggleRow Label="Players can set up armatures" Value=@( !selector.BlockArmature ) OnChanged=@AllowArmature></ToggleRow>
     <div class="note">Turned off, players can't give body parts a bone by hand; bones they picked are dropped, and models that need them show the citizen. You always can.</div>
@@ -311,7 +317,8 @@
 
     protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Selector?.BlockCloudModels, Selector?.BlockMountedModels, Selector?.BlockModelFolders,
             Selector?.BlockArmature, Selector?.BlockBodyGroups, Selector?.BlockAccessories, Selector?.BlockEffects, Selector?.EffectsBudget ),
-        HashCode.Combine( Selector?.BlockWorkshopEffects, Selector?.BlockEffectLights, Selector?.BlockDrawnShapes, string.Join( ";", Selector?.MutedEffects ?? Enumerable.Empty<long>() ),
+        HashCode.Combine( Selector?.BlockWorkshopEffects, Selector?.BlockEffectLights, Selector?.BlockDrawnShapes,
+            HashCode.Combine( Selector?.BlockWeaponDesigns, Selector?.BlockWeaponProps, Selector?.BlockWeaponEffects ), string.Join( ";", Selector?.MutedEffects ?? Enumerable.Empty<long>() ),
             string.Join( ";", Selector?.BlockedShares ?? Enumerable.Empty<string>() ), _sharePage ),
         string.Join( ";", Selector?.BlockedModels ?? Enumerable.Empty<string>() ),
         string.Join( ";", Others().Select( x => $"{x.Id}={Selector?.PickOf( x )}{Selector?.IsPickedByHost( x )}" ) ),
@@ -435,6 +442,24 @@
     void AllowDrawnShapes( bool allow )
     {
         Selector?.SetAllowDrawnShapes( allow );
+        StateHasChanged();
+    }
+
+    void AllowWeaponDesigns( bool allow )
+    {
+        Selector?.SetAllowWeaponDesigns( allow );
+        StateHasChanged();
+    }
+
+    void AllowWeaponProps( bool allow )
+    {
+        Selector?.SetAllowWeaponProps( allow );
+        StateHasChanged();
+    }
+
+    void AllowWeaponEffects( bool allow )
+    {
+        Selector?.SetAllowWeaponEffects( allow );
         StateHasChanged();
     }
 

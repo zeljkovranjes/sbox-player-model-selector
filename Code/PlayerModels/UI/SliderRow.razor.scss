@@ -1,12 +1,12 @@
 @import "SelectorTheme.scss";
 
-// A value on a slider: its name, then the slider
+// A value on a slider: its name, then the slider across the row and its number at the end, in line with a NumberRow's
 SliderRow
 {
 	flex-direction: row;
 	align-items: center;
 	flex-shrink: 0;
-	min-height: 24px;
+	min-height: 26px;
 	gap: 8px;
 
 	> .label
@@ -14,5 +14,15 @@ SliderRow
 		@include ui-label;
 		width: 120px;
 		flex-shrink: 0;
+	}
+
+	UISlider .track
+	{
+		max-width: 100%;
+	}
+
+	UISlider .entry
+	{
+		width: 64px;
 	}
 }

@@ -72,16 +72,17 @@ internal static class WeaponSkins
 	/// A sticker as the skin draws it: the map from the model's own space to the box it is pressed in (rows
 	/// <paramref name="X"/>, into it; <paramref name="Y"/>, across; <paramref name="Z"/>, up), how it looks
 	/// (<paramref name="Look"/>: its <see cref="StickerFinish"/>, how scraped, where its wear lies, a die-cut border), its
-	/// colour and its pictures (a lenticular one's second look in <paramref name="Second"/>).
+	/// colour and its pictures (a lenticular one's second look in <paramref name="Second"/>). <paramref name="Picture"/> tells
+	/// its picture and moving colour from another's, whether drawn yet or not.
 	/// </summary>
-	internal readonly record struct Stuck( Vector4 X, Vector4 Y, Vector4 Z, Vector4 Look, Color Tint, Texture First, Texture Second );
+	internal readonly record struct Stuck( Vector4 X, Vector4 Y, Vector4 Z, Vector4 Look, Color Tint, Texture First, Texture Second, string Picture );
 
 	/// <summary>What tells a set of stickers from another's, as text: where each is and how it looks.</summary>
 	internal static string KeyOf( IReadOnlyList<Stuck> stickers )
 	{
 		var key = new System.Text.StringBuilder();
 		foreach ( var sticker in stickers )
-			key.Append( '|' ).Append( sticker.X ).Append( sticker.Y ).Append( sticker.Z ).Append( sticker.Look ).Append( sticker.Tint ).Append( sticker.First?.ResourceName ).Append( sticker.Second?.ResourceName );
+			key.Append( '|' ).Append( sticker.X ).Append( sticker.Y ).Append( sticker.Z ).Append( sticker.Look ).Append( sticker.Tint ).Append( sticker.Picture );
 
 		return key.ToString();
 	}

@@ -482,7 +482,7 @@ internal sealed class WeaponDresser
 
 			pressed.Add( new WeaponSkins.Stuck( Row( place.Rotation.Forward, place.Position, depth ), Row( place.Rotation.Left, place.Position, size ),
 				Row( place.Rotation.Up, place.Position, size ), new Vector4( (float)finish, fitted.Scrape, _stickers.Count * SeedStep, fitted.Border ? 1f : 0f ), tint,
-				TextureOf( stuck ), SecondTextureOf( stuck ) ) );
+				TextureOf( stuck ), SecondTextureOf( stuck ), IdentityOf( fitted, stuck.Drawn ) ) );
 			_stickers.Add( stuck );
 		}
 
@@ -570,4 +570,9 @@ internal sealed class WeaponDresser
 		_moving = null;
 		_drawnStickers.Clear();
 	}
+
+	// What tells a sticker's picture and moving colour from another's, for sharing skin materials between weapons: the
+	// picture asked for, not the texture drawn so far (two drawn stickers both show a circle until they are drawn)
+	private static string IdentityOf( WeaponSticker sticker, DrawnShape drawn ) =>
+		$"{sticker.Picture}|{drawn?.Script?.GetHashCode()}|{sticker.Animation}|{sticker.Speed}|{(sticker.Palette is null ? null : string.Join( ",", sticker.Palette ))}";
 }

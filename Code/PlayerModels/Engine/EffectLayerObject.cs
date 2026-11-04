@@ -24,7 +24,8 @@ internal sealed class EffectLayerObject
 	private const float LifetimeSpread = 0.2f;
 	private const float SizeSpread = 0.2f;
 
-	// Sprites of a picture with a way up stay near upright; the rest turn at random
+	// Sprites of a picture with a way up (a shape, a drawn shape or sticker, a flame) stay near upright; the rest turn at
+	// random
 	private const float UprightRoll = 8f;
 
 	// An emitter counts what it made from when it last started, starting again each loop: long, so that never shows
@@ -549,7 +550,7 @@ internal sealed class EffectLayerObject
 		particles.InitialScale = new ParticleFloat( 1f - SizeSpread, 1f + SizeSpread );
 		particles.ApplyRotation = true;
 		particles.InitialRoll = data.PictureIs == LayerPicture.Slash && data.PictureShape is null ? new ParticleFloat( 0f, 0f )
-			: data.PictureShape is not null || data.PictureIs is LayerPicture.Flame or LayerPicture.Heart or LayerPicture.Droplet
+			: data.PictureShape is not null || data.DrawnPicture is not null || data.PictureIs is LayerPicture.Flame or LayerPicture.Heart or LayerPicture.Droplet
 				? new ParticleFloat( -UprightRoll, UprightRoll )
 				: new ParticleFloat( 0f, 360f );
 

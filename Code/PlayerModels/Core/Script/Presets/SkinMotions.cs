@@ -55,9 +55,9 @@ public static partial class PresetScripts
 
 	/// <summary>A weapon skin's glow: lit from within in the palette's first colour, breathing.</summary>
 	public const string SkinGlow = """
-		-- Glow: lit from within in the palette's first colour, breathing once a second.
+		-- Glow: lit from within in the palette's first colour, breathing once a second (the gun's own detail shows through).
 		local beat = 0.6 + 0.4 * Math.Sin( t * Math.PI * 2 )
-		glow = palette[ 0 ] * (beat * 1.5)
+		glow = palette[ 0 ] * (beat * 0.6)
 		""";
 
 	/// <summary>A weapon skin's shimmer: a sheen sweeping along the weapon.</summary>

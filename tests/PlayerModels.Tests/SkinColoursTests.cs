@@ -14,7 +14,9 @@ namespace PlayerModels.Tests;
 /// <see cref="SkinColours"/>), give what the skin shader worked out itself before the scripts took over: its maths is
 /// copied below as the reference, and both are put through the shader's shading (old: the motion's own formula; new:
 /// shade, paint, glow and sheen from the table) for the same surfaces. Compared at the clan tags' whole milliseconds, a
-/// band's own texel, or a continuous skin's texel centres (the shader blends between those).
+/// band's own texel, or a continuous skin's texel centres (the shader blends between those). Two changes are meant: a
+/// skin's glow is as bright as the weapon's own surface (see <see cref="GlowDetail"/>), and Glow breathes at 0.6 rather
+/// than 1.5, so the gun's detail reads through it instead of a flat silhouette.
 /// </summary>
 public class SkinColoursTests
 {
@@ -73,6 +75,7 @@ public class SkinColoursTests
 		var emission = (0f, 0f, 0f);
 		var rough = Roughness;
 		var p0 = palette[ 0 ];
+		var surface = albedo;
 		switch ( motion )
 		{
 			case WeaponSkin.Motion.Rainbow or WeaponSkin.Motion.Rain or WeaponSkin.Motion.Cycl or WeaponSkin.Motion.Cyln or WeaponSkin.Motion.Palette:
@@ -91,7 +94,7 @@ public class SkinColoursTests
 				break;
 			}
 			case WeaponSkin.Motion.Glow:
-				emission = Mul( p0, (0.6f + 0.4f * MathF.Sin( seconds * 6.28318f )) * 1.5f );
+				emission = Mul( p0, (0.6f + 0.4f * MathF.Sin( seconds * 6.28318f )) * GlowStrength );
 				break;
 			case WeaponSkin.Motion.Shimmer:
 			{
@@ -104,8 +107,15 @@ public class SkinColoursTests
 			}
 		}
 
-		return (albedo, emission, rough);
+		return (albedo, Mul( emission, GlowDetail( surface ) ), rough);
 	}
+
+	// Meant changes from the old shader: Glow's strength, and glow following the surface's own brightness (the shader's
+	// GlowFloor and GlowDetail)
+	private const float GlowStrength = 0.6f;
+
+	private static float GlowDetail( (float R, float G, float B) surface ) =>
+		0.35f + 0.65f * Saturate( (surface.R * 0.3f + surface.G * 0.59f + surface.B * 0.11f) * 3f );
 
 	// The new shading of one point, from the table as the shader reads it (a band's texel, else the one at along)
 	private static ((float, float, float) Albedo, (float, float, float) Emission, float Rough) New( SkinColours table, (float R, float G, float B) albedo, int texel )
@@ -116,7 +126,8 @@ public class SkinColoursTests
 		var light = MathF.Max( albedo.R * 0.3f + albedo.G * 0.59f + albedo.B * 0.11f, 0.35f );
 		var shaded = Mul( albedo, (shade.X, shade.Y, shade.Z) );
 		var result = Lerp( shaded, Mul( (paint.X, paint.Y, paint.Z), Saturate( light * 1.8f ) ), paint.W );
-		return (result, (glow.X, glow.Y, glow.Z), Roughness + (0.1f - Roughness) * glow.W);
+		var detail = 0.35f + 0.65f * Saturate( (albedo.R * 0.3f + albedo.G * 0.59f + albedo.B * 0.11f) * 3f );
+		return (result, Mul( (glow.X, glow.Y, glow.Z), detail ), Roughness + (0.1f - Roughness) * glow.W);
 	}
 
 	private static (float, float, float) Linear( string hex )

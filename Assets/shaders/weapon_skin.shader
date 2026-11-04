@@ -233,6 +233,11 @@ PS
 		return rgb;
 	}
 
+	// A skin's glow is as bright as the weapon's own surface: this much where it is black, all of it where its colour is a
+	// third as bright as white or more
+	static const float GlowFloor = 0.35;
+	static const float GlowDetail = 3.0;
+
 	// The moving colours at a point along the weapon (see g_tSkinColours): a band's own texel, or blended between the 64
 	void SkinAt( float along, out float4 paint, out float4 glow, out float4 shade, out float4 travel )
 	{
@@ -442,14 +447,14 @@ PS
 			albedo = painted * lerp( 1.0, saturate( shade * 2.2 ), 0.35 );
 		}
 
-		// The moving colours: the shade over its own colour, the paint over that keeping its light and dark, its glow, and a
-		// sheen polishing it
+		// The moving colours: the shade over its own colour, the paint over that keeping its light and dark, its glow (as
+		// bright as its own surface is there, so the gun's detail still reads through it), and a sheen polishing it
 		float3 emission = 0.0;
 		if ( g_flSkinMoving > 0.5 )
 		{
 			float light = max( dot( albedo, float3( 0.3, 0.59, 0.11 ) ), 0.35 );
 			albedo = lerp( albedo * skinShade.rgb, paint.rgb * saturate( light * 1.8 ), paint.a );
-			emission = skinGlow.rgb;
+			emission = skinGlow.rgb * ( GlowFloor + ( 1.0 - GlowFloor ) * saturate( shade * GlowDetail ) );
 			m.Roughness = lerp( m.Roughness, 0.1, skinGlow.a );
 		}
 

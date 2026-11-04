@@ -11,7 +11,10 @@ namespace PlayerModels.Core;
 /// </summary>
 public sealed class EffectShape
 {
-	/// <summary>Closed outlines, each its points as x, y pairs one after another, filled in; where they overlap is filled once.</summary>
+	/// <summary>
+	/// Closed outlines, each its points as x, y pairs one after another, filled in; where they overlap is filled once, with
+	/// no edge between them (one outline crossing itself leaves out what it goes round twice).
+	/// </summary>
 	public List<float[]> Fills { get; init; } = new();
 
 	/// <summary>Open lines, each its points as x, y pairs one after another, drawn <see cref="Width"/> wide.</summary>
@@ -50,21 +53,17 @@ public sealed class EffectShape
 		return coverage;
 	}
 
-	// How far the point is outside the shape (negative inside), then softened, lit by the glow and broken up by the haze
+	// How far the point is outside the shape (negative inside), then softened, lit by the glow and broken up by the haze.
+	// Overlapping outlines join: the nearest any of them is, each measured from its own inside, so the edges of one
+	// within another (smoke's puffs) leave no seam
 	private float CoverageAt( float x, float y )
 	{
 		var distance = float.MaxValue;
-
-		var inside = false;
-		var fillEdge = float.MaxValue;
 		foreach ( var fill in Fills )
 		{
-			fillEdge = MathF.Min( fillEdge, DistanceToOutline( fill, x, y, true ) );
-			inside |= Contains( fill, x, y );
+			var edge = DistanceToOutline( fill, x, y, true );
+			distance = MathF.Min( distance, Contains( fill, x, y ) ? -edge : edge );
 		}
-
-		if ( Fills.Count > 0 )
-			distance = inside ? -fillEdge : fillEdge;
 
 		foreach ( var line in Lines )
 			distance = MathF.Min( distance, DistanceToOutline( line, x, y, false ) - Width * 0.5f );

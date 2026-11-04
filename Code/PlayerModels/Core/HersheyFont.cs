@@ -74,6 +74,7 @@ public static class HersheyFont
 
 	// Each printable character from the space on, as Hershey's data has it: its left and right edges, then its points,
 	// " R" between lines; null for a character left out
+	[Sandbox.SkipHotload]
 	private static readonly string[] Glyphs =
 	{
 		@"JZ", @"MWRFRT RRYQZR[SZRY", @"JZNFNM RVFVM", @"H]SBLb RYBRb RLOZO RKUYU", null, null,

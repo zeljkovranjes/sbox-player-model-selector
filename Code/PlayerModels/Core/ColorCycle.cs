@@ -16,6 +16,7 @@ public static class ColorCycle
 	public enum Kind { Rain, Cycl, Cyln }
 
 	/// <summary>The engine colour table the <c>^1</c>..<c>^5</c> codes read (<c>g_color_table</c> @ 0x00838680).</summary>
+	[Sandbox.SkipHotload]
 	public static readonly IReadOnlyList<string> GamePalette = new[] { "#FF3333", "#00FF00", "#FFFF00", "#0000FF", "#00FFFF" };
 
 	/// <summary>The scanner eye of "cyln": <c>^1</c> red, everything else <c>^7</c> white.</summary>

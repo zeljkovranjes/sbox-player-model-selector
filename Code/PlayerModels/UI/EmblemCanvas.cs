@@ -30,8 +30,11 @@ public sealed class EmblemCanvas : Panel
 	// How the overlay is drawn, in pixels of the picture
 	private const int HandlePixels = 3;
 	private const int KnobPixels = 4;
+	[SkipHotload]
 	private static readonly Color32 BoxColour = new( 80, 170, 255 );
+	[SkipHotload]
 	private static readonly Color32 GuideColour = new( 255, 64, 200 );
+	[SkipHotload]
 	private static readonly Color32 CursorColour = new( 255, 255, 255 );
 
 	/// <summary>The emblem shown; null for an empty canvas.</summary>

@@ -28,6 +28,7 @@ public sealed class ShapeIcon : Panel
 		public MovingColour Colour;
 	}
 
+	[SkipHotload]
 	private static readonly Dictionary<Sticker, Moving> Motions = new();
 
 	/// <summary>The shape pictured.</summary>
@@ -43,6 +44,7 @@ public sealed class ShapeIcon : Panel
 	private const float ShineBeats = 0.8f;
 	private const float GlitterSteps = 12f;
 	private const float LenticularSeconds = 0.8f;
+	[SkipHotload]
 	private static readonly Color Gold = new( 1f, 0.82f, 0.45f );
 
 	public override void Tick()

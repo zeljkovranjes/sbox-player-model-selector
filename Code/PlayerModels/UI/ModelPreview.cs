@@ -38,8 +38,11 @@ public sealed class ModelPreview : Panel
 
 	// Pointing at a part: Sandbox's hover outline for body groups, a pulse to this colour for coloured parts
 	private const string NoDrawMaterial = "materials/tools/toolsnodraw.vmat";
+	[SkipHotload]
 	private static readonly Color OutlineColor = new( 2.6f, 2.0f, 0.2f, 1f );
+	[SkipHotload]
 	private static readonly Color OutlineFill = new( 1f, 0.8f, 0.1f, 0.25f );
+	[SkipHotload]
 	private static readonly Color PulseColor = new( 1f, 0.85f, 0.2f );
 	private const float PulsesPerSecond = 1.5f;
 
@@ -48,6 +51,7 @@ public sealed class ModelPreview : Panel
 	private const float ReflectionSize = 2048f;
 
 	// The Armature page's skeleton lines
+	[SkipHotload]
 	private static readonly Color SkeletonColor = new( 0.35f, 0.8f, 1f, 0.9f );
 
 	/// <summary>How the worn model is customised; shown on it when it is the model in the preview.</summary>
@@ -635,6 +639,7 @@ public sealed class ModelPreview : Panel
 		outline.Width = GlowWidth;
 	}
 
+	[SkipHotload]
 	private static readonly Color GlowColor = new( 1f, 0.9f, 0.55f, 1f );
 
 	private void MakeWeapon( HeldWeapon weapon )

@@ -15,6 +15,7 @@ public sealed class Lexer
 	/// <summary>The longest name.</summary>
 	public const int MaxNameLength = 64;
 
+	[Sandbox.SkipHotload]
 	private static readonly (string Word, TokenKind Kind)[] Keywords =
 	{
 		("and", TokenKind.And), ("break", TokenKind.Break), ("do", TokenKind.Do), ("else", TokenKind.Else), ("elseif", TokenKind.ElseIf),

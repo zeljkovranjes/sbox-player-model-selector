@@ -8,6 +8,7 @@ public partial class ScriptReferencePanel
 	// A page to start from: what a script is, how expressions work, parameters; each with a clip and something to try
 	sealed record Page( string Title, string Clip, string[] Text, string Example );
 
+	[Sandbox.SkipHotload]
 	static readonly Page[] Pages =
 	{
 		new( "Script", "script", new[]

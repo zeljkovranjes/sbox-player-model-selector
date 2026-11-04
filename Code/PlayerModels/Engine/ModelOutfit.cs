@@ -18,6 +18,7 @@ internal static class ModelOutfit
 	private const string HumanFemale = "models/citizen_human/citizen_human_female.vmdl";
 
 	// The citizens that ship with s&box, the bodies avatar clothing is made for
+	[SkipHotload]
 	private static readonly HashSet<string> StockCharacters = new( StringComparer.OrdinalIgnoreCase )
 	{
 		ClassicCitizen,
@@ -28,11 +29,13 @@ internal static class ModelOutfit
 
 	// An avatar's skin item is what picks the human body (and the female cut of every garment), so a stock character is
 	// dressed with the skin of its own sex: the same skin tone where s&box has a twin of it.
+	[SkipHotload]
 	private static readonly Dictionary<string, string> FemaleTwin = new( StringComparer.OrdinalIgnoreCase )
 	{
 		[ "models/citizen_clothes/body/human01.clothing" ] = "models/citizen_clothes/body/human02.clothing",
 	};
 
+	[SkipHotload]
 	private static readonly Dictionary<string, string> MaleTwin = new( StringComparer.OrdinalIgnoreCase )
 	{
 		[ "models/citizen_clothes/body/human02.clothing" ] = "models/citizen_clothes/body/human01.clothing",

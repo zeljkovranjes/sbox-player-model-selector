@@ -14,6 +14,7 @@ namespace PlayerModels.Core;
 public static class EffectPresets
 {
 	/// <summary>Every preset, in the order they are offered. Never worn as they are: see <see cref="Copy"/>.</summary>
+	[field: Sandbox.SkipHotload]
 	public static IReadOnlyList<Effect> All { get; } = PresetScripts.Gallery();
 
 	/// <summary>The presets for a weapon: those that come from the weapon held, offered first in a weapon's design.</summary>

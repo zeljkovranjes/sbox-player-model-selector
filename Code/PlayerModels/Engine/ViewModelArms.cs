@@ -14,9 +14,11 @@ internal static class ViewModelArms
 	internal const string DefaultArms = "models/first_person/v_first_person_arms_human.vmdl";
 
 	// The bones Sandbox's weapon animations move; arms without them would hang still
+	[Sandbox.SkipHotload]
 	private static readonly string[] ArmBones = { "arm_upper_L", "arm_lower_L", "hand_L", "arm_upper_R", "arm_lower_R", "hand_R" };
 
 	// A model with legs is a body, and would wrap around the camera in first person
+	[Sandbox.SkipHotload]
 	private static readonly string[] LegBones = { "leg_upper_L", "leg_upper_R" };
 
 	private static readonly VerdictCache Verdicts = new( "player_model_selector/viewmodel_verdicts.json" );

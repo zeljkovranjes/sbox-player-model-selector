@@ -38,9 +38,13 @@ internal sealed class TransformGizmo
 	private const float SnapScale = 0.1f;
 	private const float Precise = 0.1f;
 
+	[SkipHotload]
 	private static readonly Color Hover = new( 1f, 0.85f, 0.2f );
+	[SkipHotload]
 	private static readonly Color Free = new( 0.95f, 0.95f, 0.95f );
+	[SkipHotload]
 	private static readonly Color[] AxisColors = { new( 1f, 0.3f, 0.3f ), new( 0.45f, 0.9f, 0.3f ), new( 0.3f, 0.55f, 1f ) };
+	[SkipHotload]
 	private static readonly string[] AxisNames = { "X", "Y", "Z" };
 
 	/// <summary>An operation under way, started from a key (G, R, S) or by dragging a handle.</summary>

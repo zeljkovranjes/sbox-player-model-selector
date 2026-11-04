@@ -26,6 +26,7 @@ internal sealed class EffectScriptRun : IScriptHost
 	private const int MostEmitted = (int)EffectLayer.MaxBurst;
 
 	// What each moment a layer can show on (see LayerWhen) is to a script: the event of the same name, or none
+	[SkipHotload]
 	private static readonly ScriptEvent[] MomentEvents = Moments();
 
 	// Every body's instructions left this frame, and the frame they were counted for

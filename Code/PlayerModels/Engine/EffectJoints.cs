@@ -24,6 +24,7 @@ internal sealed class EffectJoints
 
 	// Where the eyes are on a model that doesn't mark them: in front of its head bone and above it, each this far to
 	// the side, as on the citizen
+	[SkipHotload]
 	private static readonly Vector3 EyesFromHead = new( 3f, 0f, 4f );
 	private const float EyeApart = 1.35f;
 

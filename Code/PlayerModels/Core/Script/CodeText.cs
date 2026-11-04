@@ -30,6 +30,7 @@ public static class CodeText
 	/// <summary>The most matches find counts; past it the count reads as "1000+".</summary>
 	public const int MostMatches = 1000;
 
+	[Sandbox.SkipHotload]
 	private static readonly (char Open, char Close)[] Pairs = { ('(', ')'), ('[', ']'), ('{', '}'), ('"', '"'), ('\'', '\'') };
 
 	/// <summary>Where the line holding <paramref name="at"/> starts.</summary>

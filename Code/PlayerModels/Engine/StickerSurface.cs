@@ -23,6 +23,7 @@ internal static class StickerSurface
 	private sealed record Mesh( Vector3[] Points, uint[] Triangles );
 
 	private static readonly Dictionary<string, Mesh> Meshes = new();
+	[SkipHotload]
 	private static readonly Dictionary<(string, Vector3, Vector3), float?> Answers = new();
 
 	/// <summary>

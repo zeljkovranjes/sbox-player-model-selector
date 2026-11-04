@@ -238,6 +238,7 @@ internal sealed partial class PoseTransfer
 		return AutoMapper.Map( skeleton ).RoleToBone.ToDictionary( x => x.Key, x => skeleton[ x.Value ].Name );
 	}
 
+	[SkipHotload]
 	private static readonly BoneRole[] Essentials =
 		{ BoneRole.Hips, BoneRole.Head, BoneRole.HandL, BoneRole.HandR, BoneRole.FootL, BoneRole.FootR };
 

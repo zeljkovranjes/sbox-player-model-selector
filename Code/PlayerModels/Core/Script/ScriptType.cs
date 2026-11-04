@@ -39,23 +39,39 @@ public sealed class ScriptType
 		Enum = enumeration;
 	}
 
+	[Sandbox.SkipHotload]
 	public static readonly ScriptType Error = new( TypeKind.Error, 1 );
+	[Sandbox.SkipHotload]
 	public static readonly ScriptType Void = new( TypeKind.Void, 0 );
+	[Sandbox.SkipHotload]
 	public static readonly ScriptType Number = new( TypeKind.Number, 1 );
+	[Sandbox.SkipHotload]
 	public static readonly ScriptType Bool = new( TypeKind.Bool, 1 );
+	[Sandbox.SkipHotload]
 	public static readonly ScriptType String = new( TypeKind.String, 1 );
+	[Sandbox.SkipHotload]
 	public static readonly ScriptType Color = new( TypeKind.Color, 4 );
+	[Sandbox.SkipHotload]
 	public static readonly ScriptType Vector3 = new( TypeKind.Vector3, 3 );
+	[Sandbox.SkipHotload]
 	public static readonly ScriptType Key = new( TypeKind.Key, 1 );
+	[Sandbox.SkipHotload]
 	public static readonly ScriptType Shape = new( TypeKind.Shape, 1 );
+	[Sandbox.SkipHotload]
 	public static readonly ScriptType Picture = new( TypeKind.Picture, 1 );
+	[Sandbox.SkipHotload]
 	public static readonly ScriptType Layer = new( TypeKind.Layer, 1 );
+	[Sandbox.SkipHotload]
 	public static readonly ScriptType Effect = new( TypeKind.Effect, 1 );
+	[Sandbox.SkipHotload]
 	public static readonly ScriptType EmblemLayer = new( TypeKind.EmblemLayer, 1 );
+	[Sandbox.SkipHotload]
 	public static readonly ScriptType Particle = new( TypeKind.Particle, 0 );
+	[Sandbox.SkipHotload]
 	public static readonly ScriptType Shot = new( TypeKind.Shot, 0 );
 
 	/// <summary>Any type, for a library parameter that takes one (List.Create's value); checked by its call.</summary>
+	[Sandbox.SkipHotload]
 	public static readonly ScriptType Any = new( TypeKind.Error, 1 );
 
 	/// <summary>A list of <paramref name="element"/>.</summary>
@@ -68,6 +84,7 @@ public sealed class ScriptType
 	internal static ScriptType EnumOf( ScriptEnum enumeration ) => new( TypeKind.Enum, 1, null, null, null, enumeration );
 
 	/// <summary>The types a script names directly (in <c>local x: Color</c>), by name.</summary>
+	[Sandbox.SkipHotload]
 	public static readonly IReadOnlyDictionary<string, ScriptType> Named = new Dictionary<string, ScriptType>
 	{
 		["number"] = Number, ["bool"] = Bool, ["string"] = String, ["Color"] = Color, ["Vector3"] = Vector3, ["Key"] = Key,

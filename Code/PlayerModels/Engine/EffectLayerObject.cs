@@ -15,6 +15,7 @@ namespace PlayerModels.Engine;
 internal sealed partial class EffectLayerObject
 {
 	// All around the body: an upright ball, this much narrower than it is tall
+	[SkipHotload]
 	private static readonly Vector3 AroundBodyBias = new( 0.35f, 0.35f, 1f );
 
 	// A ring's sprites come from this close around its line, for its size
@@ -63,6 +64,7 @@ internal sealed partial class EffectLayerObject
 	private const int TrailShades = 10;
 
 	// Sprites fade in over the first part of their life and out over the last, so none pops in or out
+	[SkipHotload]
 	private static readonly Curve Fade = new( new Curve.Frame( 0f, 0f ), new Curve.Frame( 0.15f, 1f ), new Curve.Frame( 0.6f, 1f ), new Curve.Frame( 1f, 0f ) );
 
 	/// <summary>The object itself.</summary>

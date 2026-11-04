@@ -268,7 +268,9 @@
 @code
 {
     // The first tile of each grid: no model picked, so the citizen as you, or Sandbox's own arms
+    [SkipHotload]
     static readonly Tile DefaultTile = new( "Default", "", $"thumb:{ModelLoader.CitizenModel}", false );
+    [SkipHotload]
     static readonly Tile DefaultArmsTile = new( "Default", "", $"thumb:{ViewModelArms.DefaultArms}", false );
 
     // Game: the mounted game a model comes from, for its own group under Mounts

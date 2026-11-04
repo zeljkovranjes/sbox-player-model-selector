@@ -119,7 +119,9 @@
     const float WalkReach = 50f;
     const float LoopSeconds = 2f;
     const float TargetDistance = 160f;
+    [SkipHotload]
     static readonly float[] Speeds = { 120f, 300f };
+    [SkipHotload]
     static readonly float[] Slows = { 1f, 0.5f, 0.25f };
 
     sealed record Action( string Name, string Icon, string Tip, ScriptEvent Event );

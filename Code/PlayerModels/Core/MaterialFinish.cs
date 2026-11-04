@@ -7,6 +7,7 @@ namespace PlayerModels.Core;
 public static class MaterialFinish
 {
 	/// <summary>Every finish.</summary>
+	[Sandbox.SkipHotload]
 	public static readonly IReadOnlyList<string> All = new[] { "Gold", "Silver", "Chrome", "Copper", "Bronze", "Gloss", "Clay", "Matte black" };
 
 	/// <summary>What a single part can be given as well: it isn't drawn at all (see <see cref="Hiding"/>).</summary>

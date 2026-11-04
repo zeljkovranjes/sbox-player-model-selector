@@ -32,12 +32,17 @@ public readonly record struct EffectBudget( int Layers, int Lights, int Sprites 
 	/// The budgets a host picks from; a custom one is within <see cref="Most"/>. Normal fits any three presets worn
 	/// together.
 	/// </summary>
+	[Sandbox.SkipHotload]
 	public static readonly EffectBudget Low = new( 6, 1, 150 );
+	[Sandbox.SkipHotload]
 	public static readonly EffectBudget Normal = new( NormalLayers, NormalLights, NormalSprites );
+	[Sandbox.SkipHotload]
 	public static readonly EffectBudget High = new( 24, 6, 1000 );
+	[Sandbox.SkipHotload]
 	public static readonly EffectBudget Most = new( Effect.MaxLookLayers, 8, 2000 );
 
 	/// <summary>No effects at all.</summary>
+	[Sandbox.SkipHotload]
 	public static readonly EffectBudget None = new( 0, 0, 0 );
 
 	/// <summary>The budget <paramref name="level"/> means; a custom one is the numbers given, within <see cref="Most"/>.</summary>

@@ -55,6 +55,7 @@ internal sealed class ModelCatalog
 	}
 
 	// Arms packages are few among the props a search for hands or arms brings; only these get a check (a download)
+	[SkipHotload]
 	private static readonly string[] ArmsWords = { "arms", "hands", "hand_", "_hand" };
 
 	private readonly List<Entry> _bodies = new();

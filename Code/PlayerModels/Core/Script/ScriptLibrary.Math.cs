@@ -5,6 +5,7 @@ namespace PlayerModels.Core.Script;
 
 public static partial class ScriptLibrary
 {
+	[Sandbox.SkipHotload]
 	private static readonly ScriptType N = ScriptType.Number;
 
 	private static void AddMath( List<LibraryEntry> entries )
@@ -74,6 +75,7 @@ public static partial class ScriptLibrary
 	}
 
 	/// <summary>The colours named on <c>Color</c>, as r, g, b, a.</summary>
+	[Sandbox.SkipHotload]
 	internal static readonly (string Name, double R, double G, double B, double A)[] NamedColors =
 	{
 		("White", 1, 1, 1, 1), ("Black", 0, 0, 0, 1), ("Red", 1, 0, 0, 1), ("Green", 0, 1, 0, 1), ("Blue", 0, 0, 1, 1),
@@ -136,6 +138,7 @@ public static partial class ScriptLibrary
 	}
 
 	/// <summary>The directions named on <c>Vector3</c>.</summary>
+	[Sandbox.SkipHotload]
 	internal static readonly (string Name, double X, double Y, double Z)[] NamedVectors =
 	{
 		("Zero", 0, 0, 0), ("One", 1, 1, 1), ("Forward", 1, 0, 0), ("Backward", -1, 0, 0), ("Left", 0, 1, 0), ("Right", 0, -1, 0),

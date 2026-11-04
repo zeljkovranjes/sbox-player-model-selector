@@ -329,5 +329,6 @@ internal static class ShapeTextures
 	}
 
 	// Made once, so looking for the furthest allocates nothing
+	[SkipHotload]
 	private static readonly Func<Entry, float> NearestOf = x => x.Nearest;
 }

@@ -10,9 +10,11 @@ namespace PlayerModels.UI;
 /// </summary>
 public sealed class CodeTheme
 {
+	[SkipHotload]
 	public static readonly CodeTheme Dark = new( "dark", "#cccccc", "#569cd6", "#c586c0", "#b5cea8", "#ce9178", "#6a9955", "#dcdcaa", "#4ec9b0", "#9cdcfe",
 		"#d4d4d4", "#f14c4c", "#623315" );
 
+	[SkipHotload]
 	public static readonly CodeTheme Light = new( "light", "#3b3b3b", "#0000ff", "#af00db", "#098658", "#a31515", "#008000", "#795e26", "#267f99", "#001080",
 		"#000000", "#e51400", "#e8d9a8" );
 

@@ -27,6 +27,7 @@ public sealed class PlayerLook
 	private const int MaxNameLength = 64;
 	private const int MaxModelLength = 256;
 
+	[Sandbox.SkipHotload]
 	private static readonly Regex HexColour = new( "^#[0-9a-fA-F]{6}$" );
 
 	/// <summary>The picked model (see <see cref="PlayerModelEntry.Model"/>); empty for the default citizen.</summary>

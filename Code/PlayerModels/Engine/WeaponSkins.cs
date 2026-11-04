@@ -49,6 +49,7 @@ internal static class WeaponSkins
 	internal const int MostStickers = 8;
 
 	// The shader's names for each sticker's settings, made once so setting them allocates nothing
+	[SkipHotload]
 	private static readonly string[] RowX = Names( "g_vStickerX" ), RowY = Names( "g_vStickerY" ), RowZ = Names( "g_vStickerZ" ), Look = Names( "g_vStickerLook" ),
 		TintOf = Names( "g_vStickerTint" ), Pictures = Names( "g_vStickerPictures" );
 

@@ -27,6 +27,7 @@ internal static class CloudModels
 	internal const int MinHumanBones = 15;
 
 	// Packages tagged as one of these are parts of a body or things worn on one, never a body to be
+	[SkipHotload]
 	private static readonly HashSet<string> NotBodyTags = new( StringComparer.OrdinalIgnoreCase )
 		{ "hand", "hands", "arm", "arms", "clothing", "citizen" };
 
@@ -40,9 +41,11 @@ internal static class CloudModels
 	private static readonly TimedCache<SearchPage> SavedSearches = new( "player_model_selector/searches.json", TimeSpan.FromHours( 1 ), 256 );
 
 	// "org.ident": a package, never a path into the game's files
+	[SkipHotload]
 	private static readonly Regex PackageIdent = new( @"^[a-z0-9_\-]+\.[a-z0-9_\-]+$", RegexOptions.IgnoreCase );
 
 	// The "(Playermodel)" / "[PLAYERMODEL]" / "(PM)" tags uploaders put in titles; the window already says what they are
+	[SkipHotload]
 	private static readonly Regex TitleTags = new( @"\s*[\(\[]\s*(player\s*model|pm)\s*[\)\]]\s*|\s+-\s*pm$", RegexOptions.IgnoreCase );
 
 	/// <summary>Whether <paramref name="model"/> is an sbox.game package ident.</summary>

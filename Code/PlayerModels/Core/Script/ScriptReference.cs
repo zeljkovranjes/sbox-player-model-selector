@@ -14,6 +14,7 @@ namespace PlayerModels.Core.Script;
 public static class ScriptReference
 {
 	// An effect needs a layer: an example that makes none (a sum, a colour) runs with one added after it
+	[Sandbox.SkipHotload]
 	private static readonly Regex MakesLayer = new( @"\b(Sprite|Light|Trail|Beam|Ghost)\(\)|Effect\.Include" );
 
 	/// <summary>

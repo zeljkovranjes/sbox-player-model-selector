@@ -54,6 +54,7 @@ public sealed class Effect
 
 	/// <summary>The longest an id is.</summary>
 	public const int MaxIdLength = 12;
+	[Sandbox.SkipHotload]
 	private static readonly Regex IdPattern = new( "^[a-z0-9]+$" );
 
 	/// <summary>What tells it from the look's other effects, as long as it is worn (short, lower case letters and digits).</summary>
@@ -75,6 +76,7 @@ public sealed class Effect
 	/// The keys an effect can be shown with, by the names the game's keyboard reads: letters, digits, the function keys and
 	/// the side mouse buttons.
 	/// </summary>
+	[field: Sandbox.SkipHotload]
 	public static IReadOnlyList<string> Keys { get; } = KeyNames();
 
 	/// <summary>What its key does, a <see cref="KeyAction"/> by name; null to fire (show it for a moment each press).</summary>

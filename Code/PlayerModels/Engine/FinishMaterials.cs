@@ -20,6 +20,7 @@ internal static class FinishMaterials
 	private const string NormalTexture = "g_tNormal";
 
 	// Features deciding which pixels draw, from the alpha of the colour texture: hair cards would be solid sheets without
+	[SkipHotload]
 	private static readonly string[] CutOutFeatures = { "F_ALPHA_TEST", "F_TRANSLUCENT" };
 	private const string AlphaTestFeature = "F_ALPHA_TEST";
 

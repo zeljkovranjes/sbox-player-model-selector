@@ -102,6 +102,7 @@
     [Parameter] public Action<string> Pointed { get; set; }
 
     // The body parts, in the order a person reads a body; fingers stay automatic
+    [SkipHotload]
     static readonly (string Group, (BoneRole Role, string Label)[] Roles)[] Groups =
     {
         ("Body", new[] { (BoneRole.Hips, "Hips"), (BoneRole.Spine0, "Lower spine"), (BoneRole.Spine1, "Middle spine"),
@@ -115,6 +116,7 @@
     };
 
     // A model can't be worn without these
+    [SkipHotload]
     static readonly HashSet<BoneRole> Required =
         new() { BoneRole.Hips, BoneRole.Head, BoneRole.HandL, BoneRole.HandR, BoneRole.FootL, BoneRole.FootR };
 

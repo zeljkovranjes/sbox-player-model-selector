@@ -8,6 +8,7 @@ public sealed partial class Compiler
 	private readonly List<ScriptParameter> _parameters = new();
 
 	// The named arguments [Parameter] takes
+	[Sandbox.SkipHotload]
 	internal static readonly string[] ParameterArguments = { "Min", "Max", "Step", "Group", "Tip", "Choices", "Order" };
 
 	// [Parameter( ... )] local name = literal: checks the attribute, records the option, and lets a chosen value replace the literal

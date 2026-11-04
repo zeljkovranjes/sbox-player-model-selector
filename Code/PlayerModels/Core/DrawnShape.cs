@@ -55,6 +55,7 @@ public sealed class DrawnShape
 	private const int DigitsPerPoint = 4;
 	private const int Levels = 4095;
 	private const string Digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+	[Sandbox.SkipHotload]
 	private static readonly int[] DigitValues = MakeDigitValues();
 
 	// An id is sixteen hex digits of a 64-bit FNV-1a hash of what the shape is

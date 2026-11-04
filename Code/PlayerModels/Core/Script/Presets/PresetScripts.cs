@@ -11,6 +11,7 @@ namespace PlayerModels.Core.Script;
 public static partial class PresetScripts
 {
 	/// <summary>Every stock effect's script, by its name, in the order the gallery offers them.</summary>
+	[field: Sandbox.SkipHotload]
 	public static IReadOnlyList<(string Name, string Script)> All { get; } = new[]
 	{
 		("Glowing eyes", GlowingEyes), ("Fire hands", FireHands), ("Sparkle halo", SparkleHalo), ("Holy aura", HolyAura),

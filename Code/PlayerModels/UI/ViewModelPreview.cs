@@ -19,12 +19,15 @@ public sealed class ViewModelPreview : Panel
 
 	// The preview is tall and narrow while a view model is framed for a wide screen, with the weapon off to the right:
 	// from a little behind the eye, turn towards the weapon so both hands and the weapon fit
+	[SkipHotload]
 	private static readonly Vector3 EyeOffset = new( -6f, 0f, 0f );
+	[SkipHotload]
 	private static readonly Angles TurnToWeapon = new( 5f, -11f, 0f );
 
 	// A worn model's shoulders sit around the eye, where the game's camera is; looking from behind the eye, the preview
 	// would be inside them. Everything nearer than the eye is clipped instead, as the game's camera leaves it behind.
 	private const float NearClip = 1f;
+	[SkipHotload]
 	private static readonly float BodyArmsNearClip = -EyeOffset.x + 1f;
 
 	private readonly ScenePanel _scene;

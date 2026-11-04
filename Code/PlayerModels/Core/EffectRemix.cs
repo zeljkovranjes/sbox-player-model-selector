@@ -27,12 +27,14 @@ public static class EffectRemix
 	private const float LeastTurn = 0.12f;
 
 	// The pictures a variation swaps between: bright ones that read alike, so smoke stays smoke and flames stay flames
+	[Sandbox.SkipHotload]
 	private static readonly string[] Swappable =
 	{
 		nameof( LayerPicture.Glow ), nameof( LayerPicture.Spark ), nameof( LayerPicture.Sparkle ), nameof( LayerPicture.Heart ),
 		nameof( LayerPicture.Snowflake ), nameof( StandardShape.Star5 ), nameof( StandardShape.Star4 ), nameof( StandardShape.Diamond ),
 	};
 
+	[Sandbox.SkipHotload]
 	private static readonly string[] Rhythms =
 	{
 		nameof( LayerRhythm.Steady ), nameof( LayerRhythm.Pulse ), nameof( LayerRhythm.Flicker ), nameof( LayerRhythm.Spin ), nameof( LayerRhythm.Jiggle ),

@@ -60,6 +60,7 @@ internal sealed partial class EffectSignals
 	// Losing at least this much health is getting hurt
 	private const float HurtFrom = 0.5f;
 
+	[SkipHotload]
 	private static readonly int Moments = Enum.GetValues<LayerWhen>().Length;
 
 	/// <summary>

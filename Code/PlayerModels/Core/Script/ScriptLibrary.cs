@@ -11,9 +11,11 @@ namespace PlayerModels.Core.Script;
 public static partial class ScriptLibrary
 {
 	/// <summary>Every entry, in the reference's order.</summary>
+	[field: Sandbox.SkipHotload]
 	public static IReadOnlyList<LibraryEntry> All { get; }
 
 	/// <summary>The categories, in the reference's order.</summary>
+	[Sandbox.SkipHotload]
 	public static readonly string[] Categories =
 	{
 		"Keywords", "Types", "Parameters", "Math", "Color", "Vector3", "Lists", "Effect", "Layer", "Particle", "Shape", "Emblem",
@@ -26,13 +28,21 @@ public static partial class ScriptLibrary
 	internal const int RestSlot = 6;
 	internal const int ReservedSlots = 10;
 
+	[Sandbox.SkipHotload]
 	private static readonly Dictionary<string, LibraryEntry> Globals = new();
+	[Sandbox.SkipHotload]
 	private static readonly Dictionary<string, Dictionary<string, LibraryEntry>> Namespaces = new();
+	[Sandbox.SkipHotload]
 	private static readonly Dictionary<TypeKind, Dictionary<string, LibraryEntry>> Members = new();
+	[Sandbox.SkipHotload]
 	private static readonly Dictionary<string, LibraryEntry> Events = new();
+	[Sandbox.SkipHotload]
 	private static readonly Dictionary<string, LibraryEntry> Keywords = new();
+	[Sandbox.SkipHotload]
 	private static readonly Dictionary<string, LibraryEntry> Types = new();
+	[Sandbox.SkipHotload]
 	private static readonly Dictionary<string, LibraryEntry> Keys = new();
+	[Sandbox.SkipHotload]
 	private static readonly Dictionary<string, LibraryEntry> Attributes = new();
 
 	static ScriptLibrary()

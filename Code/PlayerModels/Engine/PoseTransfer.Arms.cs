@@ -23,6 +23,7 @@ internal sealed partial class PoseTransfer
 	private const float ForearmRollShare = 0.5f;
 
 	// The joints that are moved onto the weapon's joints; the fingers keep the model's own lengths from the hand on
+	[SkipHotload]
 	private static readonly BoneRole[] PinnedRoles =
 	{
 		BoneRole.ClavicleL, BoneRole.ClavicleR, BoneRole.UpperArmL, BoneRole.UpperArmR,
@@ -30,6 +31,7 @@ internal sealed partial class PoseTransfer
 	};
 
 	// Where the citizen's bind is lined up with the weapon's arms: the first of these the weapon has
+	[SkipHotload]
 	private static readonly BoneRole[] AnchorRoles = { BoneRole.ClavicleR, BoneRole.ClavicleL, BoneRole.UpperArmR, BoneRole.UpperArmL };
 
 	// Source side, by the retargeter's index: the citizen's bind relative to the model, and the pose put together

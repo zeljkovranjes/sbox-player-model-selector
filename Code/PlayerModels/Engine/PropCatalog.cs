@@ -13,7 +13,9 @@ namespace PlayerModels.Engine;
 internal static class PropCatalog
 {
 	// Where the stock props are, and the names of pieces that aren't props on their own (what breaks off a prop)
+	[SkipHotload]
 	private static readonly string[] Folders = { "models/citizen_props/", "models/sbox_props/", "models/props/" };
+	[SkipHotload]
 	private static readonly string[] Pieces = { "gib", "_lod", "piece" };
 	private const string CompiledExtension = "_c";
 

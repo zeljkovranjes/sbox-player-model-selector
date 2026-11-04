@@ -18,10 +18,14 @@ public sealed record ScriptProperty(
 /// </summary>
 public static class ScriptProperties
 {
+	[Sandbox.SkipHotload]
 	private static readonly ScriptType Particle = ScriptType.FunctionOf( new[] { ScriptType.Particle }, ScriptType.Void );
+	[Sandbox.SkipHotload]
 	private static readonly ScriptType Colors = ScriptType.ListOf( ScriptType.Color );
+	[Sandbox.SkipHotload]
 	private static readonly ScriptType Pictures = ScriptType.ListOf( ScriptType.Picture );
 
+	[Sandbox.SkipHotload]
 	public static readonly IReadOnlyList<ScriptProperty> All = new ScriptProperty[]
 	{
 		new( PropertyId.LayerKind, TypeKind.Layer, "Kind", ScriptEnums.Kind.Type, "What the layer is: Sprite(), Light(), Trail(), Beam() or Ghost() made it.", ReadOnly: true, ExampleResult: "Kind.Sprite" ),
@@ -102,7 +106,9 @@ public static class ScriptProperties
 	};
 
 	/// <summary>Where each layer property starts in a layer's live block, and how big a block is.</summary>
+	[Sandbox.SkipHotload]
 	public static readonly int[] LiveOffset = LiveLayout( out LiveBlockSize );
+	[Sandbox.SkipHotload]
 	public static readonly int LiveBlockSize;
 
 	/// <summary>The property <paramref name="id"/>.</summary>

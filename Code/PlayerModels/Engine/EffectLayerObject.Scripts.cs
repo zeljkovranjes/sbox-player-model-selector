@@ -36,6 +36,14 @@ internal sealed partial class EffectLayerObject
 	private static readonly ScriptIO ElementIO = new();
 	private static ScriptMachine[] _rhythms;
 
+	// The sticker its sprites show has a script of its own (see DrawnShape.Script): run for each sprite to fade, size, turn
+	// or move it (its layers' colours are the texture's). Every sprite on this client shares these instructions a frame;
+	// past them, sprites keep their own
+	private const int StickerFrameInstructions = 200_000;
+	private static int _stickerLeft;
+	private static float _stickerCountedAt = -1f;
+	private ScriptMachine _sticker;
+
 	// Its effect's script and which layer of its build this is (-1 for none), whether it has a particle function, and
 	// whether the script switched it off
 	private EffectScriptRun _run;
@@ -101,6 +109,9 @@ internal sealed partial class EffectLayerObject
 		_keep = Kind == LayerKind.Sprite ? (int)data.Keep : 0;
 		_align = data.AlignIs;
 		_colours = null;
+		_sticker = _drawn?.Script is { } sticker && ScriptPrograms.Cache.Compile( sticker, ScriptKind.Sticker ) is { Succeeded: true } scripted
+			? new ScriptMachine( scripted.Program )
+			: null;
 
 		var mode = data.ColorModeIs;
 		if ( mode == LayerColorMode.Fixed || Kind is not (LayerKind.Sprite or LayerKind.Light) )
@@ -300,9 +311,12 @@ internal sealed partial class EffectLayerObject
 			var offset = Vector3.Zero;
 			var rotation = p.Angles.roll;
 			var frame = -1;
+			var origin = kept ? new Vector3( _keepPlaces[ index * 3 ], _keepPlaces[ index * 3 + 1 ], _keepPlaces[ index * 3 + 2 ] ) : p.HitNormal;
 			if ( runs && _run.CanRun )
-				RunParticle( p, index, count, life, kept ? new Vector3( _keepPlaces[ index * 3 ], _keepPlaces[ index * 3 + 1 ], _keepPlaces[ index * 3 + 2 ] ) : p.HitNormal,
-					place, ref position, ref offset, ref rotation, ref frame );
+				RunParticle( p, index, count, life, origin, place, ref position, ref offset, ref rotation, ref frame );
+
+			if ( _sticker is not null )
+				RunSticker( p, index, count, life, origin, ref offset, ref rotation );
 
 			if ( alignment is { } aligned )
 				p.Angles = ((_align == LayerAlign.Outward ? Outward( position - place.Position, place ) : aligned) * Rotation.FromRoll( rotation )).Angles();
@@ -396,6 +410,46 @@ internal sealed partial class EffectLayerObject
 			position = new Vector3( Math.Clamp( wanted.x, anchor.x - PositionReach, anchor.x + PositionReach ), Math.Clamp( wanted.y, anchor.y - PositionReach, anchor.y + PositionReach ),
 				Math.Clamp( wanted.z, anchor.z - PositionReach, anchor.z + PositionReach ) );
 		}
+	}
+
+	// One sprite through its sticker's own script, within what this frame has left of the instructions sprites' stickers
+	// share: how solid, big, turned and moved it is (its colour is the sticker's)
+	private void RunSticker( Particle p, int index, int count, float life, Vector3 origin, ref Vector3 offset, ref float rotation )
+	{
+		var now = Time.Now;
+		if ( _stickerCountedAt != now )
+			(_stickerCountedAt, _stickerLeft) = (now, StickerFrameInstructions);
+
+		var budget = Math.Min( ScriptLimits.RunInstructions, _stickerLeft );
+		if ( budget <= 0 )
+			return;
+
+		var io = ElementIO;
+		ResetOutputs( io );
+		io.Set( ScriptInput.Time, _cycleMs );
+		io.Set( ScriptInput.Seconds, _cycleMs / MillisecondsPerSecond );
+		io.Set( ScriptInput.Index, index );
+		io.Set( ScriptInput.Count, count );
+		io.Set( ScriptInput.Life, life );
+		io.Set( ScriptInput.OriginX, origin.x, origin.y, origin.z );
+		var finished = _sticker.RunElement( io, ScriptPrograms.Stack, budget );
+		_stickerLeft -= finished ? budget - _sticker.InstructionsLeft : budget;
+		if ( !finished )
+			return;
+
+		var outputs = io.Outputs;
+		var set = io.OutputsSet;
+		if ( (set & ScriptIO.AlphaSet) != 0 )
+			p.Alpha *= (float)outputs[ (int)ScriptOutput.Alpha ];
+
+		if ( (set & ScriptIO.SizeSet) != 0 )
+			p.Size *= (float)outputs[ (int)ScriptOutput.Size ];
+
+		if ( (set & ScriptIO.RotationSet) != 0 )
+			rotation += (float)outputs[ (int)ScriptOutput.Rotation ];
+
+		if ( (set & ScriptIO.OffsetSet) != 0 )
+			offset += new Vector3( (float)outputs[ (int)ScriptOutput.OffsetX ], (float)outputs[ (int)ScriptOutput.OffsetY ], (float)outputs[ (int)ScriptOutput.OffsetZ ] );
 	}
 
 	// Which way the layer's sprites lie this frame (null: as the renderer has them, facing the camera): flat on the

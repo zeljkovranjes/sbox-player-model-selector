@@ -11,7 +11,7 @@ namespace PlayerModels.Core;
 /// <see cref="Job"/>), so a crowd's emblems are drawn a little a frame. Layers whose colour moves are kept apart as how
 /// much of each pixel they colour (see <see cref="Moving"/>), so the picture is put together again for each moment with
 /// a few sums a pixel and never drawn again; how each one's colour moves is its motion's script, as a sticker's (see
-/// <see cref="MovingColour"/>). The same emblem is the same pixels on every machine.
+/// <see cref="MovingColour"/>), or the sticker's own script (see <see cref="DrawnShape.Script"/>), which colours every layer. The same emblem is the same pixels on every machine.
 /// </summary>
 public static class EmblemRaster
 {
@@ -84,6 +84,10 @@ public static class EmblemRaster
 			public float Speed;
 			public float Red, Green, Blue;
 			public int Element, Count;
+
+			// Coloured by the sticker's own script (see DrawnShape.Script), from its own colour at its place
+			public bool Scripted;
+			public float X0, Y0;
 		}
 
 		/// <summary>The bytes it keeps.</summary>
@@ -158,6 +162,7 @@ public static class EmblemRaster
 		private readonly ScriptStack _stack;
 		private readonly int[] _elements;
 		private readonly int[] _counts;
+		private readonly bool _scripted;
 		private readonly List<Moving.Layer> _moving = new();
 		private int _next;
 		private long _movingLeft;
@@ -189,6 +194,7 @@ public static class EmblemRaster
 			Array.Clear( room.Blue );
 			Array.Clear( room.Alpha );
 			_movingLeft = (long)MostMovingPictures * size * size;
+			_scripted = emblem.Script is not null && scripts.Compile( emblem.Script, ScriptKind.Sticker ) is { Succeeded: true };
 
 			// Layers moving the same way are its elements, in turn up the stack, as letters of a clan tag were
 			var layers = emblem.Emblem ?? new List<EmblemLayer>();
@@ -209,7 +215,8 @@ public static class EmblemRaster
 				_counts[ i ] = Moves( layers[ i ] ) ? perMotion[ layers[ i ].AnimationIs ] : 0;
 		}
 
-		private static bool Moves( EmblemLayer layer ) => !layer.Hidden && !layer.Eraser && layer.AnimationIs != Sticker.Motion.None;
+		// A layer moves when its colour does, or the sticker's own script colours every layer
+		private bool Moves( EmblemLayer layer ) => !layer.Hidden && !layer.Eraser && (_scripted || layer.AnimationIs != Sticker.Motion.None);
 
 		/// <summary>Draws the next layer down, or finishes; true once it is done.</summary>
 		public bool Step()
@@ -314,8 +321,10 @@ public static class EmblemRaster
 			var moving = new Moving.Layer
 			{
 				X = firstColumn, Y = firstRow, Width = width, Height = height, Weights = new byte[ width * height ],
-				Colour = MovingColour.OfSticker( layer.AnimationIs, layer.CycleColours(), layer.Color, _scripts, _stack ),
-				Speed = layer.AnimationSpeed, Red = red, Green = green, Blue = blue, Element = _elements[ index ], Count = _counts[ index ],
+				Colour = _scripted ? MovingColour.Of( _emblem.Script, layer.CycleColours(), _scripts, _stack ) : MovingColour.OfSticker( layer.AnimationIs, layer.CycleColours(), layer.Color, _scripts, _stack ),
+				Speed = _scripted ? 1f : layer.AnimationSpeed, Red = red, Green = green, Blue = blue,
+				Element = _scripted ? index : _elements[ index ], Count = _scripted ? _emblem.Emblem.Count : _counts[ index ],
+				Scripted = _scripted, X0 = layer.X, Y0 = layer.Y,
 			};
 			_moving.Add( moving );
 			return moving;
@@ -421,8 +430,10 @@ public static class EmblemRaster
 	// moving the same way its elements (as letters of a clan tag were); its own colour when the script doesn't run
 	private static void ColourAt( Moving.Layer layer, long ms, out float red, out float green, out float blue )
 	{
-		if ( layer.Colour is { } colour )
-			(red, green, blue) = colour.At( (long)(ms * layer.Speed), layer.Element, Math.Max( 1, layer.Count ) );
+		if ( layer.Colour is { } colour && layer.Scripted )
+			(red, green, blue) = colour.At( ms, layer.Element, Math.Max( 1, layer.Count ), layer.X0, layer.Y0, (layer.Red, layer.Green, layer.Blue) );
+		else if ( layer.Colour is { } moving )
+			(red, green, blue) = moving.At( (long)(ms * layer.Speed), layer.Element, Math.Max( 1, layer.Count ) );
 		else
 			(red, green, blue) = (layer.Red, layer.Green, layer.Blue);
 	}

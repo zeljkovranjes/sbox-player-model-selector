@@ -367,7 +367,7 @@ internal sealed partial class EffectLayerObject
 	internal void Place( Transform from, Vector3 lineEnd, float now, float delta, EffectSignals signals, float gate )
 	{
 		var beat = now * _beatSpeed + _phase;
-		if ( _colours is not null )
+		if ( _colours is not null || _sticker is not null )
 			_cycleMs = (long)((now - _cycleStart) * MillisecondsPerSecond * _cycleSpeed);
 
 		// The rhythm's script says how it turns, wobbles or shades it now. Turning carries its offset round with it, so a

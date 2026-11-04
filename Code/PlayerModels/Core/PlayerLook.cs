@@ -174,6 +174,10 @@ public sealed class PlayerLook
 		Effect.HoldScriptsTo( scripted, Script.ScriptLimits.MaxLookBytes );
 		var used = scripted.Sum( x => x.Script is null ? 0 : Script.ScriptLimits.Utf8Bytes( x.Script ) );
 		WeaponDesign.HoldScriptsTo( weapons, Script.ScriptLimits.MaxLookBytes - used );
+
+		// Then its stickers' own scripts, with what the rest left
+		used += weapons.Sum( x => (x.Script is null ? 0 : Script.ScriptLimits.Utf8Bytes( x.Script )) + (x.Skin?.Script is null ? 0 : Script.ScriptLimits.Utf8Bytes( x.Skin.Script )) );
+		DrawnShape.HoldScriptsTo( shapes.Used, Script.ScriptLimits.MaxLookBytes - used );
 		return new PlayerLook
 		{
 			Model = model.Length <= MaxModelLength ? model : "",

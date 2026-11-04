@@ -308,4 +308,63 @@ public class MachineTests
 		Assert.True( machine.RunElement( new ScriptIO() ) );
 		Assert.Equal( ("#ff3333", "#ffffff", "1"), (machine.Variable( "h" ), machine.Variable( "r" ), machine.Variable( "n" )) );
 	}
+
+	// Two white circles side by side, a sticker script colouring the left red and the right blue by their place
+	private static DrawnShape TwoCircles( string script ) => new DrawnShape
+	{
+		Name = "Two", Script = script, Emblem = new List<EmblemLayer>
+		{
+			new() { Shape = "Circle", X = -0.5f, ScaleX = 0.4f, ScaleY = 0.4f }, new() { Shape = "Circle", X = 0.5f, ScaleX = 0.4f, ScaleY = 0.4f },
+		},
+	}.Sanitized();
+
+	[Fact]
+	public void AStickersOwnScriptColoursEachLayerAsItShows()
+	{
+		var sticker = TwoCircles( "color = if origin.X < 0 then Color.Red else Color.Lerp( Color.Black, Color.Blue, Math.Min( 1, t ) )" );
+		var room = new EmblemRaster.Workspace();
+		EmblemRaster.Rgba( sticker, EmblemRaster.Size, room, new ScriptCache(), new ScriptStack(), out var moving );
+		Assert.NotNull( moving );
+
+		(byte R, byte G, byte B) At( int x, int y ) { var at = (y * EmblemRaster.Size + x) * 4; return (room.Pixels[ at ], room.Pixels[ at + 1 ], room.Pixels[ at + 2 ]); }
+		var (left, right, middle) = (EmblemRaster.Size / 4, EmblemRaster.Size * 3 / 4, EmblemRaster.Size / 2);
+		Assert.Equal( (255, 0, 0), At( left, middle ) );
+		Assert.Equal( (0, 0, 0), At( right, middle ) );
+		EmblemRaster.Animate( moving, 2000, room, EmblemRaster.Size );
+		Assert.Equal( (0, 0, 255), At( right, middle ) );
+
+		// Without its script it is its layers' own colours, still; a script that doesn't compile leaves them too
+		EmblemRaster.Rgba( sticker.Scripted( null ), EmblemRaster.Size, room, new ScriptCache(), new ScriptStack(), out var still );
+		Assert.Null( still );
+		Assert.Equal( (255, 255, 255), At( left, middle ) );
+		EmblemRaster.Rgba( TwoCircles( "color = " ), EmblemRaster.Size, room, new ScriptCache(), new ScriptStack(), out var broken );
+		Assert.Null( broken );
+	}
+
+	[Fact]
+	public void AStickersScriptKeepsItsIdAndIsHeldToTheCaps()
+	{
+		var sticker = TwoCircles( "color = Color.Red" );
+		var plain = sticker.Scripted( null );
+		Assert.Equal( plain.Id, sticker.Id );
+		Assert.NotEqual( plain.Content, sticker.Content );
+		Assert.Null( TwoCircles( "-- " + new string( 'x', ScriptLimits.MaxScriptBytes ) ).Script );
+		Assert.Null( new DrawnShape { Strokes = DrawnShape.From( HersheyFont.Strokes( "A" ) ).Strokes, Script = "color = Color.Red" }.Sanitized().Script );
+
+		// A look's stickers' scripts come after its effects' and weapons': past the look's total they are let go, by id kept
+		var big = "-- " + new string( 'x', ScriptLimits.MaxScriptBytes - 40 ) + "\ncolor = Color.Red";
+		var look = new PlayerLook();
+		for ( var i = 0; i < 3; i++ )
+		{
+			var shape = new DrawnShape { Name = $"S{i}", Script = big, Emblem = new List<EmblemLayer> { new() { Shape = "Circle", X = i * 0.1f } } }.Sanitized();
+			look.DrawnShapes.Add( shape );
+			look.Effects.Add( new Effect { Id = $"e{i}", Anchor = new EffectAnchor(), Layers = new List<EffectLayer> { new() { Kind = "Sprite", Picture = shape.Reference } } } );
+		}
+
+		var kept = look.Sanitized();
+		Assert.Equal( 3, kept.DrawnShapes.Count );
+		Assert.Equal( 2, kept.DrawnShapes.FindAll( x => x.Script is not null ).Count );
+		Assert.All( kept.Effects, x => Assert.Contains( kept.DrawnShapes, d => d.Reference == x.Layers[ 0 ].Picture ) );
+		Assert.All( EffectScripts.WithoutScripts( kept ).DrawnShapes, x => Assert.Null( x.Script ) );
+	}
 }

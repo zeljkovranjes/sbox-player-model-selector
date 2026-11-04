@@ -44,17 +44,26 @@ public sealed class MovingColour
 	/// Its colour <paramref name="ms"/> milliseconds in (already at its own speed), as element <paramref name="index"/> of
 	/// <paramref name="count"/>; white when the script faults.
 	/// </summary>
-	public (float R, float G, float B) At( long ms, int index, int count )
+	public (float R, float G, float B) At( long ms, int index, int count ) => At( ms, index, count, 0f, 0f, (1f, 1f, 1f) );
+
+	/// <summary>
+	/// Its colour <paramref name="ms"/> milliseconds in for element <paramref name="index"/> of <paramref name="count"/>
+	/// at (<paramref name="x"/>, <paramref name="y"/>) on its shape (the script's <c>origin</c>), starting from
+	/// <paramref name="own"/> (what it keeps when the script sets no colour); its own colour when the script faults.
+	/// </summary>
+	public (float R, float G, float B) At( long ms, int index, int count, float x, float y, (float R, float G, float B) own )
 	{
 		var io = _io;
-		io.Outputs[ (int)ScriptOutput.ColorR ] = io.Outputs[ (int)ScriptOutput.ColorG ] = io.Outputs[ (int)ScriptOutput.ColorB ] = 1;
+		(io.Outputs[ (int)ScriptOutput.ColorR ], io.Outputs[ (int)ScriptOutput.ColorG ], io.Outputs[ (int)ScriptOutput.ColorB ]) = (own.R, own.G, own.B);
+		io.Outputs[ (int)ScriptOutput.ColorA ] = 1;
+		io.Set( ScriptInput.OriginX, x, y, 0 );
 		io.OutputsSet = 0;
 		io.Set( ScriptInput.Time, ms );
 		io.Set( ScriptInput.Seconds, ms / MillisecondsPerSecond );
 		io.Set( ScriptInput.Index, index );
 		io.Set( ScriptInput.Count, Math.Max( 1, count ) );
 		if ( !_machine.RunElement( io, _stack ) )
-			return (1f, 1f, 1f);
+			return own;
 
 		var outputs = io.Outputs;
 		return ((float)outputs[ (int)ScriptOutput.ColorR ], (float)outputs[ (int)ScriptOutput.ColorG ], (float)outputs[ (int)ScriptOutput.ColorB ]);

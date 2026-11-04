@@ -110,6 +110,17 @@ public sealed class DrawnShape
 	[JsonPropertyName( "mir" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public bool Mirror { get; set; }
 
+	/// <summary>
+	/// A sticker of layers' own script (a sticker script, see <see cref="PlayerModels.Core.Script.ScriptKind.Sticker"/>),
+	/// minified: run for each of its layers as it shows (<c>i</c> the layer, <c>origin</c> its place) to colour it, and for
+	/// each sprite showing it to fade, size, turn or move the sprite. Null for none. Held to
+	/// <see cref="PlayerModels.Core.Script.ScriptLimits.MaxScriptBytes"/>, and with the look's other scripts to
+	/// <see cref="PlayerModels.Core.Script.ScriptLimits.MaxLookBytes"/>. Not part of its <see cref="Id"/> (a sticker whose
+	/// script a host turns off is still the sticker its layers name), but part of its <see cref="Content"/>.
+	/// </summary>
+	[JsonPropertyName( "sc" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public string Script { get; set; }
+
 	/// <summary>What a sticker is printed on (see <see cref="StickerFinish"/>) by name; null for paper.</summary>
 	[JsonPropertyName( "fin" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
 	public string Finish { get; set; }
@@ -124,7 +135,7 @@ public sealed class DrawnShape
 	/// </summary>
 	public DrawnShape SecondLook() => FinishIs != StickerFinish.Lenticular || !IsEmblem ? null : new DrawnShape
 	{
-		Emblem = Emblem.FindAll( x => x.Side != EmblemLayer.FirstLook ), Parts = Parts, Mirror = Mirror,
+		Emblem = Emblem.FindAll( x => x.Side != EmblemLayer.FirstLook ), Parts = Parts, Mirror = Mirror, Script = Script,
 	}.Sanitized();
 
 	/// <summary>Whether it is a sticker (an emblem of layers, or one coloured whole as stickers were before them), not a plain shape.</summary>
@@ -144,7 +155,7 @@ public sealed class DrawnShape
 	/// exactly when this is, so what each looks like is kept by it, never by the shorter id.
 	/// </summary>
 	[JsonIgnore]
-	public string Content => _content ??= ContentOf( Strokes, Sticker, FadeFrom, FadeArc, Emblem, Parts, Mirror, Finish );
+	public string Content => _content ??= ContentOf( Strokes, Sticker, FadeFrom, FadeArc, Emblem, Parts, Mirror, Finish ) + (Script is null ? "" : "#script:" + Script);
 
 	// Worked out once: a shape is never changed once read, only copied
 	private string _content;
@@ -354,6 +365,7 @@ public sealed class DrawnShape
 			Parts = emblem is null ? null : parts,
 			Mirror = mirror,
 			Finish = finish,
+			Script = emblem is not null && PlayerModels.Core.Script.ScriptLimits.Fits( Script ) ? Script : null,
 		};
 	}
 
@@ -391,7 +403,7 @@ public sealed class DrawnShape
 		new DrawnShape
 		{
 			Name = Name, Strokes = Strokes, Sticker = Sticker, FadeFrom = fromDegrees, FadeArc = toDegrees - fromDegrees, ForkedFrom = ForkedFrom,
-			Emblem = Emblem, Parts = Parts, Mirror = Mirror, Finish = Finish,
+			Emblem = Emblem, Parts = Parts, Mirror = Mirror, Finish = Finish, Script = Script,
 		}.Sanitized();
 
 	/// <summary>
@@ -429,13 +441,41 @@ public sealed class DrawnShape
 	/// <summary>A copy named <paramref name="name"/>, crediting <paramref name="origin"/> (null for none), kept within bounds.</summary>
 	public DrawnShape Credited( string name, ShareOrigin origin ) => new DrawnShape
 	{
-		Name = name, Strokes = Strokes, Sticker = Sticker, FadeFrom = FadeFrom, FadeArc = FadeArc, ForkedFrom = origin, Emblem = Emblem, Parts = Parts, Mirror = Mirror, Finish = Finish,
+		Name = name, Strokes = Strokes, Sticker = Sticker, FadeFrom = FadeFrom, FadeArc = FadeArc, ForkedFrom = origin, Emblem = Emblem, Parts = Parts, Mirror = Mirror, Finish = Finish, Script = Script,
 	}.Sanitized();
+
+	/// <summary>A copy moved by <paramref name="script"/> (a sticker script, minified; null for none), kept within bounds.</summary>
+	public DrawnShape Scripted( string script ) => new DrawnShape
+	{
+		Name = Name, Strokes = Strokes, Sticker = Sticker, FadeFrom = FadeFrom, FadeArc = FadeArc, ForkedFrom = ForkedFrom, Emblem = Emblem, Parts = Parts, Mirror = Mirror, Finish = Finish, Script = script,
+	}.Sanitized();
+
+	/// <summary>
+	/// Holds the scripts of <paramref name="shapes"/> to <paramref name="bytes"/> together, in order: one past it loses its
+	/// script (in place: its id stays, so whatever names it still finds it).
+	/// </summary>
+	internal static int HoldScriptsTo( List<DrawnShape> shapes, int bytes )
+	{
+		var total = 0;
+		for ( var i = 0; i < shapes.Count; i++ )
+		{
+			if ( shapes[ i ].Script is not { } script )
+				continue;
+
+			var size = PlayerModels.Core.Script.ScriptLimits.Utf8Bytes( script );
+			if ( total + size <= bytes )
+				total += size;
+			else
+				shapes[ i ] = shapes[ i ].Scripted( null );
+		}
+
+		return total;
+	}
 
 	/// <summary>A copy printed on <paramref name="finish"/>, kept within bounds.</summary>
 	public DrawnShape Finished( StickerFinish finish ) => new DrawnShape
 	{
-		Name = Name, Strokes = Strokes, Sticker = Sticker, FadeFrom = FadeFrom, FadeArc = FadeArc, ForkedFrom = ForkedFrom, Emblem = Emblem, Parts = Parts, Mirror = Mirror, Finish = StickerFinishes.NameOf( finish ),
+		Name = Name, Strokes = Strokes, Sticker = Sticker, FadeFrom = FadeFrom, FadeArc = FadeArc, ForkedFrom = ForkedFrom, Emblem = Emblem, Parts = Parts, Mirror = Mirror, Finish = StickerFinishes.NameOf( finish ), Script = Script,
 	}.Sanitized();
 
 	// A plain shape's content is just as it was before fades, emblems and finishes, so its id stays the same

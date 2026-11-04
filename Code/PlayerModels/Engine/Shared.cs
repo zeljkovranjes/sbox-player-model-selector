@@ -9,7 +9,7 @@ namespace PlayerModels.Engine;
 
 /// <summary>
 /// What players share with each other through the selector: armatures and looks for each model, effects and shapes for
-/// everyone, each in its own cloud tables.
+/// everyone, designs for each weapon, each in its own cloud tables.
 /// </summary>
 internal static class Shared
 {
@@ -48,6 +48,13 @@ internal static class Shared
 	/// <summary>Shapes and stickers made in the shape creator, for anyone to use in their effects.</summary>
 	internal static readonly SharedLibrary<DrawnShape> Shapes = new( ShareOrigin.ShapeKind, "shapes", "shape_votes",
 		DrawnShape.ParseShared, x => x.SharedForm(), _ => Everyone, ( a, b ) => a.Content == b.Content, PerPlayerForEveryone );
+
+	/// <summary>
+	/// Weapon designs, grouped by the weapon's world model: a design shows on the same weapon in any game, so it is shared
+	/// for that weapon, with the drawn shapes its stickers use.
+	/// </summary>
+	internal static readonly SharedLibrary<WeaponDesign> Weapons = new( ShareOrigin.WeaponKind, "weapon_designs", "weapon_votes",
+		WeaponDesign.ParseShared, x => x.SharedForm(), x => x.Weapon, ( a, b ) => a.SameAs( b ) );
 
 	/// <summary>
 	/// Waits until this player's next write to the Workshop's tables may go, each a little after the last, so they stay

@@ -503,16 +503,17 @@ internal sealed class WeaponDresser
 
 		_hidParts = false;
 
+		// Right away: a preview's scene doesn't run the game loop a deferred destroy waits for
 		foreach ( var prop in _props )
 		{
 			if ( prop.IsValid() )
-				prop.GameObject.Destroy();
+				prop.GameObject.DestroyImmediate();
 		}
 
 		foreach ( var stuck in _stickers )
 		{
 			if ( stuck.Decal.IsValid() )
-				stuck.Decal.GameObject.Destroy();
+				stuck.Decal.GameObject.DestroyImmediate();
 		}
 
 		_swapped.Clear();

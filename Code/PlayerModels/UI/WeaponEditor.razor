@@ -1,0 +1,823 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using System.Text.Json
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Components
+@using PlayerModels.Core
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    @if ( Look is null || Weapon is null )
+    {
+        <div class="note">Hold a weapon in the game to design it.</div>
+    }
+    else if ( _workshop )
+    {
+        @if ( _allWeapons )
+        {
+            <div class="top">
+                <div class="back" Tooltip="Back to this weapon's designs" @onclick=@(() => ShowAll( false ))>arrow_back</div>
+                <div class="intro">Every weapon here: pick one to see the designs players shared for it.</div>
+            </div>
+            <div class="grid">
+                @foreach ( var known in KnownWeapons() )
+                {
+                    var weapon = known;
+                    <div class="tile" Tooltip=@WeaponDesign.NameOf( weapon ) @onclick=@(() => Browse( weapon ))>
+                        <img class="thumb" src=@( $"thumb:{weapon}" ) />
+                        <div class="title">@( $"{WeaponDesign.NameOf( weapon )} · {Shared.Weapons.CountOf( weapon )}" )</div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="row">
+                <div class="label">@( $"Designs for the {WeaponDesign.NameOf( _browsing )}" )</div>
+                <div class="reset" Tooltip="Designs for every weapon here" @onclick=@(() => ShowAll( true ))>All weapons</div>
+            </div>
+            <SharingPanel T="WeaponDesign" Library=@Shared.Weapons Noun="design" ModelId=@_browsing Scope=" for this weapon" Workshop=@true Pictures=@true Searchable=@true
+                          Intro="Designs players shared for this weapon: Top lists the best rated first, New the newest. Use one to put an editable copy on your weapon; Fork does the same, credited."
+                          UseEntry=@UseShared Fork=@ForkShared ForkTip="Put a copy on your weapon, to change and publish as your own" OriginOf=@(( WeaponDesign x ) => x.ForkedFrom)
+                          Describe=@Describe Block=@BlockShared IsBlocked=@IsBlocked Back=@(() => ShowWorkshop( false ))></SharingPanel>
+        }
+    }
+    else
+    {
+        @if ( Locked )
+        {
+            <div class="note">The host keeps weapon designs off on this server, so nobody sees yours. It stays with your look and can still be changed.</div>
+        }
+
+        <div class="top">
+            <div class="tool @( _history.CanUndo ? "" : "disabled" )" Tooltip="Undo the last change to this weapon" @onclick=@Undo>undo</div>
+            <div class="tool @( _history.CanRedo ? "" : "disabled" )" Tooltip="Redo" @onclick=@Redo>redo</div>
+            <div class="reset" Tooltip="Designs players shared for this weapon" @onclick=@(() => ShowWorkshop( true ))>@WorkshopLabel</div>
+            <div class="reset @( Design is null ? "disabled" : "" )" Tooltip="Take this weapon's design off" @onclick=@Reset>Reset weapon</div>
+        </div>
+
+        <div class="section-header">Finish</div>
+        <div class="row">
+            <div class="label">Finish</div>
+            <UIDropdown Items=@FinishChoices() Value=@( Design?.Finish ?? "" ) ValueChanged=@(( object v ) => Change( d => d.Finish = (string)v == "" ? null : (string)v ))
+                        Tokenize=@false></UIDropdown>
+        </div>
+        <ColorRow Label="Tint" Hex=@( Design?.Tint ?? "" ) OnChanged=@(( string hex ) => Change( d => d.Tint = string.IsNullOrEmpty( hex ) ? null : hex ))></ColorRow>
+
+        <div class="section-header">Skin</div>
+        <div class="row">
+            <div class="label">Pattern</div>
+            <UIDropdown Items=@PatternChoices() Value=@( Skin?.PatternIs.ToString() ?? nameof( WeaponSkin.Pattern.None ) )
+                        ValueChanged=@(( object v ) => ChangeSkin( s => s.PatternName = (string)v == nameof( WeaponSkin.Pattern.None ) ? null : (string)v )) Tokenize=@false></UIDropdown>
+        </div>
+        @if ( Skin is { } patterned && patterned.PatternIs != WeaponSkin.Pattern.None )
+        {
+            <ColorRow Label="First color" Hex=@( patterned.PatternColor ?? "#000000" ) OnChanged=@(( string hex ) => ChangeSkin( s => s.PatternColor = hex ))></ColorRow>
+            <ColorRow Label="Second color" Hex=@( patterned.PatternColorEnd ?? "#ffffff" ) OnChanged=@(( string hex ) => ChangeSkin( s => s.PatternColorEnd = hex ))></ColorRow>
+            @if ( patterned.PatternIs == WeaponSkin.Pattern.Shapes )
+            {
+                <div class="row">
+                    <div class="label">Shape</div>
+                    <UIDropdown Items=@PictureChoices( false ) Value=@( patterned.PatternShape ?? nameof( StandardShape.Star5 ) ) ValueChanged=@(( object v ) => ChangeSkin( s => s.PatternShape = (string)v ))
+                                Tokenize=@false></UIDropdown>
+                </div>
+            }
+            <NumberRow Label="Size" Unit=@NumberRow.Field.PatternScale Value=@patterned.PatternScale OnChanged=@(( float v ) => ChangeSkin( s => s.PatternScale = v ))></NumberRow>
+            <NumberRow Label="Turned (degrees)" Unit=@NumberRow.Field.PatternTurn Value=@patterned.PatternTurn OnChanged=@(( float v ) => ChangeSkin( s => s.PatternTurn = v ))></NumberRow>
+            <NumberRow Label="Scrolls" Unit=@NumberRow.Field.Scroll Value=@patterned.PatternScroll OnChanged=@(( float v ) => ChangeSkin( s => s.PatternScroll = v ))></NumberRow>
+            <NumberRow Label="Spins" Unit=@NumberRow.Field.Spin Value=@patterned.PatternSpin OnChanged=@(( float v ) => ChangeSkin( s => s.PatternSpin = v ))></NumberRow>
+        }
+        <div class="row">
+            <div class="label">Moving color</div>
+            <UIDropdown Items=@MotionChoices() Value=@( Skin?.AnimationIs.ToString() ?? nameof( WeaponSkin.Motion.None ) )
+                        ValueChanged=@(( object v ) => ChangeSkin( s => s.Animation = (string)v == nameof( WeaponSkin.Motion.None ) ? null : (string)v )) Tokenize=@false></UIDropdown>
+        </div>
+        @if ( Skin is { } moving && moving.AnimationIs != WeaponSkin.Motion.None )
+        {
+            <NumberRow Label="Speed" Unit=@NumberRow.Field.SkinSpeed Value=@moving.Speed OnChanged=@(( float v ) => ChangeSkin( s => s.Speed = v ))></NumberRow>
+            @if ( moving.AnimationIs is WeaponSkin.Motion.Rain or WeaponSkin.Motion.Cycl or WeaponSkin.Motion.Cyln )
+            {
+                <NumberRow Label="Bands along it" Unit=@NumberRow.Field.Bands Value=@moving.Bands OnChanged=@(( float v ) => ChangeSkin( s => s.Bands = (int)MathF.Round( v ) ))></NumberRow>
+            }
+            @if ( moving.AnimationIs != WeaponSkin.Motion.Rainbow )
+            {
+                var colours = moving.Colours();
+                @for ( var i = 0; i < colours.Count; i++ )
+                {
+                    var index = i;
+                    <ColorRow Label=@( $"Color {index + 1}" ) Hex=@colours[ index ] OnChanged=@(( string hex ) => SetSkinColour( index, hex ))
+                              ResetLabel="Remove" CanReset=@( colours.Count > 1 ) ></ColorRow>
+                }
+                <div class="row">
+                    <div class="reset @( colours.Count < WeaponSkin.MaxPalette ? "" : "disabled" )" @onclick=@AddSkinColour>Add color</div>
+                    <div class="reset @( moving.Palette is null ? "disabled" : "" )" @onclick=@(() => ChangeSkin( s => s.Palette = null ))>Game colors</div>
+                </div>
+            }
+        }
+
+        <div class="section-header">@( $"Stickers ({Design?.Stickers?.Count ?? 0} of {WeaponDesign.MaxStickers})" )</div>
+        @for ( var i = 0; i < (Design?.Stickers?.Count ?? 0); i++ )
+        {
+            var index = i;
+            var sticker = Design.Stickers[ index ];
+            <div class="row item @( Selected == PropCount + index ? "selected" : "" )" @onclick=@(() => Select( PropCount + index ))>
+                <div class="item-name">@PictureName( sticker.Picture )</div>
+                <div class="icon-button" Tooltip="Duplicate" @onclick=@(( PanelEvent e ) => Act( e, () => DuplicateSticker( sticker ) ))>content_copy</div>
+                <div class="icon-button" Tooltip="Remove" @onclick=@(( PanelEvent e ) => Act( e, () => RemoveSticker( sticker ) ))>delete</div>
+            </div>
+        }
+        <div class="row">
+            <div class="label">Add a sticker</div>
+            <UIDropdown Items=@PictureChoices( true ) Value=@( "" ) ValueChanged=@(( object v ) => AddSticker( v as string )) Tokenize=@false></UIDropdown>
+        </div>
+        @if ( SelectedSticker is { } chosen )
+        {
+            <div class="subheading">Sticker</div>
+            <ColorRow Label="Color" Hex=@chosen.Color OnChanged=@(( string hex ) => Change( _ => chosen.Color = string.IsNullOrEmpty( hex ) ? "#ffffff" : hex ))></ColorRow>
+            <div class="row">
+                <div class="label">Moving color</div>
+                <UIDropdown Items=@StickerMotionChoices() Value=@chosen.AnimationIs.ToString()
+                            ValueChanged=@(( object v ) => Change( _ => chosen.Animation = (string)v == nameof( Sticker.Motion.None ) ? null : (string)v )) Tokenize=@false></UIDropdown>
+            </div>
+            <NumberRow Label="Size" Unit=@NumberRow.Field.StickerSize Value=@chosen.Size OnChanged=@(( float v ) => Change( _ => chosen.Size = v ))></NumberRow>
+            <NumberRow Label="Forward / back" Unit=@NumberRow.Field.PropOffset Value=@chosen.Forward OnChanged=@(( float v ) => Change( _ => chosen.Forward = v ))></NumberRow>
+            <NumberRow Label="Left / right" Unit=@NumberRow.Field.PropOffset Value=@chosen.Left OnChanged=@(( float v ) => Change( _ => chosen.Left = v ))></NumberRow>
+            <NumberRow Label="Up / down" Unit=@NumberRow.Field.PropOffset Value=@chosen.Up OnChanged=@(( float v ) => Change( _ => chosen.Up = v ))></NumberRow>
+            <NumberRow Label="Pressed on, tilted" Unit=@NumberRow.Field.Turn Value=@chosen.Pitch OnChanged=@(( float v ) => Change( _ => chosen.Pitch = v ))></NumberRow>
+            <NumberRow Label="Pressed on, turned" Unit=@NumberRow.Field.Turn Value=@chosen.Yaw OnChanged=@(( float v ) => Change( _ => chosen.Yaw = v ))></NumberRow>
+        }
+
+        <div class="section-header">@( $"Props ({Design?.Props?.Count ?? 0} of {WeaponDesign.MaxProps})" )</div>
+        @if ( PropsLocked )
+        {
+            <div class="note">The host keeps weapon props off on this server: others see your weapon without them.</div>
+        }
+        @for ( var i = 0; i < PropCount; i++ )
+        {
+            var index = i;
+            var prop = Design.Props[ index ];
+            <div class="row item @( Selected == index ? "selected" : "" )" @onclick=@(() => Select( index ))>
+                <div class="item-name">@( prop.Part is null ? PropCatalog.NameOf( prop.Model ) : $"{PropCatalog.NameOf( prop.Model )} ({(prop.Replaces ? "for" : "on")} {prop.Part})" )</div>
+                <div class="icon-button" Tooltip="Duplicate" @onclick=@(( PanelEvent e ) => Act( e, () => DuplicateProp( prop ) ))>content_copy</div>
+                <div class="icon-button" Tooltip="Remove" @onclick=@(( PanelEvent e ) => Act( e, () => RemoveProp( prop ) ))>delete</div>
+            </div>
+        }
+        <div class="row">
+            <div class="reset @( CanAddProp ? "" : "disabled" )" @onclick=@(() => PickProp( null, false ))>Add a prop</div>
+        </div>
+        @if ( _picking )
+        {
+            <div class="row">
+                <TextEntry class="search-entry" Placeholder="Search props" Value:bind=@_propSearch HasClearButton=@true></TextEntry>
+                <div class="reset" @onclick=@(() => _picking = false)>Cancel</div>
+            </div>
+            <div class="note">@( _pickPart is null ? "Click a prop to put it on the weapon." : _pickReplaces ? $"Click a prop to take the {_pickPart}'s place." : $"Click a prop to put it on the {_pickPart}." )</div>
+            <div class="grid props">
+                @foreach ( var path in PropCatalog.All.Where( x => string.IsNullOrWhiteSpace( _propSearch ) || PropCatalog.NameOf( x ).Contains( _propSearch.Trim(), StringComparison.OrdinalIgnoreCase ) ).Take( MostPropTiles ) )
+                {
+                    var chosenPath = path;
+                    <div class="tile" Tooltip=@PropCatalog.NameOf( path ) @onclick=@(() => AddProp( chosenPath ))>
+                        <img class="thumb" src=@( $"thumb:{path}" ) />
+                        <div class="title">@PropCatalog.NameOf( path )</div>
+                    </div>
+                }
+            </div>
+        }
+        @if ( SelectedProp is { } selectedProp )
+        {
+            <div class="subheading">Prop</div>
+            <div class="row">
+                <div class="label">On</div>
+                <UIDropdown Items=@PartChoices() Value=@( selectedProp.Part ?? "" ) ValueChanged=@(( object v ) => Change( _ => { selectedProp.Part = (string)v == "" ? null : (string)v; selectedProp.Replaces &= selectedProp.Part is not null; } ))
+                            Tokenize=@false></UIDropdown>
+            </div>
+            @if ( selectedProp.Part is not null )
+            {
+                <ToggleRow Label="Takes the part's place (the part is hidden)" Value=@selectedProp.Replaces OnChanged=@(( bool v ) => Change( _ => selectedProp.Replaces = v ))></ToggleRow>
+            }
+            <NumberRow Label="Forward / back" Unit=@NumberRow.Field.PropOffset Value=@selectedProp.Forward OnChanged=@(( float v ) => Change( _ => selectedProp.Forward = v ))></NumberRow>
+            <NumberRow Label="Left / right" Unit=@NumberRow.Field.PropOffset Value=@selectedProp.Left OnChanged=@(( float v ) => Change( _ => selectedProp.Left = v ))></NumberRow>
+            <NumberRow Label="Up / down" Unit=@NumberRow.Field.PropOffset Value=@selectedProp.Up OnChanged=@(( float v ) => Change( _ => selectedProp.Up = v ))></NumberRow>
+            <NumberRow Label="Size" Unit=@NumberRow.Field.PropScale Value=@selectedProp.Scale OnChanged=@(( float v ) => Change( _ => selectedProp.Scale = v ))></NumberRow>
+            <div class="fold @( _firstPerson ? "open" : "" )" @onclick=@(() => _firstPerson = !_firstPerson)>
+                <div class="fold-icon">@( _firstPerson ? "expand_more" : "chevron_right" )</div>
+                <div class="fold-name">First person</div>
+            </div>
+            @if ( _firstPerson )
+            {
+                <div class="note">The weapon in first person is another model: the prop is put on it where it is here. Nudge it there if it sits wrong.</div>
+                <NumberRow Label="Nudge forward" Unit=@NumberRow.Field.Nudge Value=@selectedProp.NudgeForward OnChanged=@(( float v ) => Change( _ => selectedProp.NudgeForward = v ))></NumberRow>
+                <NumberRow Label="Nudge left" Unit=@NumberRow.Field.Nudge Value=@selectedProp.NudgeLeft OnChanged=@(( float v ) => Change( _ => selectedProp.NudgeLeft = v ))></NumberRow>
+                <NumberRow Label="Nudge up" Unit=@NumberRow.Field.Nudge Value=@selectedProp.NudgeUp OnChanged=@(( float v ) => Change( _ => selectedProp.NudgeUp = v ))></NumberRow>
+                <NumberRow Label="Nudge turn" Unit=@NumberRow.Field.NudgeTurn Value=@selectedProp.NudgeYaw OnChanged=@(( float v ) => Change( _ => selectedProp.NudgeYaw = v ))></NumberRow>
+            }
+        }
+
+        @if ( Parts.Count > 0 )
+        {
+            <div class="section-header">Parts</div>
+            <div class="note">Point at a part on the weapon to see it; right-click it for the same choices.</div>
+            @foreach ( var part in Parts )
+            {
+                var name = part;
+                var canHide = WeaponParts.CanHide( WeaponModel, name );
+                <div class="row item @( HoveredPart == name ? "selected" : "" )" @onmouseover=@(() => PointAt?.Invoke( name )) @onmouseout=@(() => PointAt?.Invoke( null ))>
+                    <div class="switch @( IsHidden( name ) ? "" : "on" ) @( canHide ? "" : "disabled" )" Tooltip=@( canHide ? (IsHidden( name ) ? "Show it" : "Hide it") : "This weapon can't hide this part" )
+                         @onclick=@(( PanelEvent e ) => Act( e, () => SetHidden( name, !IsHidden( name ) ) ))>check</div>
+                    <div class="item-name">@name</div>
+                    <div class="reset @( CanAddProp ? "" : "disabled" )" Tooltip="A prop takes its place" @onclick=@(( PanelEvent e ) => Act( e, () => PickProp( name, true ) ))>Replace</div>
+                    <div class="reset @( CanAddProp ? "" : "disabled" )" Tooltip="A prop on it, following it" @onclick=@(( PanelEvent e ) => Act( e, () => PickProp( name, false ) ))>Attach</div>
+                </div>
+            }
+        }
+
+        <div class="section-header">@( $"Effects ({Design?.Effects?.Count ?? 0} of {WeaponDesign.MaxEffects})" )</div>
+        @if ( EffectsLocked )
+        {
+            <div class="note">The host keeps weapon effects off on this server: others see your weapon without them.</div>
+        }
+        @for ( var i = 0; i < (Design?.Effects?.Count ?? 0); i++ )
+        {
+            var effect = Design.Effects[ i ];
+            <div class="row item @( _effect == effect.Id ? "selected" : "" )" @onclick=@(() => _effect = effect.Id)>
+                <div class="switch @( effect.Off ? "" : "on" )" Tooltip=@( effect.Off ? "Turn on" : "Turn off" ) @onclick=@(( PanelEvent e ) => Act( e, () => Change( _ => effect.Off = !effect.Off ) ))>check</div>
+                <div class="item-name">@effect.Name</div>
+                <div class="icon-button" Tooltip="Remove" @onclick=@(( PanelEvent e ) => Act( e, () => Change( d => d.Effects.Remove( effect ) ) ))>delete</div>
+            </div>
+        }
+        <div class="row">
+            <div class="label">Add an effect</div>
+            <UIDropdown Items=@EffectChoices() Value=@( "" ) ValueChanged=@(( object v ) => AddEffect( v as string )) Tokenize=@false></UIDropdown>
+        </div>
+        @if ( Design?.Effects?.FirstOrDefault( x => x.Id == _effect ) is { } edited )
+        {
+            <div class="row">
+                <div class="label">When</div>
+                <UIDropdown Items=@WhenChoices() Value=@( edited.Layers.FirstOrDefault()?.WhenIs.ToString() ?? nameof( LayerWhen.Always ) )
+                            ValueChanged=@(( object v ) => SetWhen( edited, (string)v )) Tokenize=@false></UIDropdown>
+            </div>
+            <SliderRow Label="Color" Value=@edited.Hue OnChanged=@(( float value ) => Change( _ => edited.Hue = value ))></SliderRow>
+            <SliderRow Label="Size" Signed=@true Value=@edited.Size OnChanged=@(( float value ) => Change( _ => edited.Size = value ))></SliderRow>
+            <SliderRow Label="Amount" Signed=@true Value=@edited.Amount OnChanged=@(( float value ) => Change( _ => edited.Amount = value ))></SliderRow>
+            <SliderRow Label="Speed" Signed=@true Value=@edited.Speed OnChanged=@(( float value ) => Change( _ => edited.Speed = value ))></SliderRow>
+        }
+
+        <div class="section-header">Share</div>
+        <SharingPanel T="WeaponDesign" Library=@Shared.Weapons Noun="design" ModelId=@Weapon Scope=" for this weapon" Current=@Shareable ShareLabel="Share this design"
+                      Describe=@Describe Workshop=@false></SharingPanel>
+        @if ( _status is not null )
+        {
+            <div class="note status">@_status</div>
+        }
+    }
+</root>
+
+@code
+{
+    /// <summary>The look being edited: its design for <see cref="Weapon"/> is changed in place, <see cref="Changed"/> says when.</summary>
+    [Parameter] public PlayerLook Look { get; set; }
+
+    /// <summary>Called after every change to the look.</summary>
+    [Parameter] public Action Changed { get; set; }
+
+    /// <summary>The weapon designed, by its world model; null while none is held.</summary>
+    [Parameter] public string Weapon { get; set; }
+
+    /// <summary>That weapon's model, loaded.</summary>
+    [Parameter] public Model WeaponModel { get; set; }
+
+    /// <summary>What the gizmo moves in weapon mode: its selection is the props' and stickers' here.</summary>
+    [Parameter] internal WeaponTargets Targets { get; set; }
+
+    /// <summary>Points out a part on the preview (null for none).</summary>
+    [Parameter] public Action<string> PointAt { get; set; }
+
+    /// <summary>The part pointed at on the preview, for its row here.</summary>
+    [Parameter] public string HoveredPart { get; set; }
+
+    /// <summary>Whether the host keeps players' weapon designs, props or effects off: they are kept, and can still be changed.</summary>
+    [Parameter] public bool Locked { get; set; }
+    [Parameter] public bool PropsLocked { get; set; }
+    [Parameter] public bool EffectsLocked { get; set; }
+
+    // The most prop pictures listed at once
+    const int MostPropTiles = 40;
+
+    static PlayerModelSelector Selector => PlayerModelSelector.Find( Game.ActiveScene );
+
+    readonly EditHistory _history = new();
+    bool _workshop;
+    bool _allWeapons;
+    string _browsing;
+    bool _picking;
+    string _pickPart;
+    bool _pickReplaces;
+    string _propSearch;
+    bool _firstPerson;
+    string _effect;
+    string _status;
+    List<string> _parts;
+    Model _partsOf;
+
+    WeaponDesign Design => Look?.DesignFor( Weapon );
+
+    WeaponSkin Skin => Design?.Skin;
+
+    int PropCount => Design?.Props?.Count ?? 0;
+
+    int Selected => Targets?.Selected ?? -1;
+
+    WeaponProp SelectedProp => Selected >= 0 && Selected < PropCount ? Design.Props[ Selected ] : null;
+
+    WeaponSticker SelectedSticker => Selected >= PropCount && Design?.Stickers is { } stickers && Selected - PropCount < stickers.Count ? stickers[ Selected - PropCount ] : null;
+
+    bool CanAddProp => (Design?.Props?.Count ?? 0) < WeaponDesign.MaxProps;
+
+    List<string> Parts
+    {
+        get
+        {
+            if ( _partsOf != WeaponModel )
+            {
+                _partsOf = WeaponModel;
+                _parts = WeaponParts.Of( WeaponModel );
+            }
+
+            return _parts ?? new List<string>();
+        }
+    }
+
+    string WorkshopLabel => $"Workshop · {Shared.Weapons.CountOf( Weapon )} designs for this weapon";
+
+    // The design as it would be shared, carrying its drawn shapes
+    WeaponDesign Shareable => Look?.StandaloneWeapon( Design );
+
+    protected override int BuildHash() => HashCode.Combine( Look?.Serialize(), Weapon, Selected, HashCode.Combine( _workshop, _allWeapons, _browsing, _picking, _propSearch, _firstPerson ),
+        HashCode.Combine( _effect, _status, HoveredPart, Locked, PropsLocked, EffectsLocked, Shared.Weapons.CountOf( Weapon ), _history.CanUndo ) );
+
+    protected override void OnAfterTreeRender( bool firstTime )
+    {
+        base.OnAfterTreeRender( firstTime );
+        if ( firstTime )
+            _ = CountAsync();
+    }
+
+    async System.Threading.Tasks.Task CountAsync()
+    {
+        try
+        {
+            if ( await Shared.Weapons.CountAsync( KnownWeapons() ) )
+                StateHasChanged();
+        }
+        catch ( Exception e )
+        {
+            Log.Warning( $"Player Model Selector: couldn't count the weapon designs shared: {e.Message}" );
+        }
+    }
+
+    /// <summary>What a row says about a design: what it does to its weapon.</summary>
+    public static string Describe( WeaponDesign design )
+    {
+        var parts = new List<string>();
+        if ( design.Finish is not null )
+            parts.Add( design.Finish.ToLowerInvariant() );
+
+        if ( design.Skin is { } skin )
+            parts.Add( string.Join( " ", new[] { skin.PatternIs == WeaponSkin.Pattern.None ? null : skin.PatternIs.ToString().ToLowerInvariant(), skin.AnimationIs == WeaponSkin.Motion.None ? null : MotionName( skin.AnimationIs ).ToLowerInvariant() }.Where( x => x is not null ) ) );
+
+        if ( design.Props?.Count > 0 )
+            parts.Add( $"{design.Props.Count} props" );
+
+        if ( design.Stickers?.Count > 0 )
+            parts.Add( $"{design.Stickers.Count} stickers" );
+
+        if ( design.Effects?.Count > 0 )
+            parts.Add( $"{design.Effects.Count} effects" );
+
+        return $"{WeaponDesign.NameOf( design.Weapon )}: {(parts.Count == 0 ? "as it comes" : string.Join( ", ", parts ))}";
+    }
+
+    // The design to change, made when the weapon has none yet
+    WeaponDesign Own()
+    {
+        if ( Design is { } design )
+            return design;
+
+        var made = new WeaponDesign { Weapon = Weapon };
+        Look.Weapons.Add( made );
+        return made;
+    }
+
+    // A change to the design, remembered for undo, the look told
+    void Change( Action<WeaponDesign> change )
+    {
+        if ( Look is null || Weapon is null )
+            return;
+
+        Remember();
+        change( Own() );
+        Remember();
+        Changed?.Invoke();
+    }
+
+    void ChangeSkin( Action<WeaponSkin> change ) => Change( d =>
+    {
+        d.Skin ??= new WeaponSkin();
+        change( d.Skin );
+        if ( !d.Skin.IsPainted )
+            d.Skin = null;
+    } );
+
+    void Remember() => _history.Record( JsonSerializer.Serialize( Design ), RealTime.Now );
+
+    void Undo() => Step( _history.Undo() );
+
+    void Redo() => Step( _history.Redo() );
+
+    void Step( string state )
+    {
+        if ( state is null )
+            return;
+
+        Look.Weapons.RemoveAll( x => x.Weapon == Weapon );
+        if ( JsonSerializer.Deserialize<WeaponDesign>( state ) is { } was )
+            Look.Weapons.Add( was );
+
+        Changed?.Invoke();
+    }
+
+    void Reset()
+    {
+        Remember();
+        Look.Weapons.RemoveAll( x => x.Weapon == Weapon );
+        Targets?.Select( -1 );
+        Remember();
+        Changed?.Invoke();
+    }
+
+    // A click on a row's own button isn't a click on the row
+    void Act( PanelEvent e, Action action )
+    {
+        e.StopPropagation();
+        action();
+    }
+
+    void Select( int index ) => Targets?.Select( index );
+
+    static List<UIDropdown.Item> FinishChoices()
+    {
+        var choices = new List<UIDropdown.Item> { new( "Its own", "" ) };
+        choices.AddRange( MaterialFinish.All.Select( x => new UIDropdown.Item( x, x ) ) );
+        return choices;
+    }
+
+    static List<UIDropdown.Item> PatternChoices() => Enum.GetValues<WeaponSkin.Pattern>().Select( x => new UIDropdown.Item( x switch
+    {
+        WeaponSkin.Pattern.None => "None",
+        WeaponSkin.Pattern.Shapes => "Repeated shape",
+        WeaponSkin.Pattern.Carbon => "Carbon fibre",
+        _ => x.ToString(),
+    }, x.ToString() ) ).ToList();
+
+    static string MotionName( WeaponSkin.Motion motion ) => motion switch
+    {
+        WeaponSkin.Motion.Rainbow => "Rainbow flowing along it",
+        WeaponSkin.Motion.Rain => "Clan tag rain",
+        WeaponSkin.Motion.Cycl => "Clan tag cycle (wipe)",
+        WeaponSkin.Motion.Cyln => "Clan tag scanner",
+        WeaponSkin.Motion.Pulse => "Pulse",
+        WeaponSkin.Motion.Glow => "Glow",
+        WeaponSkin.Motion.Shimmer => "Sheen sweeping over it",
+        WeaponSkin.Motion.Palette => "Colors going round",
+        _ => "None",
+    };
+
+    static List<UIDropdown.Item> MotionChoices() => Enum.GetValues<WeaponSkin.Motion>().Select( x => new UIDropdown.Item( MotionName( x ), x.ToString() ) ).ToList();
+
+    static List<UIDropdown.Item> StickerMotionChoices() => Enum.GetValues<Sticker.Motion>().Select( x => new UIDropdown.Item( x switch
+    {
+        Sticker.Motion.Rain => "Clan tag rain",
+        Sticker.Motion.Cycl => "Clan tag cycle",
+        Sticker.Motion.Cyln => "Clan tag scanner",
+        _ => x.ToString(),
+    }, x.ToString() ) ).ToList();
+
+    void SetSkinColour( int index, string hex )
+    {
+        ChangeSkin( s =>
+        {
+            var colours = s.Colours().ToList();
+            if ( string.IsNullOrEmpty( hex ) )
+            {
+                if ( colours.Count > 1 )
+                    colours.RemoveAt( index );
+            }
+            else
+            {
+                colours[ index ] = hex;
+            }
+
+            s.Palette = colours;
+        } );
+    }
+
+    void AddSkinColour() => ChangeSkin( s =>
+    {
+        var colours = s.Colours().ToList();
+        if ( colours.Count < WeaponSkin.MaxPalette )
+            colours.Add( "#ffffff" );
+
+        s.Palette = colours;
+    } );
+
+    // Pictures and standard shapes, and (for a sticker) the drawn shapes the look carries and those in My shapes
+    List<UIDropdown.Item> PictureChoices( bool forSticker )
+    {
+        var choices = new List<UIDropdown.Item>();
+        if ( forSticker )
+            choices.Add( new UIDropdown.Item( "Pick a picture...", "" ) );
+
+        choices.AddRange( Enum.GetValues<LayerPicture>().Select( x => new UIDropdown.Item( x.ToString(), x.ToString() ) ) );
+        choices.AddRange( Enum.GetValues<StandardShape>().Select( x => new UIDropdown.Item( $"Shape: {x}", x.ToString() ) ) );
+        if ( forSticker )
+        {
+            choices.AddRange( Look.DrawnShapes.Select( x => new UIDropdown.Item( $"Drawn: {x.Name ?? "shape"}", x.Reference ) ) );
+            choices.AddRange( LocalPrefs.MyShapes().Where( x => !Look.DrawnShapes.Exists( y => y.Id == x.Id ) ).Select( x => new UIDropdown.Item( $"My shapes: {x.Name}", "mine:" + x.Id ) ) );
+        }
+
+        return choices;
+    }
+
+    string PictureName( string picture ) => DrawnShape.IsReference( picture ) ? Look.DrawnShapeOf( picture[ 1.. ] )?.Name ?? "Drawn shape" : picture;
+
+    // A sticker on top of the weapon's middle, pressed down onto it, its picture one of those offered
+    void AddSticker( string picture )
+    {
+        if ( string.IsNullOrEmpty( picture ) || WeaponModel is null || (Design?.Stickers?.Count ?? 0) >= WeaponDesign.MaxStickers )
+            return;
+
+        if ( picture.StartsWith( "mine:" ) )
+        {
+            var mine = LocalPrefs.MyShapes().Find( x => x.Id == picture[ 5.. ] );
+            if ( mine is null || !Look.Carry( mine ) )
+            {
+                _status = $"A look carries up to {DrawnShape.MaxPerLook} drawn shapes, and this would take it past that.";
+                return;
+            }
+
+            picture = mine.Reference;
+        }
+
+        var bounds = WeaponModel.Bounds;
+        Change( d =>
+        {
+            d.Stickers ??= new List<WeaponSticker>();
+            d.Stickers.Add( new WeaponSticker { Picture = picture, Forward = bounds.Center.x, Left = bounds.Center.y, Up = bounds.Maxs.z - 1f, Size = 3f } );
+        } );
+        Select( PropCount + Design.Stickers.Count - 1 );
+    }
+
+    void DuplicateSticker( WeaponSticker sticker )
+    {
+        if ( Design.Stickers.Count < WeaponDesign.MaxStickers )
+            Change( d => d.Stickers.Add( JsonSerializer.Deserialize<WeaponSticker>( JsonSerializer.Serialize( sticker ) ) ) );
+    }
+
+    void RemoveSticker( WeaponSticker sticker )
+    {
+        Change( d => d.Stickers.Remove( sticker ) );
+        Select( -1 );
+    }
+
+    // Opens the prop pictures, to put one on the weapon, on a part, or in a part's place
+    void PickProp( string part, bool replaces )
+    {
+        if ( !CanAddProp )
+            return;
+
+        _picking = true;
+        _pickPart = part;
+        _pickReplaces = replaces;
+        StateHasChanged();
+    }
+
+    // The prop picked: in a part's place it is sized to the part and turned to lie along it
+    void AddProp( string path )
+    {
+        _picking = false;
+        var model = global::Sandbox.Model.Load( path );
+        var size = AccessoryCatalog.SizeOf( model );
+        var prop = new WeaponProp { Model = path, Part = _pickPart, Replaces = _pickReplaces && _pickPart is not null, Scale = WeaponProp.StartingScale( size ) };
+        if ( prop.Replaces && WeaponParts.BoundsOf( WeaponModel, _pickPart ) is { } part )
+        {
+            var partSize = MathF.Max( part.Size.x, MathF.Max( part.Size.y, part.Size.z ) );
+            prop.Scale = Math.Clamp( partSize / MathF.Max( size, 0.01f ), WeaponProp.MinScale, WeaponProp.MaxScaleFor( size, partSize ) );
+            prop.Pitch = LongestAxis( part.Size ) == LongestAxis( model.Bounds.Size ) ? 0f : 90f;
+        }
+        else if ( _pickPart is null )
+        {
+            prop.Up = WeaponModel.Bounds.Maxs.z;
+            prop.Forward = WeaponModel.Bounds.Center.x;
+        }
+
+        Change( d =>
+        {
+            d.Props ??= new List<WeaponProp>();
+            d.Props.Add( prop );
+        } );
+        Select( PropCount - 1 );
+    }
+
+    static int LongestAxis( Vector3 size ) => size.x >= size.y && size.x >= size.z ? 0 : size.y >= size.z ? 1 : 2;
+
+    void DuplicateProp( WeaponProp prop )
+    {
+        if ( CanAddProp )
+            Change( d => d.Props.Add( JsonSerializer.Deserialize<WeaponProp>( JsonSerializer.Serialize( prop ) ) ) );
+    }
+
+    void RemoveProp( WeaponProp prop )
+    {
+        Change( d => d.Props.Remove( prop ) );
+        Select( -1 );
+    }
+
+    List<UIDropdown.Item> PartChoices()
+    {
+        var choices = new List<UIDropdown.Item> { new( "The whole weapon", "" ) };
+        choices.AddRange( Parts.Select( x => new UIDropdown.Item( $"The {x}", x ) ) );
+        return choices;
+    }
+
+    bool IsHidden( string part ) => Design?.HiddenParts?.Contains( part ) == true;
+
+    /// <summary>Hides <paramref name="part"/> of the weapon, or shows it again.</summary>
+    public void SetHidden( string part, bool hidden )
+    {
+        if ( !WeaponParts.CanHide( WeaponModel, part ) )
+            return;
+
+        Change( d =>
+        {
+            d.HiddenParts ??= new List<string>();
+            d.HiddenParts.Remove( part );
+            if ( hidden )
+                d.HiddenParts.Add( part );
+
+            if ( d.HiddenParts.Count == 0 )
+                d.HiddenParts = null;
+        } );
+    }
+
+    /// <summary>Opens the prop pictures to replace <paramref name="part"/> (or put a prop on it).</summary>
+    public void Replace( string part, bool replaces ) => PickProp( part, replaces );
+
+    // The weapon presets first, then the rest
+    static List<UIDropdown.Item> EffectChoices()
+    {
+        var choices = new List<UIDropdown.Item> { new( "Pick an effect...", "" ) };
+        choices.AddRange( EffectPresets.ForWeapons.Select( x => new UIDropdown.Item( x.Name, x.Name ) ) );
+        choices.AddRange( EffectPresets.All.Where( x => x.Anchor.KindIs != AnchorKind.HeldWeapon ).Select( x => new UIDropdown.Item( $"{x.Name} (from the weapon)", x.Name ) ) );
+        return choices;
+    }
+
+    // A copy of the preset coming from the weapon, within the design's caps
+    void AddEffect( string name )
+    {
+        if ( EffectPresets.All.FirstOrDefault( x => x.Name == name ) is not { } preset )
+            return;
+
+        var design = Design;
+        var layers = design?.Effects?.Sum( x => x.Layers.Count ) ?? 0;
+        if ( (design?.Effects?.Count ?? 0) >= WeaponDesign.MaxEffects || layers + preset.Layers.Count > WeaponDesign.MaxLayers )
+        {
+            _status = $"A weapon has up to {WeaponDesign.MaxEffects} effects, {WeaponDesign.MaxLayers} layers between them. Remove one first.";
+            return;
+        }
+
+        var copy = EffectPresets.Copy( preset, design?.Effects ?? new List<Effect>() );
+        copy.Id = $"w{(design?.Effects?.Count ?? 0) + 1}";
+        copy.Anchor.Kind = nameof( AnchorKind.HeldWeapon );
+        _status = null;
+        Change( d =>
+        {
+            d.Effects ??= new List<Effect>();
+            d.Effects.Add( copy );
+        } );
+        _effect = copy.Id;
+    }
+
+    static List<UIDropdown.Item> WhenChoices() => new[] { LayerWhen.Always, LayerWhen.OnShoot, LayerWhen.OnHit, LayerWhen.OnReload, LayerWhen.OnEquip, LayerWhen.OnHolster, LayerWhen.HoldingWeapon }
+        .Select( x => new UIDropdown.Item( x switch
+        {
+            LayerWhen.OnShoot => "On shooting or swinging",
+            LayerWhen.OnHit => "On a shot or swing hitting",
+            LayerWhen.OnReload => "On reloading",
+            LayerWhen.OnEquip => "On drawing it",
+            LayerWhen.OnHolster => "On putting it away",
+            LayerWhen.HoldingWeapon => "While held",
+            _ => "Always",
+        }, x.ToString() ) ).ToList();
+
+    // Every layer of the effect shows then: a moment shows something by default
+    void SetWhen( Effect effect, string when ) => Change( _ =>
+    {
+        foreach ( var layer in effect.Layers )
+        {
+            layer.When = when;
+            if ( layer.IsMoment && layer.Burst == 0f && layer.ShowFor == 0f )
+            {
+                layer.Burst = layer.KindIs == LayerKind.Sprite ? 20f : 0f;
+                layer.ShowFor = layer.KindIs == LayerKind.Sprite ? 0f : 0.5f;
+            }
+        }
+    } );
+
+    void ShowWorkshop( bool show )
+    {
+        _workshop = show;
+        _allWeapons = false;
+        _browsing = Weapon;
+        StateHasChanged();
+    }
+
+    void ShowAll( bool all )
+    {
+        _allWeapons = all;
+        if ( all )
+            _ = CountAsync();
+
+        StateHasChanged();
+    }
+
+    void Browse( string weapon )
+    {
+        _browsing = weapon;
+        _allWeapons = false;
+        StateHasChanged();
+    }
+
+    // The weapons here: the one held, those the player carries, and those with a design
+    List<string> KnownWeapons()
+    {
+        var known = new List<string>();
+        if ( Weapon is not null )
+            known.Add( Weapon );
+
+        foreach ( var weapon in Game.ActiveScene?.GetAll<BaseCombatWeapon>() ?? Enumerable.Empty<BaseCombatWeapon>() )
+        {
+            var renderer = weapon.WorldModelPrefab?.Components.Get<ModelRenderer>( FindMode.EverythingInSelfAndDescendants );
+            if ( renderer?.Model?.ResourcePath is { } path && WeaponProp.IsModelPath( path ) && !known.Contains( path ) )
+                known.Add( path );
+        }
+
+        foreach ( var design in Look?.Weapons ?? new List<WeaponDesign>() )
+        {
+            if ( !known.Contains( design.Weapon ) )
+                known.Add( design.Weapon );
+        }
+
+        return known;
+    }
+
+    // An editable copy of a share on its weapon, in place of the design it had, crediting the share
+    string UseShared( SharedLibrary<WeaponDesign>.Entry entry )
+    {
+        var copy = WeaponDesign.ParseShared( entry.Item.SharedForm() );
+        if ( copy is null )
+            return "This design can't be used.";
+
+        foreach ( var shape in copy.Shapes ?? new List<DrawnShape>() )
+        {
+            if ( !Look.Carry( shape ) )
+                return $"A look carries up to {DrawnShape.MaxPerLook} drawn shapes, and this would take it past that.";
+        }
+
+        copy.Shapes = null;
+        copy.ForkedFrom = new ShareOrigin { Kind = ShareOrigin.WeaponKind, Id = entry.Id, Name = entry.Name, Author = entry.Author };
+        Remember();
+        Look.Weapons.RemoveAll( x => x.Weapon == copy.Weapon );
+        Look.Weapons.Add( copy );
+        Remember();
+        Changed?.Invoke();
+        return copy.Weapon == Weapon
+            ? $"\"{entry.Name}\" is on your {WeaponDesign.NameOf( Weapon )}, yours to change. Apply wears it."
+            : $"\"{entry.Name}\" is on your {WeaponDesign.NameOf( copy.Weapon )}: hold one to see and change it. Apply wears it.";
+    }
+
+    void ForkShared( SharedLibrary<WeaponDesign>.Entry entry )
+    {
+        _status = UseShared( entry );
+        ShowWorkshop( false );
+    }
+
+    Action<SharedLibrary<WeaponDesign>.Entry, bool> BlockShared => Networking.IsHost
+        ? ( entry, blocked ) => Selector?.SetShareBlocked( ShareOrigin.KeyOf( ShareOrigin.WeaponKind, entry.Id ), entry.Name, blocked )
+        : null;
+
+    static bool IsBlocked( SharedLibrary<WeaponDesign>.Entry entry ) => Selector?.IsShareBlocked( ShareOrigin.KeyOf( ShareOrigin.WeaponKind, entry.Id ) ) == true;
+}

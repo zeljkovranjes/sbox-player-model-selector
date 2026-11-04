@@ -1,0 +1,299 @@
+@import "SelectorTheme.scss";
+
+// The Advanced editor's weapon mode: the weapon's finish and skin, its stickers, props and parts, its effects, and
+// sharing it; the selected sticker or prop's settings under its list
+WeaponEditor
+{
+	flex-direction: column;
+	flex-shrink: 0;
+	padding: 4px 14px 4px 6px;
+	font-family: $body-font;
+	color: $ui-text;
+
+	.note
+	{
+		flex-shrink: 0;
+		padding: 6px 4px;
+		font-size: $ui-settings-font;
+		color: $ui-text-muted;
+	}
+
+	.section-header
+	{
+		@include ui-section-header;
+		margin-top: 12px;
+		margin-bottom: 4px;
+
+		&:first-child
+		{
+			margin-top: 2px;
+		}
+	}
+
+	.row
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		min-height: 28px;
+		gap: 8px;
+	}
+
+	// direct children only: s&box gives every text in a div the class "label" too
+	.row > .label
+	{
+		@include ui-label;
+		width: 120px;
+		flex-shrink: 0;
+	}
+
+	UIDropdown
+	{
+		flex-grow: 1;
+	}
+
+	.reset
+	{
+		@include ui-button;
+		flex-shrink: 0;
+
+		&.disabled
+		{
+			opacity: 0.4;
+			pointer-events: none;
+		}
+	}
+
+	.note.status
+	{
+		color: $ui-text;
+	}
+
+	// undo and redo, before the buttons that add layers; editing a drawn shape, beside its list
+	.row > .tool
+	{
+		@include ui-button;
+		flex-shrink: 0;
+		width: 28px;
+		padding: 0;
+		font-family: "Material Icons";
+		font-size: 16px;
+		text-transform: none;
+	}
+
+	// a sticker, prop, part or effect: on or off where it can be, its name, and what can be done to it; the selected one
+	// is the one the settings below change
+	.item
+	{
+		gap: 2px;
+		padding: 0 4px;
+		border-radius: 2px;
+		cursor: pointer;
+
+		&:hover
+		{
+			background-color: $ui-separator;
+			sound-in: ui.hover;
+		}
+
+		&.selected
+		{
+			@include ui-selected;
+
+			.item-name, .icon-button
+			{
+				color: white;
+			}
+		}
+	}
+
+	.item-name
+	{
+		@include ui-label;
+		flex-grow: 1;
+		color: $ui-text;
+	}
+
+	.switch
+	{
+		@include ui-check-switch;
+
+		&.disabled
+		{
+			opacity: 0.3;
+			pointer-events: none;
+		}
+	}
+
+	.icon-button
+	{
+		width: 24px;
+		height: 24px;
+		flex-shrink: 0;
+		justify-content: center;
+		align-items: center;
+		font-family: "Material Icons";
+		font-size: 16px;
+		color: $ui-text-muted;
+		text-transform: none;
+
+		&:hover
+		{
+			color: $ui-blue;
+		}
+
+		&.remove:hover
+		{
+			color: $ui-danger;
+		}
+
+		&.disabled
+		{
+			opacity: 0.3;
+			pointer-events: none;
+		}
+	}
+
+	// everything else about the layer, folded away until wanted
+	.fold
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		min-height: 28px;
+		margin-top: 6px;
+		gap: 4px;
+		cursor: pointer;
+		border-top: 1px solid $ui-separator;
+
+		&:hover
+		{
+			sound-in: ui.hover;
+
+			.fold-name
+			{
+				color: $ui-text;
+			}
+		}
+	}
+
+	.fold-icon
+	{
+		font-family: "Material Icons";
+		font-size: 18px;
+		color: $ui-text-muted;
+		text-transform: none;
+	}
+
+	.fold-name
+	{
+		@include ui-label;
+	}
+
+	.top
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		gap: 6px;
+		margin-bottom: 4px;
+
+		> .tool
+		{
+			@include ui-button;
+			flex-shrink: 0;
+			width: 28px;
+			padding: 0;
+			font-family: "Material Icons";
+			font-size: 16px;
+			text-transform: none;
+
+			&.disabled
+			{
+				opacity: 0.4;
+				pointer-events: none;
+			}
+		}
+
+		> .back
+		{
+			@include ui-button;
+			flex-shrink: 0;
+			width: 28px;
+			padding: 0;
+			font-family: "Material Icons";
+			font-size: 16px;
+			text-transform: none;
+		}
+
+		> .intro
+		{
+			font-size: $ui-settings-font;
+			color: $ui-text-muted;
+			flex-grow: 1;
+		}
+	}
+
+	.subheading
+	{
+		@include ui-label;
+		margin-top: 8px;
+		font-weight: 600;
+	}
+
+	.search-entry
+	{
+		@include ui-text-entry;
+		flex-grow: 1;
+	}
+
+	// prop and weapon pictures: five to a row, as the other grids are
+	.grid
+	{
+		flex-direction: row;
+		flex-wrap: wrap;
+		flex-shrink: 0;
+		gap: 4px;
+		padding: 4px 0;
+
+		> .tile
+		{
+			flex-direction: column;
+			width: 19%;
+			flex-grow: 1;
+			max-width: 19%;
+			cursor: pointer;
+			border-radius: 3px;
+			background-color: rgba( 0, 0, 0, 0.06 );
+
+			&:hover
+			{
+				background-color: $ui-separator;
+				sound-in: ui.hover;
+			}
+
+			> .thumb
+			{
+				@include ui-tile-thumb;
+				height: 64px;
+			}
+
+			> .title
+			{
+				@include ui-tile-title;
+			}
+		}
+	}
+
+	// the Workshop's designs, opened from here: a fixed height for its list to page in, as the pane scrolls
+	> .sharing.workshop
+	{
+		flex-shrink: 0;
+		height: 640px;
+
+		.shared .shared-age, .shared .avatar
+		{
+			display: none;
+		}
+	}
+}

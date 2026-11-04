@@ -69,6 +69,24 @@ public sealed class ModelPreview : Panel
 	/// <summary>The window's camera.</summary>
 	internal WindowCamera View => _view;
 
+	/// <summary>
+	/// A weapon the previewed citizen holds the way the player holds theirs: its world model, the bone it hangs from, where
+	/// its renderer sits from there, and how the citizen holds it (its animation's hold type).
+	/// </summary>
+	internal readonly record struct HeldWeapon( Model Model, string Bone, Transform Local, int HoldType );
+
+	/// <summary>The weapon the citizen holds (it is dressed as the look designs it); null for none.</summary>
+	internal HeldWeapon? Weapon { get; set; }
+
+	/// <summary>The renderer of the weapon held, once it is there.</summary>
+	internal ModelRenderer WeaponRenderer => _weaponRenderer;
+
+	/// <summary>Whether the weapon held is outlined, as one that can be clicked into.</summary>
+	internal bool WeaponOutlined { get; set; }
+
+	/// <summary>The part of the weapon held to outline (see <see cref="WeaponParts"/>); null for none.</summary>
+	internal string WeaponPart { get; set; }
+
 	/// <summary>The body shown, once it is.</summary>
 	internal ModelBody Body => _body;
 
@@ -80,6 +98,11 @@ public sealed class ModelPreview : Panel
 
 	private ScenePanel _scene;
 	private SkinnedModelRenderer _citizen;
+	private ModelRenderer _weaponRenderer;
+	private HighlightOutline _weaponOutline;
+	private SkinnedModelRenderer _partGhost;
+	private HighlightOutline _partOutline;
+	private HeldWeapon? _weaponShown;
 	private CameraComponent _camera;
 	private ModelBody _body;
 	private SkinnedModelRenderer _unposed;
@@ -226,6 +249,7 @@ public sealed class ModelPreview : Panel
 			ShowAgain();
 
 		ShowCitizenEffects();
+		ShowWeapon();
 
 		if ( FillsWindow )
 			Viewport?.Tick();
@@ -506,7 +530,7 @@ public sealed class ModelPreview : Panel
 	private void ShowCitizenEffects()
 	{
 		var worn = CitizenEffects.On( _citizen );
-		if ( _shown == "" && Look is { IsDefault: true, Effects.Count: > 0 } )
+		if ( _shown == "" && Look is { IsDefault: true } && (Look.Effects.Count > 0 || Look.Weapons.Count > 0) )
 		{
 			if ( !worn.IsValid() )
 			{
@@ -531,6 +555,188 @@ public sealed class ModelPreview : Panel
 			worn.TakeOff();
 			worn.GameObject.DestroyImmediate();
 		}
+	}
+
+	// The weapon held, hanging off the citizen's bone as the game hangs the player's (the body moves it into its model's
+	// hand, and dresses it as the look designs it), held the way the player holds theirs; outlined while pointed at, and
+	// a part of it outlined through a copy showing only that part
+	private void ShowWeapon()
+	{
+		if ( Weapon != _weaponShown || Weapon is not null && !_weaponRenderer.IsValid() )
+		{
+			_weaponShown = Weapon;
+			RemoveWeapon();
+			if ( Weapon is { } weapon )
+				MakeWeapon( weapon );
+		}
+
+		// Held the way the game holds it: its hold type, aimed straight ahead
+		if ( Weapon is { } held )
+		{
+			_citizen.Set( "holdtype", held.HoldType );
+			_citizen.Set( "aim_body", Vector3.Forward );
+			_citizen.Set( "aim_head", Vector3.Forward );
+			_citizen.Set( "aim_eyes", Vector3.Forward );
+			_citizen.Set( "aim_body_weight", 1f );
+		}
+
+		var delta = RealTime.Delta;
+		_weaponGlow = Fade( _weaponGlow, WeaponOutlined, delta );
+		if ( _weaponOutline.IsValid() )
+			Glow( _weaponOutline, _weaponGlow, HoverStrength );
+
+		OutlinePart( delta );
+	}
+
+	// A highlight eases in as the cursor comes onto what it outlines, and out a little slower as it leaves, at any frame
+	// rate; soft and thin, so it shows what is pointed at without covering it
+	private const float FadeInSeconds = 0.15f;
+	private const float FadeOutSeconds = 0.2f;
+	private const float HoverStrength = 0.45f;
+	private const float GlowWidth = 0.35f;
+
+	private float _weaponGlow;
+
+	private static float Fade( float level, bool on, float delta )
+	{
+		var step = delta / (on ? FadeInSeconds : FadeOutSeconds);
+		return on ? MathF.Min( 1f, level + step ) : MathF.Max( 0f, level - step );
+	}
+
+	// The outline at level (0 to 1, eased out), strength the most it shows: its colour fading in, its inside never filled
+	private static void Glow( HighlightOutline outline, float level, float strength )
+	{
+		var eased = 1f - (1f - level) * (1f - level);
+		var colour = GlowColor.WithAlpha( eased * strength );
+		outline.Enabled = level > 0f;
+		outline.Color = colour;
+		outline.ObscuredColor = colour.WithAlpha( colour.a * 0.5f );
+		outline.InsideColor = Color.Transparent;
+		outline.InsideObscuredColor = Color.Transparent;
+		outline.Width = GlowWidth;
+	}
+
+	private static readonly Color GlowColor = new( 1f, 0.9f, 0.55f, 1f );
+
+	private void MakeWeapon( HeldWeapon weapon )
+	{
+		_citizen.CreateBoneObjects = true;
+		if ( _citizen.GetBoneObject( weapon.Bone ) is not { } bone )
+			return;
+
+		using ( _scene.RenderScene.Push() )
+		{
+			var root = new GameObject( true, "Held weapon" );
+			root.NetworkMode = NetworkMode.Never;
+			root.SetParent( bone, false );
+			root.LocalTransform = global::Transform.Zero;
+
+			var go = new GameObject( true, "Weapon" );
+			go.SetParent( root, false );
+			go.LocalTransform = weapon.Local;
+			var renderer = go.AddComponent<SkinnedModelRenderer>();
+			renderer.Model = weapon.Model;
+			renderer.UseAnimGraph = false;
+			_weaponRenderer = renderer;
+
+			_weaponOutline = go.AddComponent<HighlightOutline>();
+			_weaponOutline.Enabled = false;
+		}
+	}
+
+	// The part pointed at glows through a copy showing only it; moving to another part, the old one fades out as the new
+	// one fades in, each through a copy of its own (two are kept, swapped as the part changes)
+	private void OutlinePart( float delta )
+	{
+		var part = _weaponRenderer.IsValid() ? WeaponPart : null;
+		if ( part != _partShown )
+		{
+			(_partGhost, _fadingGhost) = (_fadingGhost, _partGhost);
+			(_partOutline, _fadingOutline) = (_fadingOutline, _partOutline);
+			(_partGlow, _fadingGlow) = (_fadingGlow, _partGlow);
+			_partShown = part;
+			if ( part is not null && _weaponRenderer.IsValid() )
+			{
+				if ( !_partGhost.IsValid() || _partGhost.GameObject.Parent != _weaponRenderer.GameObject )
+					(_partGhost, _partOutline) = MakePartGhost();
+
+				_partGhost.BodyGroups = PartMask( _weaponRenderer.Model, part );
+			}
+		}
+
+		_partGlow = Fade( _partGlow, part is not null, delta );
+		_fadingGlow = Fade( _fadingGlow, false, delta );
+		if ( _partOutline.IsValid() )
+			Glow( _partOutline, _partGlow, PartStrength );
+
+		if ( _fadingOutline.IsValid() )
+			Glow( _fadingOutline, _fadingGlow, PartStrength );
+	}
+
+	// A part shows a touch stronger than the whole weapon does
+	private const float PartStrength = 0.6f;
+
+	private string _partShown;
+	private SkinnedModelRenderer _fadingGhost;
+	private HighlightOutline _fadingOutline;
+	private float _partGlow;
+	private float _fadingGlow;
+
+	private static ulong PartMask( Model model, string part )
+	{
+		var name = WeaponParts.NameIn( model, part );
+		var group = name is null ? null : model.Parts.Get( name );
+		if ( group is null )
+			return 0;
+
+		foreach ( var choice in group.Choices )
+		{
+			if ( choice.Mask != 0 )
+				return choice.Mask;
+		}
+
+		return 0;
+	}
+
+	// A copy of the weapon drawing nothing itself, to show only a part, carries the part's outline
+	private (SkinnedModelRenderer Ghost, HighlightOutline Outline) MakePartGhost()
+	{
+		using ( _scene.RenderScene.Push() )
+		{
+			var go = new GameObject( true, "Weapon part" );
+			go.SetParent( _weaponRenderer.GameObject, false );
+			go.LocalTransform = global::Transform.Zero;
+			var ghost = go.AddComponent<SkinnedModelRenderer>();
+			ghost.Model = _weaponRenderer.Model;
+			ghost.UseAnimGraph = false;
+			ghost.MaterialOverride = Material.Load( NoDrawMaterial );
+
+			var outline = go.AddComponent<HighlightOutline>();
+			outline.OverrideTargets = true;
+			outline.Targets = new() { ghost };
+			outline.Enabled = false;
+			return (ghost, outline);
+		}
+	}
+
+	private void RemoveWeapon()
+	{
+		if ( _weaponRenderer.IsValid() )
+		{
+			using ( _scene.RenderScene.Push() )
+				_weaponRenderer.GameObject.Parent.DestroyImmediate();
+		}
+
+		_weaponRenderer = null;
+		_weaponOutline = null;
+		_partGhost = null;
+		_partOutline = null;
+		_fadingGhost = null;
+		_fadingOutline = null;
+		_partShown = null;
+		_weaponGlow = _partGlow = _fadingGlow = 0f;
+		if ( _citizen.IsValid() )
+			_citizen.Set( "holdtype", 0 );
 	}
 
 	// The same model again: the body took itself off (it couldn't pose after a hot reload), or the bone picks changed

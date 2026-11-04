@@ -87,6 +87,27 @@ internal sealed class HeldItems
 			_held.Add( new Held { Root = root, GameLocal = root.LocalTransform } );
 	}
 
+	/// <summary>
+	/// What <paramref name="citizen"/> holds now (the first thing: a weapon's world model), its object, never what the
+	/// selector put on it; null when nothing is held. Looked for when asked: not for every frame.
+	/// </summary>
+	internal static GameObject HeldBy( SkinnedModelRenderer citizen )
+	{
+		if ( !citizen.IsValid() )
+			return null;
+
+		foreach ( var renderer in citizen.GameObject.Components.GetAll<ModelRenderer>( FindMode.EverythingInDescendants ) )
+		{
+			if ( renderer == citizen || renderer is SkinnedModelRenderer { BoneMergeTarget: not null } || !renderer.Active )
+				continue;
+
+			if ( RootOf( renderer.GameObject, citizen ) is { NetworkMode: NetworkMode.Never } root )
+				return root;
+		}
+
+		return null;
+	}
+
 	/// <summary>Moves each held thing into the model's hand, aimed the way the citizen aims it right now.</summary>
 	internal void Place( SkinnedModelRenderer citizen, SkinnedModelRenderer model, PoseTransfer transfer )
 	{

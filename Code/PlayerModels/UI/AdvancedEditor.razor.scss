@@ -1,5 +1,6 @@
 @import "SelectorTheme.scss";
 @import "PreviewTheme.scss";
+@import "ContextMenu.scss";
 
 // The Advanced editor: a window over the whole screen with the model in the middle of it, the options down the right, and
 // sharing and what to do with the changes along the bottom. The preview fills the window, so the model is in the middle
@@ -37,10 +38,24 @@ AdvancedEditor
 		flex-direction: column;
 		pointer-events: none;
 
-		> .title
+		> .title-row
 		{
-			font-size: 22px;
-			font-weight: 600;
+			flex-direction: row;
+			align-items: center;
+			gap: 12px;
+
+			> .title
+			{
+				font-size: 22px;
+				font-weight: 600;
+			}
+
+			// leaving weapon mode: the heading's one control, so it takes clicks the heading lets through
+			> .back-button
+			{
+				@include ui-button;
+				pointer-events: all;
+			}
 		}
 
 		> .subtitle, > .graph

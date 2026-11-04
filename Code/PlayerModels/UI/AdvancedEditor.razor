@@ -1,4 +1,6 @@
 @using System
+@using System.Collections.Generic
+@using System.Linq
 @using Sandbox
 @using Sandbox.UI
 @using PlayerModels.Core
@@ -10,7 +12,13 @@
     <ModelPreview @ref="Stage" class="stage" />
 
     <div class="heading">
-        <div class="title">Advanced Editor</div>
+        <div class="title-row">
+            <div class="title">@( _weaponMode ? $"Editing: {_weaponName}" : "Advanced Editor" )</div>
+            @if ( _weaponMode )
+            {
+                <div class="back-button" Tooltip="Back to editing the player (or double-click the player)" @onclick=@ExitWeaponMode>Back to player</div>
+            }
+        </div>
         <div class="subtitle">@Hint</div>
         <div class="graph">@GraphVersion</div>
     </div>
@@ -32,6 +40,20 @@
     }
 
     <div class="side">
+        @if ( _weaponMode )
+        {
+            <UISettingsPane class="options weapon-options" Title=@_weaponName Revision=@HashCode.Combine( _weaponPath, _look, _model )>
+                <Body>
+                    <SlowScroll><Content>
+                        <WeaponEditor @ref="_weaponPanel" Look=@_look Changed=@Changed Weapon=@_weaponPath WeaponModel=@_held?.Model Targets=@_weaponTargets
+                                      PointAt=@PointPart HoveredPart=@( _pointedPart ?? _hoveredPart ) Locked=@WeaponsLocked PropsLocked=@WeaponPropsLocked
+                                      EffectsLocked=@WeaponEffectsLocked></WeaponEditor>
+                    </Content></SlowScroll>
+                </Body>
+            </UISettingsPane>
+        }
+        else
+        {
         <div class="tabs">
             <div class="tab @( ShownTab == Tab.Look ? "active" : "" )" @onclick=@(() => ShowTab( Tab.Look ))>Look</div>
             <div class="tab @( ShownTab == Tab.Accessories ? "active" : "" )" @onclick=@(() => ShowTab( Tab.Accessories ))>Accessories</div>
@@ -56,6 +78,7 @@
                 </Content></SlowScroll>
             </Body>
         </UISettingsPane>
+        }
     </div>
 
     <div class="bar">
@@ -136,7 +159,37 @@
 
     string Hint => _viewport?.Walking == true
         ? "Walking: WASD to fly, Q and E down and up, Shift for speed, drag to look. Shift+` to stop"
-        : "Middle-drag orbits, Shift pans, Ctrl or the wheel zooms. Click an item, then G move, R rotate, S scale; X Y Z for an axis, Ctrl snaps, type a number. Numpad 1 3 7 for views";
+        : _weaponMode
+            ? "Click a prop or sticker, then G move, R rotate, S scale. Point at a part and right-click it to replace, attach to or hide it. Double-click the player to go back"
+            : _held is not null
+                ? "Double-click your weapon to design it. Middle-drag orbits, Shift pans, Ctrl or the wheel zooms. Click an item, then G move, R rotate, S scale; X Y Z for an axis, Ctrl snaps"
+                : "Middle-drag orbits, Shift pans, Ctrl or the wheel zooms. Click an item, then G move, R rotate, S scale; X Y Z for an axis, Ctrl snaps, type a number. Numpad 1 3 7 for views";
+
+    // Weapon mode: the weapon the player holds in the game, held the same in the preview and designed here (see
+    // WeaponEditor), entered by double-clicking it; what is pointed at on it, and what the gizmo moves there
+    bool _weaponMode;
+    ModelPreview.HeldWeapon? _held;
+    string _weaponPath;
+    string _weaponName;
+    RealTimeSince _sinceHeld = 10f;
+    bool _hoverWeapon;
+    string _hoveredPart;
+    string _pointedPart;
+    ItemTargets _itemTargets;
+    WeaponTargets _weaponTargets;
+    WeaponEditor _weaponPanel;
+
+    // How often the weapon held in the game is looked for again, in seconds; and where weapon mode looks at it from
+    const float HeldInterval = 0.5f;
+    const float SideYaw = 90f;
+    const float SidePitch = 12f;
+
+    static PlayerModels.Components.PlayerModelSelector Selector => PlayerModels.Components.PlayerModelSelector.Find( Game.ActiveScene );
+
+    // Whether the host keeps players' weapon designs, props or effects off (never the host's own)
+    static bool WeaponsLocked => !Networking.IsHost && Selector?.BlockWeaponDesigns == true;
+    static bool WeaponPropsLocked => !Networking.IsHost && Selector?.BlockWeaponProps == true;
+    static bool WeaponEffectsLocked => !Networking.IsHost && Selector?.BlockWeaponEffects == true;
 
     // Which animation graph system moves the citizen every model is posed from
     string GraphVersion => AnimGraphVersions.Describe( AnimGraphVersions.Of( Stage?.Citizen ) );
@@ -149,7 +202,8 @@
     PlayerLook CurrentLook => _look is { IsCustomised: true, IsDefault: false } ? _look.Customisation() : null;
 
     protected override int BuildHash() => HashCode.Combine( _look, _look?.Serialize(), _model, _dirty, ShownTab,
-        HashCode.Combine( _viewport?.Tool, _viewport?.Walking, _viewport?.Status, _selectedItem, GraphVersion ) );
+        HashCode.Combine( _viewport?.Tool, _viewport?.Walking, _viewport?.Status, _selectedItem, GraphVersion ),
+        HashCode.Combine( _weaponMode, _weaponPath, _weaponName, _hoveredPart, _pointedPart, _weaponTargets?.Selected, _held is null ) );
 
     protected override void OnAfterTreeRender( bool firstTime )
     {
@@ -181,11 +235,177 @@
             return;
 
         Stage.FillsWindow = true;
-        Stage.Viewport ??= _viewport ??= new EditorViewport( Stage, () => _look, Changed, () => _selectedItem, SelectItem );
+        _itemTargets ??= new ItemTargets( Stage, () => _look, Changed, () => _selectedItem, SelectItem );
+        _weaponTargets ??= new WeaponTargets( () => _look?.DesignFor( _weaponPath ), () => Stage.WeaponRenderer, Changed ) { Selecting = _ => StateHasChanged() };
+        if ( _viewport is null )
+        {
+            _viewport = new EditorViewport( Stage, () => _weaponMode ? _weaponTargets : _itemTargets ) { DoubleClicked = DoubleClicked, RightClicked = RightClicked };
+            Stage.Viewport = _viewport;
+        }
+
         SyncSelection();
+        FindHeldWeapon();
         Stage.Look = ShownNow?.Invoke() ?? _look;
-        Stage.Highlight = ShownTab == Tab.Look ? _pointed : null;
+        Stage.Highlight = ShownTab == Tab.Look && !_weaponMode ? _pointed : null;
+        Stage.Weapon = _held;
+        Hover();
+        Stage.WeaponOutlined = !_weaponMode && _hoverWeapon;
+        Stage.WeaponPart = _weaponMode ? _pointedPart ?? _hoveredPart : null;
         _ = Stage.ShowAsync( _look.Model );
+    }
+
+    // The weapon the player holds in the game now: the same held in the preview, a few times a second
+    void FindHeldWeapon()
+    {
+        if ( _sinceHeld < HeldInterval )
+            return;
+
+        _sinceHeld = 0;
+        var player = Game.ActiveScene?.GetAll<Player>().FirstOrDefault( x => x.IsLocalPlayer );
+        var citizen = player?.Controller?.Renderer;
+        var root = HeldItems.HeldBy( citizen );
+        var renderer = root is null ? null : WeaponDresser.MainRenderer( root );
+        if ( renderer?.Model is not { } model || !WeaponProp.IsModelPath( model.ResourcePath ) )
+        {
+            _held = null;
+            _weaponPath = null;
+            if ( _weaponMode )
+                ExitWeaponMode();
+
+            return;
+        }
+
+        var held = new ModelPreview.HeldWeapon( model, root.Parent.Name, root.WorldTransform.ToLocal( renderer.WorldTransform ), citizen.GetInt( "holdtype" ) );
+        if ( held.Model == _held?.Model && held.Bone == _held?.Bone && held.HoldType == _held?.HoldType )
+            return;
+
+        _held = held;
+        _weaponPath = model.ResourcePath;
+        var weapon = Game.ActiveScene.GetAll<BaseCombatWeapon>().FirstOrDefault( x => x.WorldModel == root );
+        _weaponName = string.IsNullOrWhiteSpace( weapon?.DisplayName ) ? WeaponDesign.NameOf( _weaponPath ) : weapon.DisplayName;
+        StateHasChanged();
+    }
+
+    // What the cursor is over: the weapon, to double-click into; in weapon mode, a part of it
+    void Hover()
+    {
+        var weapon = Stage.WeaponRenderer;
+        _hoverWeapon = false;
+        var part = (string)null;
+        if ( _viewport?.Hovered is { } ray && weapon.IsValid() )
+        {
+            _hoverWeapon = Hits( ray, weapon.Bounds );
+            if ( _weaponMode && _hoverWeapon )
+                part = PartAt( ray, weapon );
+        }
+
+        if ( part != _hoveredPart )
+        {
+            _hoveredPart = part;
+            StateHasChanged();
+        }
+    }
+
+    static bool Hits( Ray ray, BBox bounds ) => bounds.Trace( ray, 10000f, out _ );
+
+    // The part of the weapon nearest along ray, by its bounds
+    static string PartAt( Ray ray, ModelRenderer weapon )
+    {
+        string found = null;
+        var nearest = float.MaxValue;
+        var world = weapon.WorldTransform;
+        foreach ( var part in WeaponParts.Of( weapon.Model ) )
+        {
+            if ( WeaponParts.BoundsOf( weapon.Model, part ) is not { } bounds )
+                continue;
+
+            var local = new Ray( world.PointToLocal( ray.Position ), world.Rotation.Inverse * ray.Forward );
+            if ( bounds.Trace( local, 10000f, out var distance ) && distance < nearest )
+            {
+                nearest = distance;
+                found = part;
+            }
+        }
+
+        return found;
+    }
+
+    void PointPart( string part )
+    {
+        _pointedPart = part;
+    }
+
+    // Double-clicking the weapon designs it; double-clicking anything else in weapon mode goes back to the player
+    void DoubleClicked( Ray ray )
+    {
+        var weapon = Stage.WeaponRenderer;
+        var onWeapon = weapon.IsValid() && Hits( ray, weapon.Bounds );
+        if ( !_weaponMode && onWeapon )
+            EnterWeaponMode();
+        else if ( _weaponMode && !onWeapon )
+            ExitWeaponMode();
+    }
+
+    void EnterWeaponMode()
+    {
+        if ( _held is null || !Stage.WeaponRenderer.IsValid() )
+            return;
+
+        _weaponMode = true;
+        _selectedItem = -1;
+        _weaponTargets.Select( -1 );
+
+        // From the weapon's side, a little above: it points ahead, so the front would see it end on
+        Stage.View.View( SideYaw, SidePitch );
+        _viewport?.Frame( Stage.WeaponRenderer.Bounds );
+        StateHasChanged();
+    }
+
+    void ExitWeaponMode()
+    {
+        _weaponMode = false;
+        _pointedPart = null;
+        ContextMenu.Close();
+        _viewport?.FrameAll();
+        StateHasChanged();
+    }
+
+    // Right-clicking in weapon mode: what can be done to the prop or sticker under the cursor, or the part
+    void RightClicked( Ray ray )
+    {
+        if ( !_weaponMode || _weaponPanel is null )
+            return;
+
+        var target = _weaponTargets.At( ray );
+        if ( target >= 0 )
+        {
+            _weaponTargets.Select( target );
+            var isProp = target < _weaponTargets.PropCount;
+            ContextMenu.Open( this, isProp ? "Prop" : "Sticker", new List<ContextMenu.Entry>
+            {
+                new( "Edit", "edit", () => _weaponTargets.Select( target ), "Click" ),
+                new( "Duplicate", "content_copy", () => _weaponTargets.Duplicate(), "Shift+D" ),
+                new( "First-person nudge", "open_with", () => _weaponTargets.Select( target ), null, isProp, "Only props are nudged in first person" ),
+                new( "Remove", "delete", () => _weaponTargets.Remove(), "Delete" ),
+            } );
+            return;
+        }
+
+        if ( _hoveredPart is not { } part )
+            return;
+
+        var model = Stage.WeaponRenderer?.Model;
+        var canHide = WeaponParts.CanHide( model, part );
+        var hidden = _look.DesignFor( _weaponPath )?.HiddenParts?.Contains( part ) == true;
+        var full = (_look.DesignFor( _weaponPath )?.Props?.Count ?? 0) >= WeaponDesign.MaxProps;
+        ContextMenu.Open( this, $"The {part}", new List<ContextMenu.Entry>
+        {
+            new( "Replace with prop", "swap_horiz", () => _weaponPanel.Replace( part, true ), null, !full, $"A weapon has up to {WeaponDesign.MaxProps} props" ),
+            new( "Attach to this part", "attach_file", () => _weaponPanel.Replace( part, false ), null, !full, $"A weapon has up to {WeaponDesign.MaxProps} props" ),
+            hidden
+                ? new( "Show part", "visibility", () => _weaponPanel.SetHidden( part, false ) )
+                : new( "Hide part", "visibility_off", () => _weaponPanel.SetHidden( part, true ), null, canHide, "This weapon can't hide this part" ),
+        } );
     }
 
     void UseTool( TransformGizmo.Tool tool )
@@ -253,6 +473,7 @@
 
     public override void OnDeleted()
     {
+        ContextMenu.Close();
         _hold?.Delete();
         if ( _menu.IsValid() )
             _menu.Style.ZIndex = null;

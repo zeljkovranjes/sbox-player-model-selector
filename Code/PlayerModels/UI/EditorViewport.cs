@@ -1,15 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.Text.Json;
-using PlayerModels.Core;
-using PlayerModels.Engine;
 using Sandbox;
 using Sandbox.UI;
 
 namespace PlayerModels.UI;
 
 /// <summary>
-/// The Advanced editor's view, worked the way Blender's viewport is. Middle-drag orbits, Shift+middle pans, Ctrl+middle
+/// The Advanced editor's view, worked the way Blender's viewport is, over what its gizmo moves (see
+/// <see cref="IGizmoTargets"/>: the items worn, or a weapon's props and stickers). Middle-drag orbits, Shift+middle pans, Ctrl+middle
 /// and the wheel zoom (Alt+left orbits, for a mouse without a middle button); the numpad gives views and steps, Home
 /// frames the body and numpad . the item. Clicking an item selects it; its gizmo moves, turns and sizes it, and so do
 /// G, R and S, with X/Y/Z (Shift for a plane), typed numbers, Ctrl to snap and Shift for precision, left click or Enter to
@@ -22,11 +20,12 @@ internal sealed class EditorViewport
 	private const float ViewStep = 15f;
 	private const float ClickPixels = 4f;
 
+	// Two clicks this close together (seconds) are a double click
+	private const float DoubleClickSeconds = 0.4f;
+
 	private readonly ModelPreview _stage;
-	private readonly Func<PlayerLook> _look;
-	private readonly Action _changed;
-	private readonly Func<int> _selected;
-	private readonly Action<int> _select;
+	private readonly Func<IGizmoTargets> _targets;
+	private RealTimeSince _sinceClick = 10f;
 
 	private enum Navigation { None, Orbit, Pan, Zoom, Look }
 
@@ -41,18 +40,23 @@ internal sealed class EditorViewport
 	private readonly List<string> _redo = new();
 
 	/// <param name="stage">The preview filling the window.</param>
-	/// <param name="look">The look being edited now.</param>
-	/// <param name="changed">Told after the look's items change.</param>
-	/// <param name="selected">The item selected, by its place in the look; -1 for none.</param>
-	/// <param name="select">Selects an item, or none with -1.</param>
-	public EditorViewport( ModelPreview stage, Func<PlayerLook> look, Action changed, Func<int> selected, Action<int> select )
+	/// <param name="targets">What the gizmo moves now (see <see cref="IGizmoTargets"/>).</param>
+	public EditorViewport( ModelPreview stage, Func<IGizmoTargets> targets )
 	{
 		_stage = stage;
-		_look = look;
-		_changed = changed;
-		_selected = selected;
-		_select = select;
+		_targets = targets;
 	}
+
+	private IGizmoTargets Targets => _targets();
+
+	/// <summary>Called with the ray under the cursor when the view is double clicked (into and out of weapon mode).</summary>
+	public Action<Ray> DoubleClicked { get; set; }
+
+	/// <summary>Called with the ray under the cursor on a right click that moved nothing (a context menu).</summary>
+	public Action<Ray> RightClicked { get; set; }
+
+	/// <summary>The ray under the cursor now, for what is hovered; null off the view.</summary>
+	public Ray? Hovered { get; private set; }
 
 	/// <summary>Which of the gizmo's handles show.</summary>
 	public TransformGizmo.Tool Tool { get; set; } = TransformGizmo.Tool.Transform;
@@ -77,6 +81,7 @@ internal sealed class EditorViewport
 
 		Walk();
 		Navigate( mouse, size );
+		Hovered = mouse.x >= 0f && mouse.y >= 0f && mouse.x <= size.x && mouse.y <= size.y ? RayAt( mouse ) : null;
 
 		if ( !TryFrame( out var frame ) )
 		{
@@ -113,6 +118,12 @@ internal sealed class EditorViewport
 			else if ( button == MouseButtons.Right )
 				Cancel();
 
+			return true;
+		}
+
+		if ( button == MouseButtons.Right && RightClicked is not null )
+		{
+			RightClicked( RayAt( mouse ) );
 			return true;
 		}
 
@@ -158,7 +169,19 @@ internal sealed class EditorViewport
 		{
 			_picking = false;
 			if ( (_stage.MousePosition - _pressedAt).Length <= ClickPixels )
-				_select( ItemAt( _stage.MousePosition ) );
+			{
+				var ray = RayAt( _stage.MousePosition );
+				if ( _sinceClick < DoubleClickSeconds && DoubleClicked is not null )
+				{
+					_sinceClick = 10f;
+					DoubleClicked( ray );
+				}
+				else
+				{
+					_sinceClick = 0f;
+					Targets.Select( Targets.At( ray ) );
+				}
+			}
 		}
 
 		_navigation = Navigation.None;
@@ -178,6 +201,12 @@ internal sealed class EditorViewport
 
 		var key = e.Button.ToLowerInvariant();
 		return _operation is not null ? KeyDuringOperation( key, e ) : KeyAtRest( key, e );
+	}
+
+	/// <summary>Frames <paramref name="bounds"/>, seen from where the view is now.</summary>
+	public void Frame( BBox bounds )
+	{
+		View.Frame( bounds.Center, MathF.Max( bounds.Size.Length * 0.5f, 2f ) );
 	}
 
 	/// <summary>Puts the view back on the whole body from the front.</summary>
@@ -276,7 +305,7 @@ internal sealed class EditorViewport
 
 		if ( e.HasAlt && key == "a" )
 		{
-			_select( -1 );
+			Targets.Select( -1 );
 			return true;
 		}
 
@@ -308,23 +337,17 @@ internal sealed class EditorViewport
 
 	private void FrameSelected()
 	{
-		var rack = _stage.Body?.Accessories;
-		if ( rack is not null && rack.TryGetPlacement( _selected(), out var placement ) && placement.Renderer.IsValid() )
-		{
-			var bounds = placement.Renderer.Bounds;
-			View.Frame( bounds.Center, MathF.Max( bounds.Size.Length * 0.5f, 2f ) );
-		}
+		if ( Targets.TryBounds( out var bounds ) )
+			Frame( bounds );
 		else
-		{
 			FrameAll();
-		}
 	}
 
 	private void Start( TransformGizmo.Kind kind )
 	{
 		if ( !TryFrame( out _ ) || !TryPose( out var pose ) )
 		{
-			Status = "Select an item first: click it, or pick it on the Accessories tab.";
+			Status = Targets.NothingSelected;
 			return;
 		}
 
@@ -358,47 +381,32 @@ internal sealed class EditorViewport
 		Status = "";
 	}
 
-	// Alt+G, Alt+R, Alt+S: back to where the joint holds it, unturned, at the size it starts at
+	// Alt+G, Alt+R, Alt+S: back to where it starts, unturned, at the size it starts at
 	private void Clear( string key )
 	{
-		if ( Selected is not { } accessory )
+		if ( !TryPose( out _ ) )
 			return;
 
 		Remember( Snapshot() );
-		if ( key == "g" )
-			accessory.Forward = accessory.Left = accessory.Up = 0f;
-		else if ( key == "r" )
-			accessory.Pitch = accessory.Yaw = accessory.Roll = 0f;
-		else
-			accessory.Scale = 1f;
-
-		Clamp( accessory );
-		_changed?.Invoke();
+		Targets.Clear( key );
 	}
 
 	private void Duplicate()
 	{
-		var look = _look();
-		if ( Selected is not { } accessory || look.Accessories.Count >= Accessory.MaxWorn )
+		if ( !TryPose( out _ ) )
 			return;
 
 		Remember( Snapshot() );
-		look.Accessories.Add( JsonSerializer.Deserialize<Accessory>( JsonSerializer.Serialize( accessory ) ) );
-		_changed?.Invoke();
-		_select( look.Accessories.Count - 1 );
+		Targets.Duplicate();
 	}
 
 	private void Remove()
 	{
-		var look = _look();
-		var index = _selected();
-		if ( index < 0 || index >= look.Accessories.Count )
+		if ( !TryPose( out _ ) )
 			return;
 
 		Remember( Snapshot() );
-		look.Accessories.RemoveAt( index );
-		_select( -1 );
-		_changed?.Invoke();
+		Targets.Remove();
 	}
 
 	private void Undo() => Step( _undo, _redo );
@@ -427,115 +435,20 @@ internal sealed class EditorViewport
 		_redo.Clear();
 	}
 
-	private string Snapshot() => JsonSerializer.Serialize( _look()?.Accessories ?? new List<Accessory>() );
+	private string Snapshot() => Targets.Snapshot();
 
-	private void Restore( string snapshot )
+	private void Restore( string snapshot ) => Targets.Restore( snapshot );
+
+	private bool TryPose( out TransformGizmo.Pose pose ) => Targets.TryPose( out pose );
+
+	private bool TryFrame( out TransformGizmo.Frame frame ) => Targets.TryFrame( out frame );
+
+	private void Write( in TransformGizmo.Pose pose ) => Targets.Write( pose );
+
+	private Ray RayAt( Vector2 mouse )
 	{
-		var look = _look();
-		if ( look is null )
-			return;
-
-		look.Accessories = JsonSerializer.Deserialize<List<Accessory>>( snapshot ) ?? new List<Accessory>();
-		if ( _selected() >= look.Accessories.Count )
-			_select( -1 );
-
-		_changed?.Invoke();
-	}
-
-	private Accessory Selected
-	{
-		get
-		{
-			var look = _look();
-			var index = _selected();
-			return look is not null && index >= 0 && index < look.Accessories.Count ? look.Accessories[ index ] : null;
-		}
-	}
-
-	private bool TryPose( out TransformGizmo.Pose pose )
-	{
-		pose = default;
-		if ( Selected is not { } accessory )
-			return false;
-
-		pose = new TransformGizmo.Pose( new Vector3( accessory.Forward, accessory.Left, accessory.Up ),
-			Rotation.From( accessory.Pitch, accessory.Yaw, accessory.Roll ), accessory.Scale );
-		return true;
-	}
-
-	// Where the selected item's joint is now, for the gizmo; none while its item is loading
-	private bool TryFrame( out TransformGizmo.Frame frame )
-	{
-		frame = default;
-		var rack = _stage.Body?.Accessories;
-		if ( rack is null || Selected is null || !rack.TryGetPlacement( _selected(), out var placement ) )
-			return false;
-
-		frame = new TransformGizmo.Frame( placement.Pivot, placement.Heading, placement.Scale );
-		return true;
-	}
-
-	private void Write( in TransformGizmo.Pose pose )
-	{
-		if ( Selected is not { } accessory )
-			return;
-
-		accessory.Forward = pose.Offset.x;
-		accessory.Left = pose.Offset.y;
-		accessory.Up = pose.Offset.z;
-
-		var angles = pose.Turn.Angles();
-		accessory.Pitch = angles.pitch;
-		accessory.Yaw = angles.yaw;
-		accessory.Roll = angles.roll;
-		accessory.Scale = pose.Size;
-
-		Clamp( accessory );
-		_changed?.Invoke();
-	}
-
-	// Within what every client lets the item do on this model, as the sliders are
-	private void Clamp( Accessory accessory )
-	{
-		var rack = _stage.Body?.Accessories;
-		var body = _stage.Body?.Renderer?.Model;
-		if ( rack is null || !rack.TryGetPlacement( _selected(), out var placement ) )
-			return;
-
-		var fitted = accessory.FittedTo( AccessoryCatalog.HeightOf( body ), placement.Size, placement.Follows );
-		accessory.Forward = fitted.Forward;
-		accessory.Left = fitted.Left;
-		accessory.Up = fitted.Up;
-		accessory.Pitch = fitted.Pitch;
-		accessory.Yaw = fitted.Yaw;
-		accessory.Roll = fitted.Roll;
-		accessory.Scale = fitted.Scale;
-	}
-
-	// The item under the cursor, the nearest one hit; -1 for none
-	private int ItemAt( Vector2 mouse )
-	{
-		var rack = _stage.Body?.Accessories;
 		var size = Size;
-		if ( rack is null || size.y <= 0f )
-			return -1;
-
-		var ray = View.RayThrough( new Vector2( mouse.x / size.x, mouse.y / size.y ), size.x / size.y );
-		var nearest = float.MaxValue;
-		var found = -1;
-		for ( var i = 0; i < rack.Count; i++ )
-		{
-			if ( !rack.TryGetPlacement( i, out var placement ) || !placement.Renderer.IsValid() )
-				continue;
-
-			if ( placement.Renderer.Bounds.Trace( ray, 10000f, out var distance ) && distance < nearest )
-			{
-				nearest = distance;
-				found = i;
-			}
-		}
-
-		return found;
+		return View.RayThrough( new Vector2( mouse.x / MathF.Max( size.x, 1f ), mouse.y / MathF.Max( size.y, 1f ) ), size.x / MathF.Max( size.y, 1f ) );
 	}
 
 	private void Navigate( Vector2 mouse, Vector2 size )

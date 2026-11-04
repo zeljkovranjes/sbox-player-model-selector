@@ -6,7 +6,8 @@ namespace PlayerModels.UI;
 /// <summary>
 /// A Workshop row's picture of what was shared, drawn on this machine from what it is (no picture is uploaded): an
 /// effect as its tile shows it (see <see cref="EffectIcon"/>), a shape or sticker as bodies show it (see
-/// <see cref="ShapeIcon"/>), on a dark ground so glows show; nothing for kinds without a picture.
+/// <see cref="ShapeIcon"/>), a weapon design on its weapon (see <see cref="WeaponIcon"/>), on a dark ground so glows show;
+/// nothing for kinds without a picture.
 /// </summary>
 public sealed class SharedPicture : Panel
 {
@@ -32,6 +33,10 @@ public sealed class SharedPicture : Panel
 
 			case DrawnShape shape:
 				AddChild( new ShapeIcon { Shape = shape } ).AddClass( "fill" );
+				break;
+
+			case WeaponDesign design:
+				AddChild( new WeaponIcon { Design = design } ).AddClass( "fill" );
 				break;
 		}
 	}

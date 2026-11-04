@@ -1,0 +1,76 @@
+// The right-click menu: a small light panel of rows at the cursor, over everything
+ContextMenu
+{
+	position: absolute;
+	z-index: 1000;
+	flex-direction: column;
+	min-width: 220px;
+	padding: 4px 0px;
+	background-color: $ui-control-bg;
+	border: 1px solid $ui-control-border;
+	border-radius: 4px;
+	box-shadow: 0px 4px 16px rgba( 0, 0, 0, 0.35 );
+	font-family: $body-font;
+	font-size: $ui-settings-font;
+	color: $ui-text;
+	pointer-events: all;
+
+	> .title
+	{
+		padding: 4px 12px 6px 12px;
+		font-weight: 600;
+		color: $ui-text-muted;
+		border-bottom: 1px solid $ui-separator;
+		margin-bottom: 4px;
+	}
+
+	> .entry
+	{
+		flex-direction: row;
+		align-items: center;
+		padding: 5px 12px;
+		gap: 10px;
+		cursor: pointer;
+
+		> .icon
+		{
+			font-family: "Material Icons";
+			font-size: 16px;
+			width: 18px;
+			text-transform: none;
+		}
+
+		> .label
+		{
+			flex-grow: 1;
+		}
+
+		> .shortcut
+		{
+			color: $ui-text-muted;
+		}
+
+		&:hover
+		{
+			background-color: $ui-blue;
+			color: white;
+
+			> .shortcut
+			{
+				color: rgba( 255, 255, 255, 0.8 );
+			}
+		}
+
+		&.disabled
+		{
+			color: $ui-text-disabled;
+			cursor: default;
+
+			&:hover
+			{
+				background-color: transparent;
+				color: $ui-text-disabled-hover;
+			}
+		}
+	}
+}

@@ -24,7 +24,7 @@ public static class ScriptEdit
 	public static EditResult SetLayer( string source, ScriptBuild build, int layer, PropertyId property, EffectLayer value, Func<string, string> shapeName = null )
 	{
 		var changes = new List<Splice>();
-		var problem = LayerChange( source, build, layer, property, ScriptLiteral.Of( property, value, shapeName ), changes, out var line );
+		var problem = LayerChange( source, build, layer, property, Effective( property, value, shapeName ), changes, out var line );
 		return problem is null ? new EditResult( Apply( source, changes ) ) : new EditResult( source, problem, line );
 	}
 
@@ -65,8 +65,10 @@ public static class ScriptEdit
 				if ( definition.Owner != TypeKind.Layer || definition.ReadOnly || definition.Id == PropertyId.LayerParticle )
 					continue;
 
-				var wanted = ScriptLiteral.Of( definition.Id, now, shapeName );
-				if ( wanted != ScriptLiteral.Of( definition.Id, was, shapeName )
+				// An end the script doesn't set follows its start by itself; one it sets is kept in step
+				var follows = ScriptLiteral.Of( definition.Id, now, shapeName ) is null && build.SourceOf( layer, definition.Id ).Origin == FieldOrigin.Default;
+				var wanted = Effective( definition.Id, now, shapeName );
+				if ( !follows && wanted != Effective( definition.Id, was, shapeName )
 					&& LayerChange( source, build, layer, definition.Id, wanted, changes, out var line ) is { } problem )
 					return new EditResult( source, problem, line );
 			}
@@ -185,6 +187,14 @@ public static class ScriptEdit
 
 		return new EditResult( source[ ..parameter.ValueStart ] + literal + source[ parameter.ValueEnd.. ] );
 	}
+
+	// A field's literal, an end (size or colour) that isn't set being its start's, as the layer shows it
+	private static string Effective( PropertyId property, EffectLayer layer, Func<string, string> shapeName ) => property switch
+	{
+		PropertyId.LayerSizeEnd => ScriptLiteral.Of( property, layer, shapeName ) ?? ScriptLiteral.Of( PropertyId.LayerSize, layer, shapeName ),
+		PropertyId.LayerColorEnd => ScriptLiteral.Of( property, layer, shapeName ) ?? ScriptLiteral.Of( PropertyId.LayerColor, layer, shapeName ),
+		_ => ScriptLiteral.Of( property, layer, shapeName ),
+	};
 
 	private static string LayerChange( string source, ScriptBuild build, int layer, PropertyId property, string literal, List<Splice> changes, out int line )
 	{

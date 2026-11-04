@@ -56,7 +56,7 @@
         <div class="top">
             <div class="tool @( _history.CanUndo ? "" : "disabled" )" Tooltip="Undo the last change to this weapon" @onclick=@Undo>undo</div>
             <div class="tool @( _history.CanRedo ? "" : "disabled" )" Tooltip="Redo" @onclick=@Redo>redo</div>
-            <div class="reset" Tooltip="Designs players shared for this weapon" @onclick=@(() => ShowWorkshop( true ))>@WorkshopLabel</div>
+            <div class="reset workshop" Tooltip="Designs players shared for this weapon" @onclick=@(() => ShowWorkshop( true ))>@WorkshopLabel</div>
             <div class="reset @( Design is null ? "disabled" : "" )" Tooltip="Take this weapon's design off" @onclick=@Reset>Reset weapon</div>
         </div>
 
@@ -351,7 +351,7 @@
         }
     }
 
-    string WorkshopLabel => $"Workshop · {Shared.Weapons.CountOf( Weapon )} designs for this weapon";
+    string WorkshopLabel => Shared.Weapons.CountOf( Weapon ) is > 0 and var count ? $"Workshop ({count})" : "Workshop";
 
     // The design as it would be shared, carrying its drawn shapes
     WeaponDesign Shareable => Look?.StandaloneWeapon( Design );

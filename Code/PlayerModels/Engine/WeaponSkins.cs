@@ -21,7 +21,7 @@ internal static class WeaponSkins
 	/// <summary>The skin shader: a weapon's own surface, finished, tinted and painted (Assets/shaders/weapon_skin.shader).</summary>
 	internal const string Shader = "shaders/weapon_skin.shader";
 
-	// The most materials kept: past it they are all let go of and made again as they are needed
+	// The most materials kept: past it the one used longest ago is let go of, made again if it is needed
 	private const int MostKept = 256;
 
 	// A pattern repeats this many units on the weapon at scale 1
@@ -42,7 +42,9 @@ internal static class WeaponSkins
 	// shadows in one texture)
 	private enum SourceKind { ColourOnly, Complex, Standard }
 
-	private static readonly Dictionary<string, Material> Kept = new();
+	// Made afresh on a hot reload: what it keeps is made again as it is needed
+	[SkipHotload]
+	private static readonly RecentCache<string, Material> Kept = new( MostKept );
 	private static int _made;
 
 	/// <summary>The most stickers the skin draws, as many as a design has (see <see cref="WeaponDesign.MaxStickers"/>).</summary>
@@ -121,14 +123,11 @@ internal static class WeaponSkins
 	internal static Material For( Material source, WeaponDesign design, string key, Frame frame, IReadOnlyList<DrawnShape> shapes, IReadOnlyList<Stuck> stickers )
 	{
 		var name = $"{source?.ResourcePath ?? source?.Name}|{key}|{frame}";
-		if ( Kept.TryGetValue( name, out var kept ) && kept.IsValid() )
+		if ( Kept.TryGet( name, out var kept ) && kept.IsValid() )
 		{
 			Move( kept, design.Skin );
 			return kept;
 		}
-
-		if ( Kept.Count >= MostKept )
-			Kept.Clear();
 
 		var made = Material.Create( $"weapon_skin_{_made++}", Shader );
 		if ( made is null )
@@ -139,7 +138,7 @@ internal static class WeaponSkins
 
 		Dress( made, source, design, frame, shapes );
 		Press( made, stickers );
-		Kept[ name ] = made;
+		Kept.Set( name, made );
 		return made;
 	}
 

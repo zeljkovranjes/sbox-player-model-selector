@@ -22,7 +22,9 @@ internal static class StickerSurface
 
 	private sealed record Mesh( Vector3[] Points, uint[] Triangles );
 
-	private static readonly Dictionary<string, Mesh> Meshes = new();
+	// Made afresh on a hot reload: what it keeps is made again as it is needed
+	[SkipHotload]
+	private static readonly RecentCache<string, Mesh> Meshes = new( MostKept );
 	[SkipHotload]
 	private static readonly Dictionary<(string, Vector3, Vector3), float?> Answers = new();
 
@@ -58,7 +60,7 @@ internal static class StickerSurface
 
 	private static Mesh MeshOf( string name, Model model )
 	{
-		if ( Meshes.TryGetValue( name, out var mesh ) )
+		if ( Meshes.TryGet( name, out var mesh ) )
 			return mesh;
 
 		Vertex[] vertices;
@@ -75,9 +77,6 @@ internal static class StickerSurface
 			indices = null;
 		}
 
-		if ( Meshes.Count >= MostKept )
-			Meshes.Clear();
-
 		// Only the points are kept: a weapon's full vertices are several times their size
 		mesh = null;
 		if ( vertices is { Length: > 0 } && indices is { Length: >= 3 } )
@@ -89,7 +88,7 @@ internal static class StickerSurface
 			mesh = new Mesh( points, indices );
 		}
 
-		Meshes[ name ] = mesh;
+		Meshes.Set( name, mesh );
 		return mesh;
 	}
 

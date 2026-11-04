@@ -36,7 +36,8 @@ public sealed partial class ScriptMachine
 	{
 		Program = program ?? throw new ArgumentNullException( nameof( program ) );
 		Globals = new double[ program.GlobalSlots ];
-		Arena = (double[])program.Arena.Clone();
+		Arena = new double[ program.Arena.Length ];
+		Array.Copy( program.Arena, Arena, Arena.Length );
 		Strings = program.Strings;
 		SetPalette( null );
 	}

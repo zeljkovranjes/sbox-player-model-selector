@@ -234,7 +234,7 @@
 
     void SetPart( ScriptParameter parameter, double[] parts, int axis, double value )
     {
-        var copy = (double[])parts.Clone();
+        var copy = parts.ToArray();
         copy[ axis ] = value;
         Set( parameter, string.Join( ",", copy.Select( x => x.ToString( "R", CultureInfo.InvariantCulture ) ) ) );
     }

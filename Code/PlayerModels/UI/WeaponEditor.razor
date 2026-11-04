@@ -162,6 +162,12 @@
                             ValueChanged=@(( object v ) => Change( _ => chosen.Animation = (string)v == nameof( Sticker.Motion.None ) ? null : (string)v )) Tokenize=@false></UIDropdown>
             </div>
             <NumberRow Label="Size" Unit=@NumberRow.Field.StickerSize Value=@chosen.Size OnChanged=@(( float v ) => Change( _ => chosen.Size = v ))></NumberRow>
+            <div class="row">
+                <div class="label">Printed on</div>
+                <UIDropdown Items=@StickerFinishChoices() Value=@( chosen.Finish ?? "" ) ValueChanged=@(( object v ) => Change( _ => chosen.Finish = (string)v == "" ? null : (string)v )) Tokenize=@false></UIDropdown>
+            </div>
+            <NumberRow Label="Scrape" Unit=@NumberRow.Field.Fraction Value=@chosen.Scrape OnChanged=@(( float v ) => Change( _ => chosen.Scrape = v ))></NumberRow>
+            <ToggleRow Label="White die-cut border" Value=@chosen.Border OnChanged=@(( bool v ) => Change( _ => chosen.Border = v ))></ToggleRow>
             <NumberRow Label="Forward / back" Unit=@NumberRow.Field.PropOffset Value=@chosen.Forward OnChanged=@(( float v ) => Change( _ => chosen.Forward = v ))></NumberRow>
             <NumberRow Label="Left / right" Unit=@NumberRow.Field.PropOffset Value=@chosen.Left OnChanged=@(( float v ) => Change( _ => chosen.Left = v ))></NumberRow>
             <NumberRow Label="Up / down" Unit=@NumberRow.Field.PropOffset Value=@chosen.Up OnChanged=@(( float v ) => Change( _ => chosen.Up = v ))></NumberRow>
@@ -696,6 +702,14 @@
     };
 
     static List<UIDropdown.Item> MotionChoices() => Enum.GetValues<WeaponSkin.Motion>().Select( x => new UIDropdown.Item( MotionName( x ), x.ToString() ) ).ToList();
+
+    // A sticker's finish: its own (what the sticker was printed on), or one of them in its place
+    static List<UIDropdown.Item> StickerFinishChoices()
+    {
+        var choices = new List<UIDropdown.Item> { new( "As the sticker is", "" ) };
+        choices.AddRange( Enum.GetValues<StickerFinish>().Select( x => new UIDropdown.Item( x.ToString(), x.ToString() ) ) );
+        return choices;
+    }
 
     static List<UIDropdown.Item> StickerMotionChoices() => Enum.GetValues<Sticker.Motion>().Select( x => new UIDropdown.Item( x switch
     {

@@ -1,6 +1,6 @@
 HEADER
 {
-	Description = "Player Model Selector: a weapon's skin. Its own colour and bumps, tinted and finished, with a pattern laid over it from every side and colours moving along it, worked out from the model's own space so no UVs are needed";
+	Description = "Player Model Selector: a weapon's skin. Its own colour and bumps, tinted and finished, with a pattern laid over it from every side, colours moving along it and stickers pressed onto it, worked out from the model's own space so no UVs are needed";
 }
 
 FEATURES
@@ -92,6 +92,62 @@ PS
 	float3 g_vPalette7 < Default3( 1.0, 1.0, 1.0 ); >;
 	float g_flSpeed < Default( 1.0 ); Range( 0.0, 10.0 ); >;
 	float g_flBands < Default( 8.0 ); Range( 2.0, 32.0 ); >;
+
+	// Stickers, up to eight, each pressed onto the surface from one side as CS:GO's are: part of the weapon's own surface,
+	// so lit as it is, following its shape, and never on anything else (a hand holding it). Each has where it is (the model's
+	// space to the sticker's: x into it, y across, z up, its box -0.5 to 0.5 each way), how it looks (its finish: 0 paper,
+	// 1 holo, 2 foil, 3 glitter, 4 gold, 5 lenticular; how scraped, 0 to 1; where its wear is; a die-cut border), its
+	// colour, and its pictures (bindless: a lenticular one's second look too)
+	float g_flStickerCount < Default( 0.0 ); Range( 0.0, 8.0 ); >;
+	SamplerState g_sSticker < Filter( ANISO ); AddressU( CLAMP ); AddressV( CLAMP ); >;
+	float4 g_vStickerX0 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerY0 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerZ0 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerLook0 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerTint0 < Default4( 1.0, 1.0, 1.0, 1.0 ); >;
+	float4 g_vStickerPictures0 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerX1 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerY1 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerZ1 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerLook1 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerTint1 < Default4( 1.0, 1.0, 1.0, 1.0 ); >;
+	float4 g_vStickerPictures1 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerX2 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerY2 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerZ2 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerLook2 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerTint2 < Default4( 1.0, 1.0, 1.0, 1.0 ); >;
+	float4 g_vStickerPictures2 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerX3 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerY3 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerZ3 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerLook3 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerTint3 < Default4( 1.0, 1.0, 1.0, 1.0 ); >;
+	float4 g_vStickerPictures3 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerX4 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerY4 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerZ4 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerLook4 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerTint4 < Default4( 1.0, 1.0, 1.0, 1.0 ); >;
+	float4 g_vStickerPictures4 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerX5 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerY5 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerZ5 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerLook5 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerTint5 < Default4( 1.0, 1.0, 1.0, 1.0 ); >;
+	float4 g_vStickerPictures5 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerX6 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerY6 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerZ6 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerLook6 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerTint6 < Default4( 1.0, 1.0, 1.0, 1.0 ); >;
+	float4 g_vStickerPictures6 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerX7 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerY7 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerZ7 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerLook7 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
+	float4 g_vStickerTint7 < Default4( 1.0, 1.0, 1.0, 1.0 ); >;
+	float4 g_vStickerPictures7 < Default4( 0.0, 0.0, 0.0, 0.0 ); >;
 
 	float Mod( float a, float b ) { return a - b * floor( a / b ); }
 
@@ -208,6 +264,111 @@ PS
 		return lerp( PaletteAt( floor( step ) ), PaletteAt( floor( step ) + 1.0 ), smoothstep( 0.0, 1.0, frac( step ) ) );
 	}
 
+	// A sticker over the surface where it is pressed on: its colour (its finish's, by the angle it is seen from) over the
+	// surface's, as rough and metal as its finish, scraped away in patches as worn as it is, with a white border cut round it
+	void Sticker( inout float3 albedo, inout float metal, inout float rough, inout float3 emission, float3 positionOs, float3 normalOs,
+		float3 toCamera, float3 normalWs, float3 tangentWs, float4 rowX, float4 rowY, float4 rowZ, float4 look, float4 tint, float4 pictures )
+	{
+		if ( pictures.x < 0.5 )
+			return;
+
+		float3 p = float3( dot( rowX.xyz, positionOs ) + rowX.w, dot( rowY.xyz, positionOs ) + rowY.w, dot( rowZ.xyz, positionOs ) + rowZ.w );
+		if ( abs( p.x ) > 0.5 || abs( p.y ) > 0.5 || abs( p.z ) > 0.5 )
+			return;
+
+		// Only on the side it is pressed onto: the surfaces facing back where it is pressed from
+		if ( dot( normalOs, normalize( rowX.xyz ) ) > -0.2 )
+			return;
+
+		float2 uv = float2( 0.5 - p.y, 0.5 - p.z );
+		float finish = look.x;
+		float facing = dot( toCamera, normalWs );
+		float across = dot( toCamera, tangentWs );
+		Texture2D first = Bindless::GetTexture2D( (int)pictures.x );
+		float4 colour = first.Sample( g_sSticker, uv );
+		if ( finish > 4.5 && pictures.y > 0.5 )
+			colour = lerp( colour, Bindless::GetTexture2D( (int)pictures.y ).Sample( g_sSticker, uv ), smoothstep( -0.12, 0.12, across ) );
+
+		// The pictures are drawn in sRGB; the surface is lit in linear light
+		colour.rgb = pow( colour.rgb, 2.2 );
+
+		float alpha = colour.a;
+		float3 rgb = colour.rgb * tint.rgb;
+		if ( look.w > 0.5 )
+		{
+			// A die-cut border: white where the picture reaches within a little of a point, but not over it
+			float reach = 0.035;
+			float around = 0.0;
+			around = max( around, first.Sample( g_sSticker, uv + float2( reach, 0.0 ) ).a );
+			around = max( around, first.Sample( g_sSticker, uv - float2( reach, 0.0 ) ).a );
+			around = max( around, first.Sample( g_sSticker, uv + float2( 0.0, reach ) ).a );
+			around = max( around, first.Sample( g_sSticker, uv - float2( 0.0, reach ) ).a );
+			around = max( around, first.Sample( g_sSticker, uv + float2( reach, reach ) * 0.7071 ).a );
+			around = max( around, first.Sample( g_sSticker, uv - float2( reach, reach ) * 0.7071 ).a );
+			around = max( around, first.Sample( g_sSticker, uv + float2( reach, -reach ) * 0.7071 ).a );
+			around = max( around, first.Sample( g_sSticker, uv - float2( reach, -reach ) * 0.7071 ).a );
+			float edge = smoothstep( 0.35, 0.65, around );
+			rgb = lerp( float3( 0.92, 0.92, 0.9 ), rgb, alpha );
+			alpha = max( alpha, edge );
+		}
+
+		// Worn: patches scraped away, smallest first as it wears, the same patches on every machine
+		if ( look.y > 0.0 )
+		{
+			float worn = Noise( positionOs * 0.8 + look.z ) * 0.55 + Noise( positionOs * 2.6 + look.z * 1.7 ) * 0.3 + Noise( positionOs * 9.0 + look.z * 3.1 ) * 0.15;
+			alpha *= smoothstep( look.y * 0.85 - 0.03, look.y * 0.85 + 0.03, worn );
+		}
+
+		if ( alpha <= 0.001 )
+			return;
+
+		float stickerMetal = 0.0;
+		float stickerRough = 0.85;
+		float3 glow = 0.0;
+		if ( finish > 0.5 && finish < 1.5 )
+		{
+			// Holo: a rainbow film over the print, shifting as it turns
+			float3 film = Hue( frac( facing * 1.7 + across * 1.3 + ( uv.x + uv.y ) * 0.6 ) );
+			rgb = lerp( rgb, rgb * 0.5 + film * 0.8, 0.45 );
+			stickerMetal = 0.55;
+			stickerRough = 0.18;
+			glow = film * 0.06;
+		}
+		else if ( finish > 1.5 && finish < 2.5 )
+		{
+			// Foil: bright metal under the print
+			stickerMetal = 0.9;
+			stickerRough = 0.15;
+		}
+		else if ( finish > 2.5 && finish < 3.5 )
+		{
+			// Glitter: flecks that catch the light one by one as it turns
+			float2 cell = floor( uv * 96.0 );
+			float twinkle = Hash( float3( cell, floor( facing * 18.0 + across * 18.0 ) ) );
+			float fleck = step( 0.92, twinkle );
+			stickerMetal = 0.6;
+			stickerRough = 0.3;
+			glow = ( rgb + 0.4 ) * fleck * 0.9;
+		}
+		else if ( finish > 3.5 && finish < 4.5 )
+		{
+			// Gold foil
+			rgb *= float3( 1.0, 0.78, 0.36 ) * 1.2;
+			stickerMetal = 1.0;
+			stickerRough = 0.2;
+		}
+		else if ( finish > 4.5 )
+		{
+			stickerMetal = 0.15;
+			stickerRough = 0.3;
+		}
+
+		albedo = lerp( albedo, rgb, alpha );
+		metal = lerp( metal, stickerMetal, alpha );
+		rough = lerp( rough, stickerRough, alpha );
+		emission += glow * alpha;
+	}
+
 	float4 MainPs( PixelInput i ) : SV_Target0
 	{
 		Material m = Material::Init( i );
@@ -266,6 +427,26 @@ PS
 			float sheen = exp( -offset * offset );
 			emission = g_vPalette0 * sheen * 1.2;
 			m.Roughness = lerp( m.Roughness, 0.1, sheen );
+		}
+
+		if ( g_flStickerCount > 0.5 )
+		{
+			float metal = m.Metalness;
+			float rough = m.Roughness;
+			float3 normalOs = normalize( i.vNormalOs );
+			float3 toCamera = -normalize( i.vPositionWithOffsetWs.xyz );
+			float3 normalWs = normalize( i.vNormalWs );
+			float3 tangentWs = normalize( i.vTangentUWs );
+			if ( g_flStickerCount > 0.5 ) Sticker( albedo, metal, rough, emission, i.vPositionOs, normalOs, toCamera, normalWs, tangentWs, g_vStickerX0, g_vStickerY0, g_vStickerZ0, g_vStickerLook0, g_vStickerTint0, g_vStickerPictures0 );
+			if ( g_flStickerCount > 1.5 ) Sticker( albedo, metal, rough, emission, i.vPositionOs, normalOs, toCamera, normalWs, tangentWs, g_vStickerX1, g_vStickerY1, g_vStickerZ1, g_vStickerLook1, g_vStickerTint1, g_vStickerPictures1 );
+			if ( g_flStickerCount > 2.5 ) Sticker( albedo, metal, rough, emission, i.vPositionOs, normalOs, toCamera, normalWs, tangentWs, g_vStickerX2, g_vStickerY2, g_vStickerZ2, g_vStickerLook2, g_vStickerTint2, g_vStickerPictures2 );
+			if ( g_flStickerCount > 3.5 ) Sticker( albedo, metal, rough, emission, i.vPositionOs, normalOs, toCamera, normalWs, tangentWs, g_vStickerX3, g_vStickerY3, g_vStickerZ3, g_vStickerLook3, g_vStickerTint3, g_vStickerPictures3 );
+			if ( g_flStickerCount > 4.5 ) Sticker( albedo, metal, rough, emission, i.vPositionOs, normalOs, toCamera, normalWs, tangentWs, g_vStickerX4, g_vStickerY4, g_vStickerZ4, g_vStickerLook4, g_vStickerTint4, g_vStickerPictures4 );
+			if ( g_flStickerCount > 5.5 ) Sticker( albedo, metal, rough, emission, i.vPositionOs, normalOs, toCamera, normalWs, tangentWs, g_vStickerX5, g_vStickerY5, g_vStickerZ5, g_vStickerLook5, g_vStickerTint5, g_vStickerPictures5 );
+			if ( g_flStickerCount > 6.5 ) Sticker( albedo, metal, rough, emission, i.vPositionOs, normalOs, toCamera, normalWs, tangentWs, g_vStickerX6, g_vStickerY6, g_vStickerZ6, g_vStickerLook6, g_vStickerTint6, g_vStickerPictures6 );
+			if ( g_flStickerCount > 7.5 ) Sticker( albedo, metal, rough, emission, i.vPositionOs, normalOs, toCamera, normalWs, tangentWs, g_vStickerX7, g_vStickerY7, g_vStickerZ7, g_vStickerLook7, g_vStickerTint7, g_vStickerPictures7 );
+			m.Metalness = metal;
+			m.Roughness = rough;
 		}
 
 		m.Albedo = albedo;

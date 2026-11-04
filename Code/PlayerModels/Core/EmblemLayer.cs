@@ -110,6 +110,15 @@ public sealed class EmblemLayer
 	[JsonPropertyName( "er" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public bool Eraser { get; set; }
 
+	/// <summary>Which look of a lenticular sticker it is in: <see cref="BothLooks"/>, <see cref="FirstLook"/> or <see cref="SecondLook"/>.</summary>
+	[JsonPropertyName( "sd" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public int Side { get; set; }
+
+	/// <summary>The <see cref="Side"/>s a layer is in: both looks, the first, or the second.</summary>
+	public const int BothLooks = 0;
+	public const int FirstLook = 1;
+	public const int SecondLook = 2;
+
 	/// <summary>How its fill's colour moves; none for one this version doesn't know.</summary>
 	[JsonIgnore]
 	public Sticker.Motion AnimationIs => Animation is not null && Enum.TryParse<Sticker.Motion>( Animation, false, out var motion ) && Enum.IsDefined( typeof( Sticker.Motion ), motion )
@@ -158,7 +167,7 @@ public sealed class EmblemLayer
 	{
 		Shape = Shape, X = X, Y = Y, Rotation = Rotation, ScaleX = ScaleX, ScaleY = ScaleY, FlipX = FlipX, FlipY = FlipY, Color = Color, Opacity = Opacity,
 		OutlineColor = OutlineColor, OutlineWidth = OutlineWidth, Animation = Animation, Palette = Palette is null ? null : new List<string>( Palette ),
-		AnimationSpeed = AnimationSpeed, Hidden = Hidden, Locked = Locked, Group = Group, Eraser = Eraser,
+		AnimationSpeed = AnimationSpeed, Hidden = Hidden, Locked = Locked, Group = Group, Eraser = Eraser, Side = Side,
 	};
 
 	/// <summary>
@@ -202,6 +211,7 @@ public sealed class EmblemLayer
 			Locked = Locked,
 			Group = Math.Clamp( Group, 0, MaxPerEmblem ),
 			Eraser = Eraser,
+			Side = Side is FirstLook or SecondLook ? Side : BothLooks,
 		};
 	}
 

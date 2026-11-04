@@ -554,6 +554,8 @@
         yield return motion == Sticker.Motion.None ? "Moves: no" : $"Moves: {motion.ToString().ToLowerInvariant()}";
         if ( shape.Emblem is { } layers )
             yield return layers.Count == 1 ? "Layers: one" : "Layers: several";
+
+        yield return $"Finish: {shape.FinishIs.ToString().ToLowerInvariant()}";
     }
 
     static ShareOrigin OriginOf<T>( SharedLibrary<T>.Entry entry, string kind ) => new() { Kind = kind, Id = entry.Id, Name = entry.Name, Author = entry.Author };

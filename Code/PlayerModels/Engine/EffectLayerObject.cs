@@ -225,6 +225,8 @@ internal sealed class EffectLayerObject
 		_drawnGeneration = -1;
 		if ( _drawn?.Sticker is { } sticker )
 			data = sticker.Drive( data );
+		else if ( _drawn is not null )
+			data = StickerFinishes.Drive( data, _drawn.FinishIs );
 
 		Effect = effectIndex;
 		Joint = data.Joint is null ? -1 : (int)effect.JointOf( data );

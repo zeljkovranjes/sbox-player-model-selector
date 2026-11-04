@@ -126,6 +126,13 @@
         <ToggleRow Label="Flip left to right" Value=@selected.FlipX OnChanged=@(( bool v ) => SetAll( l => l.FlipX = v ))></ToggleRow>
         <ToggleRow Label="Flip upside down" Value=@selected.FlipY OnChanged=@(( bool v ) => SetAll( l => l.FlipY = v ))></ToggleRow>
         <ToggleRow Label="Eraser: cut it out of every layer below" Value=@selected.Eraser OnChanged=@(( bool v ) => SetAll( l => l.Eraser = v ))></ToggleRow>
+        @if ( Lenticular )
+        {
+            <div class="row">
+                <div class="label">Shows in</div>
+                <UIDropdown Items=@LookChoices() Value=@selected.Side.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Side = int.Parse( (string)v ) )) Tokenize=@false></UIDropdown>
+            </div>
+        }
         @if ( !selected.Eraser )
         {
             <ColorRow Label="Color" Hex=@selected.Color OnChanged=@(( string hex ) => SetAll( l => l.Color = string.IsNullOrEmpty( hex ) ? "#ffffff" : hex ))></ColorRow>
@@ -176,6 +183,9 @@
 
     /// <summary>The player's own shapes and stickers, to add as layers.</summary>
     [Parameter] public List<DrawnShape> Mine { get; set; }
+
+    /// <summary>Whether the sticker is lenticular: each layer then shows in its first look, its second, or both.</summary>
+    [Parameter] public bool Lenticular { get; set; }
 
     /// <summary>Opens the Workshop's shapes and stickers, to add one as a layer (see <see cref="AddShape"/>).</summary>
     [Parameter] public Action OpenWorkshop { get; set; }
@@ -938,6 +948,13 @@
         layer.Shape = cut.Reference;
         Commit();
     }
+
+    static List<UIDropdown.Item> LookChoices() => new()
+    {
+        new( "Both looks", EmblemLayer.BothLooks.ToString() ),
+        new( "The first look", EmblemLayer.FirstLook.ToString() ),
+        new( "The second look", EmblemLayer.SecondLook.ToString() ),
+    };
 
     List<UIDropdown.Item> EraseChoices() => new()
     {

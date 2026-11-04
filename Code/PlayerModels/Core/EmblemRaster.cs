@@ -224,7 +224,8 @@ public static class EmblemRaster
 
 		private void Draw( int index, EmblemLayer layer )
 		{
-			if ( layer.Hidden )
+			// A lenticular sticker's picture is its first look; its second is drawn on its own (see DrawnShape.SecondLook)
+			if ( layer.Hidden || layer.Side == EmblemLayer.SecondLook && _emblem.FinishIs == StickerFinish.Lenticular )
 				return;
 
 			var outline = layer.Eraser ? 0f : layer.OutlineWidth;

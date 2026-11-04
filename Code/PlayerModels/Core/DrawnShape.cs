@@ -97,6 +97,23 @@ public sealed class DrawnShape
 	[JsonPropertyName( "mir" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public bool Mirror { get; set; }
 
+	/// <summary>What a sticker is printed on (see <see cref="StickerFinish"/>) by name; null for paper.</summary>
+	[JsonPropertyName( "fin" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public string Finish { get; set; }
+
+	/// <summary>What it is printed on; paper for a plain shape.</summary>
+	[JsonIgnore]
+	public StickerFinish FinishIs => IsSticker ? StickerFinishes.Of( Finish ) : StickerFinish.Paper;
+
+	/// <summary>
+	/// A lenticular sticker's second look: its layers but those of the first look alone (see <see cref="EmblemLayer.Side"/>);
+	/// null for a sticker that isn't lenticular.
+	/// </summary>
+	public DrawnShape SecondLook() => FinishIs != StickerFinish.Lenticular || !IsEmblem ? null : new DrawnShape
+	{
+		Emblem = Emblem.FindAll( x => x.Side != EmblemLayer.FirstLook ), Parts = Parts, Mirror = Mirror,
+	}.Sanitized();
+
 	/// <summary>Whether it is a sticker (an emblem of layers, or one coloured whole as stickers were before them), not a plain shape.</summary>
 	[JsonIgnore]
 	public bool IsSticker => IsEmblem || Sticker is not null;
@@ -114,7 +131,7 @@ public sealed class DrawnShape
 	/// exactly when this is, so what each looks like is kept by it, never by the shorter id.
 	/// </summary>
 	[JsonIgnore]
-	public string Content => _content ??= ContentOf( Strokes, Sticker, Emblem, Parts, Mirror );
+	public string Content => _content ??= ContentOf( Strokes, Sticker, Emblem, Parts, Mirror, Finish );
 
 	// Worked out once: a shape is never changed once read, only copied
 	private string _content;
@@ -309,9 +326,10 @@ public sealed class DrawnShape
 		var name = SharePost.Tidy( Name, MaxNameLength );
 		var sticker = emblem is null ? Sticker?.Sanitized() : null;
 		var mirror = emblem is not null && Mirror;
+		var finish = emblem is not null || sticker is not null ? StickerFinishes.Sanitized( Finish ) : null;
 		return new DrawnShape
 		{
-			Id = IdOf( ContentOf( kept, sticker, emblem, emblem is null ? null : parts, mirror ) ),
+			Id = IdOf( ContentOf( kept, sticker, emblem, emblem is null ? null : parts, mirror, finish ) ),
 			Name = name == "" ? null : name,
 			Strokes = kept,
 			Sticker = sticker,
@@ -319,6 +337,7 @@ public sealed class DrawnShape
 			Emblem = emblem,
 			Parts = emblem is null ? null : parts,
 			Mirror = mirror,
+			Finish = finish,
 		};
 	}
 
@@ -350,14 +369,20 @@ public sealed class DrawnShape
 	/// <summary>A copy named <paramref name="name"/>, crediting <paramref name="origin"/> (null for none), kept within bounds.</summary>
 	public DrawnShape Credited( string name, ShareOrigin origin ) => new DrawnShape
 	{
-		Name = name, Strokes = Strokes, Sticker = Sticker, ForkedFrom = origin, Emblem = Emblem, Parts = Parts, Mirror = Mirror,
+		Name = name, Strokes = Strokes, Sticker = Sticker, ForkedFrom = origin, Emblem = Emblem, Parts = Parts, Mirror = Mirror, Finish = Finish,
 	}.Sanitized();
 
-	// A plain shape's content is just as it was before emblems, so its id stays the same
-	private static string ContentOf( List<string> strokes, Sticker sticker, List<EmblemLayer> emblem = null, List<DrawnShape> parts = null, bool mirror = false )
+	/// <summary>A copy printed on <paramref name="finish"/>, kept within bounds.</summary>
+	public DrawnShape Finished( StickerFinish finish ) => new DrawnShape
+	{
+		Name = Name, Strokes = Strokes, Sticker = Sticker, ForkedFrom = ForkedFrom, Emblem = Emblem, Parts = Parts, Mirror = Mirror, Finish = StickerFinishes.NameOf( finish ),
+	}.Sanitized();
+
+	// A plain shape's content is just as it was before emblems and finishes, so its id stays the same
+	private static string ContentOf( List<string> strokes, Sticker sticker, List<EmblemLayer> emblem = null, List<DrawnShape> parts = null, bool mirror = false, string finish = null )
 	{
 		var style = sticker is null ? "" : JsonSerializer.Serialize( sticker );
-		var content = string.Join( "|", strokes ?? new() ) + "#" + style;
+		var content = string.Join( "|", strokes ?? new() ) + "#" + style + (finish is null ? "" : "#finish:" + finish);
 		if ( emblem is null )
 			return content;
 

@@ -49,7 +49,8 @@
     }
     @if ( _emblemMode )
     {
-        <EmblemEditor @ref="_emblemEditor" class=@( _workshop ? "hidden" : "" ) Start=@_emblemStart Changed=@EmblemChanged Mine=@Mine OpenWorkshop=@OpenWorkshop></EmblemEditor>
+        <EmblemEditor @ref="_emblemEditor" class=@( _workshop ? "hidden" : "" ) Start=@_emblemStart Changed=@EmblemChanged Mine=@Mine OpenWorkshop=@OpenWorkshop
+                      Lenticular=@( _finish == StickerFinish.Lenticular )></EmblemEditor>
     }
     else
     {
@@ -89,6 +90,15 @@
             <div class="reset" @onclick=@Combine>Add it</div>
         </div>
 
+    }
+
+    @if ( _emblemMode )
+    {
+        <div class="row">
+            <div class="label">Printed on</div>
+            <UIDropdown Items=@FinishChoices() Value=@_finish.ToString() ValueChanged=@SetFinish Tokenize=@false></UIDropdown>
+        </div>
+        <div class="note">@FinishNote()</div>
     }
 
     <div class="section-header">Keep and use it</div>
@@ -195,6 +205,27 @@
     Draft _confirmDrop;
     int _shelfRevision;
     bool _startedOnce;
+
+    // What a sticker is printed on (see StickerFinish)
+    StickerFinish _finish;
+
+    static List<UIDropdown.Item> FinishChoices() => Enum.GetValues<StickerFinish>().Select( x => new UIDropdown.Item( x.ToString(), x.ToString() ) ).ToList();
+
+    void SetFinish( object value )
+    {
+        _finish = StickerFinishes.Of( value as string );
+        Changed();
+    }
+
+    string FinishNote() => _finish switch
+    {
+        StickerFinish.Holo => "Holo: a rainbow film that shifts as the sticker turns, on a weapon and on sprites.",
+        StickerFinish.Foil => "Foil: shiny metal under the print.",
+        StickerFinish.Glitter => "Glitter: flecks that twinkle as it turns.",
+        StickerFinish.Gold => "Gold: gold foil.",
+        StickerFinish.Lenticular => "Lenticular: two looks that swap with the angle; give each layer its look (both, first or second).",
+        _ => "Paper: plain and matte. Weapons show finishes as you turn them; sprites and tiles shimmer.",
+    };
     bool _leaving;
     string _keptAs;
     SharingPanel<DrawnShape> _sharing;
@@ -213,7 +244,7 @@
             {
                 var name = string.IsNullOrWhiteSpace( _name ) ? null : _name;
                 _current = _emblemMode
-                    ? _emblem?.Credited( name, _forkedFrom )
+                    ? _emblem?.Credited( name, _forkedFrom )?.Finished( _finish )
                     : _strokes.Count > 0 ? DrawnShape.From( _strokes, name, null, _forkedFrom ) : null;
                 _currentAt = _revision;
                 _currentName = _name;
@@ -288,6 +319,7 @@
         if ( shape.IsSticker )
         {
             _emblemMode = true;
+            _finish = shape.FinishIs;
             _emblem = Emblem.FromShape( shape );
             _emblemStart = _emblem;
         }
@@ -651,7 +683,7 @@
     public static string DescribeShape( DrawnShape shape )
     {
         if ( shape.IsEmblem )
-            return $"Sticker, {shape.Emblem.Count} {(shape.Emblem.Count == 1 ? "layer" : "layers")}, {shape.PointCount} points";
+            return $"Sticker, {shape.FinishIs.ToString().ToLowerInvariant()}, {shape.Emblem.Count} {(shape.Emblem.Count == 1 ? "layer" : "layers")}, {shape.PointCount} points";
 
         var what = shape.Sticker is { } sticker ? sticker.IsAnimated ? $"{sticker.AnimationIs} sticker" : "Sticker" : "Shape";
         return $"{what}, {shape.Strokes.Count} {(shape.Strokes.Count == 1 ? "stroke" : "strokes")}, {shape.PointCount} points";

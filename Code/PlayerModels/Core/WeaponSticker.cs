@@ -66,6 +66,18 @@ public sealed class WeaponSticker
 	[JsonPropertyName( "r" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public float Roll { get; set; }
 
+	/// <summary>What it is printed on, by name (see <see cref="StickerFinish"/>); null for what its sticker is printed on.</summary>
+	[JsonPropertyName( "fin" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public string Finish { get; set; }
+
+	/// <summary>How worn it is, 0 new to 1 scraped away in patches; the same patches on every machine.</summary>
+	[JsonPropertyName( "sc" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public float Scrape { get; set; }
+
+	/// <summary>Whether it has a thin white border round it, cut out like a die-cut sticker.</summary>
+	[JsonPropertyName( "bd" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public bool Border { get; set; }
+
 	/// <summary>How wide it is, in units.</summary>
 	[JsonPropertyName( "s" )]
 	public float Size { get; set; } = 3f;
@@ -95,6 +107,7 @@ public sealed class WeaponSticker
 		return new WeaponSticker
 		{
 			Picture = Picture, Color = Color, Animation = Animation, Palette = Palette, Speed = Speed, Pitch = Pitch, Yaw = Yaw, Roll = Roll, Size = Size,
+			Finish = Finish, Scrape = Scrape, Border = Border,
 			Forward = WeaponProp.Inside( Forward, 0f, weapon.MinX, weapon.MaxX, 0f ),
 			Left = WeaponProp.Inside( Left, 0f, weapon.MinY, weapon.MaxY, 0f ),
 			Up = WeaponProp.Inside( Up, 0f, weapon.MinZ, weapon.MaxZ, 0f ),
@@ -135,6 +148,9 @@ public sealed class WeaponSticker
 			Yaw = WeaponProp.Limited( Yaw, Accessory.MaxTurn ),
 			Roll = WeaponProp.Limited( Roll, Accessory.MaxTurn ),
 			Size = float.IsFinite( Size ) ? Math.Clamp( Size, MinSize, MaxSize ) : MinSize,
+			Finish = Finish is null ? null : StickerFinishes.Of( Finish ).ToString(),
+			Scrape = float.IsFinite( Scrape ) ? MathF.Round( Math.Clamp( Scrape, 0f, 1f ) * 100f ) / 100f : 0f,
+			Border = Border,
 		};
 	}
 }

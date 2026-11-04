@@ -10,21 +10,20 @@ namespace PlayerModels.Engine;
 /// <summary>
 /// Dresses the weapon a body holds as its player designed it (see <see cref="WeaponDesign"/>), found by the weapon's
 /// world model: its materials finished, tinted and skinned (see <see cref="WeaponSkins"/>), props on it (stock models
-/// only, see <see cref="PropCatalog"/>, each fitted to the caps), stickers pressed onto its surface as decals, and its
-/// effects worn beside the body's (see <see cref="EffectRack.ApplyWeapon"/>). Only the weapon held is dressed, once when
-/// it changes; everything it adds hangs off the weapon, so it moves with it for nothing. Taking it off puts the weapon
-/// back as the game made it. The same dresser dresses a first-person weapon (a different mesh), mapping props and
-/// stickers onto it (see <see cref="Mapping"/>). Each frame only a moving sticker's colour changes: no allocations.
+/// only, see <see cref="PropCatalog"/>, each fitted to the caps), stickers pressed onto its surface by its own skin
+/// (see <see cref="WeaponSkins"/>: lit as the weapon is, on the weapon alone, printed on their finish), and its effects
+/// worn beside the body's (see <see cref="EffectRack.ApplyWeapon"/>). Only the weapon held is dressed, once when it
+/// changes; everything it adds hangs off the weapon, so it moves with it for nothing. Taking it off puts the weapon back
+/// as the game made it. The same dresser dresses a first-person weapon (a different mesh), mapping props and stickers
+/// onto it (see <see cref="Mapping"/>). Each frame only a moving sticker's colour changes: no allocations.
 /// </summary>
 internal sealed class WeaponDresser
 {
 	private const string PropName = "Weapon prop";
-	private const string StickerName = "Weapon sticker";
 
-	// A sticker presses at least this deep (as deep as it is wide when wider): deep enough to wrap over a barrel's
-	// curve, shallow enough to stay off the hand holding it; and fades on surfaces this steep to it
+	// A sticker presses at least this deep (as deep as it is wide when wider): deep enough to wrap over a barrel's curve;
+	// the skin draws it only on the side it is pressed onto, and only on the weapon
 	private const float StickerDepth = 2.5f;
-	private const float StickerAttenuation = 0.6f;
 
 	// A sticker's moving colour: a rainbow turns round the wheel this often a second, a pulse beats this often and deep
 	private const float RainbowTurns = 0.5f;
@@ -34,11 +33,11 @@ internal sealed class WeaponDresser
 
 	private sealed class Stuck
 	{
-		public Decal Decal;
 		public WeaponSticker Sticker;
 		public DrawnShape Drawn;
 		public int Generation = -1;
 		public Color[] Palette;
+		public DrawnShape Second;
 
 		// Read once when stuck, not each frame: reading the motion from its name boxes it
 		public Sticker.Motion Motion;
@@ -60,6 +59,9 @@ internal sealed class WeaponDresser
 	private readonly List<(ModelRenderer Renderer, Color Tint)> _tinted = new();
 	private readonly List<ModelRenderer> _props = new();
 	private readonly List<Stuck> _stickers = new();
+
+	// The skin's materials the stickers are drawn by, set again when a drawn sticker's picture is drawn or its colour moves
+	private readonly List<Material> _skinned = new();
 	private int _request;
 	private float _startedAt;
 
@@ -163,12 +165,12 @@ internal sealed class WeaponDresser
 
 		if ( design is not null && renderer.IsValid() )
 		{
-			Skin( main.IsValid() ? main.GameObject : held, renderer, design, main.IsValid() );
+			var stickers = extras ? Stick( renderer, design, mapping ) : Array.Empty<WeaponSkins.Stuck>();
+			Skin( main.IsValid() ? main.GameObject : held, renderer, design, main.IsValid(), stickers );
 			if ( extras )
 			{
 				HideParts( renderer, design );
 				_ = PropsAsync( renderer, design, mapping, ++_request );
-				Stick( renderer, design, mapping );
 			}
 		}
 
@@ -201,14 +203,15 @@ internal sealed class WeaponDresser
 		for ( var i = 0; i < _stickers.Count; i++ )
 		{
 			var stuck = _stickers[ i ];
-			if ( !stuck.Decal.IsValid() )
+			if ( stuck.Drawn is not null && stuck.Generation != ShapeTextures.Generation )
+				UseDrawn( stuck, i );
+
+			if ( stuck.Motion == Sticker.Motion.None )
 				continue;
 
-			if ( stuck.Drawn is not null && stuck.Generation != ShapeTextures.Generation )
-				UseDrawn( stuck );
-
-			if ( stuck.Motion != Sticker.Motion.None )
-				stuck.Decal.ColorTint = ColourOf( stuck, ms, i );
+			var colour = ColourOf( stuck, ms, i );
+			for ( var m = 0; m < _skinned.Count; m++ )
+				WeaponSkins.Tint( _skinned[ m ], i, colour );
 		}
 	}
 
@@ -260,10 +263,10 @@ internal sealed class WeaponDresser
 
 	// Every renderer of the weapon drawn with its skin: its own materials, finished or skinned; a tint alone is the
 	// renderer's tint, which keeps every material as it is
-	private void Skin( GameObject held, ModelRenderer main, WeaponDesign design, bool mainAlone )
+	private void Skin( GameObject held, ModelRenderer main, WeaponDesign design, bool mainAlone, IReadOnlyList<WeaponSkins.Stuck> stickers )
 	{
-		var painted = design.Skin is not null;
-		var key = painted ? WeaponSkins.KeyOf( design ) : null;
+		var painted = design.Skin is not null || stickers.Count > 0;
+		var key = painted ? WeaponSkins.KeyOf( design ) + WeaponSkins.KeyOf( stickers ) : null;
 		var frame = WeaponSkins.Frame.Of( main.Model.Bounds );
 		foreach ( var renderer in held.Components.GetAll<ModelRenderer>( FindMode.EverythingInSelfAndDescendants ) )
 		{
@@ -284,10 +287,13 @@ internal sealed class WeaponDresser
 			for ( var i = 0; i < materials.Length; i++ )
 			{
 				var made = painted
-					? WeaponSkins.For( materials[ i ], design, key, frame, _shapes )
+					? WeaponSkins.For( materials[ i ], design, key, frame, _shapes, stickers )
 					: FinishMaterials.Make( design.Finish, materials[ i ] );
 				if ( made is null )
 					continue;
+
+				if ( painted && !_skinned.Contains( made ) )
+					_skinned.Add( made );
 
 				renderer.Materials.SetOverride( i, made );
 				_swapped.Add( (renderer, i) );
@@ -388,47 +394,44 @@ internal sealed class WeaponDresser
 
 	private static WeaponBounds BoundsOf( BBox bounds ) => new( bounds.Mins.x, bounds.Mins.y, bounds.Mins.z, bounds.Maxs.x, bounds.Maxs.y, bounds.Maxs.z );
 
-	// Each sticker as a decal pressed onto the weapon from its side, its picture from the atlas or its drawn shape
-	private void Stick( ModelRenderer renderer, WeaponDesign design, Mapping? mapping )
+	// Each sticker as the skin presses it onto the weapon from its side: the box it is pressed in, in the model's own space
+	// (on a first-person weapon, mapped onto its mesh), its picture (from the atlas, or its drawn shape once drawn), its
+	// finish and wear
+	private IReadOnlyList<WeaponSkins.Stuck> Stick( ModelRenderer renderer, WeaponDesign design, Mapping? mapping )
 	{
 		var weapon = BoundsOf( (mapping?.WorldModel ?? renderer.Model).Bounds );
 		var scale = mapping?.FromWorldModel.Scale.x ?? 1f;
-		using ( renderer.Scene.Push() )
+		var pressed = new List<WeaponSkins.Stuck>();
+		foreach ( var sticker in design.Stickers ?? new List<WeaponSticker>() )
 		{
-			foreach ( var sticker in design.Stickers ?? new List<WeaponSticker>() )
-			{
-				var fitted = sticker.FittedTo( weapon );
-				var place = new Transform( new Vector3( fitted.Forward, fitted.Left, fitted.Up ), Rotation.From( fitted.Pitch, fitted.Yaw, fitted.Roll ) * Rotation.FromPitch( 90f ) );
-				var parent = renderer.GameObject;
-				if ( mapping is { } map )
-					(parent, place) = OnBone( renderer, null, map.FromWorldModel.ToWorld( place ) );
+			var fitted = sticker.FittedTo( weapon );
+			var place = new Transform( new Vector3( fitted.Forward, fitted.Left, fitted.Up ), Rotation.From( fitted.Pitch, fitted.Yaw, fitted.Roll ) * Rotation.FromPitch( 90f ) );
+			if ( mapping is { } map )
+				place = map.FromWorldModel.ToWorld( place );
 
-				var go = new GameObject( false, StickerName );
-				go.NetworkMode = NetworkMode.Never;
-				go.Flags |= GameObjectFlags.NotSaved;
-				go.SetParent( parent, false );
-				go.LocalTransform = place.WithScale( 1f );
+			var stuck = new Stuck { Sticker = fitted, Drawn = Find( fitted.DrawnPicture ), Motion = fitted.AnimationIs, Own = Color.Parse( fitted.Color ?? "" ) ?? Color.White };
+			stuck.Palette = PaletteOf( fitted );
+			var size = fitted.Size * scale;
+			var depth = MathF.Max( StickerDepth * scale, size );
+			var finish = fitted.Finish is null ? stuck.Drawn?.FinishIs ?? StickerFinish.Paper : StickerFinishes.Of( fitted.Finish );
+			var tint = stuck.Drawn?.HasOwnColours == true ? Color.White : stuck.Own;
+			if ( stuck.Drawn is not null )
+				_drawnStickers.Add( stuck.Drawn );
 
-				var stuck = new Stuck { Sticker = fitted, Drawn = Find( fitted.DrawnPicture ), Motion = fitted.AnimationIs, Own = Color.Parse( fitted.Color ?? "" ) ?? Color.White };
-				var size = fitted.Size * scale;
-				var decal = go.AddComponent<Decal>();
-				decal.Decals = new List<DecalDefinition>
-				{
-					new() { ColorTexture = TextureOf( stuck ), Width = size, Height = size, Tint = Color.White, ColorMix = 1f },
-				};
-				decal.Depth = MathF.Max( StickerDepth * scale, size );
-				decal.AttenuationAngle = StickerAttenuation;
-				decal.SortLayer = (uint)_stickers.Count;
-				decal.ColorTint = stuck.Drawn?.HasOwnColours == true ? Color.White : Color.Parse( fitted.Color ) ?? Color.White;
-				stuck.Decal = decal;
-				stuck.Palette = PaletteOf( fitted );
-				go.Enabled = true;
-				_stickers.Add( stuck );
-				if ( stuck.Drawn is not null )
-					_drawnStickers.Add( stuck.Drawn );
-			}
+			pressed.Add( new WeaponSkins.Stuck( Row( place.Rotation.Forward, place.Position, depth ), Row( place.Rotation.Left, place.Position, size ),
+				Row( place.Rotation.Up, place.Position, size ), new Vector4( (float)finish, fitted.Scrape, _stickers.Count * SeedStep, fitted.Border ? 1f : 0f ), tint,
+				TextureOf( stuck ), SecondTextureOf( stuck ) ) );
+			_stickers.Add( stuck );
 		}
+
+		return pressed;
 	}
+
+	// Each sticker's wear lies elsewhere on the weapon, so two stickers don't wear alike
+	private const float SeedStep = 13.7f;
+
+	// A row of the map from the model's space to a sticker's: along one of its axes, from its middle, its box -0.5 to 0.5
+	private static Vector4 Row( Vector3 axis, Vector3 middle, float size ) => new( axis / size, -Vector3.Dot( axis, middle ) / size );
 
 	private DrawnShape Find( string id )
 	{
@@ -454,13 +457,20 @@ internal sealed class WeaponDresser
 		return ShapeTextures.TextureOf( stuck.Drawn ) ?? EffectAtlas.TextureOf( StandardShape.Circle );
 	}
 
-	// Asked again only when the drawn shapes' pictures change
-	private static void UseDrawn( Stuck stuck )
+	// A lenticular sticker's second look once drawn; its first for any other
+	private static Texture SecondTextureOf( Stuck stuck )
 	{
-		var texture = TextureOf( stuck );
-		var definition = stuck.Decal.Decals is { Count: > 0 } decals ? decals[ 0 ] : null;
-		if ( definition is not null && definition.ColorTexture != texture )
-			definition.ColorTexture = texture;
+		stuck.Second ??= stuck.Drawn?.SecondLook();
+		return stuck.Second is null ? TextureOf( stuck ) : ShapeTextures.TextureOf( stuck.Second ) ?? TextureOf( stuck );
+	}
+
+	// Asked again only when the drawn shapes' pictures change
+	private void UseDrawn( Stuck stuck, int index )
+	{
+		var first = TextureOf( stuck );
+		var second = SecondTextureOf( stuck );
+		for ( var m = 0; m < _skinned.Count; m++ )
+			WeaponSkins.Retexture( _skinned[ m ], index, first, second );
 	}
 
 	private static Color[] PaletteOf( WeaponSticker sticker )
@@ -532,16 +542,11 @@ internal sealed class WeaponDresser
 				prop.GameObject.DestroyImmediate();
 		}
 
-		foreach ( var stuck in _stickers )
-		{
-			if ( stuck.Decal.IsValid() )
-				stuck.Decal.GameObject.DestroyImmediate();
-		}
-
 		_swapped.Clear();
 		_tinted.Clear();
 		_props.Clear();
 		_stickers.Clear();
+		_skinned.Clear();
 		_drawnStickers.Clear();
 	}
 }

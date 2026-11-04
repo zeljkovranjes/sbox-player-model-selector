@@ -349,6 +349,12 @@ internal sealed partial class EffectLayerObject
 				return;
 		}
 
+		// Sprites nobody sees (past the mid distance, or out of view beyond the near distance: see PoseSchedule) are switched
+		// off whole, as paused the engine still stepped each of them every frame; they start again as they come into view
+		var shows = share > 0f && !paused;
+		if ( Root.Enabled != shows )
+			Root.Enabled = shows;
+
 		_particles.Paused = paused;
 		if ( !rates )
 			return;

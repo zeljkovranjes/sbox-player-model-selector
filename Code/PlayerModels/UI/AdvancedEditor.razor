@@ -14,24 +14,25 @@
     <div class="heading">
         <div class="title-row">
             <div class="title">@( _weaponMode ? $"Editing: {_weaponName}" : "Advanced Editor" )</div>
+            <div class="graph">@GraphVersion</div>
+            <div class="help" Tooltip=@Hint>help_outline</div>
             @if ( _weaponMode )
             {
                 <div class="back-button" Tooltip="Back to editing the player (or double-click the player)" @onclick=@ExitWeaponMode>Back to player</div>
             }
         </div>
-        <div class="subtitle">@Hint</div>
-        <div class="graph">@GraphVersion</div>
     </div>
 
     <div class="view-tools">
-        @foreach ( var tool in Enum.GetValues<TransformGizmo.Tool>() )
-        {
-            var shown = tool;
-            <div class="tool @( _viewport?.Tool == shown ? "active" : "" )" @onclick=@(() => UseTool( shown ))>@shown</div>
-        }
-        <div class="gap"></div>
-        <div class="tool @( _viewport?.Walking == true ? "active" : "" )" Tooltip="Shift+`" @onclick=@ToggleWalk>Walk</div>
-        <div class="tool" Tooltip="Home" @onclick=@(() => _viewport?.FrameAll())>Frame all</div>
+        <div class="segmented">
+            @foreach ( var tool in Enum.GetValues<TransformGizmo.Tool>() )
+            {
+                var shown = tool;
+                <div class="tool @( _viewport?.Tool == shown ? "active" : "" )" Tooltip=@ToolTip( shown ) @onclick=@(() => UseTool( shown ))>@ToolIcon( shown )</div>
+            }
+        </div>
+        <div class="tool @( _viewport?.Walking == true ? "active" : "" )" Tooltip="Walk: WASD to fly, Q and E down and up (Shift+`)" @onclick=@ToggleWalk>directions_walk</div>
+        <div class="tool" Tooltip="Frame all (Home)" @onclick=@(() => _viewport?.FrameAll())>fit_screen</div>
     </div>
 
     @if ( ShownTab == Tab.Effects )
@@ -42,6 +43,10 @@
     @if ( !string.IsNullOrEmpty( _viewport?.Status ) )
     {
         <div class="status">@_viewport.Status</div>
+    }
+    else if ( _viewport?.Walking == true )
+    {
+        <div class="status hint">@Hint</div>
     }
 
     <div class="side">
@@ -65,7 +70,7 @@
             <div class="tab @( ShownTab == Tab.Accessories ? "active" : "" )" @onclick=@(() => ShowTab( Tab.Accessories ))>Accessories</div>
             <div class="tab @( ShownTab == Tab.Effects ? "active" : "" )" @onclick=@(() => ShowTab( Tab.Effects ))>Effects</div>
         </div>
-        <UISettingsPane class="options" Title=@TabTitle Revision=@HashCode.Combine( ShownTab, _look, _model )>
+        <UISettingsPane class="options tabbed" Revision=@HashCode.Combine( ShownTab, _look, _model )>
             <Body>
                 <SlowScroll><Content>
                     @if ( ShownTab == Tab.Accessories )
@@ -200,7 +205,6 @@
 
     Tab ShownTab => _tabChosen ?? (EffectId is null ? Tab.Look : Tab.Effects);
 
-    string TabTitle => ShownTab switch { Tab.Accessories => "Accessories", Tab.Effects => "Effects", _ => "Customize" };
     PartHighlight? _pointed;
     MenuHold _hold;
 
@@ -210,6 +214,25 @@
     int _selectedItem = -1;
     int _panelSeen = -1;
     int _askedPanel = -1;
+
+    // The view's tools as icons, each named with what it does in its tooltip
+    static string ToolIcon( TransformGizmo.Tool tool ) => tool switch
+    {
+        TransformGizmo.Tool.Select => "near_me",
+        TransformGizmo.Tool.Move => "open_with",
+        TransformGizmo.Tool.Rotate => "rotate_right",
+        TransformGizmo.Tool.Scale => "open_in_full",
+        _ => "control_camera",
+    };
+
+    static string ToolTip( TransformGizmo.Tool tool ) => tool switch
+    {
+        TransformGizmo.Tool.Select => "Select: click an item",
+        TransformGizmo.Tool.Move => "Move: drag an arrow (G moves without it)",
+        TransformGizmo.Tool.Rotate => "Rotate: drag a ring (R turns without it)",
+        TransformGizmo.Tool.Scale => "Scale: drag a box (S sizes without it)",
+        _ => "Transform: move, rotate and scale at once",
+    };
 
     string Hint => _viewport?.Walking == true
         ? "Walking: WASD to fly, Q and E down and up, Shift for speed, drag to look. Shift+` to stop"

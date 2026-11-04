@@ -1,4 +1,5 @@
 @using System
+@using System.Globalization
 @using Sandbox
 @using Sandbox.UI
 @using PlayerModels.Core
@@ -8,6 +9,7 @@
 <root>
     <div class="label">@Label</div>
     <UISlider Property=@_so?.GetProperty( Unit.ToString() )></UISlider>
+    <TextEntry @ref="_entry" class="number" Tooltip="Type a number or a sum, like 2*3+1" @onsubmit=@Commit @onblur=@Commit></TextEntry>
 </root>
 
 @code
@@ -28,6 +30,12 @@
     [Parameter] public Action<float> OnChanged { get; set; }
 
     SerializedObject _so;
+
+    // The box beside the slider: it takes a sum (see MathText), worked out when Enter is pressed or it loses focus, and
+    // shows the number again whenever it isn't being typed in. The number it shows, and whether what was typed is done with
+    TextEntry _entry;
+    float _shown = float.NaN;
+    bool _typed;
 
     // The slider edits a property and takes its range from it (as SliderRow does), so each range is a property of its own
     // over the same value; each is the range its field is kept within
@@ -50,6 +58,35 @@
     {
         Value = value;
         OnChanged?.Invoke( value );
+    }
+
+    // What was typed, worked out and held to the field's range; anything that isn't a number leaves it as it was, and the
+    // box shows the number again once it is let go (see Tick)
+    void Commit()
+    {
+        _typed = true;
+        if ( _entry is null || !MathText.TryEvaluate( _entry.Text, out var typed ) || _so?.GetProperty( Unit.ToString() ) is not { } property )
+            return;
+
+        if ( property.TryGetAttribute<RangeAttribute>( out var range ) )
+            typed = Math.Clamp( typed, range.Min, range.Max );
+
+        if ( typed != Value )
+            property.SetValue( typed );
+    }
+
+    // Every frame while shown: the text is only made again when the number changed or typing ended, so this allocates
+    // nothing otherwise
+    public override void Tick()
+    {
+        base.Tick();
+
+        if ( _entry is null || _entry.HasFocus || !_typed && Value == _shown )
+            return;
+
+        _typed = false;
+        _shown = Value;
+        _entry.Text = Value.ToString( "0.##", CultureInfo.InvariantCulture );
     }
 
     protected override void OnParametersSet()

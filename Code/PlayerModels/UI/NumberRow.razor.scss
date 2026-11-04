@@ -1,6 +1,7 @@
 @import "SelectorTheme.scss";
 
-// A number on a slider: its name, then the slider (which shows the number, to type one)
+// A number on a slider: its name, the slider, then a box to type the number (or a sum) in. The slider's own box is
+// hidden: it takes only digits
 NumberRow
 {
 	flex-direction: row;
@@ -13,6 +14,28 @@ NumberRow
 	{
 		@include ui-label;
 		width: 120px;
+		flex-shrink: 0;
+	}
+
+	UISlider
+	{
+		flex-grow: 1;
+
+		.track
+		{
+			flex-grow: 1;
+		}
+
+		.entry
+		{
+			display: none;
+		}
+	}
+
+	> .number
+	{
+		@include ui-text-entry;
+		width: 64px;
 		flex-shrink: 0;
 	}
 }

@@ -20,6 +20,11 @@ public sealed class ModelPreview : Panel
 {
 	// Third person: a narrow lens from far back, so the whole body fits the tall panel without distortion
 	private const float ThirdPersonFieldOfView = 22f;
+
+	// A preview about as wide as it is tall (the reference's playground) fits the whole body by its height instead: from
+	// the feet to over the head, 82 units at the camera's distance
+	private const float WideFrom = 0.6f;
+	private const float WideFieldOfView = 38f;
 	private const float ThirdPersonDistance = 120f;
 	private const float ThirdPersonHeight = 38f;
 
@@ -400,7 +405,9 @@ public sealed class ModelPreview : Panel
 		// Zooming in moves closer and rises from the middle of the body to the eyes, so all the way in is the face
 		var closeness = (_zoom - 1f) / (MaxZoom - 1f);
 		var eyeHeight = eyes?.Position.z ?? ThirdPersonHeight;
-		_camera.FieldOfView = ThirdPersonFieldOfView;
+		var wide = Box.Rect.Width >= Box.Rect.Height * WideFrom;
+		_camera.FovAxis = wide ? CameraComponent.Axis.Vertical : CameraComponent.Axis.Horizontal;
+		_camera.FieldOfView = wide ? WideFieldOfView : ThirdPersonFieldOfView;
 		_camera.WorldPosition = new Vector3( ThirdPersonDistance / _zoom, 0, MathX.Lerp( ThirdPersonHeight, eyeHeight, closeness ) );
 		_camera.WorldRotation = Rotation.FromYaw( 180 );
 	}

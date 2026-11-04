@@ -573,11 +573,11 @@ public sealed class ModelPreview : Panel
 		// Held the way the game holds it: its hold type, aimed straight ahead
 		if ( Weapon is { } held )
 		{
-			_citizen.Set( "holdtype", held.HoldType );
-			_citizen.Set( "aim_body", Vector3.Forward );
-			_citizen.Set( "aim_head", Vector3.Forward );
-			_citizen.Set( "aim_eyes", Vector3.Forward );
-			_citizen.Set( "aim_body_weight", 1f );
+			_citizen.Write( "holdtype", held.HoldType );
+			_citizen.Write( "aim_body", Vector3.Forward );
+			_citizen.Write( "aim_head", Vector3.Forward );
+			_citizen.Write( "aim_eyes", Vector3.Forward );
+			_citizen.Write( "aim_body_weight", 1f );
 		}
 
 		var delta = RealTime.Delta;
@@ -736,7 +736,7 @@ public sealed class ModelPreview : Panel
 		_partShown = null;
 		_weaponGlow = _partGlow = _fadingGlow = 0f;
 		if ( _citizen.IsValid() )
-			_citizen.Set( "holdtype", 0 );
+			_citizen.Write( "holdtype", 0 );
 	}
 
 	// The same model again: the body took itself off (it couldn't pose after a hot reload), or the bone picks changed

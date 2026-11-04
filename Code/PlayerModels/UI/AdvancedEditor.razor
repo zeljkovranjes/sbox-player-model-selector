@@ -297,7 +297,7 @@
             return;
         }
 
-        var held = new ModelPreview.HeldWeapon( model, root.Parent.Name, root.WorldTransform.ToLocal( renderer.WorldTransform ), citizen.GetInt( "holdtype" ) );
+        var held = new ModelPreview.HeldWeapon( model, root.Parent.Name, root.WorldTransform.ToLocal( renderer.WorldTransform ), citizen.ReadInt( "holdtype" ) );
         if ( held.Model == _held?.Model && held.Bone == _held?.Bone && held.HoldType == _held?.HoldType )
             return;
 

@@ -141,9 +141,9 @@ internal sealed class EffectSignals
 		var wasGrounded = IsGrounded;
 		var wasMoving = IsMoving;
 		var wasCrouching = IsCrouching;
-		IsGrounded = citizen.GetBool( GroundedParameter );
-		IsCrouching = citizen.GetFloat( CrouchParameter ) >= CrouchedFrom;
-		var holdType = citizen.GetInt( HoldParameter );
+		IsGrounded = citizen.ReadBool( GroundedParameter );
+		IsCrouching = citizen.ReadFloat( CrouchParameter ) >= CrouchedFrom;
+		var holdType = citizen.ReadInt( HoldParameter );
 		var wasHolding = IsHolding;
 		var heldBefore = _heldRoot;
 		IsHolding = holdType > 0 || held.IsValid();
@@ -182,7 +182,7 @@ internal sealed class EffectSignals
 		var inAirBefore = _inAir;
 		_inAir = IsGrounded ? 0f : _inAir + delta;
 		_jumpWindow = wasGrounded && !IsGrounded ? JumpWindow : MathF.Max( 0f, _jumpWindow - delta );
-		var jumped = citizen.GetBool( JumpParameter ) || _jumpWindow > 0f && _velocity.z >= JumpSpeed;
+		var jumped = citizen.ReadBool( JumpParameter ) || _jumpWindow > 0f && _velocity.z >= JumpSpeed;
 		if ( jumped )
 			_jumpWindow = 0f;
 
@@ -201,9 +201,9 @@ internal sealed class EffectSignals
 		Happened( LayerWhen.OnStopMoving, !IsMoving && wasMoving, now );
 		Happened( LayerWhen.OnCrouch, IsCrouching && !wasCrouching, now );
 		Happened( LayerWhen.OnUncrouch, !IsCrouching && wasCrouching, now );
-		Happened( LayerWhen.OnShoot, citizen.GetBool( AttackParameter ), now );
+		Happened( LayerWhen.OnShoot, citizen.ReadBool( AttackParameter ), now );
 		Happened( LayerWhen.OnImpact, impact, now );
-		Happened( LayerWhen.OnReload, citizen.GetBool( ReloadParameter ), now );
+		Happened( LayerWhen.OnReload, citizen.ReadBool( ReloadParameter ), now );
 		Happened( LayerWhen.OnEquip, IsHolding && (!wasHolding || swapped), now );
 		Happened( LayerWhen.OnHolster, !IsHolding && wasHolding, now );
 

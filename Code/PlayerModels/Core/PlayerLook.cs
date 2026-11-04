@@ -385,6 +385,36 @@ public sealed class PlayerLook
 		return copy.Sanitized();
 	}
 
+	/// <summary>
+	/// The look as it is worn while some of it is still a draft (see <see cref="Draft"/>): the effects with ids in
+	/// <paramref name="effects"/> and the designs for the weapons in <paramref name="weapons"/> as <paramref name="worn"/>
+	/// has them (left out where it has none). This very look when nothing is a draft.
+	/// </summary>
+	public PlayerLook WithoutDrafts( ICollection<string> effects, ICollection<string> weapons, PlayerLook worn )
+	{
+		if ( effects.Count == 0 && weapons.Count == 0 )
+			return this;
+
+		var copy = Sanitized();
+		var shown = new List<Effect>();
+		foreach ( var effect in copy.Effects )
+		{
+			var kept = effects.Contains( effect.Id ) ? worn?.Standalone( worn.Effects.Find( x => x.Id == effect.Id ) ) : copy.Standalone( effect );
+			if ( kept is not null )
+				shown.Add( kept );
+		}
+
+		copy.Effects = shown;
+		var designs = copy.StandaloneWeapons().Where( x => !weapons.Contains( x.Weapon ) ).ToList();
+		foreach ( var weapon in weapons )
+		{
+			if ( worn?.StandaloneWeapon( worn.DesignFor( weapon ) ) is { } kept )
+				designs.Add( kept );
+		}
+
+		return copy.WithWeapons( designs );
+	}
+
 	/// <summary>The design for the weapon whose world model is <paramref name="weapon"/>; null for none.</summary>
 	public WeaponDesign DesignFor( string weapon )
 	{

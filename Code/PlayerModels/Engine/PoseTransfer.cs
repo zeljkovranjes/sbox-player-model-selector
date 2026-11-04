@@ -50,6 +50,15 @@ internal sealed partial class PoseTransfer
 
 	private bool _warned;
 
+	// What WriteTargetPose last set on each target bone, relative to the model, and each bone's place in it by name.
+	// Made when first used: a hot reload keeps this plan but not fields added since
+	private Transform[] _written;
+	private Dictionary<string, int> _writtenIndex;
+
+	// Each target bone's turn relative to the model with the citizen in its bind pose, what an item pinned to it turns
+	// from. Made when first asked for: the retargeter keeps nothing between poses, so asking it again here changes nothing
+	private Rotation[] _bindTurns;
+
 	/// <summary>False when a hot reload dropped state this plan needs; the body using it is then rebuilt.</summary>
 	internal bool IsIntact => _retargeter is not null && _sourceBones is not null && _sourceParents is not null
 		&& _targetBones is not null && _targetParents is not null && _sourceLocals is not null && _targetLocals is not null
@@ -339,6 +348,7 @@ internal sealed partial class PoseTransfer
 	// A thicker limb or bigger head is scaled here, after chaining, so the bone's children keep their size
 	private void WriteTargetPose( SkinnedModelRenderer target, float shiftUp )
 	{
+		_written ??= new Transform[ _targetBones.Length ];
 		for ( var i = 0; i < _targetBones.Length; i++ )
 		{
 			var pose = _targetPose[ i ];
@@ -348,6 +358,86 @@ internal sealed partial class PoseTransfer
 				pose = pose.WithScale( pose.Scale * _meshScale[ i ] );
 
 			target.SetBoneTransform( _targetBones[ i ], pose );
+			_written[ i ] = pose;
 		}
+	}
+
+	/// <summary>
+	/// Where the bone <paramref name="name"/> of <paramref name="target"/> is in the world, as posed this frame. The
+	/// renderer works out the bones set on it only when it next draws, so reading them back gives last frame's pose,
+	/// which trails a player who moves or turns. A bone this doesn't pose (or before the first pose) is read back.
+	/// </summary>
+	internal bool TryGetPosedBone( SkinnedModelRenderer target, string name, out Transform world )
+	{
+		if ( _written is not null && name is not null && WrittenIndex().TryGetValue( name, out var index ) )
+		{
+			world = target.WorldTransform.ToWorld( _written[ index ] );
+			return true;
+		}
+
+		return target.TryGetBoneTransform( name, out world );
+	}
+
+	/// <summary>
+	/// How far the bone <paramref name="name"/> of <paramref name="target"/> is turned in the world this frame from where
+	/// the citizen's bind pose puts it: the turn an item pinned to it takes, so the item stays on the model's own bone
+	/// however the solve turns it, not the citizen's. False for a bone this doesn't pose, or before the first pose.
+	/// </summary>
+	internal bool TryGetPosedTurn( SkinnedModelRenderer target, string name, out Rotation turn )
+	{
+		turn = Rotation.Identity;
+		if ( _written is null || name is null || !WrittenIndex().TryGetValue( name, out var index ) || BindTurns() is not { } bind )
+			return false;
+
+		turn = target.WorldRotation * _written[ index ].Rotation * bind[ index ].Inverse;
+		return true;
+	}
+
+	// Null when the retargeter can't solve the bind pose; pinned items then turn with the citizen's bone
+	private Rotation[] BindTurns()
+	{
+		if ( _bindTurns is not null )
+			return _bindTurns;
+
+		var bindByBone = new Dictionary<int, Transform>();
+		for ( var i = 0; i < _sourceBones.Length; i++ )
+			bindByBone[ _sourceBones[ i ] ] = _sourceBind[ i ];
+
+		var sourceLocals = new XForm[ _sourceBones.Length ];
+		for ( var i = 0; i < _sourceBones.Length; i++ )
+		{
+			var parent = _sourceParents[ i ];
+			var local = parent >= 0 && bindByBone.TryGetValue( parent, out var parentBind ) ? parentBind.ToLocal( _sourceBind[ i ] ) : _sourceBind[ i ];
+			sourceLocals[ i ] = SkeletonReader.ToCore( local );
+		}
+
+		var targetLocals = new XForm[ _targetBones.Length ];
+		if ( !_retargeter.TryRetarget( sourceLocals, targetLocals, out _ ) )
+			return null;
+
+		// The retargeter orders bones parents first
+		var turns = new Rotation[ _targetBones.Length ];
+		for ( var i = 0; i < turns.Length; i++ )
+		{
+			var local = SkeletonReader.ToEngine( targetLocals[ i ] ).Rotation;
+			turns[ i ] = _targetParents[ i ] < 0 ? local : turns[ _targetParents[ i ] ] * local;
+		}
+
+		return _bindTurns = turns;
+	}
+
+	private Dictionary<string, int> WrittenIndex()
+	{
+		if ( _writtenIndex is not null )
+			return _writtenIndex;
+
+		_writtenIndex = new Dictionary<string, int>();
+		for ( var i = 0; i < _targetBones.Length; i++ )
+		{
+			if ( _targetBones[ i ] is { } bone )
+				_writtenIndex.TryAdd( bone.Name, i );
+		}
+
+		return _writtenIndex;
 	}
 }

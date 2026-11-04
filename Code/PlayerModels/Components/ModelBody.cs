@@ -207,8 +207,8 @@ public sealed class ModelBody : Component
 		}
 
 		_transfer.Apply( Source, _renderer );
-		_held.Place( Source, _renderer );
-		_accessories?.Place( Source, _renderer );
+		_held.Place( Source, _renderer, _transfer );
+		_accessories?.Place( Source, _renderer, _transfer );
 	}
 
 	/// <summary>

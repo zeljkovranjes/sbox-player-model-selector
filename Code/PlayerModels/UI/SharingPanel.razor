@@ -31,29 +31,29 @@
                 </div>
             </div>
             <div class="shared-age">@( $"Shared {Ago( open.Changed )}" )</div>
-            <div class="vote @VoteClass( open, 1 )" @onclick=@(() => _ = VoteAsync( open, 1 ))>thumb_up</div>
+            <div class="vote @VoteClass( open, 1 )" @onclick=@Bind.Click( VoteUp, open )>thumb_up</div>
             <div class="votes">@open.Up</div>
-            <div class="vote @VoteClass( open, -1 )" @onclick=@(() => _ = VoteAsync( open, -1 ))>thumb_down</div>
+            <div class="vote @VoteClass( open, -1 )" @onclick=@Bind.Click( VoteDown, open )>thumb_down</div>
             <div class="votes">@open.Down</div>
-            <div class="button" @onclick=@(() => UseShared( open ))>Use</div>
+            <div class="button" @onclick=@Bind.Click( UseOne, open )>Use</div>
             @if ( Fork is not null )
             {
-                <div class="button" Tooltip=@ForkTip @onclick=@(() => Fork( open ))>Fork</div>
+                <div class="button" Tooltip=@ForkTip @onclick=@Bind.Click( ForkOne, open )>Fork</div>
             }
         </div>
         <div class="row actions">
             <div class="spacer"></div>
             @if ( open.IsMine )
             {
-                <div class="button @( _busy ? "disabled" : "" )" @onclick=@(() => _ = TakeDownAsync( open ))>Take down</div>
+                <div class="button @( _busy ? "disabled" : "" )" @onclick=@Bind.Click( TakeDown, open )>Take down</div>
             }
             else
             {
-                <div class="button" Tooltip="Hide everything this player shares, on your screen only" @onclick=@(() => ToggleHidden( open ))>@( IsHidden( open ) ? "Unhide author" : "Hide author" )</div>
+                <div class="button" Tooltip="Hide everything this player shares, on your screen only" @onclick=@Bind.Click( ToggleHiddenOf, open )>@( IsHidden( open ) ? "Unhide author" : "Hide author" )</div>
                 @if ( Block is not null )
                 {
                     var blocked = IsBlocked?.Invoke( open ) == true;
-                    <div class="button" Tooltip="Hide it, and every copy of it, from everyone on your server" @onclick=@(() => SetBlocked( open, !blocked ))>@( blocked ? "Unblock on this server" : "Block on this server" )</div>
+                    <div class="button" Tooltip="Hide it, and every copy of it, from everyone on your server" @onclick=@Bind.Click( ToggleBlocked, open )>@( blocked ? "Unblock on this server" : "Block on this server" )</div>
                 }
             }
         </div>
@@ -97,15 +97,15 @@
     else if ( Workshop )
     {
         <div class="top">
-            <div class="back" Tooltip="Back" @onclick=@(() => Back?.Invoke())>arrow_back</div>
+            <div class="back" Tooltip="Back" @onclick=@GoBack>arrow_back</div>
             <div class="intro">@( Intro ?? $"{Capitalised( Noun )}s players shared{Scope}: Top lists the best rated first, New the newest. Use one to put it on the preview; Apply wears it." )</div>
         </div>
 
         <div class="section-header sorted">
             <div class="heading">Shared @( Noun )s</div>
             <div class="sort">
-                <div class="sort-choice @( _newest ? "" : "active" )" @onclick=@(() => SortBy( false ))>Top</div>
-                <div class="sort-choice @( _newest ? "active" : "" )" @onclick=@(() => SortBy( true ))>New</div>
+                <div class="sort-choice @( _newest ? "" : "active" )" @onclick=@SortByTop>Top</div>
+                <div class="sort-choice @( _newest ? "active" : "" )" @onclick=@SortByNew>New</div>
             </div>
         </div>
 
@@ -119,7 +119,7 @@
                 @foreach ( var group in FacetGroups() )
                 {
                     var name = group.Key;
-                    <UIDropdown Items=@FacetChoices( group ) Value=@( _facets.GetValueOrDefault( name ) ?? "" ) ValueChanged=@(( object v ) => SetFacet( name, v as string )) Tokenize=@false></UIDropdown>
+                    <UIDropdown Items=@FacetChoices( group ) Value=@( _facets.GetValueOrDefault( name ) ?? "" ) ValueChanged=@Bind.Picked( SetFacet, name ) Tokenize=@false></UIDropdown>
                 }
             </div>
         }
@@ -165,15 +165,15 @@
                     </div>
                 </div>
                 <div class="shared-age">@Ago( shared.Changed )</div>
-                <div class="info" Tooltip="Details" @onclick=@(() => ShowDetails( shared ))>info</div>
-                <div class="vote @VoteClass( shared, 1 )" @onclick=@(() => _ = VoteAsync( shared, 1 ))>thumb_up</div>
+                <div class="info" Tooltip="Details" @onclick=@Bind.Click( Detail, shared )>info</div>
+                <div class="vote @VoteClass( shared, 1 )" @onclick=@Bind.Click( VoteUp, shared )>thumb_up</div>
                 <div class="votes">@shared.Up</div>
-                <div class="vote @VoteClass( shared, -1 )" @onclick=@(() => _ = VoteAsync( shared, -1 ))>thumb_down</div>
+                <div class="vote @VoteClass( shared, -1 )" @onclick=@Bind.Click( VoteDown, shared )>thumb_down</div>
                 <div class="votes">@shared.Down</div>
-                <div class="button" @onclick=@(() => UseShared( shared ))>Use</div>
+                <div class="button" @onclick=@Bind.Click( UseOne, shared )>Use</div>
                 @if ( Fork is not null )
                 {
-                    <div class="button" Tooltip=@ForkTip @onclick=@(() => Fork( shared ))>Fork</div>
+                    <div class="button" Tooltip=@ForkTip @onclick=@Bind.Click( ForkOne, shared )>Fork</div>
                 }
             </div>
         }
@@ -323,7 +323,21 @@
     string _code;
     int _revision;
 
-    bool AtLimit => _entries.Count( x => x.IsMine ) >= Library.PerPlayer;
+    // Loops and named methods rather than lambdas in here: a generic type's lambda can't be carried over a hot reload
+    // (LINQ keeps one in a static field once it has run, and the markup's would throw from then on). See Bind
+    bool AtLimit => MineCount() >= Library.PerPlayer;
+
+    int MineCount()
+    {
+        var mine = 0;
+        foreach ( var entry in _entries )
+        {
+            if ( entry.IsMine )
+                mine++;
+        }
+
+        return mine;
+    }
 
     // What the list is narrowed to: words searched for, and the value picked in each group of filters ("" for any)
     string _search = "";
@@ -341,7 +355,18 @@
         }
     }
 
-    bool Filtering => !string.IsNullOrWhiteSpace( _search ) || _facets.Values.Any( x => !string.IsNullOrEmpty( x ) );
+    bool Filtering => !string.IsNullOrWhiteSpace( _search ) || HasFacet();
+
+    bool HasFacet()
+    {
+        foreach ( var facet in _facets.Values )
+        {
+            if ( !string.IsNullOrEmpty( facet ) )
+                return true;
+        }
+
+        return false;
+    }
 
     // Each share's filters: its own, and the #tags of its description
     IEnumerable<string> FacetsOf( SharedLibrary<T>.Entry entry )
@@ -357,13 +382,48 @@
     }
 
     // The groups of filters the shares listed have, each with its values, in the order first found
-    List<IGrouping<string, string>> FacetGroups() => Facets is null ? new()
-        : _entries.SelectMany( FacetsOf ).Distinct().Where( x => x.Contains( ": " ) ).GroupBy( x => x[ ..x.IndexOf( ": " ) ] ).ToList();
+    List<KeyValuePair<string, List<string>>> FacetGroups()
+    {
+        var groups = new List<KeyValuePair<string, List<string>>>();
+        if ( Facets is null )
+            return groups;
 
-    static List<UIDropdown.Item> FacetChoices( IGrouping<string, string> group )
+        foreach ( var entry in _entries )
+        {
+            foreach ( var facet in FacetsOf( entry ) )
+            {
+                var split = facet.IndexOf( ": " );
+                if ( split < 0 )
+                    continue;
+
+                var key = facet[ ..split ];
+                var at = -1;
+                for ( var i = 0; i < groups.Count && at < 0; i++ )
+                {
+                    if ( groups[ i ].Key == key )
+                        at = i;
+                }
+
+                if ( at < 0 )
+                {
+                    groups.Add( new( key, new List<string>() ) );
+                    at = groups.Count - 1;
+                }
+
+                if ( !groups[ at ].Value.Contains( facet ) )
+                    groups[ at ].Value.Add( facet );
+            }
+        }
+
+        return groups;
+    }
+
+    static List<UIDropdown.Item> FacetChoices( KeyValuePair<string, List<string>> group )
     {
         var choices = new List<UIDropdown.Item> { new( $"{group.Key}: any", "" ) };
-        choices.AddRange( group.Select( x => new UIDropdown.Item( x, x ) ) );
+        foreach ( var facet in group.Value )
+            choices.Add( new UIDropdown.Item( facet, facet ) );
+
         return choices;
     }
 
@@ -396,7 +456,19 @@
     }
 
     // The one listed that is just like this player's now, if any: that isn't published a second time
-    SharedLibrary<T>.Entry Same => Current is null ? null : _entries.FirstOrDefault( x => Library.Same( x.Item, Current ) );
+    SharedLibrary<T>.Entry Same
+    {
+        get
+        {
+            foreach ( var entry in Current is null ? new() : _entries )
+            {
+                if ( Library.Same( entry.Item, Current ) )
+                    return entry;
+            }
+
+            return null;
+        }
+    }
 
     bool CanShare => Current is not null && !_busy && Same is null && !AtLimit && SharePost.TooBig( Library.PostOf( Current, Noun, "" ).Serialize() ) is null;
 
@@ -435,10 +507,24 @@
     void Arrange()
     {
         _hidden = LocalPrefs.HiddenAuthors();
-        var kept = _entries.Where( x => (_showHidden || !IsHidden( x )) && Matches( x ) );
-        _shown = (_newest ? kept.OrderByDescending( x => x.Changed ) : kept).ToList();
+        var kept = new List<SharedLibrary<T>.Entry>();
+        foreach ( var entry in _entries )
+        {
+            if ( (_showHidden || !IsHidden( entry )) && Matches( entry ) )
+                kept.Add( entry );
+        }
+
+        _shown = _newest ? kept.OrderByDescending( ChangedOf ).ToList() : kept;
         _page = Math.Clamp( _page, 0, Pages - 1 );
     }
+
+    static DateTimeOffset ChangedOf( SharedLibrary<T>.Entry entry ) => entry.Changed;
+
+    void SortByTop() => SortBy( false );
+
+    void SortByNew() => SortBy( true );
+
+    void GoBack() => Back?.Invoke();
 
     void SortBy( bool newest )
     {
@@ -470,6 +556,25 @@
         Arrange();
         Redraw();
     }
+
+    // The markup's handlers, each for the entry it is drawn for (see Bind)
+    static SharedLibrary<T>.Entry EntryOf( object entry ) => (SharedLibrary<T>.Entry)entry;
+
+    void VoteUp( object entry ) => _ = VoteAsync( EntryOf( entry ), 1 );
+
+    void VoteDown( object entry ) => _ = VoteAsync( EntryOf( entry ), -1 );
+
+    void UseOne( object entry ) => UseShared( EntryOf( entry ) );
+
+    void ForkOne( object entry ) => Fork?.Invoke( EntryOf( entry ) );
+
+    void TakeDown( object entry ) => _ = TakeDownAsync( EntryOf( entry ) );
+
+    void ToggleHiddenOf( object entry ) => ToggleHidden( EntryOf( entry ) );
+
+    void ToggleBlocked( object entry ) => SetBlocked( EntryOf( entry ), IsBlocked?.Invoke( EntryOf( entry ) ) != true );
+
+    void Detail( object entry ) => ShowDetails( EntryOf( entry ) );
 
     void ShowPage( int page )
     {
@@ -542,7 +647,7 @@
 
             // The details show the entry as listed now: its votes, its name if its author changed it
             if ( _details is not null )
-                _details = _entries.FirstOrDefault( x => x.Id == _details.Id ) ?? _details;
+                _details = Listed( _details.Id ) ?? _details;
         }
         catch ( Exception e )
         {
@@ -557,45 +662,28 @@
         }
     }
 
+    SharedLibrary<T>.Entry Listed( long id )
+    {
+        foreach ( var entry in _entries )
+        {
+            if ( entry.Id == id )
+                return entry;
+        }
+
+        return null;
+    }
+
     // Asks what to call it and what to say about it, then publishes it
     void OpenShare()
     {
         if ( !CanShare )
             return;
 
-        var name = "";
-        var description = "";
-        UIModal modal = null;
-
-        bool HasName() => !string.IsNullOrWhiteSpace( name );
-
-        void Confirm()
-        {
-            if ( !HasName() )
-                return;
-
-            modal?.Close();
-            _ = ShareAsync( name, description );
-        }
-
-        var properties = new List<SerializedProperty>
-        {
-            Game.TypeLibrary.CreateProperty( "Name", () => name, v => name = v,
-                new Attribute[] { new PropertyAttribute(), new PlaceholderAttribute( $"What to call it, up to {SharePost.MaxNameLength} characters" ) } ),
-            Game.TypeLibrary.CreateProperty( "Description", () => description, v => description = v,
-                new Attribute[] { new PropertyAttribute(), new TextAreaAttribute(), new PlaceholderAttribute( $"Optional, up to {SharePost.MaxDescriptionLength} characters" ) } ),
-            new UIActionProperty( "Publish", "share", Confirm, 1, separator: true ) { Enabled = HasName },
-            new UIActionProperty( "Cancel", null, () => modal?.Close(), 2, sameLine: true ),
-        };
-
-        modal = UIModal.Show( this, $"Share your {Noun}", properties );
-        if ( modal is null )
-            return;
-
-        modal.OnSubmit = Confirm;
-        _shareModal = modal;
+        _shareModal = ShareWindow.Show( this, Noun, Publish );
         _shareLimited = false;
     }
+
+    void Publish( string name, string description ) => _ = ShareAsync( name, description );
 
     // The share window's boxes hold no more than a name and description keep (the sheet doesn't take a length)
     void LimitShareBoxes()
@@ -621,7 +709,8 @@
         if ( !CanShare )
             return;
 
-        await Busy( async () =>
+        BeginBusy();
+        try
         {
             var same = await Library.ShareAsync( Current, name, description );
             _status = same is null
@@ -629,18 +718,35 @@
                 : same.IsMine ? $"You've published this {Noun} already."
                 : $"{AuthorOf( same )} shared this {Noun} already. Rate theirs in the Workshop instead.";
             await ListAsync();
-        } );
+        }
+        catch ( Exception e )
+        {
+            Failed( e );
+        }
+        finally
+        {
+            EndBusy();
+        }
     }
 
     async Task TakeDownAsync( SharedLibrary<T>.Entry entry )
     {
-        await Busy( async () =>
+        BeginBusy();
+        try
         {
             await Library.UnshareAsync( entry.Id, ModelId );
             _details = null;
             _status = $"\"{NameOf( entry )}\" is taken down.";
             await ListAsync();
-        } );
+        }
+        catch ( Exception e )
+        {
+            Failed( e );
+        }
+        finally
+        {
+            EndBusy();
+        }
     }
 
     void ShowDetails( SharedLibrary<T>.Entry entry )
@@ -683,7 +789,11 @@
     IEnumerable<AuthorIndex.Share> OthersOf( SharedLibrary<T>.Entry entry )
     {
         var key = AuthorIndex.KeyOf( Library.Kind, entry.Id );
-        return (_more ?? new()).Where( x => x.Key != key );
+        foreach ( var share in _more ?? new() )
+        {
+            if ( share.Key != key )
+                yield return share;
+        }
     }
 
     // Clicking the vote already given takes it back
@@ -692,11 +802,20 @@
         if ( entry.IsMine )
             return;
 
-        await Busy( async () =>
+        BeginBusy();
+        try
         {
             await Library.VoteAsync( entry.Id, Library.VoteOn( entry.Id ) == vote ? 0 : vote );
             await ListAsync();
-        } );
+        }
+        catch ( Exception e )
+        {
+            Failed( e );
+        }
+        finally
+        {
+            EndBusy();
+        }
     }
 
     void UseShared( SharedLibrary<T>.Entry entry )
@@ -744,24 +863,17 @@
         Redraw();
     }
 
-    async Task Busy( Func<Task> work )
+    // Around a change on its way: the buttons that would start another are off meanwhile
+    void BeginBusy()
     {
         _busy = true;
         Redraw();
+    }
 
-        try
-        {
-            await work();
-        }
-        catch ( Exception e )
-        {
-            Failed( e );
-        }
-        finally
-        {
-            _busy = false;
-            Redraw();
-        }
+    void EndBusy()
+    {
+        _busy = false;
+        Redraw();
     }
 
     void Failed( Exception e )

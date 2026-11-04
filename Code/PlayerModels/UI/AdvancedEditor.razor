@@ -33,15 +33,20 @@
 
     <div class="side">
         <div class="tabs">
-            <div class="tab @( _items ? "" : "active" )" @onclick=@(() => ShowItems( false ))>Look</div>
-            <div class="tab @( _items ? "active" : "" )" @onclick=@(() => ShowItems( true ))>Accessories</div>
+            <div class="tab @( ShownTab == Tab.Look ? "active" : "" )" @onclick=@(() => ShowTab( Tab.Look ))>Look</div>
+            <div class="tab @( ShownTab == Tab.Accessories ? "active" : "" )" @onclick=@(() => ShowTab( Tab.Accessories ))>Accessories</div>
+            <div class="tab @( ShownTab == Tab.Effects ? "active" : "" )" @onclick=@(() => ShowTab( Tab.Effects ))>Effects</div>
         </div>
-        <UISettingsPane class="options" Title=@( _items ? "Accessories" : "Customize" ) Revision=@HashCode.Combine( _items, _look, _model )>
+        <UISettingsPane class="options" Title=@TabTitle Revision=@HashCode.Combine( ShownTab, _look, _model )>
             <Body>
                 <SlowScroll><Content>
-                    @if ( _items )
+                    @if ( ShownTab == Tab.Accessories )
                     {
                         <AccessoryEditor @ref="_itemsPanel" Body=@_model Look=@_look Changed=@Changed Locked=@AccessoriesLocked></AccessoryEditor>
+                    }
+                    else if ( ShownTab == Tab.Effects )
+                    {
+                        <LayerEditor Look=@_look Changed=@Changed Stage=@Stage Locked=@EffectsLocked EffectId=@EffectId></LayerEditor>
                     }
                     else
                     {
@@ -91,12 +96,25 @@
     /// <summary>Whether the host keeps this player's items off.</summary>
     public bool AccessoriesLocked { get; init; }
 
+    /// <summary>Whether the host keeps this player's effects off.</summary>
+    public bool EffectsLocked { get; init; }
+
+    /// <summary>The effect to open on, by id, on the Effects tab; null opens on the Look tab.</summary>
+    public string EffectId { get; init; }
+
+    // The tabs of options down the right
+    enum Tab { Look, Accessories, Effects }
+
     ModelPreview Stage { get; set; }
 
     PlayerLook _look;
     Model _model;
     bool _dirty;
-    bool _items;
+    Tab? _tabChosen;
+
+    Tab ShownTab => _tabChosen ?? (EffectId is null ? Tab.Look : Tab.Effects);
+
+    string TabTitle => ShownTab switch { Tab.Accessories => "Accessories", Tab.Effects => "Effects", _ => "Customize" };
     PartHighlight? _pointed;
     MenuHold _hold;
 
@@ -119,9 +137,9 @@
     Panel _menu;
     InputLock _inputLock;
 
-    PlayerLook CurrentLook => _look is { IsCustomised: true } ? _look.Customisation() : null;
+    PlayerLook CurrentLook => _look is { IsCustomised: true, IsDefault: false } ? _look.Customisation() : null;
 
-    protected override int BuildHash() => HashCode.Combine( _look, _look?.Serialize(), _model, _dirty, _items,
+    protected override int BuildHash() => HashCode.Combine( _look, _look?.Serialize(), _model, _dirty, ShownTab,
         HashCode.Combine( _viewport?.Tool, _viewport?.Walking, _viewport?.Status, _selectedItem, GraphVersion ) );
 
     protected override void OnAfterTreeRender( bool firstTime )
@@ -157,7 +175,7 @@
         Stage.Viewport ??= _viewport ??= new EditorViewport( Stage, () => _look, Changed, () => _selectedItem, SelectItem );
         SyncSelection();
         Stage.Look = ShownNow?.Invoke() ?? _look;
-        Stage.Highlight = _items ? null : _pointed;
+        Stage.Highlight = ShownTab == Tab.Look ? _pointed : null;
         _ = Stage.ShowAsync( _look.Model );
     }
 
@@ -182,7 +200,7 @@
     {
         _selectedItem = index;
         if ( index >= 0 )
-            _items = true;
+            _tabChosen = Tab.Accessories;
 
         StateHasChanged();
     }
@@ -210,9 +228,9 @@
         }
     }
 
-    void ShowItems( bool items )
+    void ShowTab( Tab tab )
     {
-        _items = items;
+        _tabChosen = tab;
         StateHasChanged();
     }
 

@@ -1,0 +1,62 @@
+@using System
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Core
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    <div class="label">@Label</div>
+    <UISlider Property=@_so?.GetProperty( Unit.ToString() )></UISlider>
+</root>
+
+@code
+{
+    /// <summary>The ranges a number can have, each the range of an effect's field (see <see cref="EffectLayer"/>).</summary>
+    public enum Field { Spread, Offset, Size, Reach, Seconds, Rate, Brightness, Speed, Gravity, Beats, Fraction, Angle, Burst, ShowFor }
+
+    /// <summary>What the number sets.</summary>
+    [Parameter] public string Label { get; set; }
+
+    /// <summary>The number now.</summary>
+    [Parameter] public float Value { get; set; }
+
+    /// <summary>Its range.</summary>
+    [Parameter] public Field Unit { get; set; }
+
+    /// <summary>Called with the new number while the slider is dragged or a number is typed.</summary>
+    [Parameter] public Action<float> OnChanged { get; set; }
+
+    SerializedObject _so;
+
+    // The slider edits a property and takes its range from it (as SliderRow does), so each range is a property of its own
+    // over the same value; each is the range its field is kept within
+    [Range( 0f, EffectLayer.MaxSpread ), Step( 0.5f )] public float Spread { get => Value; set => Set( value ); }
+    [Range( -EffectLayer.MaxOffset, EffectLayer.MaxOffset ), Step( 0.25f )] public float Offset { get => Value; set => Set( value ); }
+    [Range( EffectLayer.MinSize, EffectLayer.MaxSize ), Step( 0.1f )] public float Size { get => Value; set => Set( value ); }
+    [Range( EffectLayer.MinReach, EffectLayer.MaxReach ), Step( 1f )] public float Reach { get => Value; set => Set( value ); }
+    [Range( EffectLayer.MinLifetime, EffectLayer.MaxLifetime ), Step( 0.05f )] public float Seconds { get => Value; set => Set( value ); }
+    [Range( 0f, EffectLayer.MaxRate ), Step( 1f )] public float Rate { get => Value; set => Set( value ); }
+    [Range( 0f, EffectLayer.MaxBrightness ), Step( 0.05f )] public float Brightness { get => Value; set => Set( value ); }
+    [Range( 0f, EffectLayer.MaxSpeed ), Step( 1f )] public float Speed { get => Value; set => Set( value ); }
+    [Range( -EffectLayer.MaxGravity, EffectLayer.MaxGravity ), Step( 5f )] public float Gravity { get => Value; set => Set( value ); }
+    [Range( 0f, EffectLayer.MaxRhythmSpeed ), Step( 0.05f )] public float Beats { get => Value; set => Set( value ); }
+    [Range( 0f, 1f ), Step( 0.01f )] public float Fraction { get => Value; set => Set( value ); }
+    [Range( 0f, EffectLayer.MaxAngle ), Step( 1f )] public float Angle { get => Value; set => Set( value ); }
+    [Range( 0f, EffectLayer.MaxBurst ), Step( 1f )] public float Burst { get => Value; set => Set( value ); }
+    [Range( 0f, EffectLayer.MaxShowFor ), Step( 0.05f )] public float ShowFor { get => Value; set => Set( value ); }
+
+    void Set( float value )
+    {
+        Value = value;
+        OnChanged?.Invoke( value );
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        _so ??= TypeLibrary.GetSerializedObject( this );
+    }
+
+    protected override int BuildHash() => HashCode.Combine( Label, Unit );
+}

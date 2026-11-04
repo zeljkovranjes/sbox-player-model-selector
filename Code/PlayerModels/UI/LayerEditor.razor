@@ -1,0 +1,526 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using System.Text.Json
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Components
+@using PlayerModels.Core
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    @if ( Locked )
+    {
+        <div class="note">The host keeps effects off on this server, so nobody sees yours. They stay with your look and can still be changed.</div>
+    }
+
+    @if ( Look is null || Look.Effects.Count == 0 || Effect is not { } effect )
+    {
+        <div class="note">No effects yet. Put one on from the Effects tab, then build on it here, layer by layer.</div>
+    }
+    else
+    {
+        <div class="section-header">Effect</div>
+        <div class="row">
+            <div class="label">Effect</div>
+            <UIDropdown Items=@EffectChoices() Value=@effect.Id ValueChanged=@SelectEffect Tokenize=@false></UIDropdown>
+        </div>
+        <div class="row">
+            <div class="label">Comes from</div>
+            <UIDropdown Items=@AnchorChoices() Value=@AnchorValue( effect.Anchor ) ValueChanged=@SetAnchor Tokenize=@false></UIDropdown>
+        </div>
+        <ToggleRow Label="Keep it where it is when it moves to another place" Value=@_keep OnChanged=@KeepWhereItIs></ToggleRow>
+        <NumberRow Label="Forward / back" Unit=@NumberRow.Field.Offset Value=@effect.Anchor.Forward OnChanged=@(( float v ) => Set( () => effect.Anchor.Forward = v ))></NumberRow>
+        <NumberRow Label="Left / right" Unit=@NumberRow.Field.Offset Value=@effect.Anchor.Left OnChanged=@(( float v ) => Set( () => effect.Anchor.Left = v ))></NumberRow>
+        <NumberRow Label="Up / down" Unit=@NumberRow.Field.Offset Value=@effect.Anchor.Up OnChanged=@(( float v ) => Set( () => effect.Anchor.Up = v ))></NumberRow>
+
+        <div class="section-header">@( $"Layers ({effect.Layers.Count} of {Effect.MaxLayers})" )</div>
+        var held = Budget.HeldBack( Look.Effects )[ Look.Effects.IndexOf( effect ) ];
+        @for ( var i = 0; i < effect.Layers.Count; i++ )
+        {
+            var index = i;
+            var layer = effect.Layers[ index ];
+            <div class="row layer @( index == _layer ? "selected" : "" ) @( held[ index ] ? "over" : "" )"
+                 Tooltip=@( held[ index ] ? "Over this server's budget: it doesn't show until layers before it are removed or switched off" : null )
+                 @onclick=@(() => SelectLayer( index ))>
+                <div class="switch @( layer.Off ? "" : "on" )" Tooltip=@( layer.Off ? "Turn on" : "Turn off" )
+                     @onclick=@(( PanelEvent e ) => ToggleLayer( layer, e ))>check</div>
+                <div class="layer-name">@NameOf( layer )</div>
+                <div class="icon-button @( index == 0 ? "disabled" : "" )" Tooltip="Move up" @onclick=@(( PanelEvent e ) => MoveLayer( index, -1, e ))>arrow_upward</div>
+                <div class="icon-button @( index == effect.Layers.Count - 1 ? "disabled" : "" )" Tooltip="Move down" @onclick=@(( PanelEvent e ) => MoveLayer( index, 1, e ))>arrow_downward</div>
+                <div class="icon-button @( CanAdd ? "" : "disabled" )" Tooltip="Duplicate" @onclick=@(( PanelEvent e ) => DuplicateLayer( index, e ))>content_copy</div>
+                <div class="icon-button remove" Tooltip="Remove" @onclick=@(( PanelEvent e ) => RemoveLayer( index, e ))>delete</div>
+            </div>
+        }
+        <div class="row">
+            <div class="reset @( CanAdd ? "" : "disabled" )" @onclick=@(() => AddLayer( LayerKind.Sprite ))>Add sprites</div>
+            <div class="reset @( CanAdd ? "" : "disabled" )" @onclick=@(() => AddLayer( LayerKind.Light ))>Add a light</div>
+            <div class="reset @( CanAdd ? "" : "disabled" )" @onclick=@(() => AddLayer( LayerKind.Trail ))>Add a trail</div>
+        </div>
+        <div class="note">@BudgetText()</div>
+
+        @if ( Layer is { } selected )
+        {
+            var kind = selected.KindIs;
+            <div class="section-header">@NameOf( selected )</div>
+            @if ( kind == LayerKind.Sprite )
+            {
+                <div class="row">
+                    <div class="label">Comes from</div>
+                    <UIDropdown Items=@ShapeChoices() Value=@selected.ShapeIs.ToString() ValueChanged=@(( object v ) => Set( () => selected.Shape = (string)v ))
+                                Tokenize=@false></UIDropdown>
+                </div>
+                @if ( selected.ShapeIs != LayerShape.Point )
+                {
+                    <NumberRow Label=@( selected.ShapeIs == LayerShape.Cone ? "Length" : "Spread" ) Unit=@NumberRow.Field.Spread Value=@selected.Spread
+                               OnChanged=@(( float v ) => Set( () => selected.Spread = v ))></NumberRow>
+                }
+                @if ( selected.ShapeIs == LayerShape.Shape )
+                {
+                    <div class="row">
+                        <div class="label">Shape</div>
+                        <UIDropdown Items=@StandardShapeChoices() Value=@selected.FormationIs.ToString() ValueChanged=@(( object v ) => Set( () => selected.Formation = (string)v ))
+                                    Tokenize=@false></UIDropdown>
+                    </div>
+                    <ToggleRow Label=@( StandardShapes.IsSolid( selected.FormationIs ) ? "All through it (not just its surface)" : "All over it (not just its outline)" )
+                               Value=@selected.Fill OnChanged=@(( bool v ) => Set( () => selected.Fill = v ))></ToggleRow>
+                }
+                <div class="row">
+                    <div class="label">Looks like</div>
+                    <UIDropdown Items=@PictureChoices() Value=@( selected.Picture ?? nameof( LayerPicture.Glow ) ) ValueChanged=@(( object v ) => Set( () => selected.Picture = (string)v ))
+                                Tokenize=@false></UIDropdown>
+                </div>
+                <ColorRow Label="Color" Hex=@selected.Color OnChanged=@(( string hex ) => Set( () => selected.Color = string.IsNullOrEmpty( hex ) ? "#ffffff" : hex ))></ColorRow>
+                <NumberRow Label="Size" Unit=@NumberRow.Field.Size Value=@selected.Size OnChanged=@(( float v ) => Set( () => selected.Size = v ))></NumberRow>
+                <NumberRow Label="Amount (a second)" Unit=@NumberRow.Field.Rate Value=@selected.Amount OnChanged=@(( float v ) => Set( () => selected.Amount = v ))></NumberRow>
+                <NumberRow Label="Lasts (seconds)" Unit=@NumberRow.Field.Seconds Value=@selected.Lifetime OnChanged=@(( float v ) => Set( () => selected.Lifetime = v ))></NumberRow>
+                <NumberRow Label="Speed" Unit=@NumberRow.Field.Speed Value=@selected.Speed OnChanged=@(( float v ) => Set( () => selected.Speed = v ))></NumberRow>
+            }
+            else if ( kind == LayerKind.Light )
+            {
+                <ColorRow Label="Color" Hex=@selected.Color OnChanged=@(( string hex ) => Set( () => selected.Color = string.IsNullOrEmpty( hex ) ? "#ffffff" : hex ))></ColorRow>
+                <NumberRow Label="Reach" Unit=@NumberRow.Field.Reach Value=@selected.Size OnChanged=@(( float v ) => Set( () => selected.Size = v ))></NumberRow>
+                <NumberRow Label="Brightness" Unit=@NumberRow.Field.Brightness Value=@selected.Amount OnChanged=@(( float v ) => Set( () => selected.Amount = v ))></NumberRow>
+            }
+            else
+            {
+                <ColorRow Label="Color" Hex=@selected.Color OnChanged=@(( string hex ) => Set( () => selected.Color = string.IsNullOrEmpty( hex ) ? "#ffffff" : hex ))></ColorRow>
+                <NumberRow Label="Width" Unit=@NumberRow.Field.Size Value=@selected.Size OnChanged=@(( float v ) => Set( () => selected.Size = v ))></NumberRow>
+                <NumberRow Label="Lasts (seconds)" Unit=@NumberRow.Field.Seconds Value=@selected.Lifetime OnChanged=@(( float v ) => Set( () => selected.Lifetime = v ))></NumberRow>
+            }
+
+            <div class="row">
+                <div class="label">When</div>
+                <UIDropdown Items=@WhenChoices() Value=@selected.WhenIs.ToString() ValueChanged=@(( object v ) => SetWhen( selected, (string)v )) Tokenize=@false></UIDropdown>
+            </div>
+            @if ( selected.IsMoment )
+            {
+                @if ( kind == LayerKind.Sprite )
+                {
+                    <NumberRow Label="Burst (at once)" Unit=@NumberRow.Field.Burst Value=@selected.Burst OnChanged=@(( float v ) => Set( () => selected.Burst = v ))></NumberRow>
+                }
+                <NumberRow Label="Shows for (seconds)" Unit=@NumberRow.Field.ShowFor Value=@selected.ShowFor OnChanged=@(( float v ) => Set( () => selected.ShowFor = v ))></NumberRow>
+            }
+            <div class="row">
+                <div class="label">Rhythm</div>
+                <UIDropdown Items=@RhythmChoices() Value=@selected.RhythmIs.ToString() ValueChanged=@(( object v ) => Set( () => selected.Rhythm = (string)v )) Tokenize=@false></UIDropdown>
+            </div>
+            @if ( selected.RhythmIs != LayerRhythm.Steady )
+            {
+                <NumberRow Label=@( selected.RhythmIs == LayerRhythm.Spin ? "Turns a second" : "Beats a second" ) Unit=@NumberRow.Field.Beats Value=@selected.RhythmSpeed
+                           OnChanged=@(( float v ) => Set( () => selected.RhythmSpeed = v ))></NumberRow>
+                @if ( selected.RhythmIs != LayerRhythm.Spin && selected.RhythmIs != LayerRhythm.Rainbow )
+                {
+                    <NumberRow Label="How much" Unit=@NumberRow.Field.Fraction Value=@selected.RhythmAmount OnChanged=@(( float v ) => Set( () => selected.RhythmAmount = v ))></NumberRow>
+                }
+            }
+            <ToggleRow Label="Fade with how fast it moves" Value=@selected.FadeWithSpeed OnChanged=@(( bool v ) => Set( () => selected.FadeWithSpeed = v ))></ToggleRow>
+
+            <div class="fold @( _more ? "open" : "" )" @onclick=@ToggleMore>
+                <div class="fold-icon">@( _more ? "expand_more" : "chevron_right" )</div>
+                <div class="fold-name">More</div>
+            </div>
+            @if ( _more )
+            {
+                <div class="row">
+                    <div class="label">From joint</div>
+                    <UIDropdown Items=@LayerJointChoices() Value=@( selected.Joint ?? "" ) ValueChanged=@(( object v ) => Set( () => selected.Joint = (string)v == "" ? null : (string)v ))
+                                Tokenize=@false></UIDropdown>
+                </div>
+                <NumberRow Label="Forward / back" Unit=@NumberRow.Field.Offset Value=@selected.Forward OnChanged=@(( float v ) => Set( () => selected.Forward = v ))></NumberRow>
+                <NumberRow Label="Left / right" Unit=@NumberRow.Field.Offset Value=@selected.Left OnChanged=@(( float v ) => Set( () => selected.Left = v ))></NumberRow>
+                <NumberRow Label="Up / down" Unit=@NumberRow.Field.Offset Value=@selected.Up OnChanged=@(( float v ) => Set( () => selected.Up = v ))></NumberRow>
+                @if ( kind != LayerKind.Light )
+                {
+                    <ColorRow Label="End color" Hex=@( selected.ColorEnd ?? "" ) OnChanged=@(( string hex ) => Set( () => selected.ColorEnd = string.IsNullOrEmpty( hex ) ? null : hex ))></ColorRow>
+                    <NumberRow Label=@( kind == LayerKind.Trail ? "End width" : "End size" ) Unit=@NumberRow.Field.Size Value=@( selected.SizeEnd ?? selected.Size )
+                               OnChanged=@(( float v ) => Set( () => selected.SizeEnd = v ))></NumberRow>
+                    <ToggleRow Label="Solid (covers what is behind, instead of glowing)" Value=@selected.Solid OnChanged=@(( bool v ) => Set( () => selected.Solid = v ))></ToggleRow>
+                }
+                @if ( kind == LayerKind.Sprite )
+                {
+                    <NumberRow Label="Falls (rises below 0)" Unit=@NumberRow.Field.Gravity Value=@selected.Gravity OnChanged=@(( float v ) => Set( () => selected.Gravity = v ))></NumberRow>
+                    <ToggleRow Label="Sprites move with the body" Value=@selected.Follow OnChanged=@(( bool v ) => Set( () => selected.Follow = v ))></ToggleRow>
+                    <div class="row">
+                        <div class="label">Faces</div>
+                        <UIDropdown Items=@FacingChoices() Value=@selected.FacingIs.ToString() ValueChanged=@(( object v ) => Set( () => selected.Facing = (string)v )) Tokenize=@false></UIDropdown>
+                    </div>
+                    @if ( selected.ShapeIs == LayerShape.Cone )
+                    {
+                        <NumberRow Label="Cone width" Unit=@NumberRow.Field.Angle Value=@selected.Angle OnChanged=@(( float v ) => Set( () => selected.Angle = v ))></NumberRow>
+                    }
+                    @if ( selected.ShapeIs == LayerShape.Line )
+                    {
+                        <div class="row">
+                            <div class="label">Line to</div>
+                            <UIDropdown Items=@LineEndChoices() Value=@( selected.ToJoint ?? "" ) ValueChanged=@(( object v ) => Set( () => selected.ToJoint = (string)v == "" ? null : (string)v ))
+                                        Tokenize=@false></UIDropdown>
+                        </div>
+                    }
+                    <div class="row">
+                        <div class="label">Colors</div>
+                        <UIDropdown Items=@ColourModeChoices() Value=@selected.ColorModeIs.ToString() ValueChanged=@(( object v ) => Set( () => selected.ColorMode = (string)v ))
+                                    Tokenize=@false></UIDropdown>
+                    </div>
+                }
+            }
+        }
+    }
+</root>
+
+@code
+{
+    /// <summary>The look being edited. Changed in place; <see cref="Changed"/> says when.</summary>
+    [Parameter] public PlayerLook Look { get; set; }
+
+    /// <summary>Called after every change to <see cref="Look"/>.</summary>
+    [Parameter] public Action Changed { get; set; }
+
+    /// <summary>The preview the look is worn in: where an effect is, for keeping it there as it moves to another place.</summary>
+    [Parameter] public ModelPreview Stage { get; set; }
+
+    /// <summary>Whether the host keeps this player's effects off: they are kept, and can still be changed.</summary>
+    [Parameter] public bool Locked { get; set; }
+
+    /// <summary>The effect to edit first, by id: the first one worn when it isn't worn.</summary>
+    [Parameter] public string EffectId { get; set; }
+
+    // The layer selected, by its place in the effect; whether everything else about it shows; and whether an effect moved
+    // to another place stays where it is
+    int _layer;
+    bool _more;
+    bool _keep = true;
+
+    // The effect being edited, by id: the one asked for, until another is picked here
+    string _effect;
+
+    Effect Effect => Look?.Effects.FirstOrDefault( x => x.Id == (_effect ??= EffectId) ) ?? Look?.Effects.FirstOrDefault();
+
+    EffectLayer Layer => Effect is { } effect && _layer >= 0 && _layer < effect.Layers.Count ? effect.Layers[ _layer ] : null;
+
+    bool CanAdd => Effect is { } effect && effect.Layers.Count < Effect.MaxLayers && Look.Effects.Sum( x => x.Layers.Count ) < Effect.MaxLookLayers;
+
+    static PlayerModelSelector Selector => PlayerModelSelector.Find( Game.ActiveScene );
+
+    protected override int BuildHash() => HashCode.Combine( Look?.Serialize(), _effect, _layer, _more, _keep, Locked, Selector?.EffectsBudget );
+
+    void Set( Action change )
+    {
+        change();
+        Changed?.Invoke();
+    }
+
+    void KeepWhereItIs( bool keep )
+    {
+        _keep = keep;
+        StateHasChanged();
+    }
+
+    void SelectEffect( object id )
+    {
+        _effect = id as string;
+        _layer = 0;
+        StateHasChanged();
+    }
+
+    void SelectLayer( int index )
+    {
+        _layer = index;
+        StateHasChanged();
+    }
+
+    void ToggleMore()
+    {
+        _more = !_more;
+        StateHasChanged();
+    }
+
+    void ToggleLayer( EffectLayer layer, PanelEvent e )
+    {
+        e.StopPropagation();
+        Set( () => layer.Off = !layer.Off );
+    }
+
+    void MoveLayer( int index, int by, PanelEvent e )
+    {
+        e.StopPropagation();
+        var layers = Effect.Layers;
+        var to = index + by;
+        if ( to < 0 || to >= layers.Count )
+            return;
+
+        (layers[ index ], layers[ to ]) = (layers[ to ], layers[ index ]);
+        _layer = _layer == index ? to : _layer == to ? index : _layer;
+        Changed?.Invoke();
+    }
+
+    void DuplicateLayer( int index, PanelEvent e )
+    {
+        e.StopPropagation();
+        if ( !CanAdd )
+            return;
+
+        var copy = JsonSerializer.Deserialize<EffectLayer>( JsonSerializer.Serialize( Effect.Layers[ index ] ) );
+        Effect.Layers.Insert( index + 1, copy );
+        _layer = index + 1;
+        Changed?.Invoke();
+    }
+
+    void RemoveLayer( int index, PanelEvent e )
+    {
+        e.StopPropagation();
+        Effect.Layers.RemoveAt( index );
+        _layer = Math.Clamp( _layer, 0, Math.Max( 0, Effect.Layers.Count - 1 ) );
+
+        // An effect is its layers: without any it is taken off
+        if ( Effect.Layers.Count == 0 )
+            Look.Effects.Remove( Effect );
+
+        Changed?.Invoke();
+    }
+
+    // A new layer that shows at once, to change from there
+    void AddLayer( LayerKind kind )
+    {
+        if ( !CanAdd )
+            return;
+
+        Effect.Layers.Add( kind switch
+        {
+            LayerKind.Light => new EffectLayer { Kind = nameof( LayerKind.Light ), Color = "#ffd27a", Size = 60f, Amount = 1f },
+            LayerKind.Trail => new EffectLayer { Kind = nameof( LayerKind.Trail ), Color = "#8af4ff", ColorEnd = "#2a5aff", Size = 3f, SizeEnd = 0.5f, Lifetime = 0.4f },
+            _ => new EffectLayer
+            {
+                Kind = nameof( LayerKind.Sprite ), Picture = nameof( LayerPicture.Sparkle ), Shape = nameof( LayerShape.Sphere ), Spread = 3f, Color = "#ffd27a",
+                Size = 2f, SizeEnd = 0.5f, Speed = 10f, Lifetime = 0.8f, Amount = 20f,
+            },
+        } );
+
+        _layer = Effect.Layers.Count - 1;
+        Changed?.Invoke();
+    }
+
+    // A moment shows something by default: a burst of sprites, a light for half a second
+    void SetWhen( EffectLayer layer, string when )
+    {
+        layer.When = when;
+        if ( layer.IsMoment && layer.Burst == 0f && layer.ShowFor == 0f )
+        {
+            layer.Burst = layer.KindIs == LayerKind.Sprite ? 20f : 0f;
+            layer.ShowFor = layer.KindIs == LayerKind.Sprite ? 0f : 0.5f;
+        }
+
+        Changed?.Invoke();
+    }
+
+    // Moves the effect to another place: kept where it is (its offset worked out from where it is now) or onto the place
+    void SetAnchor( object value )
+    {
+        if ( Effect is not { } effect || value is not string chosen )
+            return;
+
+        var old = effect.Anchor ?? new EffectAnchor();
+        var next = AnchorFrom( chosen, old );
+        if ( _keep && Rack() is { } rack && rack.TryGetFrame( old, out var from ) && rack.TryGetFrame( next, out var to ) )
+        {
+            var here = from.ToWorld( new Transform( new Vector3( old.Forward, old.Left, old.Up ) ) ).Position;
+            var offset = to.PointToLocal( here );
+            next.Forward = offset.x;
+            next.Left = offset.y;
+            next.Up = offset.z;
+        }
+
+        effect.Anchor = next.Sanitized();
+        Changed?.Invoke();
+    }
+
+    // The rack wearing the look in the preview: on the model, or on the citizen itself
+    EffectRack Rack() => Stage?.Body?.Effects ?? (Stage?.Citizen is { } citizen && citizen.IsValid() ? CitizenEffects.On( citizen )?.Effects : null);
+
+    // An anchor chosen in the list: "j:" a joint, "i:" an item (by the item itself), "w" the weapon held. An item or the
+    // weapon falls back to the joint it is on
+    EffectAnchor AnchorFrom( string chosen, EffectAnchor old )
+    {
+        if ( chosen.StartsWith( "i:" ) )
+        {
+            var item = chosen[ 2.. ];
+            var pin = Look.Accessories.FirstOrDefault( x => x.Item == item )?.Pin ?? old.Joint;
+            return new EffectAnchor { Kind = nameof( AnchorKind.Item ), Item = item, Joint = pin };
+        }
+
+        if ( chosen == "w" )
+            return new EffectAnchor { Kind = nameof( AnchorKind.HeldWeapon ), Joint = nameof( Effect.Joint.RightHand ) };
+
+        return new EffectAnchor { Joint = chosen[ 2.. ] };
+    }
+
+    static string AnchorValue( EffectAnchor anchor ) => anchor.KindIs switch
+    {
+        AnchorKind.Item => $"i:{anchor.Item}",
+        AnchorKind.HeldWeapon => "w",
+        _ => $"j:{anchor.Joint}",
+    };
+
+    List<UIDropdown.Item> EffectChoices() => Look.Effects.Select( x => new UIDropdown.Item( string.IsNullOrEmpty( x.Name ) ? x.Id : x.Name, x.Id ) ).ToList();
+
+    List<UIDropdown.Item> AnchorChoices()
+    {
+        var choices = Enum.GetValues<Effect.Joint>().Select( x => new UIDropdown.Item( JointName( x ), $"j:{x}" ) ).ToList();
+        foreach ( var item in Look.Accessories.Select( x => x.Item ).Distinct() )
+            choices.Add( new UIDropdown.Item( $"Item: {AccessoryCatalog.Find( item )?.Title ?? item}", $"i:{item}" ) );
+
+        // An item no longer worn stays named, so the list still shows what the effect is set to
+        if ( Effect?.Anchor is { Kind: nameof( AnchorKind.Item ) } anchor && Look.Accessories.All( x => x.Item != anchor.Item ) )
+            choices.Add( new UIDropdown.Item( "Item no longer worn (its joint)", AnchorValue( anchor ) ) );
+
+        choices.Add( new UIDropdown.Item( "Weapon held (its tip)", "w" ) );
+        return choices;
+    }
+
+    static List<UIDropdown.Item> LayerJointChoices()
+    {
+        var choices = new List<UIDropdown.Item> { new( "Where the effect comes from", "" ) };
+        choices.AddRange( Enum.GetValues<Effect.Joint>().Select( x => new UIDropdown.Item( JointName( x ), x.ToString() ) ) );
+        return choices;
+    }
+
+    static List<UIDropdown.Item> LineEndChoices()
+    {
+        var choices = new List<UIDropdown.Item> { new( "Nowhere: across the way it faces", "" ) };
+        choices.AddRange( Enum.GetValues<Effect.Joint>().Select( x => new UIDropdown.Item( JointName( x ), x.ToString() ) ) );
+        return choices;
+    }
+
+    static string JointName( Effect.Joint joint ) => joint switch
+    {
+        Effect.Joint.LeftEye => "Left eye",
+        Effect.Joint.RightEye => "Right eye",
+        Effect.Joint.Crown => "Top of the head",
+        Effect.Joint.LeftHand => "Left hand",
+        Effect.Joint.RightHand => "Right hand",
+        Effect.Joint.LeftFoot => "Left foot",
+        Effect.Joint.RightFoot => "Right foot",
+        _ => joint.ToString(),
+    };
+
+    static List<UIDropdown.Item> ShapeChoices() => new()
+    {
+        new( "A point", nameof( LayerShape.Point ) ),
+        new( "A ball", nameof( LayerShape.Sphere ) ),
+        new( "A ring", nameof( LayerShape.Ring ) ),
+        new( "All around the body", nameof( LayerShape.AroundBody ) ),
+        new( "A box", nameof( LayerShape.Box ) ),
+        new( "A cone", nameof( LayerShape.Cone ) ),
+        new( "A line", nameof( LayerShape.Line ) ),
+        new( "A shape", nameof( LayerShape.Shape ) ),
+    };
+
+    static List<UIDropdown.Item> StandardShapeChoices() => Enum.GetValues<StandardShape>().Select( x => new UIDropdown.Item( ShapeName( x ), x.ToString() ) ).ToList();
+
+    static List<UIDropdown.Item> PictureChoices()
+    {
+        var choices = Enum.GetValues<LayerPicture>().Select( x => new UIDropdown.Item( x.ToString(), x.ToString() ) ).ToList();
+        choices.AddRange( Enum.GetValues<StandardShape>().Select( x => new UIDropdown.Item( $"Shape: {ShapeName( x )}", x.ToString() ) ) );
+        return choices;
+    }
+
+    // "RightTriangle" as "Right triangle", "Star5" as "5-point star"
+    static string ShapeName( StandardShape shape )
+    {
+        var name = shape.ToString();
+        if ( name.StartsWith( "Star" ) )
+            return $"{name[ 4.. ]}-point star";
+
+        var spaced = string.Concat( name.Select( ( c, i ) => i > 0 && char.IsUpper( c ) ? $" {char.ToLowerInvariant( c )}" : c.ToString() ) );
+        return shape == StandardShape.SineWave ? "Sine wave" : spaced;
+    }
+
+    static List<UIDropdown.Item> WhenChoices() => Enum.GetValues<LayerWhen>().Select( x => new UIDropdown.Item( WhenName( x ), x.ToString() ) ).ToList();
+
+    static string WhenName( LayerWhen when ) => when switch
+    {
+        LayerWhen.Moving => "While moving",
+        LayerWhen.Grounded => "While on the ground",
+        LayerWhen.InAir => "While in the air",
+        LayerWhen.Crouching => "While crouching",
+        LayerWhen.HoldingWeapon => "While holding a weapon",
+        LayerWhen.OnJump => "On jumping",
+        LayerWhen.OnLand => "On landing",
+        LayerWhen.OnHurt => "On getting hurt",
+        LayerWhen.OnStartMoving => "On starting to move",
+        LayerWhen.OnStopMoving => "On stopping",
+        LayerWhen.OnCrouch => "On crouching down",
+        LayerWhen.OnUncrouch => "On standing up",
+        LayerWhen.OnShoot => "On shooting or swinging",
+        LayerWhen.OnImpact => "On hitting something hard",
+        _ => "Always",
+    };
+
+    static List<UIDropdown.Item> RhythmChoices() => new()
+    {
+        new( "Steady", nameof( LayerRhythm.Steady ) ),
+        new( "Pulse", nameof( LayerRhythm.Pulse ) ),
+        new( "Flicker", nameof( LayerRhythm.Flicker ) ),
+        new( "Rainbow", nameof( LayerRhythm.Rainbow ) ),
+        new( "Turn (circles its place)", nameof( LayerRhythm.Spin ) ),
+        new( "Jiggle", nameof( LayerRhythm.Jiggle ) ),
+    };
+
+    static List<UIDropdown.Item> FacingChoices() => Enum.GetValues<LayerFacing>().Select( x => new UIDropdown.Item( x.ToString(), x.ToString() ) ).ToList();
+
+    static List<UIDropdown.Item> ColourModeChoices() => new()
+    {
+        new( "Its colors", nameof( LayerColorMode.Fixed ) ),
+        new( "Rain (clan tag)", nameof( LayerColorMode.Rain ) ),
+        new( "Cycle (clan tag)", nameof( LayerColorMode.Cycl ) ),
+        new( "Scanner (clan tag)", nameof( LayerColorMode.Cyln ) ),
+        new( "Mixed, one each", nameof( LayerColorMode.Mix ) ),
+    };
+
+    // "Sprites: Flame, on jumping", "Light", "Trail, while moving"
+    static string NameOf( EffectLayer layer )
+    {
+        var name = layer.KindIs switch
+        {
+            LayerKind.Light => "Light",
+            LayerKind.Trail => "Trail",
+            _ => $"Sprites: {(layer.PictureShape is { } shape ? ShapeName( shape ) : layer.PictureIs.ToString())}",
+        };
+
+        return layer.WhenIs == LayerWhen.Always ? name : $"{name}, {WhenName( layer.WhenIs ).ToLowerInvariant()}";
+    }
+
+    // The budget every player's effects show within on this server: what the preview shows, and what others see
+    static EffectBudget Budget => Selector?.EffectsBudget ?? EffectBudget.Normal;
+
+    // How much of the server's budget what is worn takes
+    string BudgetText()
+    {
+        var budget = Budget;
+        var shown = Look.Effects.Where( x => !x.Off ).ToList();
+        var used = $"Your effects use {shown.Sum( x => x.LayersOn() )} of the {budget.Layers} layers and {shown.Sum( x => x.Lights() )} of the {budget.Lights} lights this server allows each player.";
+        return budget.Fits( Look.Effects ) ? used : $"{used} Past that, the last layers and lights wait (faint, over budget) and the sprites thin out.";
+    }
+}

@@ -17,7 +17,8 @@
     {
         <div class="top">
             <div class="intro">Click an effect to put it on: the preview shows it, and Apply wears it.</div>
-            <div class="reset disabled" Tooltip="Coming soon: every layer of an effect, placed by hand">Edit in Advanced editor</div>
+            <div class="reset @( Selected is null ? "disabled" : "" )" Tooltip=@( Selected is null ? "Select an effect you wear first" : "Every layer of it, placed by hand" )
+                 @onclick=@(() => OpenAdvanced?.Invoke( Selected?.Id ))>Edit in Advanced editor</div>
         </div>
 
         @if ( Locked )
@@ -136,6 +137,9 @@
 
     /// <summary>Whether the host keeps this player's effects off: they are kept, and can still be changed.</summary>
     [Parameter] public bool Locked { get; set; }
+
+    /// <summary>Opens the Advanced editor on the effect given, by id.</summary>
+    [Parameter] public Action<string> OpenAdvanced { get; set; }
 
     static PlayerModelSelector Selector => PlayerModelSelector.Find( Game.ActiveScene );
 

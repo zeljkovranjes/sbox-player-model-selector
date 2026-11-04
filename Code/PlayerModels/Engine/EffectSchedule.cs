@@ -168,6 +168,7 @@ internal sealed class EffectSchedule : GameObjectSystem<EffectSchedule>
 	private void Tick()
 	{
 		_builtThisFrame = 0;
+		ShapeTextures.Pump();
 		if ( _sinceAllot < AllotInterval )
 			return;
 
@@ -201,6 +202,11 @@ internal sealed class EffectSchedule : GameObjectSystem<EffectSchedule>
 		}
 
 		Array.Sort( _distances, _order, 0, count );
+
+		// Drawn shapes go to the nearest bodies first (see ShapeTextures)
+		ShapeTextures.BeginCount();
+		for ( var i = 0; i < count; i++ )
+			_racks[ _order[ i ] ].CountShapes( _distances[ i ] );
 
 		for ( var i = 0; i < count; i++ )
 		{

@@ -119,7 +119,7 @@ public sealed class ModelBody : Component
 		_accessories.Apply( look.Accessories, GameObject, _transfer, Source.Model, _renderer.Model, FindOwnRenderers );
 
 		_effects ??= new EffectRack();
-		_effects.Apply( look.Effects, look.Accessories, GameObject, _transfer, Source, _renderer.Model, keyShown, health );
+		_effects.Apply( look.Effects, look.Accessories, look.DrawnShapes, GameObject, _transfer, Source, _renderer.Model, keyShown, health );
 	}
 
 	/// <summary>

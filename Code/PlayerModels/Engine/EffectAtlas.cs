@@ -28,14 +28,24 @@ internal static class EffectAtlas
 	/// <summary>The texture of <paramref name="layer"/>'s picture, for a tile on the page.</summary>
 	internal static Texture TextureOf( EffectLayer layer ) => SlotOf( layer ).Texture;
 
-	private static Slot SlotOf( EffectLayer layer )
+	/// <summary>
+	/// The sprite of the standard shape <paramref name="shape"/>: what a drawn shape (see <see cref="ShapeTextures"/>)
+	/// shows as while it isn't drawn.
+	/// </summary>
+	internal static Sprite SpriteOf( StandardShape shape ) => SlotOf( shape, null ).Sprite;
+
+	/// <inheritdoc cref="SpriteOf(StandardShape)"/>
+	internal static Texture TextureOf( StandardShape shape ) => SlotOf( shape, null ).Texture;
+
+	private static Slot SlotOf( EffectLayer layer ) => SlotOf( layer.PictureShape, layer.PictureIs );
+
+	private static Slot SlotOf( StandardShape? shape, LayerPicture? picture )
 	{
-		var shape = layer.PictureShape;
-		var name = shape?.ToString() ?? layer.PictureIs.ToString();
+		var name = shape?.ToString() ?? picture.GetValueOrDefault().ToString();
 		if ( Slots.TryGetValue( name, out var slot ) && slot.Texture.IsValid() )
 			return slot;
 
-		var texture = Draw( shape is { } standard ? StandardShapes.Picture( standard ) : EffectShape.Of( layer.PictureIs ), name );
+		var texture = Draw( shape is { } standard ? StandardShapes.Picture( standard ) : EffectShape.Of( picture.GetValueOrDefault() ), name );
 		slot = new Slot( texture, Sprite.FromTexture( texture ) );
 		Slots[ name ] = slot;
 		return slot;

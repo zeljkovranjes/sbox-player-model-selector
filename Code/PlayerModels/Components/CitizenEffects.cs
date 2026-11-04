@@ -72,7 +72,7 @@ public sealed class CitizenEffects : Component
 	{
 		_effects ??= new EffectRack();
 		_held ??= new HeldItems();
-		_effects.Apply( look?.Effects, null, GameObject, null, Source, Source.Model, keyShown, health );
+		_effects.Apply( look?.Effects, null, look?.DrawnShapes, GameObject, null, Source, Source.Model, keyShown, health );
 		ShownLook = look;
 	}
 

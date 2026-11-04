@@ -27,6 +27,7 @@ internal sealed class EffectRack
 	private readonly EffectSignals _signals = new();
 	private IReadOnlyList<Effect> _wanted = Array.Empty<Effect>();
 	private IReadOnlyList<Accessory> _items = Array.Empty<Accessory>();
+	private IReadOnlyList<DrawnShape> _shapes = Array.Empty<DrawnShape>();
 	private string _key = "";
 	private bool _pending;
 	private GameObject _parent;
@@ -80,16 +81,18 @@ internal sealed class EffectRack
 	/// <summary>
 	/// Wears <paramref name="effects"/> on <paramref name="parent"/>, in place of what it wore, over the citizen
 	/// <paramref name="citizen"/> posing <paramref name="model"/> through <paramref name="transfer"/> (no transfer: the
-	/// citizen wears them itself). <paramref name="items"/> are the items worn, which effects can come from;
+	/// citizen wears them itself). <paramref name="items"/> are the items worn, which effects can come from, and
+	/// <paramref name="shapes"/> the drawn shapes the look carries, which its layers can name;
 	/// <paramref name="keyShown"/> says whether an effect with a key shows now (null: always), and <paramref name="health"/>
 	/// reads the wearer's health (null: never hurt). They are built on a later <see cref="Place"/>, once the schedule lets
 	/// them through; the same effects again change nothing.
 	/// </summary>
-	internal void Apply( IReadOnlyList<Effect> effects, IReadOnlyList<Accessory> items, GameObject parent, PoseTransfer transfer,
-		SkinnedModelRenderer citizen, Model model, Func<string, bool> keyShown, Func<float> health )
+	internal void Apply( IReadOnlyList<Effect> effects, IReadOnlyList<Accessory> items, IReadOnlyList<DrawnShape> shapes, GameObject parent,
+		PoseTransfer transfer, SkinnedModelRenderer citizen, Model model, Func<string, bool> keyShown, Func<float> health )
 	{
 		_wanted = effects ?? Array.Empty<Effect>();
 		_items = items ?? Array.Empty<Accessory>();
+		_shapes = shapes ?? Array.Empty<DrawnShape>();
 		_parent = parent;
 		_keyShown = keyShown;
 		_signals.Health = health;
@@ -209,6 +212,20 @@ internal sealed class EffectRack
 		ApplyShare( rates );
 	}
 
+	/// <summary>
+	/// Counts the drawn shapes its sprites look like as showing <paramref name="distance"/> from the camera (see
+	/// <see cref="ShapeTextures.Count"/>). A few times a second, nearest body first: no allocations.
+	/// </summary>
+	internal void CountShapes( float distance )
+	{
+		foreach ( var layer in _layers )
+		{
+			layer.Distance = distance;
+			if ( layer.DrawnContent is { } content )
+				ShapeTextures.Count( content, distance );
+		}
+	}
+
 	/// <summary>Gives every layer back to the scene for reuse; nothing shows until effects are applied again.</summary>
 	internal void Release()
 	{
@@ -313,7 +330,7 @@ internal sealed class EffectRack
 					var kind = data.KindIs;
 					var layer = schedule?.Take( kind ) ?? EffectLayerObject.Make( kind );
 					layer.Root.SetParent( _parent, false );
-					layer.Configure( effect, shown, data, index++, motion );
+					layer.Configure( effect, shown, data, index++, motion, _shapes );
 					layer.Root.Enabled = true;
 					_layers.Add( layer );
 

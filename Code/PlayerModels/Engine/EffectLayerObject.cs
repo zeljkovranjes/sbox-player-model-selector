@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using PlayerModels.Core;
 using Sandbox;
 
@@ -76,6 +77,12 @@ internal sealed class EffectLayerObject
 	/// <summary>How many sprites it has out at once, all shown.</summary>
 	internal float WantedSprites { get; private set; }
 
+	/// <summary>How far its body is from the camera, as last counted: who gets a drawn shape's texture first.</summary>
+	internal float Distance { get; set; }
+
+	/// <summary>What the drawn shape its sprites look like is (see <see cref="DrawnShape.Content"/>); null for none.</summary>
+	internal string DrawnContent => _drawn?.Content;
+
 	private readonly ParticleEffect _particles;
 	private readonly ParticleSphereEmitter _sphere;
 	private readonly ParticleRingEmitter _ring;
@@ -121,6 +128,11 @@ internal sealed class EffectLayerObject
 	// A trail's colours at each step of opacity, made when it is set up
 	private readonly Gradient[] _trailShades = new Gradient[ TrailShades + 1 ];
 	private int _trailShade = -1;
+
+	// The drawn shape its sprites look like, and the textures' generation it was last looked up at (see ShapeTextures):
+	// a plain circle shows until it is drawn, and when it is let go of for a nearer body
+	private DrawnShape _drawn;
+	private int _drawnGeneration = -1;
 
 	// A colour cycle: which (none for fixed colours), whether it is a mix (each sprite one colour for life), its colours,
 	// how many sprites it counts through, when it started and how fast it runs, how far it is this frame, the rhythm's
@@ -173,10 +185,16 @@ internal sealed class EffectLayerObject
 	/// <summary>
 	/// Sets it up as <paramref name="data"/> of <paramref name="effect"/> says, as the <paramref name="index"/>th layer of
 	/// the body and of its <paramref name="effectIndex"/>th effect shown; <paramref name="motion"/> is how many world units
-	/// a citizen's unit is on this body. Runs when the look changes: what it works out (a formation's points) is kept.
+	/// a citizen's unit is on this body, and <paramref name="shapes"/> the drawn shapes its look carries. Runs when the look
+	/// changes: what it works out (a formation's points) is kept.
 	/// </summary>
-	internal void Configure( Effect effect, int effectIndex, EffectLayer data, int index, float motion )
+	internal void Configure( Effect effect, int effectIndex, EffectLayer data, int index, float motion, IReadOnlyList<DrawnShape> shapes )
 	{
+		_drawn = Kind == LayerKind.Sprite ? Find( shapes, data.DrawnPicture ) : null;
+		_drawnGeneration = -1;
+		if ( _drawn?.Sticker is { } sticker )
+			data = sticker.Drive( data );
+
 		Effect = effectIndex;
 		Joint = data.Joint is null ? -1 : (int)effect.JointOf( data );
 		ToJoint = data.ShapeIs == LayerShape.Line && data.ToJoint is not null && Enum.TryParse<Effect.Joint>( data.ToJoint, out var to ) ? (int)to : -1;
@@ -198,6 +216,8 @@ internal sealed class EffectLayerObject
 		_lastShown = -1f;
 		_level = _when == LayerWhen.Always ? 1f : 0f;
 		UseCycle( effect, data );
+		if ( _drawn?.Sticker is { IsAnimated: true } animated && data.ColorModeIs != LayerColorMode.Fixed )
+			_cycleSpeed *= animated.Speed;
 
 		var colour = Hued( data.Color, effect.Hue );
 		var colourEnd = data.ColorEnd is null ? colour : Hued( data.ColorEnd, effect.Hue );
@@ -229,9 +249,24 @@ internal sealed class EffectLayerObject
 				return;
 
 			default:
-				ConfigureSprites( effect, data, colour, colourEnd, motion );
+				ConfigureSprites( effect, data, colour, colourEnd, motion, shapes );
 				return;
 		}
+	}
+
+	// The drawn shape the look carries with id id; null for none
+	private static DrawnShape Find( IReadOnlyList<DrawnShape> shapes, string id )
+	{
+		if ( id is null || shapes is null )
+			return null;
+
+		for ( var i = 0; i < shapes.Count; i++ )
+		{
+			if ( shapes[ i ].Id == id )
+				return shapes[ i ];
+		}
+
+		return null;
 	}
 
 	/// <summary>
@@ -280,6 +315,8 @@ internal sealed class EffectLayerObject
 
 		var placed = from.ToWorld( new Transform( offset, turn * _facing ) );
 		Root.WorldTransform = placed;
+		if ( _drawn is not null && _drawnGeneration != ShapeTextures.Generation )
+			UseDrawn();
 		if ( ToJoint >= 0 )
 			_points.LineEnd = placed.PointToLocal( lineEnd );
 
@@ -365,7 +402,27 @@ internal sealed class EffectLayerObject
 		_hasLastPosition = true;
 	}
 
-	private void ConfigureSprites( Effect effect, EffectLayer data, Color colour, Color colourEnd, float motion )
+	// The points sprites come from: a drawn shape's, or a standard one's
+	private static float[] FormationOf( DrawnShape drawn, EffectLayer data )
+	{
+		if ( drawn is null )
+			return StandardShapes.Formation( data.FormationIs, data.Fill );
+
+		var (closed, open) = drawn.Outline();
+		return StandardShapes.FormationOf( closed, open, data.Fill );
+	}
+
+	// The drawn shape's texture once it is drawn, a plain circle meanwhile (or while a nearer body has it); asked again
+	// only when the textures change
+	private void UseDrawn()
+	{
+		_drawnGeneration = ShapeTextures.Generation;
+		var sprite = ShapeTextures.SpriteOf( _drawn, Distance ) ?? EffectAtlas.SpriteOf( StandardShape.Circle );
+		if ( _renderer.Sprite != sprite )
+			_renderer.Sprite = sprite;
+	}
+
+	private void ConfigureSprites( Effect effect, EffectLayer data, Color colour, Color colourEnd, float motion, IReadOnlyList<DrawnShape> shapes )
 	{
 		var size = effect.SizeFactor;
 		var moves = motion * size;
@@ -455,7 +512,7 @@ internal sealed class EffectLayerObject
 
 			case LayerShape.Shape:
 				_points.IsLine = false;
-				_points.Points = StandardShapes.Formation( data.FormationIs, data.Fill );
+				_points.Points = FormationOf( Find( shapes, data.DrawnFormation ), data );
 				_points.Scale = spread;
 				_points.Velocity = data.Speed * moves;
 				break;
@@ -480,8 +537,9 @@ internal sealed class EffectLayerObject
 		_colour = Color.White;
 		WantedSprites = data.LiveSprites( effect.AmountFactor );
 
-		_renderer.Sprite = EffectAtlas.SpriteOf( data );
-		_renderer.Additive = !data.Solid;
+		// A sticker has colours of its own and covers what is behind it; it shows a plain circle until it is drawn
+		_renderer.Sprite = _drawn is null ? EffectAtlas.SpriteOf( data ) : EffectAtlas.SpriteOf( StandardShape.Circle );
+		_renderer.Additive = !data.Solid && _drawn?.Sticker is null;
 		_renderer.Lighting = false;
 		_renderer.Shadows = false;
 		_renderer.Opaque = false;

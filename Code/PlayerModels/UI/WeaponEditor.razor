@@ -943,18 +943,7 @@
         }, x.ToString() ) ).ToList();
 
     // Every layer of the effect shows then: a moment shows something by default
-    void SetWhen( Effect effect, string when ) => Change( _ =>
-    {
-        foreach ( var layer in effect.Layers )
-        {
-            layer.When = when;
-            if ( layer.IsMoment && layer.Burst == 0f && layer.ShowFor == 0f )
-            {
-                layer.Burst = layer.KindIs == LayerKind.Sprite ? 20f : 0f;
-                layer.ShowFor = layer.KindIs == LayerKind.Sprite ? 0f : 0.5f;
-            }
-        }
-    } );
+    void SetWhen( Effect effect, string when ) => Change( _ => WeaponDesign.ShowWhen( effect, when ) );
 
     void ShowWorkshop( bool show )
     {

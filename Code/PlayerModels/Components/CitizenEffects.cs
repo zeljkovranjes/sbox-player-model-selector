@@ -12,8 +12,10 @@ namespace PlayerModels.Components;
 /// </summary>
 public sealed class CitizenEffects : Component
 {
-	// How often what the citizen holds is looked for again, for effects on the weapon held
-	private const float FindInterval = 0.5f;
+	// How often what the citizen holds is looked for again anyway, for effects on the weapon held: a weapon drawn, put away
+	// or swapped is noticed the frame it happens (see HeldItems.MayHaveChanged), and looking walks every object under the
+	// citizen and allocates
+	private const float FindInterval = 5f;
 
 	/// <summary>The name of the object they are worn on, under the citizen.</summary>
 	internal const string ObjectName = "Citizen Effects";
@@ -33,7 +35,7 @@ public sealed class CitizenEffects : Component
 	private EffectRack _effects;
 	private HeldItems _held;
 	private WeaponDresser _weapons;
-	private TimeSince _sinceFound;
+	private TimeSince _sinceFound = FindInterval;
 	private TimeSince _sincePlaced;
 
 	// How often its weapon's skin colours are filled, by how near and in view it is (see PoseSchedule.SkinIntervalFor); a

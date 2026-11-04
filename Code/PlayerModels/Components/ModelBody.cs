@@ -17,8 +17,10 @@ namespace PlayerModels.Components;
 /// </summary>
 public sealed class ModelBody : Component
 {
-	// How often the citizen's renderers are hidden again, for clothing the dresser puts on after we started.
-	private const float HideInterval = 0.5f;
+	// How often the citizen's renderers are looked through again anyway, for clothing the dresser puts on after we started;
+	// clothing put on is noticed sooner, as the citizen gains a child for it. Looking through them walks every object under
+	// the citizen (this body's effects too) and allocates, so it isn't done often for a hundred bodies
+	private const float HideInterval = 5f;
 
 	/// <summary>The citizen renderer whose pose drives the model.</summary>
 	public SkinnedModelRenderer Source { get; private set; }
@@ -51,6 +53,11 @@ public sealed class ModelBody : Component
 	private PoseTransfer _transfer;
 	// The citizen's renderers this hid, each with the shadows the game wants it to cast
 	private readonly Dictionary<ModelRenderer, ModelRenderer.ShadowRenderType> _hidden = new();
+
+	// The same renderers in the order they were hidden, gone through each pose, and how many children the citizen had
+	// when they were last looked for
+	private readonly List<ModelRenderer> _hiddenOrder = new();
+	private int _citizenChildren = -1;
 	private readonly List<ModelRenderer> _own = new();
 	private readonly HeldItems _held = new();
 	private readonly CancellationTokenSource _cancel = new();
@@ -182,7 +189,7 @@ public sealed class ModelBody : Component
 		try
 		{
 			// A weapon drawn, put away or swapped is dressed the frame it is noticed, not at the next look round
-			if ( _sinceHidden > HideInterval || _held.MayHaveChanged() )
+			if ( _sinceHidden > HideInterval || Source.GameObject.Children.Count != _citizenChildren || _held.MayHaveChanged() )
 			{
 				FindOwnRenderers();
 				HideSource();
@@ -204,7 +211,7 @@ public sealed class ModelBody : Component
 	private bool IsIntact()
 	{
 		return _renderer.IsValid() && _transfer is { IsIntact: true } && _held is not null && _own is not null
-			&& _hidden is not null && _cancel is not null;
+			&& _hidden is not null && _hiddenOrder is not null && _cancel is not null;
 	}
 
 	// Bodies far from the camera or out of view are posed less often (see PoseSchedule); a weapon drawn is dressed the
@@ -228,8 +235,15 @@ public sealed class ModelBody : Component
 		if ( !_renderer.IsValid() )
 			return;
 
-		// The model casts the shadows the game wants from the citizen, whose own are kept off
+		// The model casts the shadows the game wants from the citizen, whose own are kept off; the game setting a hidden
+		// renderer's shadows again is followed each pose
 		Hide( Source );
+		for ( var i = 0; i < _hiddenOrder.Count; i++ )
+		{
+			if ( _hiddenOrder[ i ].IsValid() )
+				Hide( _hiddenOrder[ i ] );
+		}
+
 		var shadows = _hidden.TryGetValue( Source, out var wanted ) ? wanted : Source.RenderType;
 		foreach ( var renderer in _own )
 		{
@@ -309,6 +323,7 @@ public sealed class ModelBody : Component
 	private void HideSource()
 	{
 		_sinceHidden = 0;
+		_citizenChildren = Source.GameObject.Children.Count;
 
 		foreach ( var renderer in Source.GameObject.Components.GetAll<ModelRenderer>( FindMode.EverythingInSelfAndDescendants ) )
 		{
@@ -358,6 +373,7 @@ public sealed class ModelBody : Component
 			return;
 
 		_hidden[renderer] = renderer.RenderType;
+		_hiddenOrder.Add( renderer );
 		renderer.RenderOptions.Game = false;
 		renderer.RenderType = ModelRenderer.ShadowRenderType.Off;
 	}
@@ -380,6 +396,7 @@ public sealed class ModelBody : Component
 		}
 
 		_hidden.Clear();
+		_hiddenOrder.Clear();
 	}
 
 	// The list of what was hidden is gone (a hot reload), so everything under the citizen that isn't drawn is shown again,

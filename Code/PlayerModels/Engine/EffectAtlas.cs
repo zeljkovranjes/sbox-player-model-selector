@@ -50,7 +50,32 @@ internal static class EffectAtlas
 		return SlotOf( Enum.TryParse<StandardShape>( name, out var shape ) && Enum.IsDefined( shape ) ? shape : StandardShape.Star5, null ).Texture;
 	}
 
-	private static Slot SlotOf( EffectLayer layer ) => SlotOf( layer.PictureShape, layer.PictureIs );
+	// A slash's reach and thickness are drawn in steps this fine, so its pictures stay few however a layer sets them
+	private const float SlashArcStep = 15f;
+	private const float SlashWidthStep = 0.05f;
+
+	private static Slot SlotOf( EffectLayer layer )
+	{
+		if ( layer.PictureShape is null && layer.PictureIs == LayerPicture.Slash )
+			return SlashSlot( layer.SlashShape.Arc, layer.SlashShape.Width );
+
+		return SlotOf( layer.PictureShape, layer.PictureIs );
+	}
+
+	// A slash of the reach and thickness given, each drawn once
+	private static Slot SlashSlot( float arc, float width )
+	{
+		var steppedArc = MathF.Round( arc / SlashArcStep ) * SlashArcStep;
+		var steppedWidth = MathF.Round( width / SlashWidthStep ) * SlashWidthStep;
+		var name = $"slash_{steppedArc:0}_{steppedWidth * 100f:0}";
+		if ( Slots.TryGetValue( name, out var slot ) && slot.Texture.IsValid() )
+			return slot;
+
+		var texture = Draw( EffectShape.Slash( steppedArc, steppedWidth ), name );
+		slot = new Slot( texture, Sprite.FromTexture( texture ) );
+		Slots[ name ] = slot;
+		return slot;
+	}
 
 	private static Slot SlotOf( StandardShape? shape, LayerPicture? picture )
 	{

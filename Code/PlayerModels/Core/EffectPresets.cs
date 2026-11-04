@@ -17,7 +17,7 @@ public static class EffectPresets
 	public static IReadOnlyList<Effect> All { get; } = new[]
 	{
 		GlowingEyes(), FireHands(), SparkleHalo(), HolyAura(), DarkAura(), Hearts(), SnowCloud(), RainCloud(),
-		ElectricBody(), MagicOrbs(), FlameHead(), LanternHand(), SpeedTrail(), SwordSlash(), ConfettiBurst(), Rainbow(),
+		ElectricBody(), MagicOrbs(), FlameHead(), LanternHand(), SpeedTrail(), SwordSlash(), BladeTrail(), ConfettiBurst(), Rainbow(),
 		BulletTracer(), MuzzleFlash(), ImpactSparks(),
 	};
 
@@ -263,8 +263,26 @@ public static class EffectPresets
 		Sprite( LayerPicture.Spark, "#d8fcff", "#3a8aff", 1.6f, 0.4f, 0.35f, 30f ).On( Effect.Joint.RightFoot ).From( LayerShape.Sphere, 2f )
 			.Moving( 30f, 60f ).While( LayerWhen.Moving ) );
 
-	// A bright arc behind the tip of the weapon held as it swings, and sparks when it strikes
-	private static Effect SwordSlash() => Made( "Sword slash", Effect.Joint.RightHand,
+	// The classic slash: a crescent appearing in front with each swing, lying along the swing and sweeping round with it,
+	// bright at its front and fading to nothing at its tail, gone in a moment; a white-hot edge inside a coloured one
+	private static Effect SwordSlash() => Made( "Sword slash", Effect.Joint.Chest,
+		Sprite( LayerPicture.Slash, "#8ad0ff", "#2a5aff", 44f, 46f, 0.28f, 0f ).From( LayerShape.Point, 0f, 20f, 0f, 6f ).Swinging( 110f, 160f, 0.3f )
+			.Moving( 0f, 0f, true ).At( LayerWhen.OnShoot, 1f ),
+		Sprite( LayerPicture.Slash, "#ffffff", "#bfe6ff", 40f, 42f, 0.2f, 0f ).From( LayerShape.Point, 0f, 20f, 0f, 6f ).Swinging( 110f, 140f, 0.12f )
+			.Moving( 0f, 0f, true ).At( LayerWhen.OnShoot, 1f ) );
+
+	// A layer lying along each swing, sweeping round over its life, its slash reaching arc degrees and width of its radius thick
+	private static EffectLayer Swinging( this EffectLayer layer, float sweep, float arc, float width )
+	{
+		layer.Align = nameof( LayerAlign.Swing );
+		layer.Sweep = sweep;
+		layer.SlashArcDegrees = arc;
+		layer.SlashThickness = width;
+		return layer;
+	}
+
+	// A trail behind the held weapon's tip as it swings, and sparks when it hits
+	private static Effect BladeTrail() => Made( "Blade trail", Effect.Joint.RightHand,
 			Trail( "#ffffff", "#5a9aff", 5f, 0.5f, 0.25f ),
 			Sprite( LayerPicture.Spark, "#fff4c8", "#ff9a3a", 1.8f, 0.4f, 0.45f, 0f ).From( LayerShape.Sphere, 1f ).Moving( 90f, 220f )
 				.At( LayerWhen.OnShoot, 16f ) )

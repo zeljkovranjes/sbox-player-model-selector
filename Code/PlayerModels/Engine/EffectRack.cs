@@ -28,6 +28,9 @@ internal sealed class EffectRack
 	private const float ShotReach = 4096f;
 	private const float SwingReach = 72f;
 
+	// Where bare hands swing from, above the feet
+	private const float PunchHeight = 50f;
+
 	private readonly List<EffectLayerObject> _layers = new();
 	private readonly EffectSignals _signals = new();
 	private IReadOnlyList<Effect> _wanted = Array.Empty<Effect>();
@@ -75,8 +78,14 @@ internal sealed class EffectRack
 	// Whether the schedule reads the body each frame; a scene that doesn't run it (a preview) has it read when placed
 	private bool _readEachFrame;
 
-	// Whether any layer shows along a shot or where it hits, or when it hits: only then is a shot traced
+	// Whether any layer shows along a shot or where it hits, or when it hits, or lies along a swing: only then is a shot
+	// traced
 	private bool _wantsShot;
+
+	// Where the tip of what is held was last frame, and how fast it moved: the way a swing sweeps
+	private Vector3 _lastTip;
+	private Vector3 _tipVelocity;
+	private bool _hasTip;
 
 	/// <summary>The citizen the effects are worn over: where they are, for how much of them shows.</summary>
 	internal SkinnedModelRenderer Source { get; private set; }
@@ -172,6 +181,9 @@ internal sealed class EffectRack
 			ReadNow();
 
 		_joints.NextFrame();
+		if ( _wantsShot )
+			FollowTip( delta );
+
 		if ( _wantsShot && _signals.Has( LayerWhen.OnShoot ) )
 			Shoot();
 
@@ -222,21 +234,40 @@ internal sealed class EffectRack
 		_lastRead = now;
 	}
 
+	// How fast the tip of what is held moves, for the way a swing sweeps. Every frame while a layer needs it: no allocations
+	private void FollowTip( float delta )
+	{
+		if ( _held is null || !_held.TryGetTip( out var tip ) )
+		{
+			_hasTip = false;
+			_tipVelocity = Vector3.Zero;
+			return;
+		}
+
+		if ( _hasTip && delta > 0f )
+			_tipVelocity = (tip.Position - _lastTip) / delta;
+
+		_lastTip = tip.Position;
+		_hasTip = true;
+	}
+
 	// Works out where the shot just fired went: from the weapon's muzzle along where the wearer aims, one trace that
 	// passes through the shooter, to what it hit or as far as it reaches (a swing reaches only so far). Skipped for a body
 	// out of view or too far to show effects: nothing there would show it
 	private void Shoot()
 	{
-		if ( _paused || _share <= 0f || _held is null || !_held.TryGetTip( out var tip ) )
+		if ( _paused || _share <= 0f )
 			return;
 
+		// Bare hands punch from the chest
+		var tip = _held is not null && _held.TryGetTip( out var held ) ? held : new Transform( Source.WorldPosition + Vector3.Up * PunchHeight, Source.WorldRotation );
 		var direction = _signals.Wearer.Aim?.Invoke() ?? tip.Rotation.Forward;
-		var reach = _held.HoldsMuzzle ? ShotReach : SwingReach;
+		var reach = _held is not null && _held.HoldsMuzzle ? ShotReach : SwingReach;
 		var shooter = _signals.Wearer.Shooter.IsValid() ? _signals.Wearer.Shooter : Source.GameObject.Root;
 		var trace = Source.Scene.Trace.Ray( tip.Position, tip.Position + direction * reach ).IgnoreGameObjectHierarchy( shooter ).Run();
 		_signals.Shot = new EffectSignals.ShotPath
 		{
-			Origin = tip.Position, Direction = direction, Hit = trace.Hit, HitPosition = trace.HitPosition, HitNormal = trace.Normal,
+			Origin = tip.Position, Direction = direction, Hit = trace.Hit, HitPosition = trace.HitPosition, HitNormal = trace.Normal, Swing = _tipVelocity,
 			Distance = trace.Hit ? trace.Fraction * reach : reach,
 		};
 
@@ -397,7 +428,7 @@ internal sealed class EffectRack
 					var layer = schedule?.Take( kind ) ?? EffectLayerObject.Make( kind );
 					layer.Root.SetParent( _parent, false );
 					layer.Configure( effect, shown, data, index++, motion, _shapes, FootOf( effect, data ) );
-					_wantsShot |= data.ShapeIs == LayerShape.Shot || data.AtHit || data.WhenIs == LayerWhen.OnHit;
+					_wantsShot |= data.ShapeIs == LayerShape.Shot || data.AtHit || data.WhenIs == LayerWhen.OnHit || data.AlignIs == LayerAlign.Swing;
 					layer.Root.Enabled = true;
 					_layers.Add( layer );
 

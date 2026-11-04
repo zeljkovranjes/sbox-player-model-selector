@@ -46,6 +46,11 @@ internal sealed class EffectLayerObject
 	private const float FullSpeed = 160f;
 	private const float SpeedFollow = 15f;
 
+	// A swing's tip moving slower than this (units a second) says nothing about its plane: it sweeps across the aim,
+	// down from high on the right this far (degrees), the way most swings go
+	private const float MinSwingSpeed = 30f;
+	private const float SwingTilt = 35f;
+
 	// A trail has at most this many points, one every this many units (citizen units)
 	private const int TrailPoints = 32;
 	private const float TrailPointDistance = 2f;
@@ -124,6 +129,8 @@ internal sealed class EffectLayerObject
 	private int _foot = -1;
 	private bool _alongShot;
 	private bool _atHit;
+	private bool _alongSwing;
+	private Rotation _swing = Rotation.Identity;
 	private float _shotSpacing = 1f;
 	private Transform _hit;
 
@@ -202,6 +209,8 @@ internal sealed class EffectLayerObject
 		_alongShot = data.ShapeIs == LayerShape.Shot;
 		_atHit = data.AtHit;
 		_hit = default;
+		_alongSwing = data.AlignIs == LayerAlign.Swing;
+		_swing = Rotation.Identity;
 		_drawn = Kind == LayerKind.Sprite ? Find( shapes, data.DrawnPicture ) : null;
 		_drawnGeneration = -1;
 		if ( _drawn?.Sticker is { } sticker )
@@ -334,6 +343,15 @@ internal sealed class EffectLayerObject
 		if ( _atHit && _hit.Scale.x > 0f )
 			placed = _hit;
 
+		// Lying along the last swing: its sprites face out of the swing's plane, so they lie in it
+		if ( _alongSwing )
+		{
+			if ( _bursting )
+				_swing = SwingOf( signals.Shot, from.Rotation );
+
+			placed = placed.WithRotation( _swing );
+		}
+
 		Root.WorldTransform = placed;
 		if ( _drawn is not null && _drawnGeneration != ShapeTextures.Generation )
 			UseDrawn();
@@ -368,6 +386,18 @@ internal sealed class EffectLayerObject
 		}
 
 		return now < _momentUntil;
+	}
+
+	// The plane a swing sweeps through, as a turn whose forward is out of it and whose up is where the player aims: from
+	// the aim and the way the tip moved; a slanted sweep across the aim when the tip hardly moved
+	private static Rotation SwingOf( in EffectSignals.ShotPath shot, Rotation facing )
+	{
+		var aim = shot.Direction.IsNearZeroLength ? facing.Forward : shot.Direction.Normal;
+		var across = Vector3.Cross( aim, shot.Swing );
+		if ( shot.Swing.Length < MinSwingSpeed || across.IsNearZeroLength )
+			across = Rotation.FromAxis( aim, SwingTilt ) * Vector3.Cross( aim, facing.Right );
+
+		return Rotation.LookAt( across.Normal, aim );
 	}
 
 	// Where a shot hit, facing out of what it hit, at the body's scale; where it ended if it hit nothing
@@ -498,9 +528,15 @@ internal sealed class EffectLayerObject
 		};
 		particles.InitialScale = new ParticleFloat( 1f - SizeSpread, 1f + SizeSpread );
 		particles.ApplyRotation = true;
-		particles.InitialRoll = data.PictureShape is not null || data.PictureIs is LayerPicture.Flame or LayerPicture.Heart or LayerPicture.Droplet
-			? new ParticleFloat( -UprightRoll, UprightRoll )
-			: new ParticleFloat( 0f, 360f );
+		particles.InitialRoll = data.PictureIs == LayerPicture.Slash && data.PictureShape is null ? new ParticleFloat( 0f, 0f )
+			: data.PictureShape is not null || data.PictureIs is LayerPicture.Flame or LayerPicture.Heart or LayerPicture.Droplet
+				? new ParticleFloat( -UprightRoll, UprightRoll )
+				: new ParticleFloat( 0f, 360f );
+
+		// A sweep turns each sprite over its life: a slash swinging round
+		particles.Roll = data.Sweep == 0f
+			? new ParticleFloat( 0f, 0f )
+			: new ParticleFloat { Type = ParticleFloat.ValueType.Range, Evaluation = ParticleFloat.EvaluationType.Life, ConstantA = 0f, ConstantB = data.Sweep };
 		particles.Force = data.Gravity != 0f;
 		particles.ForceDirection = Vector3.Down * (data.Gravity * moves);
 		particles.ForceSpace = ParticleEffect.SimulationSpace.World;
@@ -593,6 +629,7 @@ internal sealed class EffectLayerObject
 		// A sticker has colours of its own and covers what is behind it; it shows a plain circle until it is drawn
 		_renderer.Sprite = _drawn is null ? EffectAtlas.SpriteOf( data ) : EffectAtlas.SpriteOf( StandardShape.Circle );
 		_renderer.Additive = !data.Solid && _drawn?.Sticker is null;
+		_renderer.Alignment = data.AlignIs == LayerAlign.Swing ? ParticleSpriteRenderer.BillboardAlignment.Object : ParticleSpriteRenderer.BillboardAlignment.LookAtCamera;
 		_renderer.Lighting = false;
 		_renderer.Shadows = false;
 		_renderer.Opaque = false;

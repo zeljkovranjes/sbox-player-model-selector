@@ -20,7 +20,13 @@ public enum LayerShape { Point, Sphere, Ring, AroundBody, Box, Cone, Line, Shape
 /// Saved by name, so pictures and shapes added later join without changing what is saved; a standard shape's name (see
 /// <see cref="StandardShape"/>) is a picture too.
 /// </summary>
-public enum LayerPicture { Glow, Spark, Flame, Smoke, Sparkle, Heart, Snowflake, Droplet }
+public enum LayerPicture { Glow, Spark, Flame, Smoke, Sparkle, Heart, Snowflake, Droplet, Slash }
+
+/// <summary>
+/// Which way a layer's sprites face: the camera, as most do, or the plane a swing sweeps through (worked out from where
+/// the player aims and the way the weapon's tip moves when they swing), so a slash lies along the swing.
+/// </summary>
+public enum LayerAlign { Camera, Swing }
 
 /// <summary>
 /// How a layer changes over time: not at all, brighter and dimmer, flickering, through every colour, turning round its
@@ -97,6 +103,17 @@ public sealed class EffectLayer
 
 	/// <summary>The most colours a palette of the player's own has.</summary>
 	public const int MaxPalette = 32;
+
+	/// <summary>How far a sprite turns over its life, either way, in degrees.</summary>
+	public const float MaxSweep = 720f;
+
+	/// <summary>How far round a slash reaches, and how thick it is (a share of its radius).</summary>
+	public const float MinSlashArc = 30f;
+	public const float MaxSlashArc = 330f;
+	public const float MinSlashWidth = 0.05f;
+	public const float MaxSlashWidth = 0.6f;
+	public const float SlashArc = 150f;
+	public const float SlashWidth = 0.25f;
 
 	private const string White = "#ffffff";
 
@@ -248,6 +265,30 @@ public sealed class EffectLayer
 	[JsonPropertyName( "ah" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public bool AtHit { get; set; }
 
+	/// <summary>Its <see cref="LayerAlign"/> by name; null for facing the camera.</summary>
+	[JsonPropertyName( "al" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public string Align { get; set; }
+
+	/// <summary>How far each sprite turns over its life, in degrees (a slash sweeping round); 0 for none.</summary>
+	[JsonPropertyName( "sw" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public float Sweep { get; set; }
+
+	/// <summary>How far round a <see cref="LayerPicture.Slash"/> reaches, in degrees.</summary>
+	[JsonPropertyName( "sa" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public float SlashArcDegrees { get; set; }
+
+	/// <summary>How thick a <see cref="LayerPicture.Slash"/> is at its middle, a share of its radius.</summary>
+	[JsonPropertyName( "sk" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public float SlashThickness { get; set; }
+
+	/// <summary>Which way its sprites face.</summary>
+	[JsonIgnore]
+	public LayerAlign AlignIs => Parsed( Align, LayerAlign.Camera );
+
+	/// <summary>A slash's reach and thickness as drawn: its own, or the usual ones.</summary>
+	[JsonIgnore]
+	public (float Arc, float Width) SlashShape => (SlashArcDegrees > 0f ? SlashArcDegrees : SlashArc, SlashThickness > 0f ? SlashThickness : SlashWidth);
+
 	/// <summary>What the layer is; only right on a layer within bounds (see <see cref="Sanitized"/>).</summary>
 	[JsonIgnore]
 	public LayerKind KindIs => Parsed( Kind, LayerKind.Sprite );
@@ -335,7 +376,7 @@ public sealed class EffectLayer
 			|| Rhythm is not null && !Known<LayerRhythm>( Rhythm ) || ColorMode is not null && !Known<LayerColorMode>( ColorMode )
 			|| Facing is not null && !Known<LayerFacing>( Facing ) || ToJoint is not null && !Known<Effect.Joint>( ToJoint )
 			|| formation is not null && !Known<StandardShape>( formation ) && !DrawnShape.IsReference( formation )
-			|| When is not null && !Known<LayerWhen>( When ) )
+			|| When is not null && !Known<LayerWhen>( When ) || Align is not null && !Known<LayerAlign>( Align ) )
 			return null;
 
 		var palette = new List<string>();
@@ -388,6 +429,10 @@ public sealed class EffectLayer
 			ShowFor = isMoment ? Limited( ShowFor, 0f, MaxShowFor, 0f ) : 0f,
 			FadeWithSpeed = FadeWithSpeed,
 			AtHit = AtHit && When is nameof( LayerWhen.OnShoot ) or nameof( LayerWhen.OnHit ),
+			Align = Align == nameof( LayerAlign.Camera ) ? null : Align,
+			Sweep = Limited( Sweep, -MaxSweep, MaxSweep, 0f ),
+			SlashArcDegrees = picture == nameof( LayerPicture.Slash ) && SlashArcDegrees != 0f ? Limited( SlashArcDegrees, MinSlashArc, MaxSlashArc, SlashArc ) : 0f,
+			SlashThickness = picture == nameof( LayerPicture.Slash ) && SlashThickness != 0f ? Limited( SlashThickness, MinSlashWidth, MaxSlashWidth, SlashWidth ) : 0f,
 		};
 	}
 

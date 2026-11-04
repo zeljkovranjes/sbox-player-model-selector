@@ -33,6 +33,13 @@ public sealed class EffectShape
 	/// <summary>How much its fill is broken up into wisps, 0 (solid) to 1: smoke that doesn't look like discs.</summary>
 	public float Haze { get; init; }
 
+	/// <summary>
+	/// Where a sweep fades round the middle, in radians from the right: nothing at <see cref="FadeFrom"/> (its tail),
+	/// growing to all of it at <see cref="FadeTo"/> (its front); both 0 for no fade. A slash's swoosh.
+	/// </summary>
+	public float FadeFrom { get; init; }
+	public float FadeTo { get; init; }
+
 	// Everything fades to nothing before the square's edge: light stopping at the edge in a line shows as a square, and
 	// an aura's many big glows added over each other under the game's exposure and bloom show every one. A glow fades out
 	// from this far from the middle to none at the circle inside the square; the outermost pixels are clear whatever
@@ -82,7 +89,48 @@ public sealed class EffectShape
 			solid *= 1f - Haze + Haze * Noise( x * 3f + 11f, y * 3f + 5f );
 
 		var glow = Glow * MathF.Exp( -MathF.Max( distance, 0f ) / MathF.Max( GlowReach, 0.001f ) ) * FadeOut( MathF.Sqrt( x * x + y * y ) );
+		if ( FadeTo != FadeFrom )
+			solid *= Swept( x, y );
+
 		return Math.Clamp( MathF.Max( solid, glow ), 0f, 1f );
+	}
+
+	// How far along the sweep from its tail to its front a point is, 0 to 1, eased so the front is bright and the tail
+	// thins to nothing
+	private float Swept( float x, float y )
+	{
+		var angle = MathF.Atan2( y, x );
+		var along = Math.Clamp( (angle - FadeFrom) / (FadeTo - FadeFrom), 0f, 1f );
+		return along * along * (3f - 2f * along);
+	}
+
+	/// <summary>
+	/// A slash: a crescent along a circle's edge, <paramref name="arcDegrees"/> round from its tail to its front, thickest
+	/// in its middle (<paramref name="width"/> of its radius) and tapering to points, fading from nothing at its tail to
+	/// full at its front, with soft edges. Its front points up, so it sweeps the way a sprite turning anticlockwise goes.
+	/// </summary>
+	public static EffectShape Slash( float arcDegrees, float width )
+	{
+		var arc = Math.Clamp( arcDegrees, 10f, 350f ) * MathF.PI / 180f;
+		var front = MathF.PI / 2f;
+		var tail = front - arc;
+		const float outer = 0.9f;
+		var points = new float[ CirclePoints * 4 ];
+		for ( var i = 0; i < CirclePoints; i++ )
+		{
+			var t = i / (float)(CirclePoints - 1);
+			var angle = tail + arc * t;
+			points[ i * 2 ] = MathF.Cos( angle ) * outer;
+			points[ i * 2 + 1 ] = MathF.Sin( angle ) * outer;
+
+			// Back along the inside edge, thinner towards each end
+			var back = CirclePoints * 2 - 1 - i;
+			var inner = outer - Math.Clamp( width, 0.02f, 0.8f ) * outer * MathF.Sin( MathF.PI * t );
+			points[ back * 2 ] = MathF.Cos( angle ) * inner;
+			points[ back * 2 + 1 ] = MathF.Sin( angle ) * inner;
+		}
+
+		return new EffectShape { Fills = { points }, Softness = 0.05f, Glow = 0.25f, GlowReach = 0.08f, FadeFrom = tail, FadeTo = front };
 	}
 
 	// 1 out to GlowFadeFrom from the middle, falling smoothly to none at 1
@@ -170,6 +218,7 @@ public sealed class EffectShape
 		LayerPicture.Heart => new EffectShape { Fills = { Heart( 0.85f ) }, Softness = 0.05f },
 		LayerPicture.Snowflake => new EffectShape { Lines = Snowflake( 0.8f ), Width = 0.1f, Softness = 0.08f, Glow = 0.3f, GlowReach = 0.12f },
 		LayerPicture.Droplet => new EffectShape { Fills = { Teardrop( 0.18f, -0.65f, 1.5f ) }, Softness = 0.08f, Glow = 0.15f, GlowReach = 0.1f },
+		LayerPicture.Slash => Slash( EffectLayer.SlashArc, EffectLayer.SlashWidth ),
 		_ => new EffectShape { Fills = { Circle( 0f, 0f, 0.04f ) }, Softness = 0.05f, Glow = 1f, GlowReach = 0.33f },
 	};
 

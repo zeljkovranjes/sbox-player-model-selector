@@ -71,6 +71,9 @@ internal sealed class EffectSignals
 		public Vector3 Origin;
 		public Vector3 Direction;
 		public bool Hit;
+
+		/// <summary>How the weapon's tip was moving as it fired or swung, in units a second: the way a swing sweeps.</summary>
+		public Vector3 Swing;
 		public Vector3 HitPosition;
 		public Vector3 HitNormal;
 		public float Distance;

@@ -59,7 +59,24 @@
             <div class="tool @( _history.CanRedo ? "" : "disabled" )" Tooltip="Redo" @onclick=@Redo>redo</div>
             <div class="reset workshop" Tooltip="Designs players shared for this weapon" @onclick=@(() => ShowWorkshop( true ))>@WorkshopLabel</div>
             <div class="reset @( Design is null ? "disabled" : "" )" Tooltip="Take this weapon's design off" @onclick=@Reset>Reset weapon</div>
+            <div class="reset @( Design is null ? "disabled" : "" )" Tooltip="Keep it unfinished, to come back to: it shows here, and isn't worn until you finish it" @onclick=@(() => KeepDraft( false ))>Save draft</div>
         </div>
+        @if ( IsDraft )
+        {
+            <div class="row draft-note">
+                <div class="badge">edit</div>
+                <div class="note">A draft: the preview shows it, but your weapon is worn as before until you finish it.</div>
+                <div class="reset" Tooltip="Wear it on this weapon (on Apply), no longer a draft" @onclick=@FinishDraft>Finish</div>
+            </div>
+        }
+        @if ( _confirmDrop is { } oldest )
+        {
+            <div class="row">
+                <div class="note">@DropText( oldest )</div>
+                <div class="reset" @onclick=@(() => KeepDraft( true ))>Drop it</div>
+                <div class="reset" @onclick=@CancelDrop>Cancel</div>
+            </div>
+        }
 
         <div class="section-header">Finish</div>
         <div class="row">
@@ -268,8 +285,41 @@
         }
 
         <div class="section-header">Share</div>
-        <SharingPanel T="WeaponDesign" Library=@Shared.Weapons Noun="design" ModelId=@Weapon Scope=" for this weapon" Current=@Shareable ShareLabel="Share this design"
-                      Describe=@Describe Workshop=@false></SharingPanel>
+        @if ( IsDraft )
+        {
+            <div class="note">A draft isn't shared until you finish it.</div>
+        }
+        else
+        {
+            <SharingPanel T="WeaponDesign" Library=@Shared.Weapons Noun="design" ModelId=@Weapon Scope=" for this weapon" Current=@Shareable ShareLabel="Share this design"
+                          Describe=@Describe Workshop=@false></SharingPanel>
+        }
+
+        @if ( WeaponDrafts.Count > 0 )
+        {
+            <div class="section-header">Drafts</div>
+            @foreach ( var kept in WeaponDrafts )
+            {
+                var shown = kept;
+                var here = DraftWeapon( shown ) == Weapon;
+                <div class="row draft-row @( DraftsOpen?.Weapons.GetValueOrDefault( Weapon ) == shown.Id ? "selected" : "" )"
+                     Tooltip=@( here ? "Click to go on with it" : $"For the {WeaponDesign.NameOf( DraftWeapon( shown ) )}: hold one to go on with it" )
+                     @onclick=@(() => OpenDraft( shown )) @onrightclick=@(() => DraftMenu( shown ))>
+                    <div class="badge" Tooltip="Draft">edit</div>
+                    <div class="draft-name">@( $"{shown.Name} · {shown.EditedText( PlayerModels.Engine.Drafts.Now )}" )</div>
+                    <div class="icon-button" Tooltip="More: open, rename, duplicate, delete (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => DraftMenu( shown ) ))>more_vert</div>
+                </div>
+            }
+            @if ( _renaming is not null )
+            {
+                <div class="row">
+                    <div class="label">Rename to</div>
+                    <TextEntry class="entry" MaxLength=@Draft.MaxNameLength Value:bind=@_newName @onsubmit=@Rename></TextEntry>
+                    <div class="reset" @onclick=@Rename>Rename</div>
+                    <div class="reset" @onclick=@CancelRename>Cancel</div>
+                </div>
+            }
+        }
         @if ( _status is not null )
         {
             <div class="note status">@_status</div>
@@ -299,6 +349,9 @@
 
     /// <summary>The part pointed at on the preview, for its row here.</summary>
     [Parameter] public string HoveredPart { get; set; }
+
+    /// <summary>The drafts open in the editors (the page's): a design that is one is shown, not worn until finished.</summary>
+    [Parameter] public OpenDrafts DraftsOpen { get; set; }
 
     /// <summary>Whether the host keeps players' weapon designs, props or effects off: they are kept, and can still be changed.</summary>
     [Parameter] public bool Locked { get; set; }
@@ -358,7 +411,8 @@
     WeaponDesign Shareable => Look?.StandaloneWeapon( Design );
 
     protected override int BuildHash() => HashCode.Combine( Look?.Serialize(), Weapon, Selected, HashCode.Combine( _workshop, _allWeapons, _browsing, _picking, _propSearch, _firstPerson ),
-        HashCode.Combine( _effect, _status, HoveredPart, Locked, PropsLocked, EffectsLocked, Shared.Weapons.CountOf( Weapon ), _history.CanUndo ) );
+        HashCode.Combine( _effect, _status, HoveredPart, Locked, PropsLocked, EffectsLocked, Shared.Weapons.CountOf( Weapon ), _history.CanUndo ),
+        HashCode.Combine( DraftsOpen?.Revision, PlayerModels.Engine.Drafts.Revision, _confirmDrop, _renaming ) );
 
     protected override void OnAfterTreeRender( bool firstTime )
     {
@@ -458,6 +512,150 @@
         Targets?.Select( -1 );
         Remember();
         Changed?.Invoke();
+    }
+
+    // ----- Drafts -----
+
+    Draft _confirmDrop;
+    Draft _renaming;
+    string _newName;
+
+    bool IsDraft => Weapon is not null && DraftsOpen?.Weapons.ContainsKey( Weapon ) == true;
+
+    IReadOnlyList<Draft> WeaponDrafts => PlayerModels.Engine.Drafts.Of( Draft.Of.Weapon );
+
+    // The weapon a draft is a design for; null for one that doesn't read
+    static string DraftWeapon( Draft draft ) => WeaponDesign.ParseShared( draft.Item )?.Weapon;
+
+    // This weapon's design kept unfinished, with what was selected: shown here, not worn until it is finished
+    void KeepDraft( bool dropOldest )
+    {
+        _confirmDrop = null;
+        if ( DraftsOpen is null || Look.StandaloneWeapon( Design )?.SharedForm() is not { } item )
+            return;
+
+        var state = JsonSerializer.Serialize( new Dictionary<string, string> { ["selected"] = Selected.ToString() } );
+        var draft = PlayerModels.Engine.Drafts.Make( Draft.Of.Weapon, DraftsOpen.Weapons.GetValueOrDefault( Weapon ), WeaponDesign.NameOf( Weapon ), item, state );
+        if ( !PlayerModels.Engine.Drafts.Save( draft, dropOldest, out var dropped ) )
+        {
+            if ( PlayerModels.Engine.Drafts.Find( Draft.Of.Weapon, draft.Id ) is null && WeaponDrafts.Count >= Draft.MaxPerKind )
+                _confirmDrop = PlayerModels.Engine.Drafts.Oldest( Draft.Of.Weapon );
+            else
+                _status = "This draft is too big to keep.";
+
+            StateHasChanged();
+            return;
+        }
+
+        DraftsOpen.Weapons[ Weapon ] = draft.Id;
+        DraftsOpen.Changed();
+        _status = (dropped is null ? "" : $"\"{dropped.Name}\" was dropped. ") + "Saved as a draft: it is under Drafts here, and your weapon is worn as before until you finish it.";
+        StateHasChanged();
+    }
+
+    static string DropText( Draft oldest ) => $"Drafts are full ({Draft.MaxPerKind}). Drop the oldest, \"{oldest.Name}\" ({oldest.EditedText( PlayerModels.Engine.Drafts.Now )})?";
+
+    void CancelDrop()
+    {
+        _confirmDrop = null;
+        StateHasChanged();
+    }
+
+    // A draft back on this weapon as it was left, in place of its design: shown, not worn until finished
+    void OpenDraft( Draft draft )
+    {
+        var design = WeaponDesign.ParseShared( draft.Item );
+        if ( design is null || design.Weapon != Weapon || DraftsOpen is null )
+        {
+            _status = design is null ? "This draft can't be read any more." : $"It is for the {WeaponDesign.NameOf( design.Weapon )}: hold one to go on with it.";
+            StateHasChanged();
+            return;
+        }
+
+        foreach ( var shape in design.Shapes ?? new List<DrawnShape>() )
+        {
+            if ( !Look.Carry( shape ) )
+            {
+                _status = $"A look carries up to {DrawnShape.MaxPerLook} drawn shapes, and this would take it past that.";
+                StateHasChanged();
+                return;
+            }
+        }
+
+        design.Shapes = null;
+        Remember();
+        Look.Weapons.RemoveAll( x => x.Weapon == Weapon );
+        Look.Weapons.Add( design );
+        Remember();
+        DraftsOpen.Weapons[ Weapon ] = draft.Id;
+        DraftsOpen.Changed();
+        var state = JsonSerializer.Deserialize<Dictionary<string, string>>( draft.State ?? "{}" );
+        if ( int.TryParse( state?.GetValueOrDefault( "selected" ), out var selected ) )
+            Select( selected );
+
+        _status = null;
+        Changed?.Invoke();
+    }
+
+    void FinishDraft()
+    {
+        if ( DraftsOpen?.Weapons.Remove( Weapon, out var draft ) == true )
+            PlayerModels.Engine.Drafts.Delete( Draft.Of.Weapon, draft );
+
+        DraftsOpen?.Changed();
+        _status = "Finished: Apply wears it on this weapon.";
+        Changed?.Invoke();
+    }
+
+    void DraftMenu( Draft draft )
+    {
+        const string tip = "A draft isn't shared until you finish it";
+        var here = DraftWeapon( draft ) == Weapon;
+        ContextMenu.OpenFrom( this, $"Draft: {draft.Name}", new List<ContextMenu.Entry>
+        {
+            new( "Open", "edit", () => OpenDraft( draft ), "Click", here, "Hold this weapon to go on with it" ),
+            new( "Rename", "drive_file_rename_outline", () => StartRename( draft ) ),
+            new( "Duplicate", "content_copy", () => DuplicateDraft( draft ), null, WeaponDrafts.Count < Draft.MaxPerKind, $"Drafts are full ({Draft.MaxPerKind})" ),
+            new( "Delete", "delete", () => DeleteDraft( draft ) ),
+            new( "Publish", "publish", null, null, false, tip ),
+            new( "Copy code", "code", null, null, false, tip ),
+        } );
+    }
+
+    void StartRename( Draft draft )
+    {
+        _renaming = draft;
+        _newName = draft.Name;
+        StateHasChanged();
+    }
+
+    void CancelRename()
+    {
+        _renaming = null;
+        StateHasChanged();
+    }
+
+    void Rename()
+    {
+        if ( _renaming is not null && !string.IsNullOrWhiteSpace( _newName ) )
+            PlayerModels.Engine.Drafts.Rename( Draft.Of.Weapon, _renaming.Id, _newName.Trim() );
+
+        _renaming = null;
+        StateHasChanged();
+    }
+
+    void DuplicateDraft( Draft draft )
+    {
+        var copy = PlayerModels.Engine.Drafts.Make( Draft.Of.Weapon, null, SharePost.Tidy( $"{draft.Name} copy", Draft.MaxNameLength ), draft.Item, draft.State );
+        _status = PlayerModels.Engine.Drafts.Save( copy, false, out _ ) ? $"Copied as the draft \"{copy.Name}\"." : $"Drafts are full ({Draft.MaxPerKind}). Delete one first.";
+        StateHasChanged();
+    }
+
+    void DeleteDraft( Draft draft )
+    {
+        PlayerModels.Engine.Drafts.Delete( Draft.Of.Weapon, draft.Id );
+        _status = $"The draft \"{draft.Name}\" is deleted.";
+        StateHasChanged();
     }
 
     // A click on a row's own button isn't a click on the row

@@ -91,26 +91,55 @@
         }
 
         <div class="section-header">My Effects</div>
-        @if ( Mine.Count == 0 )
+        @if ( Mine.Count == 0 && MyDrafts.Count == 0 )
         {
-            <div class="note">Effects you keep show here, to put on again. Select one you wear and save it below its sliders.</div>
+            <div class="note">Effects you keep show here, to put on again; drafts too, marked with a pencil. Select one you wear and save it below its sliders.</div>
         }
         else
         {
             <div class="grid">
+                @foreach ( var kept in MyDrafts )
+                {
+                    var shown = kept;
+                    <div class="tile effect draft" Tooltip=@( $"Draft: {shown.Name}, {shown.EditedText( PlayerModels.Engine.Drafts.Now )}. Click to go on with it in the Advanced editor" )
+                         @onclick=@(() => OpenDraft( shown )) @onrightclick=@(() => DraftMenu( shown ))>
+                        <EffectIcon class="thumb" Effect=@DraftEffect( shown )></EffectIcon>
+                        <div class="title">@shown.Name</div>
+                        <div class="badge" Tooltip="Draft">edit</div>
+                        <div class="more" Tooltip="More: open, rename, duplicate, delete (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => DraftMenu( shown ) ))>more_vert</div>
+                    </div>
+                }
                 @foreach ( var kept in Mine )
                 {
                     var shown = kept;
-                    <div class="tile effect @( IsFull ? "disabled" : "" )" Tooltip=@KeptTooltip( shown ) @onclick=@(() => Add( shown ))>
+                    <div class="tile effect @( IsFull ? "disabled" : "" )" Tooltip=@KeptTooltip( shown ) @onclick=@(() => Add( shown )) @onrightclick=@(() => KeptMenu( shown ))>
                         <EffectIcon class="thumb" Effect=@shown></EffectIcon>
                         <div class="title">@shown.Name</div>
+                        <div class="more" Tooltip="More: open, rename, duplicate, delete, publish, copy code (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => KeptMenu( shown ) ))>more_vert</div>
                         <div class="forget" Tooltip="Delete from My effects" @onclick=@(( PanelEvent e ) => Forget( shown, e ))>delete</div>
                     </div>
                 }
-                @for ( var i = 0; i < FillersFor( Mine.Count ); i++ )
+                @for ( var i = 0; i < FillersFor( Mine.Count + MyDrafts.Count ); i++ )
                 {
                     <div class="tile-filler"></div>
                 }
+            </div>
+        }
+        @if ( _renaming is not null )
+        {
+            <div class="row">
+                <div class="label">Rename to</div>
+                <TextEntry class="key-entry" MaxLength=@Effect.MaxNameLength Value:bind=@_newName @onsubmit=@Rename></TextEntry>
+                <div class="reset @( string.IsNullOrWhiteSpace( _newName ) ? "disabled" : "" )" @onclick=@Rename>Rename</div>
+                <div class="reset" @onclick=@CancelRename>Cancel</div>
+            </div>
+        }
+        @if ( _confirmDrop is { } oldest && Selected is { } dropFor )
+        {
+            <div class="row">
+                <div class="note">@DropText( oldest )</div>
+                <div class="reset" @onclick=@(() => KeepDraft( dropFor, true ))>Drop it</div>
+                <div class="reset" @onclick=@CancelDrop>Cancel</div>
             </div>
         }
         @if ( _status is not null )
@@ -127,9 +156,13 @@
                 var effect = Look.Effects[ i ];
                 var waiting = held[ i ].Count( x => x );
                 <div class="row worn @( effect.Id == _selected ? "selected" : "" ) @( waiting > 0 ? "over" : "" )"
-                     Tooltip=@WaitingText( effect, waiting ) @onclick=@(() => Select( effect ))>
+                     Tooltip=@WaitingText( effect, waiting ) @onclick=@(() => Select( effect )) @onrightclick=@(() => WornMenu( effect ))>
                     <div class="switch @( effect.Off ? "" : "on" )" Tooltip=@( effect.Off ? "Turn on" : "Turn off" )
                          @onclick=@(( PanelEvent e ) => Toggle( effect, e ))>check</div>
+                    @if ( IsDraft( effect ) )
+                    {
+                        <div class="badge" Tooltip="Draft: shown here, not worn until you finish it in the Advanced editor">edit</div>
+                    }
                     <div class="worn-name">@effect.Name</div>
                     @if ( HiddenWhy( effect ) is { } why )
                     {
@@ -139,6 +172,8 @@
                     {
                         <div class="over-note">Over this server's budget</div>
                     }
+                    <div class="icon-button @( IsFull ? "disabled" : "" )" Tooltip="Duplicate" @onclick=@(( PanelEvent e ) => Act( e, () => Duplicate( effect ) ))>content_copy</div>
+                    <div class="icon-button" Tooltip="More: edit, duplicate, save, save draft, remove (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => WornMenu( effect ) ))>more_vert</div>
                     <div class="icon-button" Tooltip="Remove" @onclick=@(( PanelEvent e ) => Remove( effect, e ))>delete</div>
                 </div>
             }
@@ -162,7 +197,7 @@
             <SliderRow Label="Speed" Signed=@true Value=@selected.Speed OnChanged=@(( float value ) => Set( () => selected.Speed = value ))></SliderRow>
             <div class="row">
                 <div class="reset @( IsAsMade( selected ) ? "disabled" : "" )" @onclick=@(() => ResetSliders( selected ))>Reset sliders</div>
-                <div class="reset" Tooltip="A few changed copies of it to pick from" @onclick=@(() => ShowVariations( selected ))>Variations</div>
+                <div class="reset @( IsDraft( selected ) ? "disabled" : "" )" Tooltip=@( IsDraft( selected ) ? "Not for a draft: finish it first" : "A few changed copies of it to pick from" ) @onclick=@(() => ShowVariations( selected ))>Variations</div>
             </div>
             @if ( _variations is { } variations && _variationsOf == selected.Id )
             {
@@ -191,9 +226,17 @@
                 <TextEntry class="key-entry" Placeholder=@( string.IsNullOrEmpty( selected.Name ) ? "Its name" : selected.Name ) MaxLength=@Effect.MaxNameLength
                            Value:bind=@_keepName @onsubmit=@(() => Keep( selected ))></TextEntry>
                 <div class="reset @( Mine.Count >= LocalPrefs.MaxMyEffects ? "disabled" : "" )" @onclick=@(() => Keep( selected ))>Save to My effects</div>
+                <div class="reset" Tooltip="Keep it unfinished, to come back to: it shows, and isn't worn until you finish it" @onclick=@(() => KeepDraft( selected, false ))>Save draft</div>
             </div>
-            <SharingPanel T="Effect" Library=@Shared.Effects Noun="effect" ModelId=@Shared.Everyone Scope=@Everywhere Current=@Shareable( selected )
-                          ShareLabel="Share this effect" Describe=@DescribeEffect Workshop=@false></SharingPanel>
+            @if ( IsDraft( selected ) )
+            {
+                <div class="note">A draft isn't worn, shared or published until you finish it: open it in the Advanced editor and press Finish.</div>
+            }
+            else
+            {
+                <SharingPanel @ref="_sharing" T="Effect" Library=@Shared.Effects Noun="effect" ModelId=@Shared.Everyone Scope=@Everywhere Current=@Shareable( selected )
+                              ShareLabel="Share this effect" Describe=@DescribeEffect Workshop=@false></SharingPanel>
+            }
 
             <div class="row">
                 <div class="label">Key</div>
@@ -265,6 +308,9 @@
     /// <summary>Opens the Advanced editor's shape creator on a copy of the shape given (a fork from the Workshop).</summary>
     [Parameter] public Action<DrawnShape> OpenShapeCreator { get; set; }
 
+    /// <summary>The drafts open in the editors (the page's): an effect that is one is shown, not worn until finished.</summary>
+    [Parameter] public OpenDrafts DraftsOpen { get; set; }
+
     /// <summary>The steps back and forward through changes to the effects, and what takes them.</summary>
     [Parameter] public EditHistory History { get; set; }
     [Parameter] public Action Undo { get; set; }
@@ -299,7 +345,20 @@
     protected override int BuildHash() => HashCode.Combine( _lookText = Look?.Serialize(), _selected, _guides, Locked, Selector?.EffectsBudget, Selector?.EffectsQuality,
         string.Join( ";", Others().Select( x => $"{x.Id}{Selector?.HidesEffectsOf( x )}" ) ),
         HashCode.Combine( (int)(Selector?.TriggerWait() ?? 0f), History?.CanUndo, History?.CanRedo, _mineRevision, _status, _variationsOf, _variations,
-            HashCode.Combine( Workshop, _shapesTab, Muted, Selector?.BlockWorkshopEffects, Selector?.BlockDrawnShapes, Selector?.BlockEffectLights, Selector?.BlockedShares?.Count ) ) );
+            HashCode.Combine( Workshop, _shapesTab, Muted, Selector?.BlockWorkshopEffects, Selector?.BlockDrawnShapes, Selector?.BlockEffectLights, Selector?.BlockedShares?.Count,
+                HashCode.Combine( DraftsOpen?.Revision, PlayerModels.Engine.Drafts.Revision, _renaming, _confirmDrop ) ) ) );
+
+    public override void Tick()
+    {
+        base.Tick();
+
+        // Publish, from a tile's menu, opens the share window once the effect it put on is the one selected
+        if ( _publishNext && _sharing is not null && _sharing.IsValid() && Selected is not null )
+        {
+            _publishNext = false;
+            _sharing.Share();
+        }
+    }
 
     // Effects and shapes are shared for everyone, not for a model
     const string Everywhere = "";
@@ -579,6 +638,243 @@
 
     static string KeptTooltip( Effect kept ) => $"{kept.Layers.Count} {(kept.Layers.Count == 1 ? "layer" : "layers")}: click to put it on";
 
+    // ----- Drafts, and the menus of My effects and of what is worn -----
+
+    SharingPanel<Effect> _sharing;
+    bool _publishNext;
+    object _renaming;
+    string _newName;
+    Draft _confirmDrop;
+
+    IReadOnlyList<Draft> MyDrafts => PlayerModels.Engine.Drafts.Of( Draft.Of.Effect );
+
+    bool IsDraft( Effect effect ) => DraftsOpen?.Effects.ContainsKey( effect.Id ) == true;
+
+    // A draft's effect, within bounds, for its tile; null for one that doesn't read
+    static Effect DraftEffect( Draft draft ) => Effect.ParseShared( draft.Item );
+
+    void Act( PanelEvent e, Action action )
+    {
+        e.StopPropagation();
+        action();
+    }
+
+    // A draft goes on, as a draft, and opens in the Advanced editor as it was left; one open already is selected
+    void OpenDraft( Draft draft )
+    {
+        foreach ( var (effectId, draftId) in DraftsOpen?.Effects ?? new Dictionary<string, string>() )
+        {
+            if ( draftId == draft.Id && Look.Effects.Exists( x => x.Id == effectId ) )
+            {
+                _selected = effectId;
+                OpenAdvanced?.Invoke( effectId );
+                return;
+            }
+        }
+
+        if ( DraftEffect( draft ) is not { } effect || DraftsOpen is null )
+        {
+            _status = "This draft can't be read any more.";
+            StateHasChanged();
+            return;
+        }
+
+        var copy = EffectPresets.Copy( effect, Look.Effects );
+        if ( IsFull || LayersWorn() + copy.Layers.Count > Effect.MaxLookLayers || !Look.Adopt( copy ) )
+        {
+            _status = $"There's no room for it: a look wears up to {Effect.MaxWorn} effects and {Effect.MaxLookLayers} layers. Remove one first.";
+            StateHasChanged();
+            return;
+        }
+
+        DraftsOpen.Effects[ copy.Id ] = draft.Id;
+        DraftsOpen.States[ copy.Id ] = draft.State;
+        DraftsOpen.Changed();
+        _selected = copy.Id;
+        _status = null;
+        Changed?.Invoke();
+        OpenAdvanced?.Invoke( copy.Id );
+    }
+
+    void KeepDraft( Effect effect, bool dropOldest )
+    {
+        _confirmDrop = null;
+        if ( DraftsOpen is null )
+            return;
+
+        if ( DraftsOpen.KeepEffect( Look, effect, null, dropOldest, out var dropped, out var full ) )
+            _status = (dropped is null ? "" : $"\"{dropped.Name}\" was dropped. ") + $"Saved \"{effect.Name}\" as a draft: it isn't worn until you finish it.";
+        else if ( full )
+            _confirmDrop = PlayerModels.Engine.Drafts.Oldest( Draft.Of.Effect );
+        else
+            _status = "This draft is too big to keep.";
+
+        StateHasChanged();
+    }
+
+    static string DropText( Draft oldest ) => $"Drafts are full ({Draft.MaxPerKind}). Drop the oldest, \"{oldest.Name}\" ({oldest.EditedText( PlayerModels.Engine.Drafts.Now )})?";
+
+    void CancelDrop()
+    {
+        _confirmDrop = null;
+        StateHasChanged();
+    }
+
+    // A copy of what is worn, beside it, carrying its drawn shapes
+    void Duplicate( Effect effect )
+    {
+        if ( IsFull || Look.Standalone( effect ) is not { } standalone )
+            return;
+
+        var copy = EffectPresets.Copy( standalone, Look.Effects );
+        copy.Name = SharePost.Tidy( $"{effect.Name} copy", Effect.MaxNameLength );
+        if ( LayersWorn() + copy.Layers.Count > Effect.MaxLookLayers || !Look.Adopt( copy ) )
+        {
+            _status = $"There's no room for a copy: a look wears up to {Effect.MaxWorn} effects and {Effect.MaxLookLayers} layers.";
+            StateHasChanged();
+            return;
+        }
+
+        _selected = copy.Id;
+        Changed?.Invoke();
+    }
+
+    void WornMenu( Effect effect )
+    {
+        _selected = effect.Id;
+        var draft = IsDraft( effect );
+        ContextMenu.OpenFrom( this, effect.Name, new List<ContextMenu.Entry>
+        {
+            new( "Edit", "edit", () => OpenAdvanced?.Invoke( effect.Id ), "Edit in Advanced editor" ),
+            new( "Duplicate", "content_copy", () => Duplicate( effect ), null, !IsFull, $"A look wears up to {Effect.MaxWorn} effects" ),
+            new( "Save to My effects", "save", () => Keep( effect ), null, !draft && Mine.Count < LocalPrefs.MaxMyEffects, draft ? "Finish the draft first" : $"My effects is full ({LocalPrefs.MaxMyEffects})" ),
+            new( "Save draft", "edit_note", () => KeepDraft( effect, false ) ),
+            new( "Remove", "delete", () => RemoveWorn( effect ) ),
+        } );
+        StateHasChanged();
+    }
+
+    void KeptMenu( Effect kept )
+    {
+        ContextMenu.OpenFrom( this, kept.Name, new List<ContextMenu.Entry>
+        {
+            new( "Open", "add_circle", () => Add( kept ), "Click", !IsFull, $"A look wears up to {Effect.MaxWorn} effects" ),
+            new( "Rename", "drive_file_rename_outline", () => StartRename( kept, kept.Name ) ),
+            new( "Duplicate", "content_copy", () => DuplicateKept( kept ), null, Mine.Count < LocalPrefs.MaxMyEffects, $"My effects is full ({LocalPrefs.MaxMyEffects})" ),
+            new( "Delete", "delete", () => ForgetKept( kept ) ),
+            new( "Publish", "publish", () => Publish( kept ), null, !IsFull, $"A look wears up to {Effect.MaxWorn} effects: it is put on to publish" ),
+            new( "Copy code", "code", () => CopyCode( kept ) ),
+        } );
+    }
+
+    void DraftMenu( Draft draft )
+    {
+        const string tip = "A draft isn't shared until you finish it";
+        ContextMenu.OpenFrom( this, $"Draft: {draft.Name}", new List<ContextMenu.Entry>
+        {
+            new( "Open", "edit", () => OpenDraft( draft ), "Click" ),
+            new( "Rename", "drive_file_rename_outline", () => StartRename( draft, draft.Name ) ),
+            new( "Duplicate", "content_copy", () => DuplicateDraft( draft ), null, MyDrafts.Count < Draft.MaxPerKind, $"Drafts are full ({Draft.MaxPerKind})" ),
+            new( "Delete", "delete", () => DeleteDraft( draft ) ),
+            new( "Publish", "publish", null, null, false, tip ),
+            new( "Copy code", "code", null, null, false, tip ),
+        } );
+    }
+
+    void StartRename( object what, string name )
+    {
+        _renaming = what;
+        _newName = name;
+        StateHasChanged();
+    }
+
+    void CancelRename()
+    {
+        _renaming = null;
+        StateHasChanged();
+    }
+
+    void Rename()
+    {
+        var name = _newName?.Trim();
+        if ( string.IsNullOrEmpty( name ) )
+            return;
+
+        if ( _renaming is Draft draft )
+            PlayerModels.Engine.Drafts.Rename( Draft.Of.Effect, draft.Id, name );
+        else if ( _renaming is Effect kept )
+        {
+            var renamed = kept.Sanitized();
+            renamed.Name = name;
+            if ( LocalPrefs.SaveMyEffect( renamed ) )
+                LocalPrefs.DeleteMyEffect( kept.Name );
+        }
+
+        _status = $"Renamed to \"{name}\".";
+        _renaming = null;
+        _mine = null;
+        _mineRevision++;
+        StateHasChanged();
+    }
+
+    void DuplicateKept( Effect kept )
+    {
+        var copy = kept.Sanitized();
+        copy.Name = SharePost.Tidy( $"{kept.Name} copy", Effect.MaxNameLength );
+        _status = LocalPrefs.SaveMyEffect( copy ) ? $"Copied as \"{copy.Name}\"." : $"My effects is full ({LocalPrefs.MaxMyEffects}). Delete one first.";
+        _mine = null;
+        _mineRevision++;
+        StateHasChanged();
+    }
+
+    void DuplicateDraft( Draft draft )
+    {
+        var copy = PlayerModels.Engine.Drafts.Make( Draft.Of.Effect, null, SharePost.Tidy( $"{draft.Name} copy", Draft.MaxNameLength ), draft.Item, draft.State );
+        _status = PlayerModels.Engine.Drafts.Save( copy, false, out _ ) ? $"Copied as the draft \"{copy.Name}\"." : $"Drafts are full ({Draft.MaxPerKind}). Delete one first.";
+        StateHasChanged();
+    }
+
+    // A draft deleted; one worn as a draft stays on the preview, no longer a draft of anything kept
+    void DeleteDraft( Draft draft )
+    {
+        PlayerModels.Engine.Drafts.Delete( Draft.Of.Effect, draft.Id );
+        _status = $"The draft \"{draft.Name}\" is deleted.";
+        StateHasChanged();
+    }
+
+    void ForgetKept( Effect kept )
+    {
+        LocalPrefs.DeleteMyEffect( kept.Name );
+        _status = $"\"{kept.Name}\" is deleted from My effects.";
+        _mine = null;
+        _mineRevision++;
+        StateHasChanged();
+    }
+
+    // Puts it on, selected, and opens its share window
+    void Publish( Effect kept )
+    {
+        Add( kept );
+        _publishNext = Selected is not null;
+    }
+
+    void CopyCode( Effect kept )
+    {
+        Clipboard.SetText( ShareCode.Write( Shared.Effects.Kind, Shared.Effects.Serialize( kept ) ) );
+        _status = $"Code copied. Paste it anywhere to pass \"{kept.Name}\" on.";
+        StateHasChanged();
+    }
+
+    void RemoveWorn( Effect effect )
+    {
+        Look.Effects.Remove( effect );
+        DraftsOpen?.Effects.Remove( effect.Id );
+        if ( _selected == effect.Id )
+            _selected = null;
+
+        Changed?.Invoke();
+    }
+
     void ShowVariations( Effect effect )
     {
         _variations = EffectRemix.Variations( Look.Standalone( effect ), new Random() );
@@ -627,11 +923,7 @@
     void Remove( Effect effect, PanelEvent e )
     {
         e.StopPropagation();
-        Look.Effects.Remove( effect );
-        if ( _selected == effect.Id )
-            _selected = null;
-
-        Changed?.Invoke();
+        RemoveWorn( effect );
     }
 
     void Set( Action change )

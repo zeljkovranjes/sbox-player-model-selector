@@ -45,7 +45,7 @@
             <UISettingsPane class="options weapon-options" Title=@_weaponName Revision=@HashCode.Combine( _weaponPath, _look, _model )>
                 <Body>
                     <SlowScroll><Content>
-                        <WeaponEditor @ref="_weaponPanel" Look=@_look Changed=@Changed Weapon=@_weaponPath WeaponModel=@_held?.Model Targets=@_weaponTargets
+                        <WeaponEditor @ref="_weaponPanel" Look=@_look Changed=@Changed Weapon=@_weaponPath WeaponModel=@_held?.Model Targets=@_weaponTargets DraftsOpen=@DraftsOpen
                                       PointAt=@PointPart HoveredPart=@( _pointedPart ?? _hoveredPart ) Locked=@WeaponsLocked PropsLocked=@WeaponPropsLocked
                                       EffectsLocked=@WeaponEffectsLocked></WeaponEditor>
                     </Content></SlowScroll>
@@ -68,8 +68,8 @@
                     }
                     else if ( ShownTab == Tab.Effects )
                     {
-                        <LayerEditor Look=@_look Changed=@Changed Stage=@Stage Locked=@EffectsLocked EffectId=@EffectId History=@History Undo=@Undo Redo=@Redo
-                                     StartShape=@StartShape></LayerEditor>
+                        <LayerEditor @ref="_layerPanel" Look=@_look Changed=@Changed Stage=@Stage Locked=@EffectsLocked EffectId=@EffectId History=@History Undo=@Undo Redo=@Redo
+                                     StartShape=@StartShape DraftsOpen=@DraftsOpen></LayerEditor>
                     }
                     else
                     {
@@ -85,9 +85,20 @@
         <SharingPanel T="PlayerLook" Library=@Shared.Looks Noun="look" ModelId=@_look?.Model Current=@CurrentLook
                       Describe=@LookEditor.DescribeLook Workshop=@false></SharingPanel>
         <div class="spacer"></div>
-        <div class="action @( _dirty ? "" : "disabled" )" @onclick=@(() => Revert?.Invoke())>Revert</div>
-        <div class="action apply @( _dirty ? "" : "disabled" )" @onclick=@(() => Apply?.Invoke())>Apply</div>
-        <div class="action" @onclick=@Close>Close</div>
+        @if ( _closing )
+        {
+            <div class="closing">@( _closeStatus ?? "You have changes you haven't applied." )</div>
+            <div class="action apply" Tooltip="Wear them, then close" @onclick=@ApplyAndClose>Apply</div>
+            <div class="action" Tooltip="Keep the effects, weapon designs and shape you changed as drafts, to come back to; the rest goes back to what you wear" @onclick=@KeepDraftsAndClose>Keep as draft</div>
+            <div class="action" Tooltip="Go back to what you wear" @onclick=@DiscardAndClose>Discard</div>
+            <div class="action" @onclick=@CancelClose>Cancel</div>
+        }
+        else
+        {
+            <div class="action @( _dirty ? "" : "disabled" )" @onclick=@(() => Revert?.Invoke())>Revert</div>
+            <div class="action apply @( _dirty ? "" : "disabled" )" @onclick=@(() => Apply?.Invoke())>Apply</div>
+            <div class="action" @onclick=@AskClose>Close</div>
+        }
     </div>
 </root>
 
@@ -133,6 +144,12 @@
 
     /// <summary>A shape to open the Effects tab's shape creator on (a fork from the Workshop); null to open on the layers.</summary>
     public DrawnShape StartShape { get; init; }
+
+    /// <summary>The drafts open in the editors (the page's): shown, not worn until finished.</summary>
+    public OpenDrafts DraftsOpen { get; init; }
+
+    /// <summary>The look worn now, as everyone sees it: what a change is told from.</summary>
+    public Func<PlayerLook> WornNow { get; init; }
 
     // The tabs of options down the right
     enum Tab { Look, Accessories, Effects }
@@ -201,7 +218,7 @@
 
     PlayerLook CurrentLook => _look is { IsCustomised: true, IsDefault: false } ? _look.Customisation() : null;
 
-    protected override int BuildHash() => HashCode.Combine( _look, _look?.Serialize(), _model, _dirty, ShownTab,
+    protected override int BuildHash() => HashCode.Combine( _look, _look?.Serialize(), _model, _dirty, ShownTab, HashCode.Combine( _closing, _closeStatus ),
         HashCode.Combine( _viewport?.Tool, _viewport?.Walking, _viewport?.Status, _selectedItem, GraphVersion ),
         HashCode.Combine( _weaponMode, _weaponPath, _weaponName, _hoveredPart, _pointedPart, _weaponTargets?.Selected, _held is null ) );
 
@@ -469,6 +486,84 @@
     public void Close()
     {
         Delete();
+    }
+
+    // Closing with changes not applied (or a shape not kept) asks first: Apply, Keep as draft, Discard or Cancel
+    LayerEditor _layerPanel;
+    bool _closing;
+    string _closeStatus;
+
+    bool HasChanges => _dirty || _layerPanel?.CreatorHasChanges == true;
+
+    void AskClose()
+    {
+        if ( !HasChanges )
+        {
+            Close();
+            return;
+        }
+
+        _closing = true;
+        _closeStatus = null;
+        StateHasChanged();
+    }
+
+    void CancelClose()
+    {
+        _closing = false;
+        StateHasChanged();
+    }
+
+    void ApplyAndClose()
+    {
+        Apply?.Invoke();
+        Close();
+    }
+
+    void DiscardAndClose()
+    {
+        Revert?.Invoke();
+        Close();
+    }
+
+    // Each effect and weapon design that isn't as it is worn, and the shape in the creator, kept as drafts; then the
+    // look goes back to what is worn, so nothing unfinished is
+    void KeepDraftsAndClose()
+    {
+        var worn = WornNow?.Invoke() ?? new PlayerLook();
+        var kept = new List<string>();
+        var failed = new List<string>();
+        foreach ( var effect in _look.Effects )
+        {
+            var was = worn.Effects.Find( x => x.Id == effect.Id );
+            if ( was is not null && System.Text.Json.JsonSerializer.Serialize( was ) == System.Text.Json.JsonSerializer.Serialize( effect ) )
+                continue;
+
+            (DraftsOpen?.KeepEffect( _look, effect, null, false, out _, out _ ) == true ? kept : failed).Add( effect.Name );
+        }
+
+        foreach ( var design in _look.Weapons )
+        {
+            if ( System.Text.Json.JsonSerializer.Serialize( worn.DesignFor( design.Weapon ) ) == System.Text.Json.JsonSerializer.Serialize( design ) )
+                continue;
+
+            var name = WeaponDesign.NameOf( design.Weapon );
+            var draft = Engine.Drafts.Make( Draft.Of.Weapon, DraftsOpen?.Weapons.GetValueOrDefault( design.Weapon ), name, _look.StandaloneWeapon( design )?.SharedForm(), null );
+            (Engine.Drafts.Save( draft, false, out _ ) ? kept : failed).Add( name );
+        }
+
+        if ( _layerPanel?.CreatorHasChanges == true )
+            (_layerPanel.KeepCreatorDraft() ? kept : failed).Add( "the shape" );
+
+        if ( failed.Count > 0 )
+        {
+            _closeStatus = $"Couldn't keep {string.Join( ", ", failed )} as drafts (a kind has {Draft.MaxPerKind} at most): delete some first.";
+            StateHasChanged();
+            return;
+        }
+
+        Revert?.Invoke();
+        Close();
     }
 
     public override void OnDeleted()

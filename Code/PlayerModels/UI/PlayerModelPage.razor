@@ -73,7 +73,7 @@
             <UISettingsPane class="models-pane @( _effectsWorkshop ? "fit-pane" : "" )" Title="Effects" Revision=@BuildHash()>
                 <Body>
                     <SlowScroll class="@( _effectsWorkshop ? "fill" : "" )"><Content>
-                        <EffectsEditor Look=@_look Changed=@LookChanged Locked=@EffectsLocked OpenAdvanced=@OpenAdvancedOn OpenShapeCreator=@OpenShapeCreator
+                        <EffectsEditor Look=@_look Changed=@LookChanged Locked=@EffectsLocked OpenAdvanced=@OpenAdvancedOn OpenShapeCreator=@OpenShapeCreator DraftsOpen=@_openDrafts
                                        Workshop=@_effectsWorkshop ShowWorkshop=@ShowEffectsWorkshop
                                        History=@_effectHistory Undo=@UndoEffects Redo=@RedoEffects></EffectsEditor>
                     </Content></SlowScroll>
@@ -396,6 +396,8 @@
             Undo = UndoEffects,
             Redo = RedoEffects,
             StartShape = shape,
+            DraftsOpen = _openDrafts,
+            WornNow = () => Selector?.LookOf( Connection.Local ),
         };
 
         _advanced.Parent = SpawnMenuHost.ModalLayer ?? FindPopupPanel();
@@ -969,6 +971,7 @@
         _lookModel = worn;
         _look = Selector?.LookOf( Connection.Local ) ?? new PlayerLook();
         _lookDirty = false;
+        _openDrafts.Clear();
         _wornModel = null;
         RecordEffects();
 
@@ -1024,13 +1027,16 @@
         StateHasChanged();
     }
 
+    // The drafts open in the editors: they show in the preview, and are worn only once finished
+    readonly OpenDrafts _openDrafts = new();
+
     void ApplyLook()
     {
         if ( !_lookDirty || Selector is not { } selector || _look is null )
             return;
 
         _lookDirty = false;
-        selector.Wear( _look );
+        selector.Wear( _look.WithoutDrafts( _openDrafts.Effects.Keys, _openDrafts.Weapons.Keys, selector.LookOf( Connection.Local ) ) );
         StateHasChanged();
     }
 
@@ -1041,6 +1047,7 @@
         _look = Selector?.LookOf( Connection.Local ) ?? new PlayerLook();
         _lookModel = null;
         _lookDirty = false;
+        _openDrafts.Clear();
         RecordEffects();
         StateHasChanged();
     }

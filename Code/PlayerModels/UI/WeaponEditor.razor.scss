@@ -64,6 +64,58 @@ WeaponEditor
 		}
 	}
 
+	// a design that is a draft: its pencil, what that means, and Finish; and the drafts kept, each a row
+	.draft-note, .draft-row
+	{
+		gap: 6px;
+
+		> .badge
+		{
+			font-family: "Material Icons";
+			font-size: 16px;
+			text-transform: none;
+			color: $ui-blue;
+		}
+
+		> .note, > .draft-name
+		{
+			flex-grow: 1;
+			flex-shrink: 1;
+		}
+	}
+
+	.draft-row
+	{
+		padding: 0 4px;
+		border-radius: 2px;
+		cursor: pointer;
+		font-size: $ui-settings-font;
+		color: $ui-text;
+
+		&:hover
+		{
+			background-color: $ui-separator;
+		}
+
+		&.selected
+		{
+			@include ui-selected;
+
+			> .badge
+			{
+				color: white;
+			}
+		}
+
+		> .icon-button
+		{
+			font-family: "Material Icons";
+			font-size: 16px;
+			text-transform: none;
+			color: $ui-text-muted;
+		}
+	}
+
 	.note.status
 	{
 		color: $ui-text;

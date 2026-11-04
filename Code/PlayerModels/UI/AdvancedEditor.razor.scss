@@ -166,6 +166,13 @@ AdvancedEditor
 			flex-grow: 1;
 		}
 
+		// closing with changes: what it asks, beside its answers
+		> .closing
+		{
+			font-size: 14px;
+			color: $ui-text;
+		}
+
 		// here the bar sets its height: what sharing says goes beside the buttons, not under them
 		> .sharing.mine
 		{

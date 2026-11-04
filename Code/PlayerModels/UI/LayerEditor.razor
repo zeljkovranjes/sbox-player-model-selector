@@ -18,7 +18,7 @@
 
     @if ( _view == View.Creator && Look is not null )
     {
-        <ShapeCreator Start=@_creatorStart UseOnLayer=@UseShape CanUse=@( Layer?.KindIs == LayerKind.Sprite ) Back=@(() => ShowView( View.Layers ))></ShapeCreator>
+        <ShapeCreator @ref="_creator" Start=@_creatorStart UseOnLayer=@UseShape CanUse=@( Layer?.KindIs == LayerKind.Sprite ) Back=@(() => ShowView( View.Layers ))></ShapeCreator>
     }
     else if ( _view == View.ShapesWorkshop && Look is not null )
     {
@@ -49,7 +49,24 @@
             <UIDropdown Items=@EffectChoices() Value=@effect.Id ValueChanged=@SelectEffect Tokenize=@false></UIDropdown>
             <div class="reset @( CanStart ? "" : "disabled" )" Tooltip=@( CanStart ? "An effect of your own, from scratch" : $"A look wears up to {Effect.MaxWorn} effects and {Effect.MaxLookLayers} layers" )
                  @onclick=@NewEffect>New effect</div>
+            <div class="reset" Tooltip="Keep it unfinished, to come back to from My effects: it shows here, and isn't worn until you finish it" @onclick=@(() => SaveDraft( effect, false ))>Save draft</div>
         </div>
+        @if ( DraftsOpen?.Effects.ContainsKey( effect.Id ) == true )
+        {
+            <div class="row draft-note">
+                <div class="badge">edit</div>
+                <div class="note">A draft: the preview shows it, but it isn't worn, shared or published until you finish it.</div>
+                <div class="reset" Tooltip="Keep it in My effects; Apply then wears it" @onclick=@(() => FinishDraft( effect ))>Finish</div>
+            </div>
+        }
+        @if ( _confirmDrop is { } oldest )
+        {
+            <div class="row">
+                <div class="note">@( DropText( oldest ) )</div>
+                <div class="reset" @onclick=@(() => SaveDraft( effect, true ))>Drop it</div>
+                <div class="reset" @onclick=@CancelDrop>Cancel</div>
+            </div>
+        }
         <div class="row">
             <div class="label">Comes from</div>
             <UIDropdown Items=@AnchorChoices() Value=@AnchorValue( effect.Anchor ) ValueChanged=@SetAnchor Tokenize=@false></UIDropdown>
@@ -67,7 +84,7 @@
             var layer = effect.Layers[ index ];
             <div class="row layer @( IsChosen( index ) ? "selected" : "" ) @( held[ index ] ? "over" : "" )"
                  Tooltip=@( held[ index ] ? "Over this server's budget: it doesn't show until layers before it are removed or switched off" : null )
-                 @onclick=@(() => SelectLayer( index ))>
+                 @onclick=@(() => SelectLayer( index )) @onrightclick=@(() => LayerMenu( index ))>
                 <div class="switch @( layer.Off ? "" : "on" )" Tooltip=@( layer.Off ? "Turn on" : "Turn off" )
                      @onclick=@(( PanelEvent e ) => ToggleLayer( layer, e ))>check</div>
                 <div class="layer-name">@NameOf( layer )</div>
@@ -83,6 +100,10 @@
             <div class="reset @( CanAdd ? "" : "disabled" )" @onclick=@(() => AddLayer( LayerKind.Sprite ))>Add sprites</div>
             <div class="reset @( CanAdd ? "" : "disabled" )" @onclick=@(() => AddLayer( LayerKind.Light ))>Add a light</div>
             <div class="reset @( CanAdd ? "" : "disabled" )" @onclick=@(() => AddLayer( LayerKind.Trail ))>Add a trail</div>
+        </div>
+        <div class="row">
+            <div class="reset @( Layer is null ? "disabled" : "" )" Tooltip="Copy the selected layer, to paste into this or another effect (or right-click a layer)" @onclick=@CopyLayer>Copy layer</div>
+            <div class="reset @( _copied is not null && CanAdd ? "" : "disabled" )" Tooltip="Paste the layer copied, after the selected one" @onclick=@PasteLayer>Paste layer</div>
         </div>
         <div class="note">@BudgetText()</div>
 
@@ -287,6 +308,9 @@
     /// <summary>A shape to open the shape creator on (a fork from the Workshop); null to open on the layers.</summary>
     [Parameter] public DrawnShape StartShape { get; set; }
 
+    /// <summary>The drafts open in the editors (the page's): an effect that is one shows here, but isn't worn until finished.</summary>
+    [Parameter] public OpenDrafts DraftsOpen { get; set; }
+
     /// <summary>The steps back and forward through changes to the effects, and what takes them.</summary>
     [Parameter] public EditHistory History { get; set; }
     [Parameter] public Action Undo { get; set; }
@@ -329,7 +353,19 @@
     string _lookText;
 
     protected override int BuildHash() => HashCode.Combine( _lookText = Look?.Serialize(), _effect, _layer, _more, _keep, Locked, Selector?.EffectsBudget,
-        HashCode.Combine( string.Join( ",", _chosen ), History?.CanUndo, History?.CanRedo, _view, _creatorStart, _status ) );
+        HashCode.Combine( string.Join( ",", _chosen ), History?.CanUndo, History?.CanRedo, _view, _creatorStart, _status, DraftsOpen?.Revision, HashCode.Combine( _confirmDrop, _copied ) ) );
+
+    public override void Tick()
+    {
+        base.Tick();
+
+        // A draft opened from My effects takes up the layers it was left on
+        if ( Effect is { } effect && DraftsOpen?.States.Remove( effect.Id, out var state ) == true )
+            RestoreState( state );
+
+        if ( _view == View.Layers && Layer is not null && ContextMenu.KeyPressed() )
+            LayerMenu( _layer );
+    }
 
     protected override void OnParametersSet()
     {
@@ -631,6 +667,11 @@
     void MoveLayer( int index, int by, PanelEvent e )
     {
         e.StopPropagation();
+        Move( index, by );
+    }
+
+    void Move( int index, int by )
+    {
         var layers = Effect.Layers;
         var to = index + by;
         if ( to < 0 || to >= layers.Count )
@@ -644,6 +685,11 @@
     void DuplicateLayer( int index, PanelEvent e )
     {
         e.StopPropagation();
+        Duplicate( index );
+    }
+
+    void Duplicate( int index )
+    {
         if ( !CanAdd )
             return;
 
@@ -656,6 +702,11 @@
     void RemoveLayer( int index, PanelEvent e )
     {
         e.StopPropagation();
+        Remove( index );
+    }
+
+    void Remove( int index )
+    {
         Effect.Layers.RemoveAt( index );
         ChooseOnly( Math.Clamp( _layer, 0, Math.Max( 0, Effect.Layers.Count - 1 ) ) );
 
@@ -665,6 +716,150 @@
 
         Changed?.Invoke();
     }
+
+    // ----- Copy and paste, the layers' menu -----
+
+    // The layer copied, to paste into this or another effect
+    EffectLayer _copied;
+
+    void CopyLayer()
+    {
+        if ( Layer is not { } layer )
+            return;
+
+        _copied = JsonSerializer.Deserialize<EffectLayer>( JsonSerializer.Serialize( layer ) );
+        _status = $"Copied \"{NameOf( layer )}\". Paste it into this or another effect.";
+        StateHasChanged();
+    }
+
+    // A copy of the layer copied, after the selected one; its drawn shapes are the look's, as it came from this look
+    void PasteLayer()
+    {
+        if ( _copied is null || !CanAdd || Effect is not { } effect )
+            return;
+
+        var at = Math.Min( _layer + 1, effect.Layers.Count );
+        effect.Layers.Insert( at, JsonSerializer.Deserialize<EffectLayer>( JsonSerializer.Serialize( _copied ) ) );
+        ChooseOnly( at );
+        Changed?.Invoke();
+    }
+
+    // What can be done to a layer, from a right click or Shift+F10; each is a button here too
+    void LayerMenu( int index )
+    {
+        if ( Effect is not { } effect || index < 0 || index >= effect.Layers.Count )
+            return;
+
+        if ( !IsChosen( index ) )
+            ChooseOnly( index );
+
+        var layer = effect.Layers[ index ];
+        var full = $"An effect has up to {Effect.MaxLayers} layers and a look {Effect.MaxLookLayers}";
+        ContextMenu.OpenFrom( this, NameOf( layer ), new List<ContextMenu.Entry>
+        {
+            new( "Copy", "content_copy", CopyLayer, "Copy layer" ),
+            new( "Paste", "content_paste", PasteLayer, "Paste layer", _copied is not null && CanAdd, _copied is null ? "Copy a layer first" : full ),
+            new( "Duplicate", "library_add", () => Duplicate( index ), null, CanAdd, full ),
+            new( "Move up", "arrow_upward", () => Move( index, -1 ), null, index > 0, "It is the first layer" ),
+            new( "Move down", "arrow_downward", () => Move( index, 1 ), null, index < effect.Layers.Count - 1, "It is the last layer" ),
+            new( layer.Off ? "Switch on" : "Switch off", layer.Off ? "toggle_on" : "check", () => Set( () => layer.Off = !layer.Off ) ),
+            new( "Delete", "delete", () => Remove( index ) ),
+        } );
+    }
+
+    // ----- Drafts -----
+
+    // A full kind of drafts asking before its oldest is dropped
+    Draft _confirmDrop;
+
+    // The effect kept unfinished, with the layers chosen and More open or not: shown here, not worn until it is finished.
+    // Saved again, it stays the same draft
+    void SaveDraft( Effect effect, bool dropOldest )
+    {
+        _confirmDrop = null;
+        if ( DraftsOpen is null )
+            return;
+
+        if ( !DraftsOpen.KeepEffect( Look, effect, StateText(), dropOldest, out var dropped, out var full ) )
+        {
+            if ( full )
+                _confirmDrop = PlayerModels.Engine.Drafts.Oldest( Draft.Of.Effect );
+            else
+                _status = "This draft is too big to keep.";
+
+            StateHasChanged();
+            return;
+        }
+
+        _status = (dropped is null ? "" : $"\"{dropped.Name}\" was dropped. ") + $"Saved \"{effect.Name}\" as a draft: it shows in My effects with a pencil, and isn't worn until you finish it.";
+        StateHasChanged();
+    }
+
+    static string DropText( Draft oldest ) => $"Drafts are full ({Draft.MaxPerKind}). Drop the oldest, \"{oldest.Name}\" ({oldest.EditedText( PlayerModels.Engine.Drafts.Now )})?";
+
+    void CancelDrop()
+    {
+        _confirmDrop = null;
+        StateHasChanged();
+    }
+
+    // Finished: kept in My effects, no longer a draft, and worn on Apply
+    void FinishDraft( Effect effect )
+    {
+        if ( !LocalPrefs.SaveMyEffect( Look.Standalone( effect ) ) )
+        {
+            _status = $"My effects is full ({LocalPrefs.MaxMyEffects}). Delete one first.";
+            StateHasChanged();
+            return;
+        }
+
+        if ( DraftsOpen.Effects.Remove( effect.Id, out var draft ) )
+            PlayerModels.Engine.Drafts.Delete( Draft.Of.Effect, draft );
+
+        DraftsOpen.Changed();
+        _status = $"Finished: \"{effect.Name}\" is in My effects. Apply wears it.";
+        Changed?.Invoke();
+    }
+
+    // How the layers were left: the selected one, the others chosen with it, More open or not
+    string StateText() => JsonSerializer.Serialize( new Dictionary<string, string>
+    {
+        ["layer"] = _layer.ToString(), ["chosen"] = string.Join( ",", _chosen ), ["more"] = _more.ToString(),
+    } );
+
+    void RestoreState( string state )
+    {
+        Dictionary<string, string> values;
+        try
+        {
+            values = string.IsNullOrEmpty( state ) ? null : JsonSerializer.Deserialize<Dictionary<string, string>>( state );
+        }
+        catch ( JsonException )
+        {
+            return;
+        }
+
+        if ( values is null )
+            return;
+
+        ChooseOnly( int.TryParse( values.GetValueOrDefault( "layer" ), out var layer ) ? layer : 0 );
+        foreach ( var chosen in (values.GetValueOrDefault( "chosen" ) ?? "").Split( ',', StringSplitOptions.RemoveEmptyEntries ) )
+        {
+            if ( int.TryParse( chosen, out var index ) )
+                _chosen.Add( index );
+        }
+
+        _more = values.GetValueOrDefault( "more" ) == bool.TrueString;
+        StateHasChanged();
+    }
+
+    /// <summary>Whether the shape creator, if open, has a shape with changes not kept.</summary>
+    public bool CreatorHasChanges => _view == View.Creator && _creator?.HasChanges == true;
+
+    /// <summary>Keeps the shape creator's shape as a draft (the Advanced editor closing); false when it couldn't be.</summary>
+    public bool KeepCreatorDraft() => _creator?.KeepAsDraft() == true;
+
+    ShapeCreator _creator;
 
     // A new layer that shows at once, to change from there
     void AddLayer( LayerKind kind )

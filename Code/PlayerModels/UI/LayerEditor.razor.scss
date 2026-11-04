@@ -100,6 +100,26 @@ LayerEditor
 		text-transform: none;
 	}
 
+	// an effect that is a draft: its pencil, what that means, and Finish
+	.draft-note
+	{
+		gap: 6px;
+
+		> .badge
+		{
+			font-family: "Material Icons";
+			font-size: 16px;
+			text-transform: none;
+			color: $ui-blue;
+		}
+
+		> .note
+		{
+			flex-grow: 1;
+			flex-shrink: 1;
+		}
+	}
+
 	// a layer: on or off, its name, and what can be done to it; the selected one is the one its settings change
 	.layer
 	{

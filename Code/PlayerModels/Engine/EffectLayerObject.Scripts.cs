@@ -11,7 +11,8 @@ namespace PlayerModels.Engine;
 // rhythm's script shades, turns or wobbles the layer, a layer that keeps its sprites out holds each at its place, the
 // layer's own particle function (its effect's script) moves and colours each, sprites lie as the layer aligns them, and
 // no sprite is ever drawn bigger than MaxDrawnSize, whatever a script asks. Also what its effect's script changes while
-// it runs, and the sprites the script emits. All without allocating.
+// it runs, and the sprites the script emits; a layer with several pictures puts each sprite on its picture's renderer
+// (see EffectPictures). All without allocating.
 internal sealed partial class EffectLayerObject
 {
 	/// <summary>
@@ -269,6 +270,7 @@ internal sealed partial class EffectLayerObject
 		var runs = _hasParticleFunction && _run is not null;
 		var count = particles.Count;
 		var alignment = AlignmentOf( place );
+		var pictures = _pictures?.Count ?? 0;
 		for ( var i = 0; i < count; i++ )
 		{
 			var p = particles[ i ];
@@ -296,9 +298,10 @@ internal sealed partial class EffectLayerObject
 
 			var offset = Vector3.Zero;
 			var rotation = p.Angles.roll;
+			var frame = -1;
 			if ( runs && _run.CanRun )
 				RunParticle( p, index, count, life, kept ? new Vector3( _keepPlaces[ index * 3 ], _keepPlaces[ index * 3 + 1 ], _keepPlaces[ index * 3 + 2 ] ) : p.HitNormal,
-					place, ref position, ref offset, ref rotation );
+					place, ref position, ref offset, ref rotation, ref frame );
 
 			if ( alignment is { } aligned )
 				p.Angles = ((_align == LayerAlign.Outward ? Outward( position - place.Position, place ) : aligned) * Rotation.FromRoll( rotation )).Angles();
@@ -309,12 +312,23 @@ internal sealed partial class EffectLayerObject
 			var moved = place.Rotation * offset * place.Scale.x;
 			p.Position = position + moved;
 			p.HitPos = moved;
+			if ( pictures == 0 )
+				continue;
+
+			// Which picture it shows: as its particle function picks, else each in turn
+			if ( frame < 0 )
+				frame = index % pictures;
+
+			_pictures.Put( p, frame );
 		}
+
+		if ( pictures > 0 )
+			_pictures.Finish( Distance );
 	}
 
 	// One sprite through its layer's particle function: its colour, solidity, size, turn, offset and place as it left them
 	private void RunParticle( Particle p, int index, int count, float life, Vector3 origin, Transform place, ref Vector3 position, ref Vector3 offset,
-		ref float rotation )
+		ref float rotation, ref int frame )
 	{
 		var io = _run.IO;
 		io.Set( ScriptInput.Index, index );
@@ -347,6 +361,9 @@ internal sealed partial class EffectLayerObject
 
 		if ( (set & ScriptIO.RotationSet) != 0 )
 			rotation = (float)outputs[ (int)ScriptOutput.Rotation ];
+
+		if ( (set & ScriptIO.FrameSet) != 0 )
+			frame = (int)Math.Clamp( Math.Floor( outputs[ (int)ScriptOutput.Frame ] ), 0, EffectLayer.MaxPictures - 1 );
 
 		if ( (set & ScriptIO.OffsetSet) != 0 )
 			offset = new Vector3( (float)outputs[ (int)ScriptOutput.OffsetX ], (float)outputs[ (int)ScriptOutput.OffsetY ], (float)outputs[ (int)ScriptOutput.OffsetZ ] );

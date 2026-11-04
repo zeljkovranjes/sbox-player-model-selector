@@ -2540,7 +2540,7 @@ end
 
 #### `Particle.Frame: number  (0 to 15)`
 
-Which of its layer's Pictures it shows now, from 0, a fraction rounded down (they take them in turn unless this picks).
+Which of its layer's Pictures it shows now, from 0, a fraction rounded down, past the last showing the last (they take them in turn unless this picks).
 
 Set: while it runs (in its functions).
 

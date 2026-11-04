@@ -699,7 +699,30 @@ internal sealed partial class EffectLayerObject
 		_renderer.CameraFadeNear = NearCameraShown ? 0f : NearFadeGone;
 		_renderer.CameraFadeFar = NearCameraShown ? 0f : NearFadeFull;
 		_renderer.Scale = 1f;
-		_renderer.Enabled = true;
+		ConfigurePictures( data, shapes );
+	}
+
+	// The pictures its sprites take one each, when it has several (see EffectPictures)
+	private EffectPictures _pictures;
+
+	private void ConfigurePictures( EffectLayer data, IReadOnlyList<DrawnShape> shapes )
+	{
+		_pictures ??= new EffectPictures( Root );
+		_pictures.Configure( data.Pictures, null, shapes, _renderer, _most );
+		_renderer.Enabled = _pictures.Count == 0;
+	}
+
+	/// <summary>
+	/// Counts the drawn shapes its sprites look like as showing <paramref name="distance"/> from the camera (see
+	/// <see cref="ShapeTextures.Count"/>), its pictures' too. A few times a second: no allocations.
+	/// </summary>
+	internal void CountDrawn( float distance )
+	{
+		Distance = distance;
+		if ( DrawnContent is { } content )
+			ShapeTextures.Count( content, distance );
+
+		_pictures?.CountDrawn( distance );
 	}
 
 	private void ConfigureTrail( Effect effect, EffectLayer data, Color colour, Color colourEnd, float motion )

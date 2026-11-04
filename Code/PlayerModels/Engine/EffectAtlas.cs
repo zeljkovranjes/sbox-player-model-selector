@@ -42,12 +42,17 @@ internal static class EffectAtlas
 	/// The texture of the picture or standard shape named <paramref name="name"/> (a sticker's); a star for a name that is
 	/// neither.
 	/// </summary>
-	internal static Texture TextureOf( string name )
+	internal static Texture TextureOf( string name ) => SlotNamed( name ).Texture;
+
+	/// <summary>The sprite of the picture or standard shape named <paramref name="name"/> (one of a layer's pictures); a star for a name that is neither.</summary>
+	internal static Sprite SpriteOf( string name ) => SlotNamed( name ).Sprite;
+
+	private static Slot SlotNamed( string name )
 	{
 		if ( Enum.TryParse<LayerPicture>( name, out var picture ) && Enum.IsDefined( picture ) )
-			return SlotOf( null, picture ).Texture;
+			return SlotOf( null, picture );
 
-		return SlotOf( Enum.TryParse<StandardShape>( name, out var shape ) && Enum.IsDefined( shape ) ? shape : StandardShape.Star5, null ).Texture;
+		return SlotOf( Enum.TryParse<StandardShape>( name, out var shape ) && Enum.IsDefined( shape ) ? shape : StandardShape.Star5, null );
 	}
 
 	// A slash's reach and thickness are drawn in steps this fine, so its pictures stay few however a layer sets them

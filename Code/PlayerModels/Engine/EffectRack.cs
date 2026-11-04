@@ -330,11 +330,7 @@ internal sealed partial class EffectRack
 	internal void CountShapes( float distance )
 	{
 		foreach ( var layer in _layers )
-		{
-			layer.Distance = distance;
-			if ( layer.DrawnContent is { } content )
-				ShapeTextures.Count( content, distance );
-		}
+			layer.CountDrawn( distance );
 
 		for ( var i = 0; i < Stickers.Count; i++ )
 			ShapeTextures.Count( Stickers[ i ].Content, distance );

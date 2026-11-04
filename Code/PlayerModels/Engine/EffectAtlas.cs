@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using PlayerModels.Core;
 using Sandbox;
@@ -36,6 +37,18 @@ internal static class EffectAtlas
 
 	/// <inheritdoc cref="SpriteOf(StandardShape)"/>
 	internal static Texture TextureOf( StandardShape shape ) => SlotOf( shape, null ).Texture;
+
+	/// <summary>
+	/// The texture of the picture or standard shape named <paramref name="name"/> (a sticker's); a star for a name that is
+	/// neither.
+	/// </summary>
+	internal static Texture TextureOf( string name )
+	{
+		if ( Enum.TryParse<LayerPicture>( name, out var picture ) && Enum.IsDefined( picture ) )
+			return SlotOf( null, picture ).Texture;
+
+		return SlotOf( Enum.TryParse<StandardShape>( name, out var shape ) && Enum.IsDefined( shape ) ? shape : StandardShape.Star5, null ).Texture;
+	}
 
 	private static Slot SlotOf( EffectLayer layer ) => SlotOf( layer.PictureShape, layer.PictureIs );
 

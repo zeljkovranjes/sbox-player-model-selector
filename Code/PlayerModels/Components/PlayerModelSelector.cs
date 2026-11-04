@@ -142,7 +142,7 @@ public sealed partial class PlayerModelSelector : Component
 		var text = LookTextOf( id );
 		var isHost = (connection ?? Connection.Local)?.IsHost ?? true;
 		var rules = isHost ? 0 : HashCode.Combine( 1 | (BlockBodyGroups ? 2 : 0) | (BlockAccessories ? 4 : 0) | (BlockCloudModels ? 8 : 0) | (BlockEffects ? 16 : 0),
-			EffectsRulesFor( connection ?? Connection.Local ) );
+			EffectsRulesFor( connection ?? Connection.Local ), WeaponRules );
 		var effects = ViewedBudget( connection );
 
 		_shownLooks ??= new();
@@ -191,7 +191,10 @@ public sealed partial class PlayerModelSelector : Component
 				shown = BlockAccessories ? shown.WithoutAccessories() : BlockCloudModels ? shown.WithoutWorkshopItems() : shown;
 		}
 
-		if ( shown.Effects.Count == 0 )
+		if ( shown.Weapons.Count > 0 )
+			shown = WeaponsAllowed( shown, isHost, connection );
+
+		if ( shown.Effects.Count == 0 && !shown.Weapons.Exists( x => x.Effects is not null ) )
 			return shown;
 
 		if ( !isHost && BlockEffects )
@@ -354,6 +357,7 @@ public sealed partial class PlayerModelSelector : Component
 		};
 
 		EffectsRulesInto( rules );
+		WeaponRulesInto( rules );
 		return rules;
 	}
 
@@ -379,6 +383,7 @@ public sealed partial class PlayerModelSelector : Component
 		BlockArmature = !rules.AllowArmature;
 		BlockAccessories = !rules.AllowAccessories;
 		UseEffectsRules( rules );
+		UseWeaponRules( rules );
 		DownloadLimit = Math.Clamp( rules.DownloadLimit, 1, ServerRules.MaxDownloadLimit );
 		DownloadMinutes = Math.Clamp( rules.DownloadMinutes, 1, ServerRules.MaxDownloadMinutes );
 
@@ -521,7 +526,8 @@ public sealed partial class PlayerModelSelector : Component
 		var saved = LocalPrefs.Pick;
 		if ( !string.IsNullOrEmpty( saved ) && Offers( saved ) && PickOf( Connection.Local ) != saved )
 			Pick( saved );
-		else if ( string.IsNullOrEmpty( saved ) && LocalPrefs.LookFor( "" ).Effects.Count > 0 && LookOf( Connection.Local ).Effects.Count == 0 )
+		else if ( string.IsNullOrEmpty( saved ) && LocalPrefs.LookFor( "" ) is { } citizen && (citizen.Effects.Count > 0 || citizen.Weapons.Count > 0)
+			&& LookOf( Connection.Local ) is { Effects.Count: 0, Weapons.Count: 0 } )
 			Pick( "" );
 	}
 }

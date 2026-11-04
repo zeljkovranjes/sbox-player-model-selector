@@ -66,10 +66,11 @@ public sealed partial class PlayerModelSelector
 		if ( BlockArmature && !fromHost )
 			look = WithoutBones( look );
 
-		// The citizen has nothing to customise but its effects: those it keeps, and nothing else is kept with it
+		// The citizen has nothing to customise but its effects and weapon designs: those it keeps, and nothing else is kept
+		// with it
 		if ( look.IsDefault )
 		{
-			if ( look.Effects.Count > 0 )
+			if ( look.Effects.Count > 0 || look.Weapons.Count > 0 )
 				Picks[ id ] = look.EffectsAlone().Serialize();
 			else
 				Picks.Remove( id );

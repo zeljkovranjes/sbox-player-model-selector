@@ -59,6 +59,7 @@ public sealed class ModelBody : Component
 	private LookPainter _painter;
 	private AccessoryRack _accessories;
 	private EffectRack _effects;
+	private WeaponDresser _weapons;
 
 	/// <summary>
 	/// Puts <paramref name="model"/> on <paramref name="source"/>'s body, in the scene that is active now, dressed in
@@ -120,7 +121,17 @@ public sealed class ModelBody : Component
 
 		_effects ??= new EffectRack();
 		_effects.Apply( look.Effects, look.Accessories, look.DrawnShapes, GameObject, _transfer, Source, _renderer.Model, keyShown, wearer );
+
+		_weapons ??= new WeaponDresser();
+		_weapons.Apply( look.Weapons, look.DrawnShapes );
+		_weapons.Dress( _held.Holding, _effects );
 	}
+
+	/// <summary>Dresses the weapon held as its design says; null before its look is first put on.</summary>
+	internal WeaponDresser Weapons => _weapons;
+
+	/// <summary>What the citizen holds, moved into the model's hand.</summary>
+	internal HeldItems Held => _held;
 
 	/// <summary>
 	/// The body shown on this citizen renderer, if any. Any other body found under it is taken off: a citizen shows one
@@ -171,6 +182,7 @@ public sealed class ModelBody : Component
 				FindOwnRenderers();
 				HideSource();
 				FindHeldItems();
+				_weapons?.Dress( _held.Holding, _effects );
 			}
 
 			Pose();
@@ -219,6 +231,7 @@ public sealed class ModelBody : Component
 		_held.Place( Source, _renderer, _transfer );
 		_accessories?.Place( Source, _renderer, _transfer );
 		_effects?.Place( Source, _renderer, _transfer, _accessories, _held );
+		_weapons?.Animate();
 	}
 
 	/// <summary>
@@ -228,6 +241,7 @@ public sealed class ModelBody : Component
 	internal void TakeOff()
 	{
 		_cancel?.Cancel();
+		_weapons?.Release();
 		_held?.Release();
 		_effects?.Release();
 		ShowSource();
@@ -240,6 +254,7 @@ public sealed class ModelBody : Component
 	protected override void OnDestroy()
 	{
 		_cancel?.Cancel();
+		_weapons?.Release();
 		_held?.Release();
 		ShowSource();
 	}

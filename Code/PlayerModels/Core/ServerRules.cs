@@ -41,6 +41,15 @@ public sealed class ServerRules
 	/// <summary>Whether shapes players drew show; off, only the standard shapes do.</summary>
 	public bool AllowDrawnShapes { get; set; } = true;
 
+	/// <summary>Whether the designs players other than the host gave their weapons show.</summary>
+	public bool AllowWeaponDesigns { get; set; } = true;
+
+	/// <summary>Whether those designs' props show.</summary>
+	public bool AllowWeaponProps { get; set; } = true;
+
+	/// <summary>Whether those designs' effects show.</summary>
+	public bool AllowWeaponEffects { get; set; } = true;
+
 	/// <summary>Players (by Steam id) whose effects nobody sees here.</summary>
 	public List<long> MutedEffects { get; set; } = new();
 

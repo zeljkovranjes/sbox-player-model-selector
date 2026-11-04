@@ -29,6 +29,7 @@ public sealed class CitizenEffects : Component
 
 	private EffectRack _effects;
 	private HeldItems _held;
+	private WeaponDresser _weapons;
 	private TimeSince _sinceFound;
 	private TimeSince _sincePlaced;
 
@@ -73,12 +74,16 @@ public sealed class CitizenEffects : Component
 		_effects ??= new EffectRack();
 		_held ??= new HeldItems();
 		_effects.Apply( look?.Effects, null, look?.DrawnShapes, GameObject, null, Source, Source.Model, keyShown, wearer );
+		_weapons ??= new WeaponDresser();
+		_weapons.Apply( look?.Weapons, look?.DrawnShapes );
+		_weapons.Dress( _held.Holding, _effects );
 		ShownLook = look;
 	}
 
 	/// <summary>Takes the effects off now, giving their objects back to the scene.</summary>
 	internal void TakeOff()
 	{
+		_weapons?.Release();
 		_effects?.Release();
 		GameObject.Enabled = false;
 		GameObject.Destroy();
@@ -97,9 +102,11 @@ public sealed class CitizenEffects : Component
 		{
 			_sinceFound = 0;
 			_held?.Find( Source, null, GameObject );
+			_weapons?.Dress( _held?.Holding, _effects );
 		}
 
 		_effects?.Place( Source, Source, null, null, _held );
+		_weapons?.Animate();
 	}
 
 	// Bodies far from the camera or out of view are placed less often (see PoseSchedule)
@@ -115,6 +122,7 @@ public sealed class CitizenEffects : Component
 
 	protected override void OnDestroy()
 	{
+		_weapons?.Release();
 		_effects?.Release();
 	}
 }

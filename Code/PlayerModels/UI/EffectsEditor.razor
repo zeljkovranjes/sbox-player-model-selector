@@ -95,7 +95,8 @@
                 @for ( var i = 0; i < colours.Count; i++ )
                 {
                     var index = i;
-                    <ColorRow Label=@ColourLabel( mode, index ) Hex=@colours[ index ] OnChanged=@(( string hex ) => SetCycleColour( selected, index, hex ))></ColorRow>
+                    <ColorRow Label=@ColourLabel( mode, index ) Hex=@colours[ index ] OnChanged=@(( string hex ) => SetCycleColour( selected, index, hex ))
+                              ResetLabel=@( mode == LayerColorMode.Cyln ? "Reset" : "Remove" ) CanReset=@( mode == LayerColorMode.Cyln || colours.Count > 1 )></ColorRow>
                 }
                 <div class="row">
                     @if ( mode != LayerColorMode.Cyln )
@@ -253,6 +254,7 @@
     {
         LayerColorMode.Rain => "Rain",
         LayerColorMode.Cycl => "Cycle",
+        LayerColorMode.Mix => "Mixed",
         _ => "Scanner",
     };
 
@@ -268,7 +270,7 @@
         StateHasChanged();
     }
 
-    // A colour set; reset takes it out of the cycle (the scanner's goes back to the game's)
+    // A colour set; Remove takes it out of the cycle (at least one stays), the scanner's Reset puts the game's back
     void SetCycleColour( Effect effect, int index, string hex )
     {
         var cycle = CycleOf( effect );

@@ -48,13 +48,20 @@
         @if ( Look.Effects.Count > 0 )
         {
             <div class="section-header">Wearing</div>
-            @foreach ( var worn in Look.Effects )
+            var held = Budget.HeldBack( Look.Effects );
+            @for ( var i = 0; i < Look.Effects.Count; i++ )
             {
-                var effect = worn;
-                <div class="row worn @( effect.Id == _selected ? "selected" : "" )" @onclick=@(() => Select( effect ))>
+                var effect = Look.Effects[ i ];
+                var waiting = held[ i ].Count( x => x );
+                <div class="row worn @( effect.Id == _selected ? "selected" : "" ) @( waiting > 0 ? "over" : "" )"
+                     Tooltip=@WaitingText( effect, waiting ) @onclick=@(() => Select( effect ))>
                     <div class="switch @( effect.Off ? "" : "on" )" Tooltip=@( effect.Off ? "Turn on" : "Turn off" )
                          @onclick=@(( PanelEvent e ) => Toggle( effect, e ))>check</div>
                     <div class="worn-name">@effect.Name</div>
+                    @if ( waiting > 0 )
+                    {
+                        <div class="over-note">Over this server's budget</div>
+                    }
                     <div class="icon-button" Tooltip="Remove" @onclick=@(( PanelEvent e ) => Remove( effect, e ))>delete</div>
                 </div>
             }
@@ -288,18 +295,27 @@
         UseCycleColours( effect, colours );
     }
 
+    // The budget every player's effects show within on this server: what the preview shows, and what others see
+    static EffectBudget Budget => Selector?.EffectsBudget ?? EffectBudget.Normal;
+
+    // Why an effect worn doesn't show whole, for its row
+    static string WaitingText( Effect effect, int waiting ) => waiting == 0 ? null
+        : waiting == effect.LayersOn()
+            ? "Over this server's budget: it doesn't show until effects before it are removed or switched off."
+            : $"Over this server's budget: {waiting} of its layers don't show until effects before it are removed or switched off.";
+
     // How much of the server's budget what is worn takes, and what happens past it
     string BudgetText()
     {
-        var budget = Selector?.EffectsBudget ?? EffectBudget.Normal;
+        var budget = Budget;
         var shown = Look.Effects.Where( x => !x.Off ).ToList();
-        var layers = shown.Sum( x => x.Layers.Count );
+        var layers = shown.Sum( x => x.LayersOn() );
         var lights = shown.Sum( x => x.Lights() );
         var used = $"Your effects use {layers} of the {budget.Layers} layers and {lights} of the {budget.Lights} lights this server allows each player.";
 
         return budget.Fits( Look.Effects )
             ? used
-            : $"{used} Past that, the last layers and lights wait and the sprites thin out until you remove some.";
+            : $"{used} Past that, the last layers and lights wait (marked over budget) and the sprites thin out until you remove some. The preview shows what others see.";
     }
 
     static List<UIDropdown.Item> Qualities() => new()

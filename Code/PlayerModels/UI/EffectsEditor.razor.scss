@@ -164,6 +164,19 @@ EffectsEditor
 		}
 	}
 
+	// an effect the budget holds back, all or part of it: its name faint (its check mark still says on or off), and saying so
+	.worn.over .worn-name
+	{
+		opacity: 0.5;
+	}
+
+	.over-note
+	{
+		flex-shrink: 0;
+		font-size: 11px;
+		color: $ui-danger;
+	}
+
 	.worn-name
 	{
 		@include ui-label;

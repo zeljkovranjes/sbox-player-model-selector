@@ -417,6 +417,7 @@ for everyone.
 | Kept sprites | 100 per layer |
 | Beam points | 64 per beam |
 | Ghosts | 30 a second, 8 out at once, per layer |
+| Pictures | 16 per layer |
 | Shape points | 500 per shape |
 | Emblem layers | 32 |
 | Palette | 32 colours |
@@ -2158,6 +2159,18 @@ glow.Align = Align.Ground
 local value = glow.Align --> Align.Ground
 ```
 
+#### `Layer.Pictures: {Picture}`
+
+The pictures its sprites take, one each (at most 16): in turn as they appear, or as its particle function picks with p.Frame. Pictures or shapes; LooksLike when there are none.
+
+Set: while the effect is built (at the top of the script).
+
+```lua effect
+local glow = Sprite()
+glow.Pictures = { Picture.Heart, Shapes.Star5 }
+local value = glow.Pictures --> { Picture.Heart, Shapes.Star5 }
+```
+
 #### `Layer.Particle: (Particle) -> nothing`
 
 The function run for each of its sprites (a beam's points) each frame: function layer.Particle( p ) ... end.
@@ -2321,6 +2334,19 @@ Set: while it runs (in its functions).
 local glow = Sprite()
 function glow.Particle( p )
 	p.Offset = Vector3( 0, 0, Math.Sin( t ) )
+end
+```
+
+#### `Particle.Frame: number  (0 to 15)`
+
+Which of its layer's Pictures it shows now, from 0 (they take them in turn unless this picks).
+
+Set: while it runs (in its functions).
+
+```lua effect
+local glow = Sprite()
+function glow.Particle( p )
+	p.Frame = Math.Floor( p.Seed * 4 + t * 2 ) % 4
 end
 ```
 

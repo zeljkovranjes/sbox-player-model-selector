@@ -82,4 +82,48 @@ public class LayerFieldTests
 		Assert.Equal( (LayerKind.Ghost, rate), (layer.KindIs, layer.Amount) );
 		Assert.Equal( sprites, layer.LiveSprites(), 3 );
 	}
+
+	[Fact]
+	public void EachSpriteTakesOneOfItsLayersPictures()
+	{
+		var effect = ScriptKit.BuildEffect( "local rain = Sprite()\nrain.Pictures = { Picture.Spark, Shapes.Heart, Shapes.Text( \"0\" ), Shapes.Text( \"1\" ) }" );
+		var pictures = effect.Layers[ 0 ].Pictures;
+		Assert.Equal( new[] { "Spark", "Heart" }, pictures.GetRange( 0, 2 ) );
+		Assert.Equal( 2, effect.Shapes.Count );
+		Assert.Equal( new[] { effect.Shapes[ 0 ].Reference, effect.Shapes[ 1 ].Reference }, pictures.GetRange( 2, 2 ) );
+		Assert.Equal( new[] { effect.Shapes[ 0 ].Id, effect.Shapes[ 1 ].Id }, effect.Layers[ 0 ].DrawnShapeIds() );
+		ScriptKit.SameEffect( effect, ScriptKit.BuildEffect( ScriptCodegen.Effect( effect ) ) );
+	}
+
+	[Fact]
+	public void PicturesAreHeldToTheirCapAndToPicturesThisVersionKnows()
+	{
+		var many = string.Join( ", ", System.Linq.Enumerable.Repeat( "Picture.Spark", 17 ) );
+		var build = new ScriptMachine( ScriptKit.Compile( $"local rain = Sprite()\nrain.Pictures = {{ {many} }}" ) ).Build();
+		Assert.Contains( "at most 16 pictures", build.Error.Message );
+		Assert.Equal( EffectLayer.MaxPictures, new EffectLayer { Pictures = new( System.Linq.Enumerable.Repeat( "Spark", 40 ) ) }.Sanitized().Pictures.Count );
+		Assert.Null( new EffectLayer { Pictures = new() { "Spark", "Banana" } }.Sanitized() );
+		Assert.Null( new EffectLayer { Pictures = new() { "@0123456789abcdef" } }.Sanitized() );
+	}
+
+	[Fact]
+	public void ALookCarriesTheShapesALayersPicturesName()
+	{
+		var effect = ScriptKit.BuildEffect( "local rain = Sprite()\nrain.Pictures = { Shapes.Text( \"0\" ), Shapes.Text( \"1\" ) }" );
+		var look = new PlayerLook { Effects = new() { effect }, DrawnShapes = new( effect.Shapes ) };
+		Assert.Equal( 2, look.Standalone( effect ).Shapes.Count );
+		var plain = look.WithEffectsAllowed( workshop: true, drawnShapes: false, blocked: _ => false );
+		Assert.Null( plain.Effects[ 0 ].Layers[ 0 ].Pictures );
+		Assert.Empty( plain.DrawnShapes );
+	}
+
+	[Fact]
+	public void AParticleFunctionPicksItsFrame()
+	{
+		var (machine, _) = ScriptKit.Build( "local rain = Sprite()\nrain.Pictures = { Picture.Spark, Picture.Heart }\nfunction rain.Particle( p )\n\tp.Frame = p.Frame + 99\nend" );
+		var io = ExampleRunner.Inputs();
+		io.Outputs[ (int)ScriptOutput.Frame ] = 1;
+		Assert.True( machine.RunParticle( 0, io ) );
+		Assert.Equal( (EffectLayer.MaxPictures - 1, ScriptIO.FrameSet), (io.Get( ScriptOutput.Frame ), io.OutputsSet) );
+	}
 }

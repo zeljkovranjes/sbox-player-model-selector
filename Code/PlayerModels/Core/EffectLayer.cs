@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace PlayerModels.Core;
@@ -123,6 +124,9 @@ public sealed class EffectLayer
 	public const float MaxGhostRate = 30f;
 	public const float MaxGhosts = 8f;
 	public const float GhostSprites = 10f;
+
+	/// <summary>The most pictures a layer's sprites take one each of (see <see cref="Pictures"/>).</summary>
+	public const int MaxPictures = 16;
 
 	private const string White = "#ffffff";
 
@@ -284,6 +288,24 @@ public sealed class EffectLayer
 	[JsonIgnore]
 	public LayerAlign AlignIs => Parsed( Align, LayerAlign.Camera );
 
+	/// <summary>
+	/// The pictures its sprites take, one each (in turn as they appear, unless its particle function picks): each a
+	/// <see cref="LayerPicture"/> or <see cref="StandardShape"/> by name, or a drawn shape the look carries; null for every
+	/// sprite looking like <see cref="Picture"/>.
+	/// </summary>
+	[JsonPropertyName( "ps" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public List<string> Pictures { get; set; }
+
+	/// <summary>The ids of the drawn shapes it names: as its formation, its picture or one of its pictures.</summary>
+	public IEnumerable<string> DrawnShapeIds()
+	{
+		foreach ( var name in Pictures is null ? new[] { Formation, Picture } : new[] { Formation, Picture }.Concat( Pictures ) )
+		{
+			if ( DrawnShape.IsReference( name ) )
+				yield return name[ 1.. ];
+		}
+	}
+
 	/// <summary>What the layer is; only right on a layer within bounds (see <see cref="Sanitized"/>).</summary>
 	[JsonIgnore]
 	public LayerKind KindIs => Parsed( Kind, LayerKind.Sprite );
@@ -381,6 +403,9 @@ public sealed class EffectLayer
 			|| When is not null && !Known<LayerWhen>( When ) || Align is not null && !Known<LayerAlign>( Align ) )
 			return null;
 
+		if ( !TryPictures( drawn, out var pictures ) )
+			return null;
+
 		var palette = new List<string>();
 		foreach ( var colourInPalette in Palette ?? new() )
 		{
@@ -437,7 +462,31 @@ public sealed class EffectLayer
 				_ => 0f,
 			},
 			Align = Align == nameof( LayerAlign.Camera ) ? null : Align,
+			Pictures = pictures,
 		};
+	}
+
+	// Its pictures as the look names them (at most MaxPictures; none for none); false when one isn't a picture it can show
+	private bool TryPictures( Func<string, string> drawn, out List<string> pictures )
+	{
+		pictures = null;
+		if ( Pictures is not { Count: > 0 } )
+			return true;
+
+		pictures = new List<string>();
+		foreach ( var name in Pictures )
+		{
+			if ( pictures.Count >= MaxPictures )
+				break;
+
+			var resolved = DrawnShape.IsReference( name ) ? drawn?.Invoke( name ) : name;
+			if ( resolved is null || !Known<LayerPicture>( resolved ) && !Known<StandardShape>( resolved ) && !DrawnShape.IsReference( resolved ) )
+				return false;
+
+			pictures.Add( resolved );
+		}
+
+		return true;
 	}
 
 	private static bool Known<TEnum>( string name ) where TEnum : struct, Enum

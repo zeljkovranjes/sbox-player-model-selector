@@ -20,6 +20,7 @@ public static class ScriptProperties
 {
 	private static readonly ScriptType Particle = ScriptType.FunctionOf( new[] { ScriptType.Particle }, ScriptType.Void );
 	private static readonly ScriptType Colors = ScriptType.ListOf( ScriptType.Color );
+	private static readonly ScriptType Pictures = ScriptType.ListOf( ScriptType.Picture );
 
 	public static readonly IReadOnlyList<ScriptProperty> All = new ScriptProperty[]
 	{
@@ -56,6 +57,7 @@ public static class ScriptProperties
 		new( PropertyId.LayerFadeWithSpeed, TypeKind.Layer, "FadeWithSpeed", ScriptType.Bool, "Whether it shows only as much as its place moves (none standing still).", ExampleValue: "true", ExampleResult: "true" ),
 		new( PropertyId.LayerKeep, TypeKind.Layer, "Keep", ScriptType.Number, "How many sprites it keeps out all the time (at most 100), each with its own p.Index from 0, spread evenly along where they come from in that order and never fading with age (their Life loops every Lifetime): a formation its particle function moves, like runes in a ring or orbs following. 0: sprites come and go by Amount and Lifetime. For a beam, the points it is drawn through.", 0, EffectLayer.MaxKeep, ExampleValue: "12", ExampleResult: "12" ),
 		new( PropertyId.LayerAlign, TypeKind.Layer, "Align", ScriptEnums.Align.Type, "Which way its sprites face: the camera (most do); the plane of a swing (a slash lies along the sword's sweep); flat on the ground, turned the way the body faces (footprints); the way the layer faces (Facing: a portal's disc); or out from its place, like tiles on a ball. p.Rotation turns them within that plane.", ExampleValue: "Align.Ground", ExampleResult: "Align.Ground" ),
+		new( PropertyId.LayerPictures, TypeKind.Layer, "Pictures", Pictures, "The pictures its sprites take, one each (at most 16): in turn as they appear, or as its particle function picks with p.Frame. Pictures or shapes; LooksLike when there are none.", ExampleValue: "{ Picture.Heart, Shapes.Star5 }", ExampleResult: "{ Picture.Heart, Shapes.Star5 }" ),
 		new( PropertyId.LayerParticle, TypeKind.Layer, "Particle", Particle, "The function run for each of its sprites (a beam's points) each frame: function layer.Particle( p ) ... end." ),
 
 		new( PropertyId.EffectName, TypeKind.Effect, "Name", ScriptType.String, "What the effect is called.", ExampleValue: "\"Sparks\"", ExampleResult: "\"Sparks\"" ),

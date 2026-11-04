@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace PlayerModels.Core.Script;
@@ -34,7 +35,7 @@ public static class ScriptCodegen
 		var drawn = new Dictionary<string, string>();
 		foreach ( var layer in effect.Layers )
 		{
-			foreach ( var reference in new[] { layer.Formation, layer.Picture } )
+			foreach ( var reference in layer.Pictures is null ? new[] { layer.Formation, layer.Picture } : new[] { layer.Formation, layer.Picture }.Concat( layer.Pictures ) )
 			{
 				if ( !DrawnShape.IsReference( reference ) || drawn.ContainsKey( reference ) || Find( reference, effect.Shapes, shapes ) is not { } shape )
 					continue;

@@ -17,11 +17,11 @@ public enum ScriptInput
 
 /// <summary>
 /// The value slots an element run writes: its colour (r, g, b, a), alpha, size, rotation, offset (x, y, z) and, for a
-/// particle, its place in the world (x, y, z).
+/// particle, its place in the world (x, y, z) and which of its layer's pictures it shows.
 /// </summary>
 public enum ScriptOutput
 {
-	ColorR, ColorG, ColorB, ColorA, Alpha, Size, Rotation, OffsetX, OffsetY, OffsetZ, PositionX, PositionY, PositionZ,
+	ColorR, ColorG, ColorB, ColorA, Alpha, Size, Rotation, OffsetX, OffsetY, OffsetZ, PositionX, PositionY, PositionZ, Frame,
 	Total,
 }
 
@@ -37,13 +37,13 @@ public enum ScriptEvent
 /// What the host and a script exchange for one run, filled by the host and read back after: <see cref="Inputs"/> (see
 /// <see cref="ScriptInput"/>), and <see cref="Outputs"/> (see <see cref="ScriptOutput"/>) with a bit in
 /// <see cref="OutputsSet"/> for each output the script wrote (bit 0 colour, 1 alpha, 2 size, 3 rotation, 4 offset,
-/// 5 position).
+/// 5 position, 6 frame).
 /// Outputs start as the host's own values, so a script can read and change them. One is reused for every run.
 /// </summary>
 public sealed class ScriptIO
 {
 	/// <summary>The bits of <see cref="OutputsSet"/>.</summary>
-	public const int ColorSet = 1, AlphaSet = 2, SizeSet = 4, RotationSet = 8, OffsetSet = 16, PositionSet = 32;
+	public const int ColorSet = 1, AlphaSet = 2, SizeSet = 4, RotationSet = 8, OffsetSet = 16, PositionSet = 32, FrameSet = 64;
 
 	public readonly double[] Inputs = new double[ (int)ScriptInput.Total ];
 	public readonly double[] Outputs = new double[ (int)ScriptOutput.Total ];
@@ -71,7 +71,8 @@ public sealed class ScriptIO
 		(int)ScriptOutput.Size => SizeSet,
 		(int)ScriptOutput.Rotation => RotationSet,
 		<= (int)ScriptOutput.OffsetZ => OffsetSet,
-		_ => PositionSet,
+		<= (int)ScriptOutput.PositionZ => PositionSet,
+		_ => FrameSet,
 	};
 }
 

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace PlayerModels.Core.Script;
 
 /// <summary>A layer's fields as script values, read and written while building.</summary>
@@ -40,6 +42,7 @@ internal sealed partial class ScriptBuilder
 			case PropertyId.LayerFadeWithSpeed: into[ at ] = Flag( layer.FadeWithSpeed ); break;
 			case PropertyId.LayerKeep: into[ at ] = layer.Keep; break;
 			case PropertyId.LayerAlign: into[ at ] = (int)layer.AlignIs; break;
+			case PropertyId.LayerPictures: return WritePictures( layer.Pictures, into, at );
 			case PropertyId.LayerParticle: into[ at ] = _particles[ index ]; break;
 		}
 
@@ -84,8 +87,47 @@ internal sealed partial class ScriptBuilder
 			case PropertyId.LayerFadeWithSpeed: layer.FadeWithSpeed = flag; break;
 			case PropertyId.LayerKeep: layer.Keep = number; break;
 			case PropertyId.LayerAlign: return Named( ScriptEnums.Align, from[ at ], out var align ) && Assign( () => layer.Align = align );
+			case PropertyId.LayerPictures: return ReadPictures( from, at, out var pictures ) && Assign( () => layer.Pictures = pictures );
 			case PropertyId.LayerParticle: _particles[ index ] = (int)from[ at ]; break;
 			default: return Fail( "That can't be changed" ) >= 0;
+		}
+
+		return true;
+	}
+
+	// A layer's pictures read: their handles copied into the machine's lists; false once the lists are full
+	private bool WritePictures( List<string> pictures, double[] into, int at )
+	{
+		var count = pictures?.Count ?? 0;
+		var start = count == 0 ? 0 : _machine.TryAppendArena( count );
+		if ( start < 0 )
+			return Fail( ScriptMachine.ArenaFull ) >= 0;
+
+		for ( var i = 0; i < count; i++ )
+			_machine.Arena[ start + i ] = PictureHandle( pictures[ i ] );
+
+		(into[ at ], into[ at + 1 ]) = (start, count);
+		return true;
+	}
+
+	// Pictures given as a list of handles: their names (a drawn shape by its mark until it is made); null for none
+	private bool ReadPictures( double[] from, int at, out List<string> pictures )
+	{
+		pictures = null;
+		var (start, count) = ((int)from[ at ], (int)from[ at + 1 ]);
+		if ( count > EffectLayer.MaxPictures )
+			return Fail( $"A layer has at most {EffectLayer.MaxPictures} pictures" ) >= 0;
+
+		if ( count == 0 )
+			return true;
+
+		pictures = new List<string>( count );
+		for ( var i = 0; i < count; i++ )
+		{
+			if ( !PictureName( (int)_machine.Arena[ start + i ], out var name ) )
+				return false;
+
+			pictures.Add( name );
 		}
 
 		return true;

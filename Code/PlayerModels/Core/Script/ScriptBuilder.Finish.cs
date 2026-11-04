@@ -40,6 +40,13 @@ internal sealed partial class ScriptBuilder
 				return Failed( Error );
 
 			(layer.Formation, layer.Picture) = (formation, picture);
+			for ( var i = 0; i < (layer.Pictures?.Count ?? 0); i++ )
+			{
+				if ( !Resolve( layer.Pictures[ i ], shapes, emblems, out var each ) )
+					return Failed( Error );
+
+				layer.Pictures[ i ] = each;
+			}
 		}
 
 		_effect.Layers = _layers;

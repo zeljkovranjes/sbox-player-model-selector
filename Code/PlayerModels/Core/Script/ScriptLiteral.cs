@@ -78,6 +78,7 @@ public static class ScriptLiteral
 		PropertyId.LayerFadeWithSpeed => Bool( layer.FadeWithSpeed ),
 		PropertyId.LayerKeep => Number( layer.Keep ),
 		PropertyId.LayerAlign => Choice( "Align", layer.Align ?? nameof( LayerAlign.Camera ) ),
+		PropertyId.LayerPictures => layer.Pictures is null ? null : Pictures( layer.Pictures, shapeName ),
 		_ => null,
 	};
 
@@ -100,6 +101,21 @@ public static class ScriptLiteral
 			PropertyId.EffectSpeed => Number( effect.Speed ),
 			_ => null,
 		};
+	}
+
+	// A list of pictures, or null when one of them can't be written (a drawn shape with no name in the script)
+	private static string Pictures( IReadOnlyList<string> names, Func<string, string> shapeName )
+	{
+		var text = new StringBuilder( "{ " );
+		for ( var i = 0; i < names.Count; i++ )
+		{
+			if ( Picture( names[ i ], shapeName ) is not { } picture )
+				return null;
+
+			text.Append( i > 0 ? ", " : "" ).Append( picture );
+		}
+
+		return text.Append( " }" ).ToString();
 	}
 
 	private static string Choice( string choices, string member ) => member is null ? null : choices + "." + member;

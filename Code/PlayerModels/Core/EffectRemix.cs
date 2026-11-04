@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 
 namespace PlayerModels.Core;
@@ -53,7 +54,7 @@ public static class EffectRemix
 			foreach ( var layer in effect.Layers )
 			{
 				// A drawn shape belongs to its effect: parts are made of the standard ones
-				if ( layer.DrawnFormation is not null || layer.DrawnPicture is not null )
+				if ( layer.DrawnShapeIds().Any() )
 					continue;
 
 				// Each part keeps the joint it showed on; a layer that came from an item or the weapon gets that joint

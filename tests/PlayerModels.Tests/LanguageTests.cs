@@ -240,7 +240,7 @@ public class LanguageTests
 		io.Outputs[ (int)ScriptOutput.PositionY ] = 210;
 		io.Outputs[ (int)ScriptOutput.PositionZ ] = 50;
 		Assert.True( machine.RunParticle( 0, io ) );
-		Assert.Equal( new[] { 100 + ScriptLibrary.MaxPositionReach, 200 - ScriptLibrary.MaxPositionReach, 50.375 }, io.Outputs[ (int)ScriptOutput.PositionX..(int)ScriptOutput.Total ] );
+		Assert.Equal( new[] { 100 + ScriptLibrary.MaxPositionReach, 200 - ScriptLibrary.MaxPositionReach, 50.375 }, io.Outputs[ (int)ScriptOutput.PositionX..(int)ScriptOutput.Frame ] );
 		Assert.Equal( new[] { ScriptLibrary.MaxParticleOffset, -ScriptLibrary.MaxParticleOffset, 0 }, io.Outputs[ (int)ScriptOutput.OffsetX..(int)ScriptOutput.PositionX ] );
 		Assert.Equal( ScriptIO.PositionSet | ScriptIO.OffsetSet, io.OutputsSet );
 	}

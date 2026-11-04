@@ -264,9 +264,9 @@
                             {
                                 <div class="over-note">Over this server's budget</div>
                             }
-                            <div class="icon-button @( IsFull ? "disabled" : "" )" Tooltip="Duplicate" @onclick=@(( PanelEvent e ) => Act( e, () => Duplicate( effect ) ))>content_copy</div>
+                            <div class="icon-button on-hover @( IsFull ? "disabled" : "" )" Tooltip="Duplicate" @onclick=@(( PanelEvent e ) => Act( e, () => Duplicate( effect ) ))>library_add</div>
+                            <div class="icon-button on-hover" Tooltip="Remove" @onclick=@(( PanelEvent e ) => Remove( effect, e ))>delete</div>
                             <div class="icon-button" Tooltip="More: edit, duplicate, save, save draft, remove (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => WornMenu( effect ) ))>more_vert</div>
-                            <div class="icon-button" Tooltip="Remove" @onclick=@(( PanelEvent e ) => Remove( effect, e ))>delete</div>
                         </div>
                     }
                 </Body>
@@ -275,7 +275,11 @@
 
         @if ( Selected is { } selected )
         {
-            <div class="section-header">@selected.Name</div>
+            <div class="row effect-head">
+                <div class="effect-name">@selected.Name</div>
+                <div class="tool @( IsAsMade( selected ) ? "disabled" : "" )" Tooltip="Reset sliders" @onclick=@(() => ResetSliders( selected ))>refresh</div>
+                <div class="tool @( IsDraft( selected ) ? "disabled" : "" )" Tooltip=@( IsDraft( selected ) ? "Variations: not for a draft, finish it first" : "Variations: a few changed copies of it to pick from" ) @onclick=@(() => ShowVariations( selected ))>auto_awesome</div>
+            </div>
             @if ( selected.ForkedFrom is { } origin )
             {
                 <div class="note">@ShapeCreator.BasedOn( origin )</div>
@@ -289,10 +293,6 @@
             <SliderRow Label="Amount" Signed=@true Value=@selected.Amount OnChanged=@(( float value ) => Set( () => selected.Amount = value ))></SliderRow>
             <SliderRow Label="Speed" Signed=@true Value=@selected.Speed OnChanged=@(( float value ) => Set( () => selected.Speed = value ))></SliderRow>
             <ScriptParameters Look=@Look Effect=@selected Changed=@Changed></ScriptParameters>
-            <div class="row">
-                <div class="reset @( IsAsMade( selected ) ? "disabled" : "" )" @onclick=@(() => ResetSliders( selected ))>Reset sliders</div>
-                <div class="reset @( IsDraft( selected ) ? "disabled" : "" )" Tooltip=@( IsDraft( selected ) ? "Not for a draft: finish it first" : "A few changed copies of it to pick from" ) @onclick=@(() => ShowVariations( selected ))>Variations</div>
-            </div>
             @if ( _variations is { } variations && _variationsOf == selected.Id )
             {
                 <div class="grid variations">
@@ -344,8 +344,8 @@
                         <div class="label">Keep it</div>
                         <TextEntry class="key-entry" Placeholder=@( string.IsNullOrEmpty( selected.Name ) ? "Its name" : selected.Name ) MaxLength=@Effect.MaxNameLength
                                    Value:bind=@_keepName @onsubmit=@(() => Keep( selected ))></TextEntry>
-                        <div class="reset @( Mine.Count >= LocalPrefs.MaxMyEffects ? "disabled" : "" )" @onclick=@(() => Keep( selected ))>Save to My effects</div>
-                        <div class="reset" Tooltip="Keep it unfinished, to come back to: it shows, and isn't worn until you finish it" @onclick=@(() => KeepDraft( selected, false ))>Save draft</div>
+                        <div class="reset @( Mine.Count >= LocalPrefs.MaxMyEffects ? "disabled" : "" )" Tooltip="Save to My effects" @onclick=@(() => Keep( selected ))>Save</div>
+                        <div class="tool" Tooltip="Save draft: keep it unfinished, to come back to; it shows, and isn't worn until you finish it" @onclick=@(() => KeepDraft( selected, false ))>edit_note</div>
                     </div>
                     @if ( IsDraft( selected ) )
                     {

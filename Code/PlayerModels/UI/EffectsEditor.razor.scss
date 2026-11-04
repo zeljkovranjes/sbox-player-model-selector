@@ -141,8 +141,41 @@ EffectsEditor
 		}
 	}
 
-	// the page's secondary buttons (undo, redo, Guides, Workshop) as icons named in their tooltips
-	.top .tool
+	// the groups breathe: farther apart than the rows in them
+	FoldingSection > .fold-header
+	{
+		margin-top: 16px;
+	}
+
+	FoldingSection:first-child > .fold-header
+	{
+		margin-top: 2px;
+	}
+
+	// the selected effect's name as its heading, with Reset sliders and Variations as icons at its end
+	.effect-head
+	{
+		margin: 16px 0px 4px 0px;
+		padding-bottom: 3px;
+		border-bottom: 1px solid $ui-separator;
+
+		> .effect-name
+		{
+			flex-grow: 1;
+			min-width: 0px;
+			font-size: $ui-settings-font;
+			font-weight: 800;
+			text-transform: uppercase;
+			color: $ui-text-muted;
+			white-space: nowrap;
+			text-overflow: ellipsis;
+			overflow: hidden;
+		}
+	}
+
+	// the page's secondary buttons (undo, redo, Guides, Workshop, a selected effect's and its saving's) as icons named in
+	// their tooltips
+	.top .tool, .effect-head > .tool, .row > .tool
 	{
 		@include ui-button;
 		flex-shrink: 0;
@@ -301,11 +334,24 @@ EffectsEditor
 	}
 
 	// an effect worn: on or off, its name, and remove; the selected one is the one the sliders change
+	// a worn effect: on or off, its name and its menu; duplicating and removing it show on the row pointed at and the
+	// selected one
 	.worn
 	{
+		min-height: 30px;
 		padding: 0 4px;
 		border-radius: 2px;
 		cursor: pointer;
+
+		.on-hover
+		{
+			display: none;
+		}
+
+		&:hover .on-hover, &.selected .on-hover
+		{
+			display: flex;
+		}
 
 		&:hover
 		{

@@ -120,6 +120,7 @@ public sealed partial class ScriptMachine
 				return sp;
 			}
 
+			case Script.Intrinsic.ListCreate: return ListCreate( s, sp, at );
 			case Script.Intrinsic.LayerEmit:
 				_host?.Emit( (int)s[ sp - 2 ], EmitCount( s[ sp - 1 ] ) );
 				return sp - 2;
@@ -142,6 +143,33 @@ public sealed partial class ScriptMachine
 			Stop( FaultKind.Build, at, message: _builder.Error );
 
 		return result;
+	}
+
+	// List.Create( count, value ): count copies of the value (its width on top), made in the lists while building
+	private int ListCreate( double[] s, int sp, int at )
+	{
+		if ( _builder is null )
+			return Stop( FaultKind.BuildOnly, at ) ? sp : -1;
+
+		var width = (int)s[ sp - 1 ];
+		var item = sp - 1 - width;
+		var count = Math.Floor( s[ item - 1 ] );
+		if ( !(count >= 0 && count <= ScriptLimits.MaxListLength) )
+			return Stop( FaultKind.Build, at, message: $"List.Create makes at most {ScriptLimits.MaxListLength} items, not {ScriptValue.NumberText( count )}" ) ? sp : -1;
+
+		var start = TryAppendArena( (int)count * width );
+		if ( start < 0 )
+			return Stop( FaultKind.Build, at, message: ArenaFull ) ? sp : -1;
+
+		for ( var k = 0; k < count; k++ )
+		{
+			for ( var i = 0; i < width; i++ )
+				Arena[ start + k * width + i ] = s[ item + i ];
+		}
+
+		s[ item - 1 ] = start;
+		s[ item ] = count;
+		return item + 1;
 	}
 
 	private static double Lerp( double a, double b, double t ) => ScriptMath.Safe( a + (b - a) * Math.Clamp( t, 0, 1 ) );

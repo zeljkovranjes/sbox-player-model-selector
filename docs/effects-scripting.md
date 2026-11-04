@@ -51,6 +51,23 @@ end
 local total = sum --> 16
 ```
 
+An item changes in place with `list[ i ] = value` (every variable holding the
+list sees it); a list keeps its size. `List.Create( count, value )` makes one of
+any size at the top of a script, for state its functions change as it runs:
+
+```lua effect
+local glow = Sprite()
+local recent = List.Create( 4, 0 )
+local next = 0
+
+function OnLand( fallSpeed )
+	recent[ next ] = fallSpeed
+	next = (next + 1) % recent.Count
+end
+
+local slots = recent.Count --> 4
+```
+
 <br>
 
 ## Types
@@ -693,11 +710,12 @@ local star: EmblemLayer = badge.AddLayer( Shapes.Star5 )
 
 #### `list`
 
-{ a, b, c }: items of one type, numbered from 0, written {T} as a type. Lists can't change once made.
+{ a, b, c }: items of one type, numbered from 0, written {T} as a type. An item changes in place with list[ i ] = value (every variable holding the list sees it); a list keeps its size.
 
 ```lua sticker
 local odd: {number} = { 1, 3, 5 }
-local second = odd[ 1 ] --> 3
+odd[ 1 ] = 4
+local second = odd[ 1 ] --> 4
 ```
 
 #### `function`
@@ -1450,6 +1468,26 @@ local n = v.Normal --> Vector3( 0, 0, 1 )
 ```
 
 ### Lists
+
+#### `List`
+
+Lists made to a size, to fill in and change item by item (list[ i ] = value).
+
+#### `List.Create( count: number, value: any ): {any}`
+
+A list of count copies of value (at most 256), made while the script is built: state to change item by item as it runs, like a path to follow.
+
+| Parameter | Type | Range | What it is |
+|---|---|---|---|
+| `count` | number | 0 to 256 | How many items |
+| `value` | any | any | What each item starts as; the list holds its type |
+
+```lua effect
+local path = List.Create( 3, Vector3.Zero )
+path[ 1 ] = Vector3.Up
+local second = path[ 1 ] --> Vector3( 0, 0, 1 )
+local n = path.Count --> 3
+```
 
 #### `List.Count: number  (read only)`
 

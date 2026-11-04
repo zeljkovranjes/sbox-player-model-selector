@@ -67,6 +67,10 @@ public sealed partial class Compiler
 	private Stmt _statement;
 	private bool _hasCalls;
 
+	// Whether the script changes list items (list[ i ] = ...): then every list it writes out is made afresh each time
+	// its line runs, as Lua makes a new table, rather than once when it compiles
+	private readonly bool _changesLists;
+
 	private Compiler( SyntaxTree tree, ScriptKind kind, IPlayerLibrary library )
 	{
 		_tree = tree;
@@ -75,6 +79,25 @@ public sealed partial class Compiler
 		_lines = tree.Lines;
 		Array.Fill( _events, -1 );
 		Intern( "" );
+		_changesLists = ChangesLists( tree.Tokens );
+	}
+
+	// A ] followed by = (not ==) is an item being assigned to
+	private static bool ChangesLists( List<Token> tokens )
+	{
+		var previous = TokenKind.EndOfFile;
+		foreach ( var token in tokens ?? new List<Token>() )
+		{
+			if ( token.Kind == TokenKind.Comment )
+				continue;
+
+			if ( previous == TokenKind.RightBracket && token.Kind == TokenKind.Assign )
+				return true;
+
+			previous = token.Kind;
+		}
+
+		return false;
 	}
 
 	/// <summary>

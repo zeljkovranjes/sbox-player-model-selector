@@ -231,7 +231,7 @@ public sealed partial class Compiler
 			constant.AddRange( value );
 		}
 
-		if ( constantType is not null && constantType.Kind != TypeKind.Key )
+		if ( constantType is not null && constantType.Kind != TypeKind.Key && !_changesLists )
 		{
 			if ( element is not null )
 				Check( constantType, element, list );

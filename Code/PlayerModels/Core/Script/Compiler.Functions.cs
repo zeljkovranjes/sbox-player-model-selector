@@ -182,8 +182,29 @@ public sealed partial class Compiler
 		{
 			case NameExpr name: AssignName( name, value ); break;
 			case MemberExpr member: AssignMember( member, value ); break;
-			case IndexExpr index: Error( "A list can't be changed once made: make a new one", index ); break;
+			case IndexExpr index: AssignIndex( index, value ); break;
 		}
+	}
+
+	// list[ i ] = value: the item is changed where the list is, so every variable holding the list sees it
+	private void AssignIndex( IndexExpr target, Expr value )
+	{
+		var list = Value( target.Target );
+		if ( list.Kind != TypeKind.List )
+		{
+			if ( list.Kind != TypeKind.Error )
+				Error( $"Only a list's items can be assigned to with [ ], not {Article( list )}'s", target.Target );
+
+			return;
+		}
+
+		var at = Value( target.Index, ScriptType.Number );
+		if ( at.Kind is not (TypeKind.Number or TypeKind.Error) )
+			Error( $"A list is indexed by a number (from 0), not {Article( at )}", target.Index );
+
+		Check( Value( value, list.Element ), list.Element, value );
+		Emit( OpCode.StoreIndex, list.Element.Width );
+		Pop( 3 + list.Element.Width );
 	}
 
 	private void AssignName( NameExpr target, Expr value )

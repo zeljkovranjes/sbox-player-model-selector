@@ -329,6 +329,24 @@ public sealed partial class ScriptMachine
 						break;
 					}
 
+					case OpCode.StoreIndex:
+					{
+						var width = code[ pc++ ];
+						sp -= width;
+						var item = sp;
+						var index = Math.Floor( s[ --sp ] );
+						sp -= 2;
+						var (start, count) = ((int)s[ sp ], (int)s[ sp + 1 ]);
+						if ( !(index >= 0 && index < count) )
+							return Stop( FaultKind.IndexOutOfRange, at, (int)Math.Clamp( index, int.MinValue, int.MaxValue ), count );
+
+						var to = start + (int)index * width;
+						for ( var i = 0; i < width; i++ )
+							Arena[ to + i ] = ScriptMath.Safe( s[ item + i ] );
+
+						break;
+					}
+
 					case OpCode.ListCount:
 						sp--;
 						s[ sp - 1 ] = s[ sp ];

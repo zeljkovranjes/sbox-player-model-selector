@@ -80,4 +80,7 @@ public enum OpCode
 
 	/// <summary>parameter, width: replaces the value on top with the parameter's chosen value, when one is set.</summary>
 	Parameter,
+
+	/// <summary>item width: pops the item, the index and the list, and writes the item into the list.</summary>
+	StoreIndex,
 }

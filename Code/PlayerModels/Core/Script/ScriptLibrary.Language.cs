@@ -35,7 +35,7 @@ public static partial class ScriptLibrary
 		Type( entries, "Layer", "A layer of the effect, made by Sprite(), Light() or Trail().", "local glow: Layer = Sprite()", ScriptKind.Effect );
 		Type( entries, "Effect", "An effect: this one (Effect), or one to include (Effects.Preset).", "Effect.Include( Effects.Preset( \"Hearts\" ) )", ScriptKind.Effect );
 		Type( entries, "EmblemLayer", "One layer of an emblem, made by shape.AddLayer.", "local badge = Shapes.New( \"Badge\" )\nlocal star: EmblemLayer = badge.AddLayer( Shapes.Star5 )", ScriptKind.Effect );
-		Type( entries, "list", "{ a, b, c }: items of one type, numbered from 0, written {T} as a type. Lists can't change once made.", "local odd: {number} = { 1, 3, 5 }\nlocal second = odd[ 1 ] --> 3" );
+		Type( entries, "list", "{ a, b, c }: items of one type, numbered from 0, written {T} as a type. An item changes in place with list[ i ] = value (every variable holding the list sees it); a list keeps its size.", "local odd: {number} = { 1, 3, 5 }\nodd[ 1 ] = 4\nlocal second = odd[ 1 ] --> 4" );
 		Type( entries, "function", "A function as a value, written (A, B) -> R as a type.", "local function twice( x: number ): number\n\treturn x * 2\nend\nlocal f: (number) -> number = twice\nlocal six = f( 3 ) --> 6" );
 	}
 

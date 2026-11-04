@@ -155,6 +155,9 @@ public sealed partial class Compiler
 		if ( !Allowed( entry, call.Callee ) )
 			return entry.Type;
 
+		if ( entry.Op == Intrinsic.ListCreate )
+			return ListCreate( entry, call );
+
 		var parameters = entry.Parameters;
 		var given = call.Arguments.Count;
 		if ( given < entry.Required || given > parameters.Count )
@@ -191,6 +194,33 @@ public sealed partial class Compiler
 		Pop( width );
 		Push( entry.Type.Width );
 		return entry.Type;
+	}
+
+	// List.Create( count, value ): a list of whatever the value is, so its type comes from the call
+	private ScriptType ListCreate( LibraryEntry entry, CallExpr call )
+	{
+		if ( call.Arguments.Count != 2 )
+		{
+			Error( $"{entry.Name} takes 2 arguments, but {call.Arguments.Count} {(call.Arguments.Count == 1 ? "was" : "were")} given: {entry.Signature()}", call );
+			return ScriptType.ListOf( ScriptType.Error );
+		}
+
+		var count = Value( call.Arguments[ 0 ], ScriptType.Number );
+		if ( count.Kind is not (TypeKind.Number or TypeKind.Error) )
+			Error( $"Argument 1 ('count') of {entry.Name} should be a number, not {Article( count )}", call.Arguments[ 0 ] );
+
+		var item = Value( call.Arguments[ 1 ] );
+		if ( !item.IsStorable )
+		{
+			Error( $"A list can't hold {Article( item )}", call.Arguments[ 1 ] );
+			item = ScriptType.Error;
+		}
+
+		PushConstant( new double[] { item.Width } );
+		Emit( OpCode.Intrinsic, (int)entry.Op );
+		Pop( 2 + item.Width );
+		Push( 2 );
+		return ScriptType.ListOf( item );
 	}
 
 	// The intrinsics that make a layer, a shape or an emblem layer: the site making it goes with them
@@ -279,7 +309,9 @@ public sealed partial class Compiler
 		else if ( where == ScriptPlace.ShapeBuild )
 			message = $"'{name}' is the shape a shape script makes: elsewhere use Shapes.New( \"name\" )";
 		else if ( (where & ScriptPlace.Build) != 0 && (here & ScriptPlace.Build) == 0 )
-			message = $"'{name}' makes shapes, so it can only be used where a shape or effect is built";
+			message = entry.Category is "Shape" or "Emblem"
+				? $"'{name}' makes shapes, so it can only be used where a shape or effect is built"
+				: $"'{name}' can only be used where a shape or effect is built (at the top of its script)";
 		else
 			message = $"'{name}' can't be used here";
 

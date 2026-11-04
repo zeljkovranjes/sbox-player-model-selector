@@ -154,6 +154,59 @@ public class LanguageTests
 	}
 
 	[Fact]
+	public void AListItemChangesInPlaceForEveryVariableHoldingIt()
+	{
+		var machine = Eval.Script( "local a = { 1, 2, 3 }\nlocal b = a\nb[ 1 ] = 20\na[ 2 ] = a[ 2 ] + 1\nlocal colours = { Color.Red, Color.Blue }\ncolours[ 0 ] = Color.Green" );
+		Assert.Equal( "{ 1, 20, 4 }", machine.Variable( "a" ) );
+		Assert.Equal( "{ 1, 20, 4 }", machine.Variable( "b" ) );
+		Assert.Equal( "{ #00ff00, #0000ff }", machine.Variable( "colours" ) );
+	}
+
+	[Fact]
+	public void AnItemPastTheEndFaultsAndChangesNothing()
+	{
+		var fault = Eval.Fault( "local a = { 1, 2 }\na[ 2 ] = 5" );
+		Assert.Equal( FaultKind.IndexOutOfRange, fault.Kind );
+		Assert.Equal( FaultKind.IndexOutOfRange, Eval.Fault( "local a = { 1, 2 }\na[ -1 ] = 5" ).Kind );
+	}
+
+	[Fact]
+	public void AWrittenListIsMadeAfreshEachRunOnceItemsChange()
+	{
+		// Without changes a list of fixed values is made once; with them, each run starts from what is written, like Lua
+		var (machine, _) = ScriptKit.Build( "local glow = Sprite()\nlocal last = 0\nfunction OnUpdate( dt )\n\tlocal counts = { 0, 0 }\n\tcounts[ 0 ] = counts[ 0 ] + 1\n\tlast = counts[ 0 ]\nend" );
+		for ( var i = 0; i < 3; i++ )
+			Assert.True( machine.RunEvent( ScriptEvent.Update, new ScriptIO() ) );
+
+		Assert.Equal( "1", machine.Variable( "last" ) );
+	}
+
+	[Fact]
+	public void ListCreateMakesStateThatLastsBetweenRuns()
+	{
+		var (machine, _) = ScriptKit.Build( "local glow = Sprite()\nlocal seen = List.Create( 4, -1 )\nlocal at = 0\nfunction OnJump()\n\tseen[ at ] = t\n\tat = (at + 1) % seen.Count\nend" );
+		var io = new ScriptIO();
+		for ( var i = 0; i < 6; i++ )
+		{
+			io.Set( ScriptInput.Seconds, i );
+			Assert.True( machine.RunEvent( ScriptEvent.Jump, io ) );
+		}
+
+		Assert.Equal( "{ 4, 5, 2, 3 }", machine.Variable( "seen" ) );
+	}
+
+	[Theory]
+	[InlineData( "local a = List.Create( 257, 0 )", "List.Create makes at most 256 items, not 257" )]
+	[InlineData( "local a = List.Create( -1, 0 )", "List.Create makes at most 256 items, not -1" )]
+	[InlineData( "for k = 1, 100 do\n\tlocal a = List.Create( 256, Color.Red )\nend", "lists are too big together" )]
+	public void ListCreateIsHeldToTheListCaps( string script, string message )
+	{
+		var build = new ScriptMachine( ScriptKit.Compile( script + "\nlocal glow = Sprite()" ) ).Build();
+		Assert.False( build.Succeeded );
+		Assert.Contains( message, build.Error.Message );
+	}
+
+	[Fact]
 	public void ReturnAtTheTopEndsTheRun()
 	{
 		Assert.Equal( "1", Eval.Script( "local a = 1\nif a == 1 then\n\treturn\nend\na = 2" ).Variable( "a" ) );

@@ -107,6 +107,15 @@ public class AllocationTests
 	}
 
 	[Fact]
+	public void ChangingListItems()
+	{
+		var (machine, _) = ScriptKit.Build( "local glow = Sprite()\nlocal path = List.Create( 32, Vector3.Zero )\nlocal head = 0\nfunction OnUpdate( dt )\n\thead = (head + 1) % path.Count\n\tpath[ head ] = velocity * t\n\tlocal fresh = { 1, 2 }\n\tfresh[ 0 ] = dt\nend" );
+		var stack = new ScriptStack();
+		var io = ExampleRunner.Inputs();
+		NothingAllocated( "list items changed", () => machine.RunEvent( ScriptEvent.Update, io, null, stack ) );
+	}
+
+	[Fact]
 	public void RunsThatFault()
 	{
 		var (machine, _) = ScriptKit.Build( "local glow = Sprite()\nfunction OnUpdate( dt )\n\twhile true do\n\tend\nend\nfunction OnJump()\n\tlocal l = { 1 }\n\tlocal x = l[ 5 ]\nend" );

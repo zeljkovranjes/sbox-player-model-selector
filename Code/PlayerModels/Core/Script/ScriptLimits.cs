@@ -49,8 +49,8 @@ public static class ScriptLimits
 	public const int MaxListLength = 256;
 
 	/// <summary>
-	/// The most list slots a script's lists hold together once it is built: its written lists and the palettes it read
-	/// while building (each read is a copy).
+	/// The most list slots a script's lists hold together once it is built: its written lists, those List.Create made and
+	/// the palettes it read while building.
 	/// </summary>
 	public const int MaxArenaSlots = 16 * 1024;
 

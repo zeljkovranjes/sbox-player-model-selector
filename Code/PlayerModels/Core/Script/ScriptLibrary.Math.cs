@@ -123,6 +123,11 @@ public static partial class ScriptLibrary
 			Name = "Vector3.Normal", Kind = EntryKind.Property, Type = v, Category = vector, Access = PropertyAccess.Intrinsic, Slot = (int)Intrinsic.VectorNormal,
 			Doc = "The same direction, 1 long (zero stays zero).", Example = "local v = Vector3( 0, 0, 5 )\nlocal n = v.Normal --> Vector3( 0, 0, 1 )",
 		} );
+		entries.Add( Space( "List", "Lists", "Lists made to a size, to fill in and change item by item (list[ i ] = value)." ) );
+		entries.Add( Function( "List.Create", Intrinsic.ListCreate, ScriptType.ListOf( ScriptType.Any ), "Lists",
+			"A list of count copies of value (at most 256), made while the script is built: state to change item by item as it runs, like a path to follow.",
+			"local path = List.Create( 3, Vector3.Zero )\npath[ 1 ] = Vector3.Up\nlocal second = path[ 1 ] --> Vector3( 0, 0, 1 )\nlocal n = path.Count --> 3", ScriptPlace.Build,
+			P( "count", N, "How many items", "0 to 256" ), P( "value", ScriptType.Any, "What each item starts as; the list holds its type" ) ) );
 		entries.Add( new LibraryEntry
 		{
 			Name = "List.Count", Kind = EntryKind.Property, Type = N, Category = "Lists", Access = PropertyAccess.ListCount,

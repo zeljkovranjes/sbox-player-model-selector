@@ -55,6 +55,9 @@ public sealed class ScriptType
 	public static readonly ScriptType Particle = new( TypeKind.Particle, 0 );
 	public static readonly ScriptType Shot = new( TypeKind.Shot, 0 );
 
+	/// <summary>Any type, for a library parameter that takes one (List.Create's value); checked by its call.</summary>
+	public static readonly ScriptType Any = new( TypeKind.Error, 1 );
+
 	/// <summary>A list of <paramref name="element"/>.</summary>
 	public static ScriptType ListOf( ScriptType element ) => new( TypeKind.List, 2, element );
 
@@ -113,7 +116,7 @@ public sealed class ScriptType
 	{
 		switch ( Kind )
 		{
-			case TypeKind.Error: return "unknown";
+			case TypeKind.Error: return this == Any ? "any" : "unknown";
 			case TypeKind.Void: return "nothing";
 			case TypeKind.List: return "{" + Element + "}";
 			case TypeKind.Enum: return Enum.Name;

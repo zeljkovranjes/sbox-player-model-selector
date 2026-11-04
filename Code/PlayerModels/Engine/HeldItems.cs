@@ -8,7 +8,8 @@ namespace PlayerModels.Engine;
 /// thing itself is moved, not a copy, so everything that starts from it follows: the muzzle, the physgun's beam, muzzle
 /// flashes, glows. It is moved each frame by however far the model's hand is from the citizen's and keeps its own aim,
 /// so a gun still points where the player aims. Only objects that exist on this client alone are moved; the weapon's
-/// networked objects are left where the game put them.
+/// networked objects are left where the game put them. Effects can come from the tip of what is held (see
+/// <see cref="TryGetTip"/>), held by a model or by the citizen itself.
 /// </summary>
 internal sealed class HeldItems
 {
@@ -21,13 +22,31 @@ internal sealed class HeldItems
 
 		// Where the game holds it, relative to the bone: set once, when the weapon attaches it
 		public Transform GameLocal { get; init; }
+
+		// Its tip, once looked for: the muzzle object the weapon marks, or else a point on it relative to it
+		public bool TipFound;
+		public GameObject Muzzle;
+		public Transform TipLocal;
 	}
+
+	// What marks a weapon's muzzle: an object (or a model attachment) named so
+	private const string MuzzleName = "muzzle";
 
 	private readonly List<Held> _held = new();
 
-	/// <summary>Starts moving anything new the citizen holds.</summary>
+	/// <summary>
+	/// Starts moving anything new the citizen holds into the model's hand; without a <paramref name="transfer"/> (the citizen
+	/// wears no model) it is only kept track of, for its tip.
+	/// </summary>
 	internal void Find( SkinnedModelRenderer citizen, PoseTransfer transfer, GameObject body )
 	{
+		// What was dropped since: without a model nothing else lets it go
+		for ( var i = _held.Count - 1; i >= 0; i-- )
+		{
+			if ( !_held[ i ].Root.IsValid() || !_held[ i ].Root.Parent.IsValid() )
+				_held.RemoveAt( i );
+		}
+
 		foreach ( var renderer in citizen.GameObject.Components.GetAll<ModelRenderer>( FindMode.EverythingInDescendants ) )
 		{
 			// The citizen itself and the clothes merged onto it are hidden, not held
@@ -38,7 +57,8 @@ internal sealed class HeldItems
 			if ( root is null || root.NetworkMode != NetworkMode.Never || IsHeld( root ) )
 				continue;
 
-			if ( !transfer.TryMapBone( root.Parent.Name, out var sourceBone, out var targetBone ) )
+			string sourceBone = null, targetBone = null;
+			if ( transfer is not null && !transfer.TryMapBone( root.Parent.Name, out sourceBone, out targetBone ) )
 				continue;
 
 			_held.Add( new Held
@@ -74,6 +94,63 @@ internal sealed class HeldItems
 			var where = held.Root.WorldTransform;
 			held.Root.WorldTransform = where.WithPosition( where.Position + (modelHand.Position - hand.Position) );
 		}
+	}
+
+	/// <summary>
+	/// Where the tip of the first thing held is now: its muzzle where the weapon marks one, or else the far end of its
+	/// longest side. False while nothing is held. Every frame: no allocations once its tip is found.
+	/// </summary>
+	internal bool TryGetTip( out Transform tip )
+	{
+		for ( var i = 0; i < _held.Count; i++ )
+		{
+			var held = _held[ i ];
+			if ( !held.Root.IsValid() || !held.Root.Parent.IsValid() )
+				continue;
+
+			if ( !held.TipFound )
+				FindTip( held );
+
+			tip = held.Muzzle.IsValid() ? held.Muzzle.WorldTransform : held.Root.WorldTransform.ToWorld( held.TipLocal );
+			return true;
+		}
+
+		tip = default;
+		return false;
+	}
+
+	// Looked for once: an object named for the muzzle under it, a model attachment of that name, or the far end of its
+	// model's longest side
+	private static void FindTip( Held held )
+	{
+		held.TipFound = true;
+		held.TipLocal = global::Transform.Zero;
+		foreach ( var child in held.Root.GetAllObjects( true ) )
+		{
+			if ( child.Name.Contains( MuzzleName, System.StringComparison.OrdinalIgnoreCase ) )
+			{
+				held.Muzzle = child;
+				return;
+			}
+		}
+
+		if ( held.Root.Components.Get<ModelRenderer>( FindMode.EverythingInSelfAndDescendants ) is not { Model: { } model } renderer )
+			return;
+
+		var tip = global::Transform.Zero;
+		if ( model.Attachments?.Get( MuzzleName ) is { } attachment )
+		{
+			tip = attachment.Bone is { } bone ? bone.LocalTransform.ToWorld( attachment.LocalTransform ) : attachment.LocalTransform;
+		}
+		else
+		{
+			var bounds = model.Bounds;
+			var size = bounds.Size;
+			var axis = size.x >= size.y && size.x >= size.z ? Vector3.Forward : size.y >= size.z ? Vector3.Left : Vector3.Up;
+			tip = new Transform( bounds.Center + axis * (Vector3.Dot( size, axis ) * 0.5f) );
+		}
+
+		held.TipLocal = held.Root.WorldTransform.ToLocal( renderer.WorldTransform.ToWorld( tip ) );
 	}
 
 	/// <summary>Puts everything back where the game holds it.</summary>

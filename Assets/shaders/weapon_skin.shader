@@ -85,32 +85,26 @@ PS
 	float2 g_vAxisRange < Default2( -16.0, 16.0 ); >;
 
 	// The pattern: which (0 none, 1 stripes, 2 camo, 3 checker, 4 gradient, 5 carbon, 6 shapes), its colours, how big
-	// one repeat is in units, how far turned (radians), and how fast it scrolls (repeats a second) and spins (turns a second)
+	// one repeat is in units and how far turned (radians); how far it has scrolled and spun is in the moving colours below
 	float g_flPattern < Default( 0.0 ); Range( 0.0, 6.0 ); >;
 	float3 g_vPatternA < Default3( 0.0, 0.0, 0.0 ); >;
 	float3 g_vPatternB < Default3( 1.0, 1.0, 1.0 ); >;
 	float g_flPatternSize < Default( 4.0 ); Range( 0.25, 64.0 ); >;
 	float g_flPatternTurn < Default( 0.0 ); Range( 0.0, 3.2 ); >;
-	float g_flPatternScroll < Default( 0.0 ); Range( -4.0, 4.0 ); >;
-	float g_flPatternSpin < Default( 0.0 ); Range( -2.0, 2.0 ); >;
 	CreateInputTexture2D( TexturePatternShape, Linear, 8, "", "_pattern", "Material,10/90", Default4( 1.0, 1.0, 1.0, 1.0 ) );
 	Texture2D g_tPatternShape < Channel( RGBA, Box( TexturePatternShape ), Linear ); OutputFormat( BC7 ); SrgbRead( false ); >;
 	SamplerState g_sPatternShape < Filter( BILINEAR ); AddressU( WRAP ); AddressV( WRAP ); >;
 
-	// The moving colour: which (0 none, 1 rainbow, 2 rain, 3 cycl, 4 cyln, 5 pulse, 6 glow, 7 shimmer, 8 palette), its
-	// colours (up to eight), how fast (1 the clan tags' pace) and in how many bands along the weapon
-	float g_flMotion < Default( 0.0 ); Range( 0.0, 8.0 ); >;
-	float g_flPaletteCount < Default( 1.0 ); Range( 1.0, 8.0 ); >;
-	float3 g_vPalette0 < Default3( 1.0, 0.2, 0.2 ); >;
-	float3 g_vPalette1 < Default3( 0.0, 1.0, 0.0 ); >;
-	float3 g_vPalette2 < Default3( 1.0, 1.0, 0.0 ); >;
-	float3 g_vPalette3 < Default3( 0.0, 0.0, 1.0 ); >;
-	float3 g_vPalette4 < Default3( 0.0, 1.0, 1.0 ); >;
-	float3 g_vPalette5 < Default3( 1.0, 1.0, 1.0 ); >;
-	float3 g_vPalette6 < Default3( 1.0, 1.0, 1.0 ); >;
-	float3 g_vPalette7 < Default3( 1.0, 1.0, 1.0 ); >;
-	float g_flSpeed < Default( 1.0 ); Range( 0.0, 10.0 ); >;
-	float g_flBands < Default( 8.0 ); Range( 2.0, 32.0 ); >;
+	// The moving colours, worked out each frame by the skin's scripts on the CPU into a small table (see SkinColours), one
+	// for each different skin: for each place along the weapon (its band's own texel, or 64 blended along it) row 0 has the
+	// colour painted over it and how much it covers, row 1 its glow and sheen, row 2 the shade its own colour is multiplied
+	// by, row 3 how far its pattern has scrolled (repeats) and spun (turns). Without the table nothing moves
+	CreateInputTexture2D( TextureSkinColours, Linear, 8, "", "_skincolours", "Material,10/95", Default4( 0.0, 0.0, 0.0, 0.0 ) );
+	Texture2D g_tSkinColours < Channel( RGBA, Box( TextureSkinColours ), Linear ); OutputFormat( BC7 ); SrgbRead( false ); >;
+	SamplerState g_sSkinColours < Filter( BILINEAR ); AddressU( CLAMP ); AddressV( CLAMP ); >;
+	float g_flSkinMoving < Default( 0.0 ); Range( 0.0, 1.0 ); >;
+	float g_flSkinBanded < Default( 1.0 ); Range( 0.0, 1.0 ); >;
+	float g_flSkinBands < Default( 8.0 ); Range( 1.0, 32.0 ); >;
 
 	// Stickers, up to eight, each pressed onto the surface from one side as CS:GO's are: part of the weapon's own surface,
 	// so lit as it is, following its shape, and never on anything else (a hand holding it). Each has where it is (the model's
@@ -170,19 +164,6 @@ PS
 
 	float Mod( float a, float b ) { return a - b * floor( a / b ); }
 
-	float3 PaletteAt( float index )
-	{
-		int i = (int)Mod( index, g_flPaletteCount );
-		if ( i == 0 ) return g_vPalette0;
-		if ( i == 1 ) return g_vPalette1;
-		if ( i == 2 ) return g_vPalette2;
-		if ( i == 3 ) return g_vPalette3;
-		if ( i == 4 ) return g_vPalette4;
-		if ( i == 5 ) return g_vPalette5;
-		if ( i == 6 ) return g_vPalette6;
-		return g_vPalette7;
-	}
-
 	float Hash( float3 p )
 	{
 		p = frac( p * 0.3183099 + 0.1 );
@@ -221,24 +202,22 @@ PS
 	}
 
 	// The pattern at a point, 0 to 1: a gradient along the weapon, camo through it, the rest from every side
-	float PatternAt( float3 position, float3 normal, float along )
+	float PatternAt( float3 position, float3 normal, float along, float scroll, float spin )
 	{
 		float pattern = g_flPattern;
-		float time = g_flTime;
 		if ( pattern > 3.5 && pattern < 4.5 )
-			return saturate( frac( along - time * g_flPatternScroll * 0.25 ) );
+			return saturate( frac( along - scroll * 0.25 ) );
 
 		float3 p = ( position - g_vCenter ) / g_flPatternSize;
 		if ( pattern > 1.5 && pattern < 2.5 )
 		{
-			float3 drift = g_vAxis * time * g_flPatternScroll;
+			float3 drift = g_vAxis * scroll;
 			float n = Noise( p * 1.3 + drift ) * 0.65 + Noise( p * 2.9 + drift + 7.0 ) * 0.35;
 			return smoothstep( 0.47, 0.53, n );
 		}
 
-		float angle = g_flPatternTurn + time * g_flPatternSpin * 6.28318;
+		float angle = g_flPatternTurn + spin * 6.28318;
 		float2x2 turn = float2x2( cos( angle ), -sin( angle ), sin( angle ), cos( angle ) );
-		float scroll = time * g_flPatternScroll;
 		float3 weights = pow( abs( normal ), 4.0 );
 		weights /= max( dot( weights, 1.0 ), 0.0001 );
 
@@ -254,33 +233,23 @@ PS
 		return rgb;
 	}
 
-	// The moving colour of band band of bands, ms milliseconds in, by World at War's clan tag rules (the selector's
-	// ColorCycle, element by element): rain scrolls the palette, cycl wipes one colour across, cyln sweeps a highlight
-	float3 BandColour( float motion, float band, float bands, float ms, float along )
+	// The moving colours at a point along the weapon (see g_tSkinColours): a band's own texel, or blended between the 64
+	void SkinAt( float along, out float4 paint, out float4 glow, out float4 shade, out float4 travel )
 	{
-		float count = g_flPaletteCount;
-		if ( motion < 1.5 )
-			return Hue( frac( along - ms * 0.00025 ) );
-
-		if ( motion < 2.5 )
-			return PaletteAt( Mod( floor( ms / 100.0 ), count ) + band );
-
-		if ( motion < 3.5 )
+		if ( g_flSkinBanded > 0.5 )
 		{
-			float base = Mod( floor( ms / ( bands * 100.0 ) ), count );
-			float position = Mod( floor( ms / 100.0 ), bands );
-			return PaletteAt( band < position ? base : base + count - 1.0 );
+			int texel = (int)min( floor( along * g_flSkinBands ), g_flSkinBands - 1.0 );
+			paint = g_tSkinColours.Load( int3( texel, 0, 0 ) );
+			glow = g_tSkinColours.Load( int3( texel, 1, 0 ) );
+			shade = g_tSkinColours.Load( int3( texel, 2, 0 ) );
+			travel = g_tSkinColours.Load( int3( texel, 3, 0 ) );
+			return;
 		}
 
-		if ( motion < 4.5 )
-		{
-			float position = floor( ( cos( ms * 0.004 ) + 1.0 ) * 0.5 * bands );
-			return band == position ? g_vPalette0 : g_vPalette1;
-		}
-
-		// A palette going round, each colour fading into the next once a second
-		float step = ms / 1000.0;
-		return lerp( PaletteAt( floor( step ) ), PaletteAt( floor( step ) + 1.0 ), smoothstep( 0.0, 1.0, frac( step ) ) );
+		paint = g_tSkinColours.SampleLevel( g_sSkinColours, float2( along, 0.125 ), 0 );
+		glow = g_tSkinColours.SampleLevel( g_sSkinColours, float2( along, 0.375 ), 0 );
+		shade = g_tSkinColours.SampleLevel( g_sSkinColours, float2( along, 0.625 ), 0 );
+		travel = g_tSkinColours.SampleLevel( g_sSkinColours, float2( along, 0.875 ), 0 );
 	}
 
 	// How much longer the way along a surface is than its straight projection, where the surface has turned so its normal
@@ -458,46 +427,30 @@ PS
 		float shade = dot( colour.rgb, float3( 0.3, 0.59, 0.11 ) );
 		float along = saturate( ( dot( i.vPositionOs, g_vAxis ) - g_vAxisRange.x ) / max( g_vAxisRange.y - g_vAxisRange.x, 0.001 ) );
 
+		float4 paint = 0.0;
+		float4 skinGlow = 0.0;
+		float4 skinShade = 1.0;
+		float4 travel = 0.0;
+		if ( g_flSkinMoving > 0.5 )
+			SkinAt( along, paint, skinGlow, skinShade, travel );
+
 		// A pattern takes the place of the weapon's own colour, keeping a little of its light and dark
 		if ( g_flPattern > 0.5 )
 		{
-			float value = PatternAt( i.vPositionOs, normalize( i.vNormalOs ), along );
+			float value = PatternAt( i.vPositionOs, normalize( i.vNormalOs ), along, travel.x, travel.y );
 			float3 painted = lerp( g_vPatternA, g_vPatternB, value ) * g_vSkinTint;
 			albedo = painted * lerp( 1.0, saturate( shade * 2.2 ), 0.35 );
 		}
 
-		float motion = g_flMotion;
-		float ms = g_flTime * 1000.0 * g_flSpeed;
+		// The moving colours: the shade over its own colour, the paint over that keeping its light and dark, its glow, and a
+		// sheen polishing it
 		float3 emission = 0.0;
-		if ( motion > 0.5 && ( motion < 4.5 || motion > 7.5 ) )
+		if ( g_flSkinMoving > 0.5 )
 		{
-			float bands = floor( g_flBands );
-			float band = min( floor( along * bands ), bands - 1.0 );
-			float3 moving = BandColour( motion, band, bands, ms, along );
 			float light = max( dot( albedo, float3( 0.3, 0.59, 0.11 ) ), 0.35 );
-			albedo = lerp( albedo, moving * saturate( light * 1.8 ), 0.85 );
-			emission = moving * 0.12;
-		}
-		else if ( motion > 4.5 && motion < 5.5 )
-		{
-			// Pulse: brighter and dimmer in its colour
-			float beat = 0.5 - 0.5 * cos( g_flTime * g_flSpeed * 6.28318 );
-			albedo = lerp( albedo, albedo * g_vPalette0 * 1.4, beat );
-		}
-		else if ( motion > 5.5 && motion < 6.5 )
-		{
-			// Glow: lit from within, breathing
-			float beat = 0.6 + 0.4 * sin( g_flTime * g_flSpeed * 6.28318 );
-			emission = g_vPalette0 * beat * 1.5;
-		}
-		else if ( motion > 6.5 && motion < 7.5 )
-		{
-			// Shimmer: a sheen sweeping along it, once every two seconds at speed 1
-			float sweep = frac( g_flTime * g_flSpeed * 0.5 ) * 1.6 - 0.3;
-			float offset = ( along - sweep ) * 16.0;
-			float sheen = exp( -offset * offset );
-			emission = g_vPalette0 * sheen * 1.2;
-			m.Roughness = lerp( m.Roughness, 0.1, sheen );
+			albedo = lerp( albedo * skinShade.rgb, paint.rgb * saturate( light * 1.8 ), paint.a );
+			emission = skinGlow.rgb;
+			m.Roughness = lerp( m.Roughness, 0.1, skinGlow.a );
 		}
 
 		if ( g_flStickerCount > 0.5 )

@@ -9,9 +9,10 @@ namespace PlayerModels.Engine;
 /// <summary>
 /// The materials a weapon's skin (see <see cref="WeaponSkin"/>) is drawn with: each of the weapon's own materials made
 /// again on the selector's skin shader, keeping its whole surface (colour, bumps, roughness, metalness, shadows and glow,
-/// read as its own shader reads them), with the finish, tint, pattern and moving colours
-/// as its settings, and the design's stickers pressed onto it (see <see cref="Stuck"/>). The shader moves the colours
-/// itself, from the time of the frame, so nothing is set per frame but a moving sticker's colour. Made once for each
+/// read as its own shader reads them), with the finish, tint and pattern as its settings, its moving colours drawn from
+/// the skin's texture (see <see cref="SkinTextures"/>, filled by its scripts once a frame for everyone wearing it), and
+/// the design's stickers pressed onto it (see <see cref="Stuck"/>). Nothing is set on a material per frame but a moving
+/// sticker's colour. Made once for each
 /// material, skin and set of stickers and shared by everyone showing the same: a hundred players with the same skin on
 /// the same weapon draw with one set of materials.
 /// </summary>
@@ -120,7 +121,10 @@ internal static class WeaponSkins
 	{
 		var name = $"{source?.ResourcePath ?? source?.Name}|{key}|{frame}";
 		if ( Kept.TryGetValue( name, out var kept ) && kept.IsValid() )
+		{
+			Move( kept, design.Skin );
 			return kept;
+		}
 
 		if ( Kept.Count >= MostKept )
 			Kept.Clear();
@@ -167,19 +171,27 @@ internal static class WeaponSkins
 		made.Set( "g_vPatternB", Rgb( skin.PatternColorEnd ) );
 		made.Set( "g_flPatternSize", PatternUnits * skin.PatternScale );
 		made.Set( "g_flPatternTurn", skin.PatternTurn * MathF.PI / 180f );
-		made.Set( "g_flPatternScroll", skin.PatternScroll );
-		made.Set( "g_flPatternSpin", skin.PatternSpin );
 		if ( skin.PatternIs == WeaponSkin.Pattern.Shapes )
 			made.Set( "g_tPatternShape", PatternTexture( skin.PatternShape, shapes ) );
 
-		made.Set( "g_flMotion", (float)skin.AnimationIs );
-		var colours = skin.Colours();
-		made.Set( "g_flPaletteCount", (float)Math.Clamp( colours.Count, 1, WeaponSkin.MaxPalette ) );
-		for ( var i = 0; i < WeaponSkin.MaxPalette; i++ )
-			made.Set( $"g_vPalette{i}", Rgb( colours[ i % colours.Count ] ) );
+		Move( made, skin );
+	}
 
-		made.Set( "g_flSpeed", skin.Speed );
-		made.Set( "g_flBands", (float)skin.Bands );
+	/// <summary>
+	/// Gives <paramref name="made"/> the texture <paramref name="skin"/>'s moving colours are drawn from (see
+	/// <see cref="SkinTextures"/>), or none when nothing moves; asked again each time a kept material is dressed, so one
+	/// whose texture was let go of gets it back.
+	/// </summary>
+	private static void Move( Material made, WeaponSkin skin )
+	{
+		var moving = SkinTextures.For( skin );
+		made.Set( "g_flSkinMoving", moving is null ? 0f : 1f );
+		if ( moving is null )
+			return;
+
+		made.Set( "g_tSkinColours", moving.Texture );
+		made.Set( "g_flSkinBanded", moving.Colours.Banded ? 1f : 0f );
+		made.Set( "g_flSkinBands", (float)moving.Colours.Bands );
 	}
 
 	// The weapon's own surface, as its material keeps it: the skin draws it the same, so a sticker on a plain weapon is the

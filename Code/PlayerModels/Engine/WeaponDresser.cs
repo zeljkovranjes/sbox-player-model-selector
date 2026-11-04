@@ -16,7 +16,8 @@ namespace PlayerModels.Engine;
 /// worn beside the body's (see <see cref="EffectRack.ApplyWeapon"/>). Only the weapon held is dressed, once when it
 /// changes; everything it adds hangs off the weapon, so it moves with it for nothing. Taking it off puts the weapon back
 /// as the game made it. The same dresser dresses a first-person weapon (a different mesh), mapping props and stickers
-/// onto it (see <see cref="Mapping"/>). Each frame only a moving sticker's colour changes: no allocations.
+/// onto it (see <see cref="Mapping"/>). Each frame only its skin's moving colours (shared, see <see cref="SkinTextures"/>)
+/// and a moving sticker's colour change: no allocations.
 /// </summary>
 internal sealed class WeaponDresser
 {
@@ -59,6 +60,9 @@ internal sealed class WeaponDresser
 
 	// The skin's materials the stickers are drawn by, set again when a drawn sticker's picture is drawn or its colour moves
 	private readonly List<Material> _skinned = new();
+
+	// The texture its skin's moving colours are drawn from, filled each frame (shared with everyone wearing the same skin)
+	private SkinTextures.Entry _moving;
 	private int _request;
 	private float _startedAt;
 
@@ -181,9 +185,15 @@ internal sealed class WeaponDresser
 	// weapon keeps its texture and moves while it is near
 	private readonly List<DrawnShape> _drawnStickers = new();
 
-	/// <summary>Colours moving stickers, and keeps props drawn the way the weapon is (hidden in first person). Every frame: no allocations.</summary>
+	/// <summary>
+	/// Moves its skin's colours, colours moving stickers, and keeps props drawn the way the weapon is (hidden in first
+	/// person). Every frame: no allocations.
+	/// </summary>
 	internal void Animate()
 	{
+		if ( _moving is not null )
+			SkinTextures.Tick( _moving );
+
 		if ( _stickers.Count == 0 && _props.Count == 0 )
 			return;
 
@@ -275,6 +285,7 @@ internal sealed class WeaponDresser
 	private void Skin( GameObject held, ModelRenderer main, WeaponDesign design, bool mainAlone, IReadOnlyList<WeaponSkins.Stuck> stickers )
 	{
 		var painted = design.Skin is not null || stickers.Count > 0;
+		_moving = painted ? SkinTextures.For( design.Skin ) : null;
 		var key = painted ? WeaponSkins.KeyOf( design ) + WeaponSkins.KeyOf( stickers ) : null;
 		var frame = WeaponSkins.Frame.Of( main.Model.Bounds );
 		foreach ( var renderer in held.Components.GetAll<ModelRenderer>( FindMode.EverythingInSelfAndDescendants ) )
@@ -523,6 +534,7 @@ internal sealed class WeaponDresser
 		_props.Clear();
 		_stickers.Clear();
 		_skinned.Clear();
+		_moving = null;
 		_drawnStickers.Clear();
 	}
 }

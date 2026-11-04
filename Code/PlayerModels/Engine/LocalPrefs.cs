@@ -10,8 +10,8 @@ namespace PlayerModels.Engine;
 /// What this player keeps between sessions, on this machine: the model they wear, how they customised each model and the
 /// looks they saved, their favourites, their first-person arms, which grid headings they collapsed, the mounted games'
 /// folders they added, how they rated what others shared, how they sort it and whose they hid, how much of others'
-/// effects they see and whose they hid, the effects they keep to put on again ("My effects") and, as a host, which models
-/// their server allows.
+/// effects they see and whose they hid, the effects and shapes they keep ("My effects", "My shapes") and, as a host, which
+/// models their server allows.
 /// </summary>
 internal static class LocalPrefs
 {
@@ -33,6 +33,11 @@ internal static class LocalPrefs
 
 	/// <summary>The most effects kept in My effects.</summary>
 	internal const int MaxMyEffects = 50;
+
+	private const string MyShapesCookie = "player_model_selector.my_shapes";
+
+	/// <summary>The most shapes kept in My shapes.</summary>
+	internal const int MaxMyShapes = 50;
 
 	/// <summary>The model worn last, empty for the default citizen.</summary>
 	internal static string Pick
@@ -253,6 +258,47 @@ internal static class LocalPrefs
 		var kept = MyEffects();
 		if ( kept.RemoveAll( x => x.Name == name ) > 0 )
 			Game.Cookies.Set( MyEffectsCookie, kept );
+	}
+
+	/// <summary>
+	/// The shapes and stickers this player made, used or forked, kept to use and change again (My shapes), in the order
+	/// they were kept, each read within bounds; one that no longer reads is left out.
+	/// </summary>
+	internal static List<DrawnShape> MyShapes()
+	{
+		var kept = Game.Cookies.Get( MyShapesCookie, new List<DrawnShape>() ) ?? new List<DrawnShape>();
+		return kept.Select( x => x?.Sanitized() ).Where( x => x is not null && x.Name is not null ).Take( MaxMyShapes ).ToList();
+	}
+
+	/// <summary>
+	/// Keeps <paramref name="shape"/> in My shapes under its name, in place of one kept under that name. False when it has
+	/// no name, or My shapes is full.
+	/// </summary>
+	internal static bool SaveMyShape( DrawnShape shape )
+	{
+		var kept = MyShapes();
+		var saved = shape?.Sanitized();
+		if ( saved?.Name is null )
+			return false;
+
+		var index = kept.FindIndex( x => x.Name == saved.Name );
+		if ( index >= 0 )
+			kept[ index ] = saved;
+		else if ( kept.Count >= MaxMyShapes )
+			return false;
+		else
+			kept.Add( saved );
+
+		Game.Cookies.Set( MyShapesCookie, kept );
+		return true;
+	}
+
+	/// <summary>Takes the shape kept as <paramref name="name"/> out of My shapes.</summary>
+	internal static void DeleteMyShape( string name )
+	{
+		var kept = MyShapes();
+		if ( kept.RemoveAll( x => x.Name == name ) > 0 )
+			Game.Cookies.Set( MyShapesCookie, kept );
 	}
 
 	/// <summary>The starred models, in the order they were starred.</summary>

@@ -27,6 +27,11 @@ public sealed class EffectIcon : Panel
 	private readonly List<Cycling> _cycling = new();
 	private Effect _shown;
 
+	// Pictures of drawn shapes the effect carries (see ShapeTextures): a circle until each is drawn, asked for again
+	// whenever the textures change
+	private readonly List<(Panel Picture, DrawnShape Shape)> _drawn = new();
+	private int _generation = -1;
+
 	public override void Tick()
 	{
 		base.Tick();
@@ -34,15 +39,38 @@ public sealed class EffectIcon : Panel
 		if ( !ReferenceEquals( Effect, _shown ) )
 			Show( Effect );
 
+		if ( _drawn.Count > 0 )
+			ShowDrawn();
+
 		var ms = (long)(RealTime.Now * MillisecondsPerSecond);
 		foreach ( var cycling in _cycling )
 			cycling.Picture.Style.BackgroundTint = ColourOf( cycling, ms );
+	}
+
+	private void ShowDrawn()
+	{
+		ShapeTextures.Pump();
+		foreach ( var (picture, shape) in _drawn )
+		{
+			ShapeTextures.Count( shape.Content, 0f );
+			if ( shape.Sticker is { IsAnimated: true } sticker )
+				picture.Style.BackgroundTint = ShapeIcon.FillAt( sticker, RealTime.Now );
+		}
+
+		if ( _generation == ShapeTextures.Generation )
+			return;
+
+		_generation = ShapeTextures.Generation;
+		foreach ( var (picture, shape) in _drawn )
+			picture.Style.BackgroundImage = ShapeTextures.TextureOf( shape ) ?? EffectAtlas.TextureOf( StandardShape.Circle );
 	}
 
 	private void Show( Effect effect )
 	{
 		_shown = effect;
 		_cycling.Clear();
+		_drawn.Clear();
+		_generation = -1;
 		DeleteChildren( true );
 		if ( effect is null )
 			return;
@@ -54,7 +82,11 @@ public sealed class EffectIcon : Panel
 				continue;
 
 			var picture = AddChild<Panel>( $"picture picture-{shown} {MotionOf( layer )}" );
-			picture.Style.BackgroundImage = EffectAtlas.TextureOf( layer );
+			if ( effect.Shapes?.Find( x => x.Id == layer.DrawnPicture ) is { } drawn )
+				_drawn.Add( (picture, drawn) );
+			else
+				picture.Style.BackgroundImage = EffectAtlas.TextureOf( layer );
+
 			picture.Style.BackgroundTint = Color.Parse( layer.Color ) ?? Color.White;
 
 			if ( layer.ColorModeIs != LayerColorMode.Fixed )

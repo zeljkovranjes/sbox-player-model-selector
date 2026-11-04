@@ -1,0 +1,222 @@
+@import "SelectorTheme.scss";
+
+// The shape creator, in the Advanced editor's Effects tab: the canvas with its tools down its side, text and shapes to
+// add, the sticker's colours, then keeping and using the shape, and the shapes kept
+ShapeCreator
+{
+	flex-direction: column;
+	flex-shrink: 0;
+	padding: 4px 14px 4px 6px;
+	font-family: $body-font;
+	color: $ui-text;
+
+	.top
+	{
+		@include ui-top-row;
+	}
+
+	.note
+	{
+		flex-shrink: 0;
+		padding: 6px 4px;
+		font-size: $ui-settings-font;
+		color: $ui-text-muted;
+
+		&.status
+		{
+			color: $ui-text;
+		}
+	}
+
+	.section-header
+	{
+		@include ui-section-header;
+		margin-top: 12px;
+		margin-bottom: 4px;
+	}
+
+	.row
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		min-height: 28px;
+		gap: 8px;
+	}
+
+	// direct children only: s&box gives every text in a div the class "label" too
+	.row > .label
+	{
+		@include ui-label;
+		width: 120px;
+		flex-shrink: 0;
+	}
+
+	UIDropdown
+	{
+		flex-grow: 1;
+	}
+
+	.entry
+	{
+		@include ui-text-entry;
+		flex-grow: 1;
+	}
+
+	.reset
+	{
+		@include ui-button;
+		flex-shrink: 0;
+
+		&.disabled
+		{
+			opacity: 0.4;
+			pointer-events: none;
+		}
+	}
+
+	// the canvas, square, on the dark ground sprites show on, with the shape's square marked out; its tools beside it
+	.canvas-row
+	{
+		flex-direction: row;
+		flex-shrink: 0;
+		gap: 6px;
+	}
+
+	.canvas
+	{
+		width: 320px;
+		height: 320px;
+		flex-shrink: 0;
+		background-color: #1b1d22;
+		background-size: 100%;
+		background-repeat: no-repeat;
+		border: 1px solid $ui-separator;
+		border-radius: 2px;
+		cursor: crosshair;
+	}
+
+	.canvas-tools
+	{
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-content: flex-start;
+		gap: 4px;
+		width: 64px;
+		flex-shrink: 0;
+	}
+
+	.tool
+	{
+		@include ui-button;
+		width: 28px;
+		padding: 0;
+		flex-shrink: 0;
+		font-family: "Material Icons";
+		font-size: 16px;
+		text-transform: none;
+
+		&.disabled
+		{
+			opacity: 0.35;
+			pointer-events: none;
+		}
+	}
+
+	// the sticker as a body shows it, moving
+	.preview-row
+	{
+		margin-top: 4px;
+	}
+
+	.preview
+	{
+		width: 56px;
+		height: 56px;
+		flex-shrink: 0;
+		background-color: #1b1d22;
+		background-size: contain;
+		background-repeat: no-repeat;
+		background-position: center;
+		border-radius: 2px;
+	}
+
+	.sharing.mine
+	{
+		margin-top: 4px;
+	}
+
+	// My shapes: small tiles, the one being changed outlined, each with a delete button in its corner on hover
+	.shapes
+	{
+		flex-direction: row;
+		flex-wrap: wrap;
+		flex-shrink: 0;
+		gap: 4px;
+	}
+
+	.shape-tile
+	{
+		position: relative;
+		width: 23%;
+		height: 92px;
+		flex-shrink: 0;
+		background-color: $ui-tile-bg;
+		border: 1px solid transparent;
+		border-radius: 2px;
+		cursor: pointer;
+
+		&:hover
+		{
+			border-color: white;
+			sound-in: ui.hover;
+		}
+
+		&.active
+		{
+			border-color: $ui-blue;
+		}
+
+		.thumb
+		{
+			position: absolute;
+			left: 1px;
+			right: 1px;
+			top: 1px;
+			bottom: 25px;
+			background-color: #1b1d22;
+			background-size: contain;
+			background-repeat: no-repeat;
+			background-position: center;
+		}
+
+		.title
+		{
+			@include ui-tile-title;
+			height: 24px;
+		}
+
+		.forget
+		{
+			position: absolute;
+			top: 2px;
+			right: 2px;
+			font-family: "Material Icons";
+			font-size: 16px;
+			color: white;
+			text-shadow: 0px 1px 2px rgba( 0, 0, 0, 0.8 );
+			text-transform: none;
+			opacity: 0;
+
+			&:hover
+			{
+				color: $ui-danger;
+			}
+		}
+
+		&:hover .forget
+		{
+			opacity: 1;
+		}
+	}
+}

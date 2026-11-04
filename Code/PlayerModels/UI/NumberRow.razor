@@ -14,8 +14,8 @@
 
 @code
 {
-    /// <summary>The ranges a number can have, each the range of an effect's field (see <see cref="EffectLayer"/>).</summary>
-    public enum Field { Spread, Offset, Size, Reach, Seconds, Rate, Brightness, Speed, Gravity, Beats, Fraction, Angle, Burst, ShowFor }
+    /// <summary>The ranges a number can have, each the range of an effect's field (see <see cref="EffectLayer"/>) or a sticker's.</summary>
+    public enum Field { Spread, Offset, Size, Reach, Seconds, Rate, Brightness, Speed, Gravity, Beats, Fraction, Angle, Burst, ShowFor, Outline }
 
     /// <summary>What the number sets.</summary>
     [Parameter] public string Label { get; set; }
@@ -53,6 +53,7 @@
     [Range( 0f, EffectLayer.MaxAngle ), Step( 1f )] public float Angle { get => Value; set => Set( value ); }
     [Range( 0f, EffectLayer.MaxBurst ), Step( 1f )] public float Burst { get => Value; set => Set( value ); }
     [Range( 0f, EffectLayer.MaxShowFor ), Step( 0.05f )] public float ShowFor { get => Value; set => Set( value ); }
+    [Range( 0f, Sticker.MaxOutline ), Step( 0.01f )] public float Outline { get => Value; set => Set( value ); }
 
     void Set( float value )
     {

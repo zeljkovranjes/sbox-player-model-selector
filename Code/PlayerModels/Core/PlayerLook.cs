@@ -309,6 +309,24 @@ public sealed class PlayerLook
 	}
 
 	/// <summary>
+	/// Carries <paramref name="shape"/> for a layer to name, letting go of shapes no layer names any more. False, with
+	/// nothing changed, when the look already carries <see cref="DrawnShape.MaxPerLook"/> shapes its layers name.
+	/// </summary>
+	public bool Carry( DrawnShape shape )
+	{
+		var named = Effects.SelectMany( x => x.Layers ).SelectMany( x => new[] { x.DrawnFormation, x.DrawnPicture } ).Where( x => x is not null ).ToHashSet();
+		if ( DrawnShapes.Exists( x => x.Id == shape.Id ) )
+			return true;
+
+		if ( named.Count( x => x != shape.Id ) >= DrawnShape.MaxPerLook )
+			return false;
+
+		DrawnShapes.RemoveAll( x => !named.Contains( x.Id ) );
+		DrawnShapes.Add( shape );
+		return true;
+	}
+
+	/// <summary>
 	/// Wears <paramref name="effect"/> (one on its own, see <see cref="Standalone"/>): its drawn shapes become the look's,
 	/// each once. False, with nothing changed, when the look would carry more than <see cref="DrawnShape.MaxPerLook"/>
 	/// shapes its layers name.

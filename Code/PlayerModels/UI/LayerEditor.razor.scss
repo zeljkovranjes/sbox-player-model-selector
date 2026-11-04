@@ -64,7 +64,12 @@ LayerEditor
 		}
 	}
 
-	// undo and redo, before the buttons that add layers
+	.note.status
+	{
+		color: $ui-text;
+	}
+
+	// undo and redo, before the buttons that add layers; editing a drawn shape, beside its list
 	.row > .tool
 	{
 		@include ui-button;

@@ -16,9 +16,16 @@
         <div class="note">The host keeps effects off on this server, so nobody sees yours. They stay with your look and can still be changed.</div>
     }
 
-    @if ( Look is null || Look.Effects.Count == 0 || Effect is not { } effect )
+    @if ( _view == View.Creator && Look is not null )
+    {
+        <ShapeCreator Start=@_creatorStart UseOnLayer=@UseShape CanUse=@( Layer?.KindIs == LayerKind.Sprite ) Back=@(() => ShowView( View.Layers ))></ShapeCreator>
+    }
+    else if ( Look is null || Look.Effects.Count == 0 || Effect is not { } effect )
     {
         <div class="note">No effects yet. Put one on from the Effects tab, then build on it here, layer by layer.</div>
+        <div class="row">
+            <div class="reset" @onclick=@(() => OpenCreator( null ))>Shape creator</div>
+        </div>
     }
     else
     {
@@ -92,16 +99,24 @@
                 {
                     <div class="row">
                         <div class="label">Shape</div>
-                        <UIDropdown Items=@StandardShapeChoices() Value=@selected.FormationIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Formation = (string)v ))
-                                    Tokenize=@false></UIDropdown>
+                        <UIDropdown Items=@ShapePickerChoices( StandardShapeChoices() ) Value=@( selected.DrawnFormation is null ? selected.FormationIs.ToString() : selected.Formation )
+                                    ValueChanged=@(( object v ) => PickShape( v as string, false )) Tokenize=@false></UIDropdown>
+                        @if ( Look.DrawnShapeOf( selected.DrawnFormation ) is { } formation )
+                        {
+                            <div class="tool" Tooltip="Change it in the shape creator" @onclick=@(() => OpenCreator( formation ))>edit</div>
+                        }
                     </div>
-                    <ToggleRow Label=@( StandardShapes.IsSolid( selected.FormationIs ) ? "All through it (not just its surface)" : "All over it (not just its outline)" )
+                    <ToggleRow Label=@( selected.DrawnFormation is null && StandardShapes.IsSolid( selected.FormationIs ) ? "All through it (not just its surface)" : "All over it (not just its outline)" )
                                Value=@selected.Fill OnChanged=@(( bool v ) => SetAll( l => l.Fill = v ))></ToggleRow>
                 }
                 <div class="row">
                     <div class="label">Looks like</div>
-                    <UIDropdown Items=@PictureChoices() Value=@( selected.Picture ?? nameof( LayerPicture.Glow ) ) ValueChanged=@(( object v ) => SetAll( l => l.Picture = (string)v ))
+                    <UIDropdown Items=@ShapePickerChoices( PictureChoices() ) Value=@( selected.Picture ?? nameof( LayerPicture.Glow ) ) ValueChanged=@(( object v ) => PickShape( v as string, true ))
                                 Tokenize=@false></UIDropdown>
+                    @if ( Look.DrawnShapeOf( selected.DrawnPicture ) is { } picture )
+                    {
+                        <div class="tool" Tooltip="Change it in the shape creator" @onclick=@(() => OpenCreator( picture ))>edit</div>
+                    }
                 </div>
                 <ColorRow Label="Color" Hex=@selected.Color OnChanged=@(( string hex ) => SetAll( l => l.Color = string.IsNullOrEmpty( hex ) ? "#ffffff" : hex ))></ColorRow>
                 <NumberRow Label="Size" Unit=@NumberRow.Field.Size Value=@selected.Size OnChanged=@(( float v ) => SetAll( l => l.Size = v ))></NumberRow>
@@ -148,6 +163,11 @@
                 }
             }
             <ToggleRow Label="Fade with how fast it moves" Value=@selected.FadeWithSpeed OnChanged=@(( bool v ) => SetAll( l => l.FadeWithSpeed = v ))></ToggleRow>
+
+            @if ( _status is not null )
+            {
+                <div class="note status">@_status</div>
+            }
 
             <div class="fold @( _more ? "open" : "" )" @onclick=@ToggleMore>
                 <div class="fold-icon">@( _more ? "expand_more" : "chevron_right" )</div>
@@ -242,8 +262,107 @@
 
     static PlayerModelSelector Selector => PlayerModelSelector.Find( Game.ActiveScene );
 
+    // What shows: the layers, the shape creator, or the Workshop's shapes
+    enum View { Layers, Creator, ShapesWorkshop }
+
+    View _view;
+    DrawnShape _creatorStart;
+    string _status;
+
     protected override int BuildHash() => HashCode.Combine( Look?.Serialize(), _effect, _layer, _more, _keep, Locked, Selector?.EffectsBudget,
-        HashCode.Combine( string.Join( ",", _chosen ), History?.CanUndo, History?.CanRedo ) );
+        HashCode.Combine( string.Join( ",", _chosen ), History?.CanUndo, History?.CanRedo, _view, _creatorStart, _status ) );
+
+    void ShowView( View view )
+    {
+        _view = view;
+        StateHasChanged();
+    }
+
+    void OpenCreator( DrawnShape shape )
+    {
+        _creatorStart = shape;
+        ShowView( View.Creator );
+    }
+
+    // The look carries the shape, and every chosen layer comes from it or looks like it; a sticker shows its own colours,
+    // so the layers stop tinting them and cover what is behind
+    void UseShape( DrawnShape shape, bool asPicture )
+    {
+        if ( !Look.Carry( shape ) )
+        {
+            _status = $"A look carries up to {DrawnShape.MaxPerLook} drawn shapes. Use one of those, or remove a layer that uses another.";
+            ShowView( View.Layers );
+            return;
+        }
+
+        SetAll( l =>
+        {
+            if ( !asPicture )
+            {
+                l.Shape = nameof( LayerShape.Shape );
+                l.Formation = shape.Reference;
+                return;
+            }
+
+            l.Picture = shape.Reference;
+            if ( shape.Sticker is null )
+                return;
+
+            l.Color = "#ffffff";
+            l.ColorEnd = null;
+            l.Solid = true;
+        } );
+
+        _status = null;
+        ShowView( View.Layers );
+    }
+
+    // A shape picked in a list: a standard one or a picture by name, one the look carries ("@" and its id), one of My
+    // shapes ("mine:" and its name), or the creator or the Workshop
+    void PickShape( string choice, bool asPicture )
+    {
+        if ( choice is null )
+            return;
+
+        if ( choice == DrawChoice )
+        {
+            OpenCreator( null );
+            return;
+        }
+
+        if ( choice.StartsWith( MineChoice ) )
+        {
+            if ( LocalPrefs.MyShapes().FirstOrDefault( x => x.Name == choice[ MineChoice.Length.. ] ) is { } mine )
+                UseShape( mine, asPicture );
+
+            return;
+        }
+
+        SetAll( l =>
+        {
+            if ( asPicture )
+                l.Picture = choice;
+            else
+                l.Formation = choice;
+        } );
+    }
+
+    const string DrawChoice = "draw";
+    const string MineChoice = "mine:";
+
+    // A list of shapes, then the drawn ones the look carries, My shapes, and the creator and the Workshop at its end
+    List<UIDropdown.Item> ShapePickerChoices( List<UIDropdown.Item> standard )
+    {
+        var choices = new List<UIDropdown.Item>( standard );
+        foreach ( var shape in Look.DrawnShapes )
+            choices.Add( new UIDropdown.Item( $"Drawn: {shape.Name ?? "untitled"}", shape.Reference ) );
+
+        foreach ( var shape in LocalPrefs.MyShapes().Where( x => !Look.DrawnShapes.Exists( y => y.Id == x.Id ) ) )
+            choices.Add( new UIDropdown.Item( $"My shape: {shape.Name}", MineChoice + shape.Name ) );
+
+        choices.Add( new UIDropdown.Item( "Draw a new shape...", DrawChoice ) );
+        return choices;
+    }
 
     void Set( Action change )
     {
@@ -601,13 +720,14 @@
         new( "Mixed, one each", nameof( LayerColorMode.Mix ) ),
     };
 
-    // "Sprites: Flame, on jumping", "Light", "Trail, while moving"
-    static string NameOf( EffectLayer layer )
+    // "Sprites: Flame, on jumping", "Light", "Trail, while moving"; a drawn shape by its name
+    string NameOf( EffectLayer layer )
     {
         var name = layer.KindIs switch
         {
             LayerKind.Light => "Light",
             LayerKind.Trail => "Trail",
+            _ when layer.DrawnPicture is { } drawn => $"Sprites: {Look?.DrawnShapeOf( drawn )?.Name ?? "drawn shape"}",
             _ => $"Sprites: {(layer.PictureShape is { } shape ? ShapeName( shape ) : layer.PictureIs.ToString())}",
         };
 

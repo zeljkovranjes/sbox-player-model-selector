@@ -1,0 +1,378 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Core
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    <div class="top">
+        <div class="back" Tooltip="Back to the layer" @onclick=@(() => Back?.Invoke())>arrow_back</div>
+        <div class="intro">Draw with the left mouse button, write text, or put shapes together. Save it to My shapes, or use it on the layer.</div>
+    </div>
+
+    <div class="canvas-row">
+        <ShapeCanvas class="canvas" Strokes=@_strokes Sticker=@_sticker Closed=@_closed Drawn=@AddStroke></ShapeCanvas>
+        <div class="canvas-tools">
+            <div class="tool @( _undo.Count > 0 ? "" : "disabled" )" Tooltip="Undo" @onclick=@Undo>undo</div>
+            <div class="tool @( _strokes.Count > 0 ? "" : "disabled" )" Tooltip="Clear" @onclick=@Clear>delete_sweep</div>
+            <div class="tool" Tooltip="Mirror left to right" @onclick=@(() => Change( ShapeStroke.Mirrored( _strokes ) ))>flip</div>
+            <div class="tool" Tooltip="Add a mirrored copy (wings, faces)" @onclick=@(() => Change( _strokes.Concat( ShapeStroke.Mirrored( _strokes ) ).ToList() ))>join_left</div>
+            <div class="tool" Tooltip="Flip upside down" @onclick=@(() => Change( ShapeStroke.Flipped( _strokes ) ))>swap_vert</div>
+            <div class="tool" Tooltip="Turn left" @onclick=@(() => Change( ShapeStroke.Rotated( _strokes, TurnDegrees ) ))>rotate_left</div>
+            <div class="tool" Tooltip="Turn right" @onclick=@(() => Change( ShapeStroke.Rotated( _strokes, -TurnDegrees ) ))>rotate_right</div>
+            <div class="tool" Tooltip="Smaller" @onclick=@(() => Change( ShapeStroke.Scaled( _strokes, 1f / ScaleStep ) ))>zoom_out</div>
+            <div class="tool" Tooltip="Bigger" @onclick=@(() => Change( ShapeStroke.Scaled( _strokes, ScaleStep ) ))>zoom_in</div>
+            <div class="tool" Tooltip="Fit to the square" @onclick=@(() => Change( ShapeStroke.Fitted( _strokes ) ))>fit_screen</div>
+        </div>
+    </div>
+    <div class="note">@PointsText()</div>
+    <ToggleRow Label="Draw filled shapes (each stroke closes round on itself)" Value=@_closed OnChanged=@SetClosed></ToggleRow>
+
+    <div class="row">
+        <div class="label">Text</div>
+        <TextEntry class="entry" Placeholder="Letters, digits and . , ! ? & + - : # @@" MaxLength=@HersheyFont.MaxLength Value:bind=@_text @onsubmit=@AddText></TextEntry>
+        <div class="reset @( string.IsNullOrWhiteSpace( _text ) ? "disabled" : "" )" @onclick=@AddText>Add text</div>
+    </div>
+    <div class="row">
+        <div class="label">Combine with</div>
+        <UIDropdown Items=@CombineChoices() Value=@_combineWith ValueChanged=@SetCombineWith Tokenize=@false></UIDropdown>
+        <div class="reset" @onclick=@Combine>Add it</div>
+    </div>
+
+    <div class="section-header">Sticker</div>
+    <ToggleRow Label="A sticker: its own colors, an outline, a color that moves" Value=@( _sticker is not null ) OnChanged=@SetSticker></ToggleRow>
+    @if ( _sticker is { } sticker )
+    {
+        <ColorRow Label="Fill" Hex=@sticker.Fill OnChanged=@(( string hex ) => Restyle( s => s.Fill = string.IsNullOrEmpty( hex ) ? "#ffffff" : hex ))></ColorRow>
+        <ColorRow Label="Outline" Hex=@sticker.Outline OnChanged=@(( string hex ) => Restyle( s => s.Outline = string.IsNullOrEmpty( hex ) ? "#000000" : hex ))></ColorRow>
+        <NumberRow Label="Outline width" Unit=@NumberRow.Field.Outline Value=@sticker.OutlineWidth OnChanged=@(( float v ) => Restyle( s => s.OutlineWidth = v ))></NumberRow>
+        <div class="row">
+            <div class="label">Moving color</div>
+            <UIDropdown Items=@MotionChoices() Value=@sticker.AnimationIs.ToString() ValueChanged=@(( object v ) => Restyle( s => s.Animation = (string)v == nameof( Sticker.Motion.None ) ? null : (string)v ))
+                        Tokenize=@false></UIDropdown>
+        </div>
+        @if ( sticker.IsAnimated )
+        {
+            <NumberRow Label="Speed" Unit=@NumberRow.Field.Beats Value=@sticker.Speed OnChanged=@(( float v ) => Restyle( s => s.Speed = v ))></NumberRow>
+        }
+        @if ( sticker.AnimationIs is Sticker.Motion.Rain or Sticker.Motion.Cycl or Sticker.Motion.Cyln )
+        {
+            var colours = sticker.CycleColours();
+            @for ( var i = 0; i < colours.Count; i++ )
+            {
+                var index = i;
+                <ColorRow Label=@( sticker.AnimationIs == Sticker.Motion.Cyln ? (index == 0 ? "Highlight" : "Rest") : $"Color {index + 1}" ) Hex=@colours[ index ]
+                          OnChanged=@(( string hex ) => SetCycleColour( index, hex )) ResetLabel=@( sticker.AnimationIs == Sticker.Motion.Cyln ? "Reset" : "Remove" )
+                          CanReset=@( sticker.AnimationIs == Sticker.Motion.Cyln || colours.Count > 1 )></ColorRow>
+            }
+            <div class="row">
+                @if ( sticker.AnimationIs != Sticker.Motion.Cyln )
+                {
+                    <div class="reset @( colours.Count < EffectLayer.MaxPalette ? "" : "disabled" )" @onclick=@AddCycleColour>Add color</div>
+                }
+                <div class="reset @( sticker.Palette is null ? "disabled" : "" )" @onclick=@(() => Restyle( s => s.Palette = null ))>Game colors</div>
+            </div>
+        }
+        <div class="row preview-row">
+            <ShapeIcon class="preview" Shape=@Current></ShapeIcon>
+            <div class="note">How it looks on a body, moving as it does there.</div>
+        </div>
+    }
+
+    <div class="section-header">Keep and use it</div>
+    <div class="row">
+        <div class="label">Name</div>
+        <TextEntry class="entry" Placeholder="What to call it" MaxLength=@DrawnShape.MaxNameLength Value:bind=@_name></TextEntry>
+        <div class="reset @( Current is null || string.IsNullOrWhiteSpace( _name ) ? "disabled" : "" )" @onclick=@Save>Save to My shapes</div>
+    </div>
+    @if ( CanUse )
+    {
+        <div class="row">
+            <div class="reset @( Current is null ? "disabled" : "" )" Tooltip="Sprites come from all along it" @onclick=@(() => Use( false ))>Use as Comes from</div>
+            <div class="reset @( Current is null ? "disabled" : "" )" Tooltip="Each sprite is this shape" @onclick=@(() => Use( true ))>Use as Looks like</div>
+        </div>
+    }
+    @if ( _status is not null )
+    {
+        <div class="note status">@_status</div>
+    }
+
+    <div class="section-header">My Shapes</div>
+    @if ( Mine.Count == 0 )
+    {
+        <div class="note">Shapes you save, use from the Workshop or fork show here, to change and use again.</div>
+    }
+    else
+    {
+        <div class="shapes">
+            @foreach ( var kept in Mine )
+            {
+                var shown = kept;
+                <div class="shape-tile @( shown.Name == _name ? "active" : "" )" Tooltip=@( $"{shown.Name}: click to change it" ) @onclick=@(() => Load( shown ))>
+                    <ShapeIcon class="thumb" Shape=@shown></ShapeIcon>
+                    <div class="title">@shown.Name</div>
+                    <div class="forget" Tooltip="Delete from My shapes" @onclick=@(( PanelEvent e ) => Forget( shown, e ))>delete</div>
+                </div>
+            }
+        </div>
+    }
+</root>
+
+@code
+{
+    /// <summary>The shape to start from (a kept one); null for a new one.</summary>
+    [Parameter] public DrawnShape Start { get; set; }
+
+    /// <summary>Uses the shape on the layer being edited: as where its sprites come from (false) or what they look like (true).</summary>
+    [Parameter] public Action<DrawnShape, bool> UseOnLayer { get; set; }
+
+    /// <summary>Whether the layer being edited is sprites, which a shape can be used on.</summary>
+    [Parameter] public bool CanUse { get; set; }
+
+    /// <summary>Goes back to the layer.</summary>
+    [Parameter] public Action Back { get; set; }
+
+    // A turn and a size step of the tools
+    const float TurnDegrees = 15f;
+    const float ScaleStep = 1.1f;
+
+    List<ShapeStroke> _strokes = new();
+    readonly Stack<List<ShapeStroke>> _undo = new();
+    bool _closed;
+    string _text;
+    string _combineWith = nameof( StandardShape.Star5 );
+    Sticker _sticker;
+    string _name;
+    ShareOrigin _forkedFrom;
+    string _status;
+    DrawnShape _started;
+    List<DrawnShape> _mine;
+    int _revision;
+
+    // The shape as it is now, worked out again only when it (or its name, as typed) changes
+    DrawnShape _current;
+    int _currentAt = -1;
+    string _currentName;
+
+    DrawnShape Current
+    {
+        get
+        {
+            if ( _currentAt != _revision || _currentName != _name )
+            {
+                _current = _strokes.Count > 0 ? DrawnShape.From( _strokes, string.IsNullOrWhiteSpace( _name ) ? null : _name, _sticker?.Sanitized(), _forkedFrom ) : null;
+                _currentAt = _revision;
+                _currentName = _name;
+            }
+
+            return _current;
+        }
+    }
+
+    // The shape with the name typed for it: what is kept
+    DrawnShape Named => string.IsNullOrWhiteSpace( _name ) ? null : Current;
+
+    List<DrawnShape> Mine => _mine ??= LocalPrefs.MyShapes();
+
+    protected override int BuildHash() => HashCode.Combine( _revision, _closed, _undo.Count, _status, _name, CanUse, Mine.Count );
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+
+        if ( ReferenceEquals( Start, _started ) )
+            return;
+
+        _started = Start;
+        if ( Start is not null )
+            Load( Start );
+    }
+
+    // A kept or forked shape in the creator to change: its strokes, how it is coloured, its name and where it came from
+    void Load( DrawnShape shape )
+    {
+        _undo.Push( _strokes );
+        _strokes = shape.Decode();
+        _sticker = shape.Sticker;
+        _name = shape.Name;
+        _forkedFrom = shape.ForkedFrom;
+        _status = null;
+        Changed();
+    }
+
+    void Changed()
+    {
+        _revision++;
+        StateHasChanged();
+    }
+
+    // Every change to the strokes can be undone, a stroke at a time
+    void Change( List<ShapeStroke> strokes )
+    {
+        _undo.Push( _strokes );
+        _strokes = strokes;
+        Changed();
+    }
+
+    void Clear() => Change( new List<ShapeStroke>() );
+
+    void AddStroke( ShapeStroke stroke )
+    {
+        Change( _strokes.Append( stroke ).ToList() );
+    }
+
+    void Undo()
+    {
+        if ( _undo.Count == 0 )
+            return;
+
+        _strokes = _undo.Pop();
+        Changed();
+    }
+
+    void SetClosed( bool closed )
+    {
+        _closed = closed;
+        StateHasChanged();
+    }
+
+    // Text fills the square on its own, or goes over what is drawn already, to be sized and turned from there
+    void AddText()
+    {
+        var strokes = HersheyFont.Strokes( _text );
+        if ( strokes.Count == 0 )
+            return;
+
+        Change( _strokes.Concat( strokes ).ToList() );
+        _text = null;
+    }
+
+    void SetCombineWith( object choice )
+    {
+        _combineWith = choice as string;
+    }
+
+    void Combine()
+    {
+        var strokes = StrokesOf( _combineWith );
+        if ( strokes.Count > 0 )
+            Change( _strokes.Concat( strokes ).ToList() );
+    }
+
+    // A shape to combine with: one of My shapes ("mine:" and its name), or a standard one, its outlines as strokes
+    List<ShapeStroke> StrokesOf( string choice )
+    {
+        if ( choice is null )
+            return new List<ShapeStroke>();
+
+        if ( choice.StartsWith( "mine:" ) )
+            return Mine.FirstOrDefault( x => x.Name == choice[ 5.. ] )?.Decode() ?? new List<ShapeStroke>();
+
+        if ( !Enum.TryParse<StandardShape>( choice, out var shape ) )
+            return new List<ShapeStroke>();
+
+        var (closed, open) = StandardShapes.Outline( shape );
+        return closed.Select( x => new ShapeStroke { Closed = true, Points = x } ).Concat( open.Select( x => new ShapeStroke { Points = x } ) ).ToList();
+    }
+
+    List<UIDropdown.Item> CombineChoices()
+    {
+        var choices = Mine.Select( x => new UIDropdown.Item( $"Mine: {x.Name}", $"mine:{x.Name}" ) ).ToList();
+        choices.AddRange( Enum.GetValues<StandardShape>().Where( x => !StandardShapes.IsSolid( x ) ).Select( x => new UIDropdown.Item( x.ToString(), x.ToString() ) ) );
+        return choices;
+    }
+
+    static List<UIDropdown.Item> MotionChoices() => new()
+    {
+        new( "None", nameof( Sticker.Motion.None ) ),
+        new( "Rainbow", nameof( Sticker.Motion.Rainbow ) ),
+        new( "Rain (clan tag)", nameof( Sticker.Motion.Rain ) ),
+        new( "Cycle (clan tag)", nameof( Sticker.Motion.Cycl ) ),
+        new( "Scanner (clan tag)", nameof( Sticker.Motion.Cyln ) ),
+        new( "Pulse", nameof( Sticker.Motion.Pulse ) ),
+    };
+
+    // A sticker starts white with a thin black outline, the colours to change from there
+    const float StartingOutline = 0.06f;
+
+    void SetSticker( bool sticker )
+    {
+        _sticker = sticker ? new Sticker { OutlineWidth = StartingOutline } : null;
+        Changed();
+    }
+
+    // The sticker changed: a new one, so what showed it draws it again
+    void Restyle( Action<Sticker> change )
+    {
+        var copy = (_sticker ?? new Sticker()).Sanitized();
+        change( copy );
+        _sticker = copy.Sanitized();
+        Changed();
+    }
+
+    void SetCycleColour( int index, string hex )
+    {
+        var colours = _sticker.CycleColours().ToList();
+        var defaults = new Sticker { Animation = _sticker.Animation }.CycleColours();
+        if ( !string.IsNullOrEmpty( hex ) )
+            colours[ index ] = hex;
+        else if ( _sticker.AnimationIs == Sticker.Motion.Cyln )
+            colours[ index ] = defaults[ index ];
+        else if ( colours.Count > 1 )
+            colours.RemoveAt( index );
+
+        Restyle( s => s.Palette = colours.SequenceEqual( defaults, StringComparer.OrdinalIgnoreCase ) ? null : colours );
+    }
+
+    void AddCycleColour()
+    {
+        var colours = _sticker.CycleColours().ToList();
+        colours.Add( colours[ ^1 ] );
+        Restyle( s => s.Palette = colours );
+    }
+
+    void Save()
+    {
+        if ( Named is not { } shape )
+            return;
+
+        _status = LocalPrefs.SaveMyShape( shape ) ? $"Saved to My shapes as \"{shape.Name}\"." : $"My shapes is full ({LocalPrefs.MaxMyShapes}). Delete one first.";
+        _mine = null;
+        Changed();
+    }
+
+    void Forget( DrawnShape shape, PanelEvent e )
+    {
+        e.StopPropagation();
+        LocalPrefs.DeleteMyShape( shape.Name );
+        _status = $"\"{shape.Name}\" is deleted from My shapes.";
+        _mine = null;
+        Changed();
+    }
+
+    void Use( bool asPicture )
+    {
+        if ( Current is { } shape )
+            UseOnLayer?.Invoke( shape, asPicture );
+    }
+
+    string PointsText()
+    {
+        var points = _strokes.Sum( x => x.Count );
+        var kept = Math.Min( points, DrawnShape.MaxPoints );
+        return points > DrawnShape.MaxPoints
+            ? $"{points} points: a shape keeps {DrawnShape.MaxPoints}, so the last strokes are cut. Undo, or make it simpler."
+            : $"{kept} of {DrawnShape.MaxPoints} points, {_strokes.Count} {(_strokes.Count == 1 ? "stroke" : "strokes")}.";
+    }
+
+    // What a shape is, in a few words: how many strokes and points, and whether it is a sticker
+    public static string DescribeShape( DrawnShape shape )
+    {
+        var what = shape.Sticker is { } sticker ? sticker.IsAnimated ? $"{sticker.AnimationIs} sticker" : "Sticker" : "Shape";
+        return $"{what}, {shape.Strokes.Count} {(shape.Strokes.Count == 1 ? "stroke" : "strokes")}, {shape.PointCount} points";
+    }
+}

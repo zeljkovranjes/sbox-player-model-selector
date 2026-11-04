@@ -30,7 +30,7 @@ public static partial class PresetScripts
 		cloud.Follow = true
 		cloud.Solid = true
 
-		-- Snowflakes falling gently out of it
+		-- Snowflakes falling gently out of it, lagging a little behind a runner (Drag) so they stay on them yet drift
 		local snow = Sprite()
 		snow.ComesFrom = ComesFrom.Sphere
 		snow.Spread = 7
@@ -41,6 +41,8 @@ public static partial class PresetScripts
 		snow.Gravity = 25
 		snow.Lifetime = 2
 		snow.Amount = snowfall
+		snow.Follow = true
+		snow.Drag = 0.4
 		snow.Solid = true
 		""";
 }

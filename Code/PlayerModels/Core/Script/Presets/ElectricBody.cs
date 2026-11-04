@@ -29,6 +29,7 @@ public static partial class PresetScripts
 		sparks.Speed = 40
 		sparks.Lifetime = 0.3
 		sparks.Amount = 70
+		sparks.Follow = true
 		sparks.Rhythm = Rhythm.Flicker
 		sparks.RhythmSpeed = 12
 		sparks.RhythmAmount = 0.4

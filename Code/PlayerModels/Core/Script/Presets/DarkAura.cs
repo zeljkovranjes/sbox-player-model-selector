@@ -16,7 +16,7 @@ public static partial class PresetScripts
 		Effect.Name = "Dark aura"
 		Effect.Joint = Joint.Hips
 
-		-- Solid smoke all around the body, drifting up slowly
+		-- Solid smoke all around the body, drifting up slowly as it moves with it
 		local smoke = Sprite()
 		smoke.ComesFrom = ComesFrom.AroundBody
 		smoke.Spread = 32
@@ -26,9 +26,10 @@ public static partial class PresetScripts
 		smoke.Size = 14
 		smoke.SizeEnd = 22
 		smoke.Speed = 3
-		smoke.Gravity = -10
+		smoke.Gravity = -5
 		smoke.Lifetime = 2.4
 		smoke.Amount = 18
+		smoke.Follow = true
 		smoke.Solid = true
 
 		-- A purple glow inside it, moving with the body

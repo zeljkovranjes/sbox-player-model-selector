@@ -33,7 +33,7 @@ public static partial class PresetScripts
 		glow.RhythmSpeed = breathSpeed
 		glow.RhythmAmount = 0.3
 
-		-- Sparkles drifting up through it
+		-- Sparkles drifting up through it, moving with the body
 		local sparkles = Sprite()
 		sparkles.ComesFrom = ComesFrom.AroundBody
 		sparkles.Spread = 34
@@ -46,6 +46,7 @@ public static partial class PresetScripts
 		sparkles.Gravity = -20
 		sparkles.Lifetime = 1.5
 		sparkles.Amount = 10
+		sparkles.Follow = true
 
 		-- A warm light at the chest, breathing with the glow
 		local light = Light()

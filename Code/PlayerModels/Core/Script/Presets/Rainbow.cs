@@ -43,5 +43,6 @@ public static partial class PresetScripts
 		sparkles.Gravity = -18
 		sparkles.Lifetime = 1.4
 		sparkles.Amount = 16
+		sparkles.Follow = true
 		""";
 }

@@ -15,7 +15,8 @@ public static partial class PresetScripts
 		Effect.Name = "Magic orbs"
 		Effect.Joint = Joint.Hips
 
-		-- A purple orb sixteen units out, a little above the hips: turning (Spin) carries it round them
+		-- A purple orb sixteen units out, a little above the hips: turning (Spin) carries it round them, and lagging half
+		-- behind the body (Drag) leaves its short streak
 		local purple = Sprite()
 		purple.Offset = Vector3( orbit, 0, 6 )
 		purple.Color = Color.Parse( "#c08aff" )
@@ -24,6 +25,8 @@ public static partial class PresetScripts
 		purple.SizeEnd = 0.8
 		purple.Lifetime = 0.4
 		purple.Amount = 45
+		purple.Follow = true
+		purple.Drag = 0.5
 		purple.Rhythm = Rhythm.Spin
 		purple.RhythmSpeed = orbitSpeed
 		purple.RhythmAmount = 1
@@ -37,6 +40,8 @@ public static partial class PresetScripts
 		blue.SizeEnd = 0.8
 		blue.Lifetime = 0.4
 		blue.Amount = 45
+		blue.Follow = true
+		blue.Drag = 0.5
 		blue.Rhythm = Rhythm.Spin
 		blue.RhythmSpeed = orbitSpeed
 		blue.RhythmAmount = 1
@@ -51,6 +56,8 @@ public static partial class PresetScripts
 		pink.SizeEnd = 1
 		pink.Lifetime = 0.35
 		pink.Amount = 35
+		pink.Follow = true
+		pink.Drag = 0.5
 		pink.Rhythm = Rhythm.Jiggle
 		pink.RhythmSpeed = 0.8
 		pink.RhythmAmount = 0.7

@@ -69,7 +69,7 @@
                     else if ( ShownTab == Tab.Effects )
                     {
                         <LayerEditor @ref="_layerPanel" Look=@_look Changed=@Changed Stage=@Stage Locked=@EffectsLocked EffectId=@EffectId History=@History Undo=@Undo Redo=@Redo
-                                     StartShape=@StartShape DraftsOpen=@DraftsOpen></LayerEditor>
+                                     StartShape=@StartShape StartCreator=@StartCreator StartSticker=@StartSticker StartDraft=@StartDraft DraftsOpen=@DraftsOpen></LayerEditor>
                     }
                     else
                     {
@@ -144,6 +144,11 @@
 
     /// <summary>A shape to open the Effects tab's shape creator on (a fork from the Workshop); null to open on the layers.</summary>
     public DrawnShape StartShape { get; init; }
+
+    /// <summary>Whether the Effects tab opens on its creator (on <see cref="StartShape"/>, a new sticker or a new shape, or <see cref="StartDraft"/>).</summary>
+    public bool StartCreator { get; init; }
+    public bool StartSticker { get; init; }
+    public Draft StartDraft { get; init; }
 
     /// <summary>The drafts open in the editors (the page's): shown, not worn until finished.</summary>
     public OpenDrafts DraftsOpen { get; init; }

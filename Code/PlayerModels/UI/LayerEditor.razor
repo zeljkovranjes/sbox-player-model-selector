@@ -18,13 +18,14 @@
 
     @if ( _view == View.Creator && Look is not null )
     {
-        <ShapeCreator @ref="_creator" Start=@_creatorStart UseOnLayer=@UseShape CanUse=@( Layer?.KindIs == LayerKind.Sprite ) Back=@(() => ShowView( View.Layers ))></ShapeCreator>
+        <ShapeCreator @ref="_creator" Start=@_creatorStart StartSticker=@StartSticker StartDraft=@_creatorDraft UseOnLayer=@UseShape CanUse=@( Layer?.KindIs == LayerKind.Sprite ) Back=@(() => ShowView( View.Layers ))></ShapeCreator>
     }
     else if ( _view == View.ShapesWorkshop && Look is not null )
     {
         <div class="shapes-workshop">
             <SharingPanel T="DrawnShape" Library=@Shared.Shapes Noun="shape" ModelId=@Shared.Everyone Scope=@Everywhere Workshop=@true Pictures=@true Searchable=@true
-                          Intro="Shapes and stickers players made. Use one to put it on the selected layer (and keep it in My shapes); Fork opens it in the shape creator."
+                          Shows=@Listed
+                          Intro=@( _workshopStickers ? "Stickers players made. Use one to put it on the selected layer (and keep it in My stickers); Fork opens it in the creator." : "Shapes players made. Use one to put it on the selected layer (and keep it in My shapes); Fork opens it in the creator." )
                           UseEntry=@UseSharedShape Fork=@ForkShape ForkTip="Open a copy of it in the shape creator, to change and publish as your own"
                           OriginOf=@(( DrawnShape x ) => x.ForkedFrom) Describe=@ShapeCreator.DescribeShape Back=@(() => ShowView( View.Layers ))></SharingPanel>
         </div>
@@ -308,6 +309,11 @@
     /// <summary>A shape to open the shape creator on (a fork from the Workshop); null to open on the layers.</summary>
     [Parameter] public DrawnShape StartShape { get; set; }
 
+    /// <summary>Whether to open on the creator, once (on <see cref="StartShape"/> or <see cref="StartDraft"/>, or a new sticker or shape).</summary>
+    [Parameter] public bool StartCreator { get; set; }
+    [Parameter] public bool StartSticker { get; set; }
+    [Parameter] public Draft StartDraft { get; set; }
+
     /// <summary>The drafts open in the editors (the page's): an effect that is one shows here, but isn't worn until finished.</summary>
     [Parameter] public OpenDrafts DraftsOpen { get; set; }
 
@@ -343,7 +349,6 @@
 
     View _view;
     DrawnShape _creatorStart;
-    DrawnShape _startSeen;
     string _status;
 
     // Shapes are shared for everyone, not for a model
@@ -371,10 +376,11 @@
     {
         base.OnParametersSet();
 
-        // A fork from the Workshop opens the creator on it, once
-        if ( StartShape is not null && !ReferenceEquals( StartShape, _startSeen ) )
+        // A fork from the Workshop, one of the player's or a draft opens the creator on it, once
+        if ( (StartCreator || StartShape is not null) && !_startedCreator )
         {
-            _startSeen = StartShape;
+            _startedCreator = true;
+            _creatorDraft = StartDraft;
             OpenCreator( StartShape );
         }
     }
@@ -384,6 +390,9 @@
         _view = view;
         StateHasChanged();
     }
+
+    bool _startedCreator;
+    Draft _creatorDraft;
 
     void OpenCreator( DrawnShape shape )
     {
@@ -437,9 +446,10 @@
             return;
         }
 
-        if ( choice == WorkshopChoice )
+        if ( choice is WorkshopChoice or StickersChoice )
         {
             _pickingPicture = asPicture;
+            _workshopStickers = choice == StickersChoice;
             ShowView( View.ShapesWorkshop );
             return;
         }
@@ -463,6 +473,12 @@
 
     const string DrawChoice = "draw";
     const string WorkshopChoice = "workshop";
+    const string StickersChoice = "workshop-stickers";
+
+    // Which the Workshop opened from a list shows: stickers, or shapes
+    bool _workshopStickers;
+
+    bool Listed( DrawnShape shape ) => shape.IsSticker == _workshopStickers;
     const string MineChoice = "mine:";
 
     // Whether the Workshop was opened from Looks like, so a shape used from it goes there
@@ -476,10 +492,11 @@
             choices.Add( new UIDropdown.Item( $"Drawn: {shape.Name ?? "untitled"}", shape.Reference ) );
 
         foreach ( var shape in LocalPrefs.MyShapes().Where( x => !Look.DrawnShapes.Exists( y => y.Id == x.Id ) ) )
-            choices.Add( new UIDropdown.Item( $"My shape: {shape.Name}", MineChoice + shape.Name ) );
+            choices.Add( new UIDropdown.Item( $"{(shape.IsSticker ? "My sticker" : "My shape")}: {shape.Name}", MineChoice + shape.Name ) );
 
         choices.Add( new UIDropdown.Item( "Draw a new shape...", DrawChoice ) );
-        choices.Add( new UIDropdown.Item( "Workshop...", WorkshopChoice ) );
+        choices.Add( new UIDropdown.Item( "Workshop shapes...", WorkshopChoice ) );
+        choices.Add( new UIDropdown.Item( "Workshop stickers...", StickersChoice ) );
         return choices;
     }
 

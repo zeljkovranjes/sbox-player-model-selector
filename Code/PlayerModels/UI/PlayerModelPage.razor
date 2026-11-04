@@ -73,7 +73,7 @@
             <UISettingsPane class="models-pane @( _effectsWorkshop ? "fit-pane" : "" )" Title="Effects" Revision=@BuildHash()>
                 <Body>
                     <SlowScroll class="@( _effectsWorkshop ? "fill" : "" )"><Content>
-                        <EffectsEditor Look=@_look Changed=@LookChanged Locked=@EffectsLocked OpenAdvanced=@OpenAdvancedOn OpenShapeCreator=@OpenShapeCreator DraftsOpen=@_openDrafts
+                        <EffectsEditor Look=@_look Changed=@LookChanged Locked=@EffectsLocked OpenAdvanced=@OpenAdvancedOn OpenCreator=@OpenCreator DraftsOpen=@_openDrafts
                                        Workshop=@_effectsWorkshop ShowWorkshop=@ShowEffectsWorkshop
                                        History=@_effectHistory Undo=@UndoEffects Redo=@RedoEffects></EffectsEditor>
                     </Content></SlowScroll>
@@ -365,16 +365,17 @@
         StateHasChanged();
     }
 
-    // On the Effects tab with its shape creator open on the shape given (a fork from the Workshop)
-    void OpenShapeCreator( DrawnShape shape )
+    // On the Effects tab with its creator open: on the shape given (one of yours, a fork from the Workshop) or the draft,
+    // or a new shape or sticker
+    void OpenCreator( DrawnShape shape, bool sticker, Draft draft )
     {
-        OpenAdvancedWith( _look?.Effects.FirstOrDefault()?.Id ?? "", shape );
+        OpenAdvancedWith( _look?.Effects.FirstOrDefault()?.Id ?? "", shape, true, sticker, draft );
     }
 
     // On the Effects tab with that effect, or on the Look tab without one. The default citizen has only effects to edit
     void OpenAdvancedOn( string effect ) => OpenAdvancedWith( effect, null );
 
-    void OpenAdvancedWith( string effect, DrawnShape shape )
+    void OpenAdvancedWith( string effect, DrawnShape shape, bool creator = false, bool sticker = false, Draft draft = null )
     {
         if ( _advanced.IsValid() || _look is null || _look.IsDefault && effect is null )
             return;
@@ -396,6 +397,9 @@
             Undo = UndoEffects,
             Redo = RedoEffects,
             StartShape = shape,
+            StartCreator = creator,
+            StartSticker = sticker,
+            StartDraft = draft,
             DraftsOpen = _openDrafts,
             WornNow = () => Selector?.LookOf( Connection.Local ),
         };

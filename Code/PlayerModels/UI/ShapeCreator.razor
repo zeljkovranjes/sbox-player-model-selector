@@ -143,6 +143,9 @@
     /// <summary>A draft to open in it, as it was left; null for none.</summary>
     [Parameter] public Draft StartDraft { get; set; }
 
+    /// <summary>Whether a new one (no <see cref="Start"/>) is a sticker rather than a shape.</summary>
+    [Parameter] public bool StartSticker { get; set; }
+
     /// <summary>Uses the shape on the layer being edited: as where its sprites come from (false) or what they look like (true).</summary>
     [Parameter] public Action<DrawnShape, bool> UseOnLayer { get; set; }
 
@@ -190,8 +193,8 @@
     // shape or draft being renamed, leaving with changes, and what the shape was when last kept
     Draft _draft;
     Draft _confirmDrop;
-    object _renaming;
-    string _newName;
+    int _shelfRevision;
+    bool _startedOnce;
     bool _leaving;
     string _keptAs;
     SharingPanel<DrawnShape> _sharing;
@@ -248,12 +251,16 @@
                 OpenDraft( StartDraft );
         }
 
-        if ( ReferenceEquals( Start, _started ) )
+        if ( ReferenceEquals( Start, _started ) && _startedOnce )
             return;
 
         _started = Start;
         if ( Start is not null )
             Load( Start );
+        else if ( !_startedOnce && StartDraft is null )
+            _emblemMode = StartSticker;
+
+        _startedOnce = true;
     }
 
     public override void Tick()

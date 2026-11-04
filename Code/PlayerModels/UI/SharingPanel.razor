@@ -266,6 +266,9 @@
     /// </summary>
     [Parameter] public Func<T, IEnumerable<string>> Facets { get; set; }
 
+    /// <summary>Which shares the Workshop lists (the shapes of the shapes and stickers shared, say); null for all of them.</summary>
+    [Parameter] public Func<T, bool> Shows { get; set; }
+
     /// <summary>Whether rows show a picture of what was shared (see <see cref="SharedPicture"/>).</summary>
     [Parameter] public bool Pictures { get; set; }
 
@@ -510,7 +513,7 @@
         var kept = new List<SharedLibrary<T>.Entry>();
         foreach ( var entry in _entries )
         {
-            if ( (_showHidden || !IsHidden( entry )) && Matches( entry ) )
+            if ( (_showHidden || !IsHidden( entry )) && Matches( entry ) && Shows?.Invoke( entry.Item ) != false )
                 kept.Add( entry );
         }
 

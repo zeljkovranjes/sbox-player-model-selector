@@ -65,6 +65,19 @@ public sealed class PlayerLook
 	/// </summary>
 	public Dictionary<string, string> Bones { get; set; } = new();
 
+	/// <summary>The effects worn (glowing eyes, a halo); see <see cref="Effect"/>.</summary>
+	[JsonIgnore]
+	public List<Effect> Effects { get; set; } = new();
+
+	// Effects as they are saved: left out with none, so a look without any reads exactly as it did before there were
+	// effects (a shared look already published is still recognised as the same)
+	[JsonPropertyName( nameof( Effects ) ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public List<Effect> SavedEffects
+	{
+		get => Effects is { Count: > 0 } ? Effects : null;
+		set => Effects = value ?? new();
+	}
+
 	/// <summary>Whether this is the default citizen.</summary>
 	[JsonIgnore]
 	public bool IsDefault => string.IsNullOrEmpty( Model );
@@ -73,7 +86,8 @@ public sealed class PlayerLook
 	[JsonIgnore]
 	public bool IsCustomised => (BodyGroups?.Count ?? 0) > 0 || (Morphs?.Count ?? 0) > 0 || (Parts?.Count ?? 0) > 0
 		|| (Shape?.Count ?? 0) > 0 || !string.IsNullOrEmpty( Tint ) || !string.IsNullOrEmpty( Skin )
-		|| !string.IsNullOrEmpty( Finish ) || (PartFinishes?.Count ?? 0) > 0 || (Accessories?.Count ?? 0) > 0;
+		|| !string.IsNullOrEmpty( Finish ) || (PartFinishes?.Count ?? 0) > 0 || (Accessories?.Count ?? 0) > 0
+		|| (Effects?.Count ?? 0) > 0;
 
 	/// <summary>The look as one string, for the network and for saving.</summary>
 	public string Serialize()
@@ -105,7 +119,8 @@ public sealed class PlayerLook
 
 	/// <summary>
 	/// A copy within bounds: weights clamped to 0..1, choices non-negative, names and counts capped, colours only if
-	/// they are valid hex colours. What the host keeps for a player is always this.
+	/// they are valid hex colours, effects within <see cref="Effect"/>'s caps. What the host keeps for a player is always
+	/// this, and so is every look read, anyone's.
 	/// </summary>
 	public PlayerLook Sanitized()
 	{
@@ -142,7 +157,8 @@ public sealed class PlayerLook
 				.ToDictionary( x => x.Key, x => Math.Clamp( x.Value, -1f, 1f ) ),
 			Bones = (Bones ?? new())
 				.Where( x => x.Key is not null && Enum.IsDefined( typeof( BoneRole ), x.Key ) && x.Value is not null && x.Value.Length <= MaxNameLength )
-				.ToDictionary( x => x.Key, x => x.Value.Trim() )
+				.ToDictionary( x => x.Key, x => x.Value.Trim() ),
+			Effects = Effect.Sanitized( Effects )
 		};
 	}
 
@@ -191,11 +207,13 @@ public sealed class PlayerLook
 			&& SameEntries( mine.Parts, theirs.Parts ) && SameEntries( mine.Shape, theirs.Shape )
 			&& SameEntries( mine.PartFinishes, theirs.PartFinishes )
 			&& mine.Accessories.Count == theirs.Accessories.Count
-			&& mine.Accessories.Zip( theirs.Accessories ).All( x => x.First.SameAs( x.Second ) );
+			&& mine.Accessories.Zip( theirs.Accessories ).All( x => x.First.SameAs( x.Second ) )
+			&& JsonSerializer.Serialize( mine.Effects ) == JsonSerializer.Serialize( theirs.Effects );
 	}
 
 	/// <summary>
-	/// Takes <paramref name="other"/>'s customisation (skin, colours, finishes, body groups, morphs, body shape, items) in
+	/// Takes <paramref name="other"/>'s customisation (skin, colours, finishes, body groups, morphs, body shape, items,
+	/// effects) in
 	/// place of this look's own. The model and the bones picked by hand stay: they belong to the model, not the look.
 	/// </summary>
 	public void TakeCustomisationFrom( PlayerLook other )
@@ -210,6 +228,7 @@ public sealed class PlayerLook
 		Finish = look.Finish;
 		PartFinishes = look.PartFinishes;
 		Accessories = look.Accessories;
+		Effects = look.Effects;
 	}
 
 	/// <summary>The look without its items: what shows while the host keeps players' items off.</summary>
@@ -225,6 +244,51 @@ public sealed class PlayerLook
 	{
 		var copy = Sanitized();
 		copy.Accessories.RemoveAll( x => x.IsWorkshop );
+		return copy;
+	}
+
+	/// <summary>The look without its effects: what shows while the host keeps players' effects off.</summary>
+	public PlayerLook WithoutEffects()
+	{
+		var copy = Sanitized();
+		copy.Effects.Clear();
+		return copy;
+	}
+
+	/// <summary>
+	/// The look with its effects that show on a key switched off unless their bit in <paramref name="triggered"/> (by
+	/// their place in <see cref="Effects"/>) says they were just triggered: this very look when none has a key.
+	/// </summary>
+	public PlayerLook WithTriggered( int triggered )
+	{
+		var keyed = false;
+		for ( var i = 0; i < Effects.Count; i++ )
+			keyed |= Effects[ i ].Key is not null && !Effects[ i ].Off && (triggered & (1 << i)) == 0;
+
+		if ( !keyed )
+			return this;
+
+		var copy = Sanitized();
+		for ( var i = 0; i < copy.Effects.Count; i++ )
+		{
+			if ( copy.Effects[ i ].Key is not null && (triggered & (1 << i)) == 0 )
+				copy.Effects[ i ].Off = true;
+		}
+
+		return copy;
+	}
+
+	/// <summary>
+	/// The look with its effects within <paramref name="budget"/> (see <see cref="EffectBudget.Trim"/>): this very look
+	/// when they fit, as they mostly do, else a copy.
+	/// </summary>
+	public PlayerLook WithinBudget( EffectBudget budget )
+	{
+		if ( budget.Fits( Effects ) )
+			return this;
+
+		var copy = Sanitized();
+		budget.Trim( copy.Effects );
 		return copy;
 	}
 
@@ -247,7 +311,8 @@ public sealed class PlayerLook
 		return !string.IsNullOrWhiteSpace( name ) && name.Length <= MaxNameLength;
 	}
 
-	private static bool IsColour( string text )
+	/// <summary>Whether <paramref name="text"/> is a colour as looks keep them, <c>#rrggbb</c>.</summary>
+	internal static bool IsColour( string text )
 	{
 		return text is not null && HexColour.IsMatch( text );
 	}

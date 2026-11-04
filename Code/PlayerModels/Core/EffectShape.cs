@@ -103,7 +103,7 @@ public sealed class EffectShape
 	}
 
 	// Even-odd: a ray to the right crosses the outline an odd number of times from inside
-	private static bool Contains( float[] points, float x, float y )
+	internal static bool Contains( float[] points, float x, float y )
 	{
 		var inside = false;
 		var count = points.Length / 2;
@@ -158,9 +158,9 @@ public sealed class EffectShape
 	};
 
 	// The number of points round a circle: enough that its edge never shows a corner at the sizes pictures are drawn
-	private const int CirclePoints = 48;
+	internal const int CirclePoints = 48;
 
-	private static float[] Circle( float x, float y, float radius )
+	internal static float[] Circle( float x, float y, float radius )
 	{
 		var points = new float[ CirclePoints * 2 ];
 		for ( var i = 0; i < CirclePoints; i++ )
@@ -175,7 +175,7 @@ public sealed class EffectShape
 
 	// A drop pointed at the top: round below, as wide as width with the middle of its round part at middle, and tall
 	// enough above that to reach its point
-	private static float[] Teardrop( float width, float middle, float height )
+	internal static float[] Teardrop( float width, float middle, float height )
 	{
 		var points = new float[ CirclePoints * 2 ];
 		for ( var i = 0; i < CirclePoints; i++ )
@@ -190,7 +190,7 @@ public sealed class EffectShape
 	}
 
 	// Points round the middle, out to outer and in to inner between them, the first at the angle given (radians, from up)
-	private static float[] Star( int tips, float outer, float inner, float angle )
+	internal static float[] Star( int tips, float outer, float inner, float angle )
 	{
 		var points = new float[ tips * 4 ];
 		for ( var i = 0; i < tips * 2; i++ )
@@ -205,7 +205,7 @@ public sealed class EffectShape
 	}
 
 	// The classic heart curve, scaled to reach size from the middle
-	private static float[] Heart( float size )
+	internal static float[] Heart( float size )
 	{
 		var points = new float[ CirclePoints * 2 ];
 		for ( var i = 0; i < CirclePoints; i++ )

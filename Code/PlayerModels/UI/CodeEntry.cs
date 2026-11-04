@@ -109,7 +109,8 @@ public sealed class CodeEntry : TextEntry
 	/// <summary>Replaces <paramref name="start"/> to <paramref name="end"/> with <paramref name="text"/> as one step undo takes back.</summary>
 	public void Replace( int start, int end, string text )
 	{
-		Label.SetSelection( ElementOf( start ), ElementOf( end ) );
+		// The caret too: with nothing selected, pasting puts the text at the caret, not where the selection was set
+		Select( start, end );
 		base.OnPaste( Normalized( text ) );
 	}
 

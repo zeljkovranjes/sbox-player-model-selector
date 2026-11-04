@@ -10,7 +10,7 @@
 @inherits Panel
 @namespace PlayerModels.UI
 
-<root class="@( Compact ? "compact" : "" )">
+<root>
     @foreach ( var action in Actions )
     {
         var shown = action;
@@ -47,6 +47,13 @@
 
     /// <summary>Icons only, for a small preview.</summary>
     [Parameter] public bool Compact { get; set; }
+
+    // Set here, not on <root>: a class there would take the place of the one its parent places it by
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        SetClass( "compact", Compact );
+    }
 
     // The citizen's animation parameters the actions play
     const string AttackParameter = "b_attack";

@@ -90,6 +90,37 @@ public class EffectScriptsTests
 	}
 
 	[Fact]
+	public void HugeScriptsInALookAreRefusedByTheirLengthAlone()
+	{
+		// A look too long to be real is not read at all; a script over its cap inside one is let go before anything parses it
+		var huge = Saved( Glow );
+		huge.Script = string.Concat( Enumerable.Repeat( "local x = 1\n", 1_000_000 ) );
+		var text = new PlayerLook { Effects = { huge } }.Serialize();
+		var clock = System.Diagnostics.Stopwatch.StartNew();
+		Assert.Empty( PlayerLook.Parse( text ).Effects );
+
+		var big = Saved( Glow );
+		big.Script = "--" + new string( 'x', 40 * 1024 );
+		var read = PlayerLook.Parse( new PlayerLook { Effects = { big } }.Serialize() );
+		clock.Stop();
+		Assert.Null( read.Effects[ 0 ].Script );
+		Assert.NotEmpty( read.Effects[ 0 ].Layers );
+		Assert.True( clock.Elapsed.TotalMilliseconds < 50, $"took {clock.Elapsed.TotalMilliseconds} ms" );
+	}
+
+	[Fact]
+	public void GarbageScriptsShowWhatTheLookKeptAndNeverRun()
+	{
+		foreach ( var garbage in new[] { "\0\0\0", "((((((((((((((((((((((((((((((((((((((((((((((((((((((", "local x = " + new string( '9', 31 ) + "e9999", "for i = 0, 1e15 do end" } )
+		{
+			var effect = Saved( Glow );
+			effect.Script = garbage;
+			var shown = EffectScripts.WithScriptsBuilt( Wearing( effect ), Build, out _ );
+			Assert.Single( shown.Effects[ 0 ].Layers );
+		}
+	}
+
+	[Fact]
 	public void ParametersAreHeldToTheirSizesOnly()
 	{
 		var effect = Saved( Glow );

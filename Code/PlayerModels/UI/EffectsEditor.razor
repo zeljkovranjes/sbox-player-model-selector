@@ -53,7 +53,7 @@
                 var effect = worn;
                 <div class="row worn @( effect.Id == _selected ? "selected" : "" )" @onclick=@(() => Select( effect ))>
                     <div class="switch @( effect.Off ? "" : "on" )" Tooltip=@( effect.Off ? "Turn on" : "Turn off" )
-                         @onclick=@(( PanelEvent e ) => Toggle( effect, e ))>@( effect.Off ? "" : "check" )</div>
+                         @onclick=@(( PanelEvent e ) => Toggle( effect, e ))>check</div>
                     <div class="worn-name">@effect.Name</div>
                     <div class="icon-button" Tooltip="Remove" @onclick=@(( PanelEvent e ) => Remove( effect, e ))>delete</div>
                 </div>

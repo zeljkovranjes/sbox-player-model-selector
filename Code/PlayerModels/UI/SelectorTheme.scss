@@ -243,6 +243,41 @@ $favorite-heart: #ff4d6d;
 	background-color: $ui-blue;
 }
 
+// an effect or layer switched on or off: its check mark alone, bright when on and faint when off, on a target as big as
+// a button's
+@mixin ui-check-switch
+{
+	width: 24px;
+	height: 24px;
+	flex-shrink: 0;
+	justify-content: center;
+	align-items: center;
+	border-radius: 2px;
+	font-family: "Material Icons";
+	font-size: 18px;
+	color: white;
+	text-transform: none;
+	opacity: 0.25;
+	cursor: pointer;
+
+	&.on
+	{
+		opacity: 1;
+	}
+
+	&:hover
+	{
+		opacity: 0.6;
+		background-color: rgba( 255, 255, 255, 0.08 );
+		sound-in: ui.hover;
+	}
+
+	&.on:hover
+	{
+		opacity: 1;
+	}
+}
+
 // a setting's name
 @mixin ui-label
 {

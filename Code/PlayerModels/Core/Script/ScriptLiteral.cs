@@ -76,6 +76,7 @@ public static class ScriptLiteral
 		PropertyId.LayerBurst => Number( layer.Burst ),
 		PropertyId.LayerShowFor => Number( layer.ShowFor ),
 		PropertyId.LayerFadeWithSpeed => Bool( layer.FadeWithSpeed ),
+		PropertyId.LayerKeep => Number( layer.Keep ),
 		_ => null,
 	};
 

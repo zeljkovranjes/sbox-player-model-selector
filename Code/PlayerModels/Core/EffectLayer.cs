@@ -95,6 +95,9 @@ public sealed class EffectLayer
 	/// <summary>The most colours a palette of the player's own has.</summary>
 	public const int MaxPalette = 32;
 
+	/// <summary>The most sprites a layer keeps out all the time (see <see cref="Keep"/>).</summary>
+	public const float MaxKeep = 100f;
+
 	private const string White = "#ffffff";
 
 	/// <summary>What the layer is, a <see cref="LayerKind"/> by name.</summary>
@@ -238,6 +241,14 @@ public sealed class EffectLayer
 	[JsonPropertyName( "fs" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public bool FadeWithSpeed { get; set; }
 
+	/// <summary>
+	/// How many sprites it keeps out all the time, each with its own index from 0 and spread evenly along its shape in that
+	/// order, never fading with age (their life loops every <see cref="Lifetime"/>): a formation its particle function
+	/// moves. 0 for sprites that only come and go by <see cref="Amount"/> and <see cref="Lifetime"/>.
+	/// </summary>
+	[JsonPropertyName( "kp" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public float Keep { get; set; }
+
 	/// <summary>What the layer is; only right on a layer within bounds (see <see cref="Sanitized"/>).</summary>
 	[JsonIgnore]
 	public LayerKind KindIs => Parsed( Kind, LayerKind.Sprite );
@@ -302,9 +313,10 @@ public sealed class EffectLayer
 
 	/// <summary>
 	/// How many of its sprites are out at once at most, at <paramref name="amount"/> times its own amount: what it makes
-	/// over a lifetime, and a moment's burst on top; a light, a trail or a layer switched off has none.
+	/// over a lifetime, and a moment's burst on top, and those it keeps (whatever the amount: a formation stays whole); a
+	/// light, a trail or a layer switched off has none.
 	/// </summary>
-	public float LiveSprites( float amount = 1f ) => KindIs == LayerKind.Sprite && !Off ? (Amount * Lifetime + Burst) * amount : 0f;
+	public float LiveSprites( float amount = 1f ) => KindIs == LayerKind.Sprite && !Off ? (Amount * Lifetime + Burst) * amount + Keep : 0f;
 
 	/// <summary>
 	/// A copy within bounds, or null for a layer of a kind (or from a joint, shape, picture, rhythm, colour mode, facing or
@@ -377,6 +389,7 @@ public sealed class EffectLayer
 			Burst = isMoment && !isLight ? MathF.Round( Limited( Burst, 0f, MaxBurst, 0f ) ) : 0f,
 			ShowFor = isMoment ? Limited( ShowFor, 0f, MaxShowFor, 0f ) : 0f,
 			FadeWithSpeed = FadeWithSpeed,
+			Keep = Kind == nameof( LayerKind.Sprite ) ? MathF.Round( Limited( Keep, 0f, MaxKeep, 0f ) ) : 0f,
 		};
 	}
 

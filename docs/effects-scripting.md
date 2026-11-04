@@ -414,6 +414,7 @@ for everyone.
 | Functions | 64 |
 | Parameters | 32 |
 | Layers | 8 per effect |
+| Kept sprites | 100 per layer |
 | Shape points | 500 per shape |
 | Emblem layers | 32 |
 | Palette | 32 colours |
@@ -2105,6 +2106,18 @@ Set: while the effect is built (at the top of the script).
 local glow = Sprite()
 glow.FadeWithSpeed = true
 local value = glow.FadeWithSpeed --> true
+```
+
+#### `Layer.Keep: number  (0 to 100)`
+
+How many sprites it keeps out all the time (at most 100), each with its own p.Index from 0, spread evenly along where they come from in that order and never fading with age (their Life loops every Lifetime): a formation its particle function moves, like runes in a ring or orbs following. 0: sprites come and go by Amount and Lifetime.
+
+Set: while the effect is built (at the top of the script).
+
+```lua effect
+local glow = Sprite()
+glow.Keep = 12
+local value = glow.Keep --> 12
 ```
 
 #### `Layer.Particle: (Particle) -> nothing`

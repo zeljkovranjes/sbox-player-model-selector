@@ -209,7 +209,7 @@ internal static class ShapeTextures
 
 		if ( nearest.Shape.IsEmblem )
 		{
-			_job = new EmblemRaster.Job( nearest.Shape, size, Room );
+			_job = new EmblemRaster.Job( nearest.Shape, size, Room, ScriptPrograms.Cache, ScriptPrograms.Stack );
 			_jobContent = content;
 			return true;
 		}

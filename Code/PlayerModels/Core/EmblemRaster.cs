@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using PlayerModels.Core.Script;
 
 namespace PlayerModels.Core;
 
@@ -9,7 +10,8 @@ namespace PlayerModels.Core;
 /// eraser cutting away every layer below it, and the mirrored half too when it has one. One layer is drawn a step (see
 /// <see cref="Job"/>), so a crowd's emblems are drawn a little a frame. Layers whose colour moves are kept apart as how
 /// much of each pixel they colour (see <see cref="Moving"/>), so the picture is put together again for each moment with
-/// a few sums a pixel and never drawn again. The same emblem is the same pixels on every machine.
+/// a few sums a pixel and never drawn again; how each one's colour moves is its motion's script, as a sticker's (see
+/// <see cref="MovingColour"/>). The same emblem is the same pixels on every machine.
 /// </summary>
 public static class EmblemRaster
 {
@@ -22,8 +24,6 @@ public static class EmblemRaster
 	// The most pixels an emblem's moving layers keep apart, as times a whole picture's: layers past that keep their own
 	// colour, still
 	private const int MostMovingPictures = 4;
-
-	private const float MillisecondsPerSecond = 1000f;
 
 	/// <summary>
 	/// The room emblems are drawn in, kept from one to the next by whoever draws many, so drawing a crowd's makes no
@@ -78,8 +78,9 @@ public static class EmblemRaster
 		{
 			public int X, Y, Width, Height;
 			public byte[] Weights;
-			public Sticker.Motion Motion;
-			public float[] Palette;
+
+			// How its colour moves, worked out by its motion's script; null (its own colour, still) when that doesn't run
+			public MovingColour Colour;
 			public float Speed;
 			public float Red, Green, Blue;
 			public int Element, Count;
@@ -153,6 +154,8 @@ public static class EmblemRaster
 		private readonly DrawnShape _emblem;
 		private readonly int _size;
 		private readonly Workspace _room;
+		private readonly ScriptCache _scripts;
+		private readonly ScriptStack _stack;
 		private readonly int[] _elements;
 		private readonly int[] _counts;
 		private readonly List<Moving.Layer> _moving = new();
@@ -168,12 +171,17 @@ public static class EmblemRaster
 		/// <summary>Its moving part once it is drawn; null when no layer of it moves.</summary>
 		public Moving Moving { get; private set; }
 
-		/// <summary>Starts drawing <paramref name="emblem"/> <paramref name="size"/> pixels across in <paramref name="room"/>.</summary>
-		public Job( DrawnShape emblem, int size, Workspace room )
+		/// <summary>
+		/// Starts drawing <paramref name="emblem"/> <paramref name="size"/> pixels across in <paramref name="room"/>, its
+		/// moving layers' scripts compiled by <paramref name="scripts"/> and run on <paramref name="stack"/>.
+		/// </summary>
+		public Job( DrawnShape emblem, int size, Workspace room, ScriptCache scripts, ScriptStack stack )
 		{
 			_emblem = emblem;
 			_size = size;
 			_room = room;
+			_scripts = scripts;
+			_stack = stack;
 			room.Fit( size );
 			Array.Fill( room.Through, 1f );
 			Array.Clear( room.Red );
@@ -303,14 +311,10 @@ public static class EmblemRaster
 
 			_movingLeft -= (long)width * height;
 			var (red, green, blue) = Rgb( layer.Color );
-			var colours = layer.CycleColours();
-			var palette = new float[ colours.Count * 3 ];
-			for ( var i = 0; i < colours.Count; i++ )
-				(palette[ i * 3 ], palette[ i * 3 + 1 ], palette[ i * 3 + 2 ]) = Rgb( colours[ i ] );
-
 			var moving = new Moving.Layer
 			{
-				X = firstColumn, Y = firstRow, Width = width, Height = height, Weights = new byte[ width * height ], Motion = layer.AnimationIs, Palette = palette,
+				X = firstColumn, Y = firstRow, Width = width, Height = height, Weights = new byte[ width * height ],
+				Colour = MovingColour.OfSticker( layer.AnimationIs, layer.CycleColours(), layer.Color, _scripts, _stack ),
 				Speed = layer.AnimationSpeed, Red = red, Green = green, Blue = blue, Element = _elements[ index ], Count = _counts[ index ],
 			};
 			_moving.Add( moving );
@@ -382,12 +386,13 @@ public static class EmblemRaster
 	}
 
 	/// <summary>
-	/// <paramref name="emblem"/> drawn whole, <paramref name="size"/> pixels across, in <paramref name="room"/>: its
-	/// <see cref="Workspace.Pixels"/>, and its moving part in <paramref name="moving"/> (null for none).
+	/// <paramref name="emblem"/> drawn whole, <paramref name="size"/> pixels across, in <paramref name="room"/> (its moving
+	/// layers' scripts by <paramref name="scripts"/>, on <paramref name="stack"/>): its <see cref="Workspace.Pixels"/>, and
+	/// its moving part in <paramref name="moving"/> (null for none).
 	/// </summary>
-	public static byte[] Rgba( DrawnShape emblem, int size, Workspace room, out Moving moving )
+	public static byte[] Rgba( DrawnShape emblem, int size, Workspace room, ScriptCache scripts, ScriptStack stack, out Moving moving )
 	{
-		var job = new Job( emblem, size, room );
+		var job = new Job( emblem, size, room, scripts, stack );
 		while ( !job.Step() )
 		{
 		}
@@ -412,61 +417,14 @@ public static class EmblemRaster
 			Array.Copy( room.Composed, row * moving.Width * 4, room.Pixels, ((moving.Y + row) * size + moving.X) * 4, moving.Width * 4 );
 	}
 
-	// A moving layer's colour ms milliseconds in, the way a sticker's moves on a weapon: a rainbow round the wheel (its
-	// elements spread round it), a pulse of its own colour, or World at War's clan tag colourings over its elements
+	// A moving layer's colour ms milliseconds in, the way a sticker's moves on a weapon: its motion's script, the layers
+	// moving the same way its elements (as letters of a clan tag were); its own colour when the script doesn't run
 	private static void ColourAt( Moving.Layer layer, long ms, out float red, out float green, out float blue )
 	{
-		var scaled = (long)(ms * layer.Speed);
-		var palette = layer.Palette;
-		var count = Math.Max( 1, layer.Count );
-		switch ( layer.Motion )
-		{
-			case Sticker.Motion.Rainbow:
-			{
-				var hue = (scaled / MillisecondsPerSecond * Sticker.RainbowTurns + layer.Element / (float)count) % 1f;
-				(red, green, blue) = Hue( hue );
-				return;
-			}
-
-			case Sticker.Motion.Pulse:
-			{
-				var level = 1f - Sticker.PulseDepth * (0.5f - 0.5f * MathF.Cos( scaled / MillisecondsPerSecond * Sticker.PulseBeats * MathF.Tau ));
-				(red, green, blue) = (layer.Red * level, layer.Green * level, layer.Blue * level);
-				return;
-			}
-
-			case Sticker.Motion.Cyln:
-			{
-				var colours = palette.Length / 3;
-				var at = colours >= 2 && ColorCycle.IsScannerHighlight( scaled, layer.Element, count ) ? 0 : colours - 1;
-				(red, green, blue) = (palette[ at * 3 ], palette[ at * 3 + 1 ], palette[ at * 3 + 2 ]);
-				return;
-			}
-
-			default:
-			{
-				var kind = layer.Motion == Sticker.Motion.Cycl ? ColorCycle.Kind.Cycl : ColorCycle.Kind.Rain;
-				var index = ColorCycle.PaletteIndex( kind, scaled, layer.Element, count, palette.Length / 3 );
-				(red, green, blue) = index >= 0 ? (palette[ index * 3 ], palette[ index * 3 + 1 ], palette[ index * 3 + 2 ]) : (1f, 1f, 1f);
-				return;
-			}
-		}
-	}
-
-	// A colour at full saturation and brightness, hue 0 to 1 round the wheel from red
-	private static (float, float, float) Hue( float hue )
-	{
-		var h = (hue < 0f ? hue + 1f : hue) * 6f;
-		var x = 1f - MathF.Abs( h % 2f - 1f );
-		return (int)h switch
-		{
-			0 => (1f, x, 0f),
-			1 => (x, 1f, 0f),
-			2 => (0f, 1f, x),
-			3 => (0f, x, 1f),
-			4 => (x, 0f, 1f),
-			_ => (1f, 0f, x),
-		};
+		if ( layer.Colour is { } colour )
+			(red, green, blue) = colour.At( (long)(ms * layer.Speed), layer.Element, Math.Max( 1, layer.Count ) );
+		else
+			(red, green, blue) = (layer.Red, layer.Green, layer.Blue);
 	}
 
 	// Premultiplied colour as straight colour bytes; white where nothing covers, so a blurred edge never darkens

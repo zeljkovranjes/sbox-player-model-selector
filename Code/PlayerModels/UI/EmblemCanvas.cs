@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using PlayerModels.Core;
+using PlayerModels.Engine;
 using Sandbox;
 using Sandbox.UI;
 
@@ -110,7 +111,7 @@ public sealed class EmblemCanvas : Panel
 			_drawn = Emblem;
 			_moving = null;
 			if ( Emblem?.IsEmblem == true )
-				EmblemRaster.Rgba( Emblem, EmblemRaster.Size, _room, out _moving );
+				EmblemRaster.Rgba( Emblem, EmblemRaster.Size, _room, ScriptPrograms.Cache, ScriptPrograms.Stack, out _moving );
 
 			_overlay = 0;
 		}

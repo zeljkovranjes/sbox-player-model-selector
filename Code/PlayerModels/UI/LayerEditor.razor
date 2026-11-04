@@ -31,8 +31,9 @@
     }
     else if ( Look is null || Look.Effects.Count == 0 || Effect is not { } effect )
     {
-        <div class="note">No effects yet. Put one on from the Effects tab, then build on it here, layer by layer.</div>
+        <div class="note">No effects yet. Start a new one here and build it layer by layer, or put one on from the Effects tab.</div>
         <div class="row">
+            <div class="reset @( CanStart ? "" : "disabled" )" Tooltip="An effect of your own, from scratch" @onclick=@NewEffect>New effect</div>
             <div class="reset" @onclick=@(() => OpenCreator( null ))>Shape creator</div>
         </div>
     }
@@ -46,6 +47,8 @@
         <div class="row">
             <div class="label">Effect</div>
             <UIDropdown Items=@EffectChoices() Value=@effect.Id ValueChanged=@SelectEffect Tokenize=@false></UIDropdown>
+            <div class="reset @( CanStart ? "" : "disabled" )" Tooltip=@( CanStart ? "An effect of your own, from scratch" : $"A look wears up to {Effect.MaxWorn} effects and {Effect.MaxLookLayers} layers" )
+                 @onclick=@NewEffect>New effect</div>
         </div>
         <div class="row">
             <div class="label">Comes from</div>
@@ -281,6 +284,9 @@
     Effect Effect => Look?.Effects.FirstOrDefault( x => x.Id == (_effect ??= EffectId) ) ?? Look?.Effects.FirstOrDefault();
 
     EffectLayer Layer => Effect is { } effect && _layer >= 0 && _layer < effect.Layers.Count ? effect.Layers[ _layer ] : null;
+
+    // Whether a new effect fits the look: an effect more, and its one layer
+    bool CanStart => Look is not null && Look.Effects.Count < Effect.MaxWorn && Look.Effects.Sum( x => x.Layers.Count ) < Effect.MaxLookLayers;
 
     bool CanAdd => Effect is { } effect && effect.Layers.Count < Effect.MaxLayers && Look.Effects.Sum( x => x.Layers.Count ) < Effect.MaxLookLayers;
 
@@ -524,6 +530,19 @@
         StateHasChanged();
     }
 
+    // An effect from scratch, worn and edited from here on
+    void NewEffect()
+    {
+        if ( !CanStart )
+            return;
+
+        var effect = EffectPresets.New( Look.Effects );
+        Look.Effects.Add( effect );
+        _effect = effect.Id;
+        ChooseOnly( 0 );
+        Changed?.Invoke();
+    }
+
     void SelectEffect( object id )
     {
         _effect = id as string;
@@ -631,16 +650,7 @@
         if ( !CanAdd )
             return;
 
-        Effect.Layers.Add( kind switch
-        {
-            LayerKind.Light => new EffectLayer { Kind = nameof( LayerKind.Light ), Color = "#ffd27a", Size = 60f, Amount = 1f },
-            LayerKind.Trail => new EffectLayer { Kind = nameof( LayerKind.Trail ), Color = "#8af4ff", ColorEnd = "#2a5aff", Size = 3f, SizeEnd = 0.5f, Lifetime = 0.4f },
-            _ => new EffectLayer
-            {
-                Kind = nameof( LayerKind.Sprite ), Picture = nameof( LayerPicture.Sparkle ), Shape = nameof( LayerShape.Sphere ), Spread = 3f, Color = "#ffd27a",
-                Size = 2f, SizeEnd = 0.5f, Speed = 10f, Lifetime = 0.8f, Amount = 20f,
-            },
-        } );
+        Effect.Layers.Add( EffectPresets.StartingLayer( kind ) );
 
         ChooseOnly( Effect.Layers.Count - 1 );
         Changed?.Invoke();

@@ -27,6 +27,47 @@ public static class EffectPresets
 		return copy;
 	}
 
+	/// <summary>What a new effect made from scratch is called, then a number none worn has.</summary>
+	public const string NewName = "My effect";
+
+	/// <summary>
+	/// An effect to build from scratch, to wear beside <paramref name="worn"/>: "My effect" and a number none of them has,
+	/// from the chest, with one layer of sparkles so something shows from the start (see <see cref="StartingLayer"/>).
+	/// </summary>
+	public static Effect New( IReadOnlyList<Effect> worn )
+	{
+		var number = 1;
+		while ( Named( worn, $"{NewName} {number}" ) )
+			number++;
+
+		var effect = Made( $"{NewName} {number}", Effect.Joint.Chest, StartingLayer( LayerKind.Sprite ) ).Sanitized();
+		effect.Id = Effect.NewId( worn );
+		return effect;
+	}
+
+	/// <summary>A layer of <paramref name="kind"/> as one is added: something that shows at once, to change from there.</summary>
+	public static EffectLayer StartingLayer( LayerKind kind ) => kind switch
+	{
+		LayerKind.Light => new EffectLayer { Kind = nameof( LayerKind.Light ), Color = "#ffd27a", Size = 60f, Amount = 1f },
+		LayerKind.Trail => new EffectLayer { Kind = nameof( LayerKind.Trail ), Color = "#8af4ff", ColorEnd = "#2a5aff", Size = 3f, SizeEnd = 0.5f, Lifetime = 0.4f },
+		_ => new EffectLayer
+		{
+			Kind = nameof( LayerKind.Sprite ), Picture = nameof( LayerPicture.Sparkle ), Shape = nameof( LayerShape.Sphere ), Spread = 3f, Color = "#ffd27a",
+			Size = 2f, SizeEnd = 0.5f, Speed = 10f, Lifetime = 0.8f, Amount = 20f,
+		},
+	};
+
+	private static bool Named( IReadOnlyList<Effect> worn, string name )
+	{
+		for ( var i = 0; i < worn.Count; i++ )
+		{
+			if ( worn[ i ]?.Name == name )
+				return true;
+		}
+
+		return false;
+	}
+
 	private static Effect Made( string name, Effect.Joint joint, params EffectLayer[] layers )
 	{
 		return new Effect { Name = name, Anchor = new EffectAnchor { Joint = joint.ToString() }, Layers = new List<EffectLayer>( layers ) };

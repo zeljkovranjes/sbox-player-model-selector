@@ -64,6 +64,10 @@
 
         <div class="section-header">Effects</div>
         <div class="grid">
+            <div class="tile effect new @( IsFull ? "disabled" : "" )" Tooltip="An effect of your own, built layer by layer in the Advanced editor" @onclick=@AddNew>
+                <div class="thumb new-icon">add</div>
+                <div class="title">New effect</div>
+            </div>
             @foreach ( var preset in EffectPresets.All )
             {
                 var shown = preset;
@@ -76,7 +80,7 @@
                 <div class="thumb surprise-icon">casino</div>
                 <div class="title">Surprise me</div>
             </div>
-            @for ( var i = 0; i < FillersFor( EffectPresets.All.Count + 1 ); i++ )
+            @for ( var i = 0; i < FillersFor( EffectPresets.All.Count + 2 ); i++ )
             {
                 <div class="tile-filler"></div>
             }
@@ -511,6 +515,20 @@
         _selected = effect.Id;
         _status = null;
         Changed?.Invoke();
+    }
+
+    // An effect from scratch: worn, selected, and opened in the Advanced editor to build
+    void AddNew()
+    {
+        if ( IsFull || LayersWorn() >= Effect.MaxLookLayers )
+            return;
+
+        var effect = EffectPresets.New( Look.Effects );
+        Look.Effects.Add( effect );
+        _selected = effect.Id;
+        _status = null;
+        Changed?.Invoke();
+        OpenAdvanced?.Invoke( effect.Id );
     }
 
     // A surprise from the parts of the presets and My effects, within what the server's budget has left

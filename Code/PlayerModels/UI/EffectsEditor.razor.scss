@@ -148,8 +148,8 @@ EffectsEditor
 		text-transform: none;
 	}
 
-	// the tile that makes a surprise, a die where the pictures go
-	.tile.surprise .surprise-icon
+	// the tiles that make a new effect and a surprise: a plus and a die where the pictures go
+	.tile.surprise .surprise-icon, .tile.new .new-icon
 	{
 		justify-content: center;
 		align-items: center;

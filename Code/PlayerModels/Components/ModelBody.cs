@@ -203,12 +203,16 @@ public sealed class ModelBody : Component
 			&& _hidden is not null && _cancel is not null;
 	}
 
-	// Bodies far from the camera or out of view are posed less often (see PoseSchedule)
+	// Bodies far from the camera or out of view are posed less often (see PoseSchedule); a weapon drawn is dressed the
+	// frame it appears all the same, so it is never seen as the game made it
 	protected override void OnPreRender()
 	{
 		var interval = Source.IsValid() ? Scene.GetSystem<PoseSchedule>()?.IntervalFor( Source.Bounds ) ?? 0f : 0f;
 		if ( _sincePosed < interval )
+		{
+			FollowHeld();
 			return;
+		}
 
 		_sincePosed = 0;
 		Tick();
@@ -310,6 +314,19 @@ public sealed class ModelBody : Component
 	}
 
 	// Anything new in the citizen's hands moves to the model's hands
+	/// <summary>
+	/// Dresses a weapon drawn, put away or swapped since it last looked, now: every frame, and first thing for whoever
+	/// shows the same weapon in first person. No allocations while nothing changed.
+	/// </summary>
+	internal void FollowHeld()
+	{
+		if ( !Source.IsValid() || !IsIntact() || !_held.MayHaveChanged() )
+			return;
+
+		FindHeldItems();
+		_weapons?.Dress( _held.Holding, _effects );
+	}
+
 	private void FindHeldItems()
 	{
 		_held.Find( Source, _transfer, GameObject );

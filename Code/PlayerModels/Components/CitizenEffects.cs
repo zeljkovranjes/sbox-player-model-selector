@@ -92,6 +92,19 @@ public sealed class CitizenEffects : Component
 		GameObject.Destroy();
 	}
 
+	/// <summary>
+	/// Dresses a weapon drawn, put away or swapped since it last looked, now: every frame, and first thing for whoever
+	/// shows the same weapon in first person. No allocations while nothing changed.
+	/// </summary>
+	internal void FollowHeld()
+	{
+		if ( !Source.IsValid() || _held?.MayHaveChanged() != true )
+			return;
+
+		_held.Find( Source, null, GameObject );
+		_weapons?.Dress( _held.Holding, _effects );
+	}
+
 	/// <summary>Places the effects on the citizen as it is posed now. Runs every frame on its own; a preview calls it itself.</summary>
 	internal void Tick()
 	{
@@ -113,12 +126,16 @@ public sealed class CitizenEffects : Component
 		_weapons?.Animate();
 	}
 
-	// Bodies far from the camera or out of view are placed less often (see PoseSchedule)
+	// Bodies far from the camera or out of view are placed less often (see PoseSchedule); a weapon drawn is dressed the
+	// frame it appears all the same, so it is never seen as the game made it
 	protected override void OnPreRender()
 	{
 		var interval = Source.IsValid() ? Scene.GetSystem<PoseSchedule>()?.IntervalFor( Source.Bounds ) ?? 0f : 0f;
 		if ( _sincePlaced < interval )
+		{
+			FollowHeld();
 			return;
+		}
 
 		_sincePlaced = 0;
 		Tick();

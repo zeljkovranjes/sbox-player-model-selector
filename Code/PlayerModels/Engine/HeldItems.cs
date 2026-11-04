@@ -66,8 +66,15 @@ internal sealed class HeldItems
 			}
 		}
 
+		// Holding nothing, the hand the game puts a weapon in is watched: the first one drawn is seen the frame it appears
+		if ( !_hand.IsValid() && citizen.IsValid() )
+			_hand = citizen.GetBoneObject( HoldBone );
+
 		_handChildren = _hand.IsValid() ? _hand.Children.Count : -1;
 	}
+
+	// The bone of the citizen's right hand weapons are held by
+	private const string HoldBone = "hold_R";
 
 	/// <summary>
 	/// Whether what the citizen holds may have changed since <see cref="Find"/>: something held went away or was hidden or

@@ -61,10 +61,17 @@ EffectsEditor
 		color: $ui-text-label;
 	}
 
-	// what the page is for, with the Advanced editor beside it
+	// what the page is for on a line of its own, its buttons under it, wrapping onto more lines in a narrow pane
 	.top
 	{
 		@include ui-top-row;
+		flex-wrap: wrap;
+
+		> .intro
+		{
+			width: 100%;
+			flex-shrink: 0;
+		}
 	}
 
 	.row

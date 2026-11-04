@@ -78,13 +78,11 @@
         new( "Keys", "keys",
             "Give an effect a key and it shows only when you press it, for 10 seconds, for everyone, fading in and out. To keep anyone from flooding the server, effect keys work once every 2 minutes for each player, whichever effect the key is for. Switching an effect off is always free." ),
         new( "Shape", "shape",
-            "A shape is one of 40 standard shapes (circles, polygons, stars, hearts, lines, spirals and solids like a sphere or a torus) or one you drew in the shape creator. Sprites can come from a shape, along its outline or all over it (through a solid), or each sprite can look like the shape." ),
+            "A shape is one of 40 standard shapes (circles, polygons, stars, hearts, lines, spirals and solids like a sphere or a torus) or one you made in the creator's Shape mode: drawn with the mouse, written, put together from others, and cut with the eraser. Sprites can come from a shape, along its outline or all over it (through a solid), or each sprite can look like the shape, in the layer's color. Shapes are under Effects, in their own Shapes tab." ),
         new( "Sticker", "sticker",
-            "A sticker is a shape with colors of its own: a fill, an outline round it, and, if you like, a color that moves (Rainbow, the clan tag colors, or a pulse). As what sprites look like, each sprite is the sticker and covers what is behind it, so a rainbow heart stays a rainbow heart in any effect. A plain shape has no colors of its own: it takes the layer's color, like the other pictures." ),
+            "A sticker is a picture of layers, like an emblem in a shooter: each layer a standard shape, one of your shapes, text or a drawing, moved, turned and sized on its own, with its own color, outline, opacity and a color that can move (Rainbow, the clan tags, Pulse). An eraser layer cuts a hole through every layer below it. A sticker keeps its colors: as what sprites look like, and pressed onto a weapon, printed on paper, holo, foil, glitter, gold or lenticular. Stickers have their own Stickers tab under Effects." ),
         new( "Workshop, Use and Fork", "workshop",
             "The Workshop, on the Effects tab, lists the effects, single layers, shapes and stickers players shared, for any model. Use puts a copy on you (a single layer joins the effect you selected; a shape goes to My shapes). Fork opens a copy in the Advanced editor or the shape creator, to change and share as your own. Both remember the share: \"Based on\" its name and author shows with it, and stays when you share yours." ),
-        new( "Shape creator", "creator",
-            "The shape creator makes shapes of your own: strokes drawn with the mouse, filled or as lines, text, and other shapes put together, mirrored, turned and sized. Use one as where sprites come from (sparkles tracing a word) or as what each sprite looks like, and keep it in My shapes. A shape has up to 500 points and a look carries up to 8; everyone sees them with nothing to download." ),
         new( "Color cycles", "colors",
             "A color cycle colors a layer's sprites one by one, the way World at War's clan tags did: Rain scrolls the colors along, Cycle wipes one color across them, and Scanner sweeps a highlight back and forth. Mixed gives each sprite one of the colors for its life, like confetti. Use the game's colors or your own." ),
         new( "Weapon design", "weapon",
@@ -149,11 +147,19 @@
         } ),
         new( "Draw your own shape", "draw", null, new[]
         {
-            "In the Advanced editor's Effects tab, select a sprites layer and pick Draw a new shape at the end of Looks like (or of a shape's list).",
-            "Draw with the left mouse button; turn on Draw filled shapes for solid ones. Undo takes back a stroke.",
-            "Add text, combine it with a star or one of your shapes, then mirror, turn and size it.",
-            "Turn on sticker for colors of its own, an outline and a moving color.",
-            "Name it, press Save to My shapes, then Use as Looks like or Use as Comes from.",
+            "Under Effects open Shapes and press New shape, or pick Draw a new shape at the end of a layer's Comes from or Looks like.",
+            "Draw with the left mouse button; turn on Draw filled shapes for solid ones. Undo and Redo go a stroke at a time.",
+            "Pick the eraser (its size with the slider, or [ and ]) and rub out what you don't want: fill, lines and text alike.",
+            "Add text, combine it with a standard shape or one of yours, then mirror, turn and size it.",
+            "Name it, press Save to My shapes, then Use as Comes from or Use as Looks like.",
+        } ),
+        new( "Make a sticker", "makesticker", null, new[]
+        {
+            "Under Effects open Stickers and press New sticker (or pick Sticker at the top of the creator).",
+            "Add a layer: a shape from the list, Draw by hand on the canvas, or Text. The top of the list is in front.",
+            "Click a layer on the canvas and drag it; its corners and sides size it, the knob above turns it. The wheel sizes, Shift+wheel turns.",
+            "Give each layer its color, outline, opacity and a moving color. The eraser cuts this layer, or everything below it as a layer of its own.",
+            "Pick what it is printed on (paper, holo, foil, glitter, gold, lenticular), name it and Save; Use as Looks like, or put it on your weapon as a sticker.",
         } ),
     };
 

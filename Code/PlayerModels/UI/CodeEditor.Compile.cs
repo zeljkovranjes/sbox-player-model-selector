@@ -68,7 +68,9 @@ public partial class CodeEditor
 		_applied = _openedAs;
 
 		string text;
-		if ( Weapon is not null )
+		if ( Sticker is not null )
+			text = OpenSticker();
+		else if ( Weapon is not null )
 			text = OpenWeapon( look );
 		else if ( Draft is { } draft )
 		{
@@ -147,6 +149,12 @@ public partial class CodeEditor
 			if ( RunsAsSkin( result.Program ) && apply )
 				PutSkin();
 		}
+		else if ( result.Succeeded && Kind == ScriptKind.Sticker )
+		{
+			_program = result.Program;
+			if ( RunsAsSticker( result.Program ) && apply )
+				PutSticker( null );
+		}
 		else if ( result.Succeeded )
 		{
 			_program = result.Program;
@@ -156,7 +164,9 @@ public partial class CodeEditor
 			if ( build.Succeeded )
 			{
 				_build = build;
-				if ( apply && Weapon is null )
+				if ( apply && Sticker is not null )
+					PutSticker( build );
+				else if ( apply && Weapon is null )
 					Put( build, kept );
 				else if ( apply )
 					PutDesign( build );
@@ -214,6 +224,12 @@ public partial class CodeEditor
 	/// </summary>
 	public void Sync()
 	{
+		if ( Sticker is not null )
+		{
+			SyncSticker();
+			return;
+		}
+
 		if ( Weapon is not null )
 		{
 			SyncDesign();
@@ -290,7 +306,7 @@ public partial class CodeEditor
 	// The layer the caret is in: the last made at or before it, while the build is of the text now
 	private int LayerAt( int caret )
 	{
-		if ( _build is null || _program?.Source != _source )
+		if ( _build?.Effect is null || _program?.Source != _source )
 			return -1;
 
 		var found = -1;
@@ -411,6 +427,12 @@ public partial class CodeEditor
 	// The effect as it was when opened (or last saved): Auto-apply's changes to the preview are let go
 	private void PutBack()
 	{
+		if ( Sticker is not null )
+		{
+			PutBackSticker();
+			return;
+		}
+
 		if ( Weapon is not null )
 		{
 			PutBackDesign();

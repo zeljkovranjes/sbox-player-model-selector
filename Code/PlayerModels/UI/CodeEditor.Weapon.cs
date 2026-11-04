@@ -31,7 +31,8 @@ public partial class CodeEditor
 	private WeaponScripts.DesignLibrary _designLibrary;
 	private (WeaponItem Kind, int Index) _caretItem = (WeaponItem.Prop, -1);
 
-	private ScriptKind Kind => Weapon is null ? ScriptKind.Effect : Skin ? ScriptKind.Skin : ScriptKind.Weapon;
+	private ScriptKind Kind => Sticker is { } part ? (part == StickerCode.Layers ? ScriptKind.Shape : ScriptKind.Sticker)
+		: Weapon is null ? ScriptKind.Effect : Skin ? ScriptKind.Skin : ScriptKind.Weapon;
 
 	// What the script may name: the player's own, and for a design the effects it carries, its weapon's parts and the props
 	private IPlayerLibrary Names => Weapon is null ? _library : _designLibrary;

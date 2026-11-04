@@ -36,7 +36,7 @@
         <div class="tool" Tooltip="Format: indent and space it the one way (Shift+Alt+F)" @onclick=@FormatSource>format_align_left</div>
         <div class="tool" Tooltip="Comment the lines out, or back in (Ctrl+/)" @onclick=@ToggleComment>code_off</div>
         <div class="separator"></div>
-        @if ( Weapon is null )
+        @if ( Weapon is null && Sticker is null )
         {
             <div class="tool" Tooltip="Keep as draft: come back to it from My effects" @onclick=@(() => KeepDraft( false ))>edit_note</div>
         }
@@ -214,7 +214,7 @@
                 <div class="dialog-buttons">
                     <div class="dialog-button primary" @onclick=@SaveAndClose>Save</div>
                     <div class="dialog-button" @onclick=@DiscardAndClose>Discard</div>
-                    @if ( Weapon is null )
+                    @if ( Weapon is null && Sticker is null )
                     {
                         <div class="dialog-button" @onclick=@DraftAndClose>Keep as draft</div>
                     }

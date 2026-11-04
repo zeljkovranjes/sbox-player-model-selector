@@ -95,6 +95,14 @@
     @if ( _emblemMode )
     {
         <div class="row">
+            <div class="reset @( _emblem is null ? "disabled" : "" )" Tooltip="Open the sticker's layers as a script: the layers and the code stay in step" @onclick=@(() => OpenCode( CodeEditor.StickerCode.Layers ))>Edit as code</div>
+            <div class="reset" Tooltip="A script of the sticker's own: colours its layers as it shows, and moves sprites showing it" @onclick=@(() => OpenCode( CodeEditor.StickerCode.Animation ))>@( _stickerScript is null ? "Animate with code" : "Edit its script" )</div>
+            @if ( _stickerScript is not null )
+            {
+                <div class="reset" Tooltip="Let the sticker's own script go: its layers keep their own colours" @onclick=@(() => SetStickerScript( null ))>Remove script</div>
+            }
+        </div>
+        <div class="row">
             <div class="label">Printed on</div>
             <UIDropdown Items=@FinishChoices() Value=@_finish.ToString() ValueChanged=@SetFinish Tokenize=@false></UIDropdown>
         </div>
@@ -215,6 +223,7 @@
     {
         _finish = StickerFinishes.Of( value as string );
         Changed();
+        _code?.Sync();
     }
 
     string FinishNote() => _finish switch
@@ -244,7 +253,7 @@
             {
                 var name = string.IsNullOrWhiteSpace( _name ) ? null : _name;
                 _current = _emblemMode
-                    ? _emblem?.Credited( name, _forkedFrom )?.Finished( _finish )
+                    ? _emblem?.Credited( name, _forkedFrom )?.Finished( _finish )?.Scripted( _stickerScript )
                     : _strokes.Count > 0 ? DrawnShape.From( _strokes, name, null, _forkedFrom ) : null;
                 _currentAt = _revision;
                 _currentName = _name;
@@ -320,12 +329,14 @@
         {
             _emblemMode = true;
             _finish = shape.FinishIs;
+            _stickerScript = shape.Script;
             _emblem = Emblem.FromShape( shape );
             _emblemStart = _emblem;
         }
         else
         {
             _emblemMode = false;
+            _stickerScript = null;
             _undo.Push( _strokes );
             _redo.Clear();
             _strokes = shape.Decode();
@@ -357,6 +368,47 @@
     {
         _emblem = emblem;
         Changed();
+        _code?.Sync();
+    }
+
+    // The sticker in code (see CodeEditor.StickerCode): its layers, or its own script; one code window at a time
+    CodeEditor _code;
+    string _stickerScript;
+
+    void OpenCode( CodeEditor.StickerCode part )
+    {
+        if ( _code.IsValid() )
+        {
+            if ( _code.Sticker == part )
+                return;
+
+            _code.RequestClose();
+            if ( _code.IsValid() )
+                return;
+        }
+
+        _code = new CodeEditor { Sticker = part, StickerNow = () => Current, StickerBuilt = ShowFromCode, StickerScriptChanged = SetStickerScript, Closed = () => _code = null };
+        _code.Parent = SpawnMenuHost.ModalLayer ?? FindPopupPanel();
+    }
+
+    // The code built the sticker's layers: shown in the sticker editor (one step to undo), printed as the code says
+    void ShowFromCode( DrawnShape made )
+    {
+        _finish = made.FinishIs;
+        _emblemEditor?.Show( made );
+    }
+
+    void SetStickerScript( string script )
+    {
+        _stickerScript = script;
+        Changed();
+        _code?.Sync();
+    }
+
+    public override void OnDeleted()
+    {
+        base.OnDeleted();
+        _code?.Delete();
     }
 
     // Every change to the strokes can be undone, a stroke at a time, and redone

@@ -302,6 +302,15 @@
 
     string StateText() => JsonSerializer.Serialize( new DrawnShape { Emblem = _layers, Parts = _parts, Mirror = _mirror } );
 
+    /// <summary>Shows <paramref name="emblem"/>'s layers in place of these (the code made them), as one step to undo.</summary>
+    public void Show( DrawnShape emblem )
+    {
+        _layers = emblem?.Emblem?.Select( x => x.Copy() ).ToList() ?? new List<EmblemLayer>();
+        _parts = emblem?.Parts?.ToList() ?? new List<DrawnShape>();
+        _mirror = emblem?.Mirror ?? false;
+        Commit();
+    }
+
     void Restore( string state )
     {
         if ( state is null )

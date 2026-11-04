@@ -341,8 +341,15 @@ for k = 0, word.Count - 1 do
 end
 ```
 
-Setting a shape's fill or outline makes it a sticker. Adding layers makes it an
-emblem: a stack of shapes, each moved, turned, scaled, flipped and coloured.
+Setting a shape's fill or outline makes it a sticker. Adding layers makes it a
+sticker of layers, like an emblem: a stack of shapes, each moved, turned,
+scaled, flipped and coloured, an `Eraser` cutting its shape out of the layers
+below it, each in one look of a lenticular sticker or both (`Side`), the whole
+mirrored (`shape.Mirror`) and printed on a finish (`shape.Finish`). In the
+creator's Sticker mode, Edit as code opens the sticker being made as a script
+like these: every good build shows in the sticker editor, and the editor's
+changes write the code again while it is the code the editor writes (a loop of
+your own can't be rewritten, so the editor's change is put back, saying why).
 
 ```lua shape
 local back = shape.AddLayer( Shapes.Hexagon )
@@ -355,6 +362,24 @@ star.Scale = Vector3( 0.6, 0.6, 1 )
 star.Color = Color.Parse( "#ffd700" )
 star.Animation = Animation.Rainbow
 local turned = star.Rotation --> 0
+```
+
+```lua shape
+-- A badge with a ring of five stars and a hole punched through its middle, on holo
+shape.Finish = StickerFinish.Holo
+local back = shape.AddLayer( Shapes.Hexagon )
+back.Color = Color.Parse( "#101820" )
+for k = 0, 4 do
+	local star = shape.AddLayer( Shapes.Star5 )
+	star.Position = Vector3( Math.Cos( k * 1.2566 ) * 0.5, Math.Sin( k * 1.2566 ) * 0.5, 0 )
+	star.Scale = Vector3( 0.25, 0.25, 1 )
+	star.Color = Color.Parse( "#ffcc00" )
+end
+
+local hole = shape.AddLayer( Shapes.Circle )
+hole.Scale = Vector3( 0.2, 0.2, 1 )
+hole.Eraser = true
+local cut = hole.Eraser --> true
 ```
 
 In an effect script, `Shapes.New( "name" )` makes a shape the same way, to use as
@@ -386,6 +411,23 @@ the time.
 size = 1 + 0.1 * Math.Sin( t * 4 )
 rotation = t * 30
 local turned = rotation --> 45
+```
+
+A sticker of layers can carry a sticker script of its own (Animate with code,
+in the creator's Sticker mode): it runs for each of its layers as the sticker
+shows, `i` the layer from the bottom and `origin` its place, colouring it (it
+starts as the layer's own colour), on sprites, weapons and tiles alike; and for
+each sprite showing the sticker, where its `alpha`, `size`, `rotation` and
+`offset` fade, size, turn and move the sprite. The sticker keeps it (16 KB at
+most, with the look's other scripts); where the host switches scripts off, its
+layers keep their own colours.
+
+```lua sticker
+-- A wave of colour rising up the sticker's layers, its sprites bobbing as it goes
+local wave = Math.Sin( t * 3 - origin.Y * 4 ) * 0.5 + 0.5
+color = Color.Lerp( Color.Parse( "#1b2a6b" ), Color.Parse( "#7af0ff" ), wave )
+offset = Vector3( 0, 0, wave * 2 )
+local lit = wave --> 0.1472
 ```
 
 The colour modes the visual editor offers are scripts like these. World at War's

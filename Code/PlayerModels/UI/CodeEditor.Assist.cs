@@ -523,8 +523,20 @@ public partial class CodeEditor
 
 	private void OpenReference( string entry )
 	{
-		ShowReference?.Invoke( entry );
+		if ( ShowReference is not null )
+		{
+			ShowReference( entry );
+			return;
+		}
+
+		// Opened where no page shows the reference (the shape creator's sticker): one of its own, beside it
+		if ( _reference.IsValid() )
+			_reference.Show( entry );
+		else
+			_reference = new ScriptReferencePanel { Entry = entry, Parent = Parent };
 	}
+
+	private ScriptReferencePanel _reference;
 
 	// A completion's picture: a stock shape's
 	private static StandardShape? StockShapeOf( CompletionItem item ) =>

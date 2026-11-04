@@ -367,4 +367,27 @@ public class MachineTests
 		Assert.All( kept.Effects, x => Assert.Contains( kept.DrawnShapes, d => d.Reference == x.Layers[ 0 ].Picture ) );
 		Assert.All( EffectScripts.WithoutScripts( kept ).DrawnShapes, x => Assert.Null( x.Script ) );
 	}
+
+	[Fact]
+	public void AStickerWrittenAsCodeBuildsTheSameSticker()
+	{
+		var word = DrawnShape.From( HersheyFont.Strokes( "GG" ), "Word" );
+		var sticker = new DrawnShape
+		{
+			Name = "Badge", Mirror = true, Finish = "Holo", Parts = new List<DrawnShape> { word }, Emblem = new List<EmblemLayer>
+			{
+				new() { Shape = "Hexagon", Color = "#101820", OutlineColor = "#ffcc00", OutlineWidth = 0.05f, ScaleX = 0.9f, ScaleY = 0.8f },
+				new() { Shape = word.Reference, X = 0.125f, Y = -0.25f, Rotation = 15f, Color = "#ffcc00", Animation = "Rain", Palette = new List<string> { "#ff0000", "#00ff00" }, AnimationSpeed = 2f },
+				new() { Shape = "Star5", X = -0.5f, ScaleX = 0.2f, ScaleY = 0.2f, FlipX = true, Opacity = 0.5f, Side = 2 },
+				new() { Shape = "Circle", ScaleX = 0.1f, ScaleY = 0.1f, Eraser = true },
+				new() { Shape = "Heart", Hidden = true },
+			},
+		}.Sanitized();
+
+		var code = ScriptCodegen.Sticker( sticker );
+		var built = ScriptKit.Build( code, ScriptKind.Shape ).Build;
+		Assert.True( built.Succeeded, built.Error?.ToString() );
+		Assert.Equal( sticker.Content, built.Shape.Content );
+		Assert.Equal( code, Formatter.Format( code ) );
+	}
 }

@@ -51,6 +51,7 @@ View Model - choose your first-person arms from arms that Sandbox's weapons can 
 Your model's arms - your weapons show the arms of the model you wear, moved by the weapon's own animation, the forearm turning with the hand so a rifle's grip doesn't wring the wrist; a switch on the View Model page turns it off
 # Multiplayer
 Host leaving - when the host leaves, whoever hosts next takes over the selector, with everyone's picks and the rules as they were
+Distant players - other players' models are posed every frame only near you; past 750 units 30 times a second, past 2,000 units 15, and out of view 10 (for their shadows), so a full server costs less each frame; they still move with their players every frame
 # Server
 Server page - the host decides which models players can wear: models from sbox.game, from mounted games, or neither; the default citizen and the game's own models always stay
 Blocking - the host can block any other model right from the grid; whoever wears it goes back to the citizen

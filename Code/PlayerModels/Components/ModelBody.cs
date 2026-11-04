@@ -46,6 +46,7 @@ public sealed class ModelBody : Component
 	private readonly HeldItems _held = new();
 	private readonly CancellationTokenSource _cancel = new();
 	private TimeSince _sinceHidden;
+	private TimeSince _sincePosed;
 	private LookPainter _painter;
 	private AccessoryRack _accessories;
 
@@ -165,8 +166,14 @@ public sealed class ModelBody : Component
 			&& _hidden is not null && _cancel is not null;
 	}
 
+	// Bodies far from the camera or out of view are posed less often (see PoseSchedule)
 	protected override void OnPreRender()
 	{
+		var interval = Source.IsValid() ? Scene.GetSystem<PoseSchedule>()?.IntervalFor( Source.Bounds ) ?? 0f : 0f;
+		if ( _sincePosed < interval )
+			return;
+
+		_sincePosed = 0;
 		Tick();
 	}
 

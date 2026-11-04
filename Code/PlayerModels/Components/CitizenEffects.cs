@@ -46,9 +46,9 @@ public sealed class CitizenEffects : Component
 
 	/// <summary>
 	/// Puts <paramref name="look"/>'s effects on <paramref name="source"/>, in the scene that is active now; see
-	/// <see cref="ModelBody.ApplyLook"/> for <paramref name="keyShown"/> and <paramref name="health"/>.
+	/// <see cref="ModelBody.ApplyLook"/> for <paramref name="keyShown"/> and <paramref name="wearer"/>.
 	/// </summary>
-	internal static CitizenEffects Wear( SkinnedModelRenderer source, PlayerLook look, Func<string, bool> keyShown, Func<float> health )
+	internal static CitizenEffects Wear( SkinnedModelRenderer source, PlayerLook look, Func<string, bool> keyShown, EffectWearer wearer )
 	{
 		var worn = On( source );
 		if ( !worn.IsValid() )
@@ -63,16 +63,16 @@ public sealed class CitizenEffects : Component
 			worn.Source = source;
 		}
 
-		worn.Apply( look, keyShown, health );
+		worn.Apply( look, keyShown, wearer );
 		return worn;
 	}
 
 	/// <summary>Wears <paramref name="look"/>'s effects in place of what it wore.</summary>
-	internal void Apply( PlayerLook look, Func<string, bool> keyShown = null, Func<float> health = null )
+	internal void Apply( PlayerLook look, Func<string, bool> keyShown = null, EffectWearer wearer = null )
 	{
 		_effects ??= new EffectRack();
 		_held ??= new HeldItems();
-		_effects.Apply( look?.Effects, null, look?.DrawnShapes, GameObject, null, Source, Source.Model, keyShown, health );
+		_effects.Apply( look?.Effects, null, look?.DrawnShapes, GameObject, null, Source, Source.Model, keyShown, wearer );
 		ShownLook = look;
 	}
 

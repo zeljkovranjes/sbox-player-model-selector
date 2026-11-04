@@ -23,10 +23,12 @@ internal sealed class HeldItems
 		// Where the game holds it, relative to the bone: set once, when the weapon attaches it
 		public Transform GameLocal { get; init; }
 
-		// Its tip, once looked for: the muzzle object the weapon marks, or else a point on it relative to it
+		// Its tip, once looked for: the muzzle object the weapon marks, or else a point on it relative to it, and whether
+		// that is a muzzle (a model attachment counts) rather than a worked-out end
 		public bool TipFound;
 		public GameObject Muzzle;
 		public Transform TipLocal;
+		public bool HasMuzzle;
 	}
 
 	// What marks a weapon's muzzle: an object (or a model attachment) named so
@@ -96,6 +98,38 @@ internal sealed class HeldItems
 		}
 	}
 
+	/// <summary>The object of the first thing held (a weapon's world model), or null while nothing is held. No allocations.</summary>
+	internal GameObject Holding
+	{
+		get
+		{
+			for ( var i = 0; i < _held.Count; i++ )
+			{
+				if ( _held[ i ].Root.IsValid() && _held[ i ].Root.Parent.IsValid() )
+					return _held[ i ].Root;
+			}
+
+			return null;
+		}
+	}
+
+	/// <summary>
+	/// Whether the first thing held marks a muzzle, a gun's, rather than having its tip worked out (a crowbar, a sword):
+	/// a swing reaches only so far. False while nothing is held.
+	/// </summary>
+	internal bool HoldsMuzzle => TryGetTip( out _ ) && FirstHeld() is { HasMuzzle: true };
+
+	private Held FirstHeld()
+	{
+		for ( var i = 0; i < _held.Count; i++ )
+		{
+			if ( _held[ i ].Root.IsValid() && _held[ i ].Root.Parent.IsValid() )
+				return _held[ i ];
+		}
+
+		return null;
+	}
+
 	/// <summary>
 	/// Where the tip of the first thing held is now: its muzzle where the weapon marks one, or else the far end of its
 	/// longest side. False while nothing is held. Every frame: no allocations once its tip is found.
@@ -130,6 +164,7 @@ internal sealed class HeldItems
 			if ( child.Name.Contains( MuzzleName, System.StringComparison.OrdinalIgnoreCase ) )
 			{
 				held.Muzzle = child;
+				held.HasMuzzle = true;
 				return;
 			}
 		}
@@ -141,6 +176,7 @@ internal sealed class HeldItems
 		if ( model.Attachments?.Get( MuzzleName ) is { } attachment )
 		{
 			tip = attachment.Bone is { } bone ? bone.LocalTransform.ToWorld( attachment.LocalTransform ) : attachment.LocalTransform;
+			held.HasMuzzle = true;
 		}
 		else
 		{

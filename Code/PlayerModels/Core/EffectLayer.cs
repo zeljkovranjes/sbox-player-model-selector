@@ -10,9 +10,10 @@ public enum LayerKind { Sprite, Light, Trail }
 /// <summary>
 /// Where a layer's sprites come from, around its place: one point, a ball, a flat ring, all around the body (an upright
 /// ball as tall as the body, wherever the layer sits), a box, a cone opening the way the layer faces, a line (to another
-/// joint, or across the way it faces), or a standard shape (see <see cref="StandardShape"/>).
+/// joint, or across the way it faces), a standard shape (see <see cref="StandardShape"/>), or along the last shot (from
+/// the layer's place to where the shot hit, or as far as it went: a bullet tracer).
 /// </summary>
-public enum LayerShape { Point, Sphere, Ring, AroundBody, Box, Cone, Line, Shape }
+public enum LayerShape { Point, Sphere, Ring, AroundBody, Box, Cone, Line, Shape, Shot }
 
 /// <summary>
 /// What a sprite looks like: the curated pictures every client draws for itself from lines (see <see cref="EffectShape"/>).
@@ -40,12 +41,14 @@ public enum LayerFacing { Forward, Up, Down, Back, Left, Right }
 /// <summary>
 /// When a layer shows: always; while its wearer moves, stands on the ground, is in the air, crouches or holds a weapon;
 /// or for a moment when something happens (the events effects share, by the names scripts will use): they jump, land,
-/// get hurt, start or stop moving, crouch or stand up, shoot or swing (attack), or hit something hard.
+/// get hurt, start or stop moving, crouch or stand up, shoot or swing (attack), hit something hard, reload, draw a weapon
+/// or put it away, their shot or swing hits something, they die or spawn again, or a foot steps (on a foot, that foot).
 /// </summary>
 public enum LayerWhen
 {
 	Always, Moving, Grounded, InAir, Crouching, HoldingWeapon,
 	OnJump, OnLand, OnHurt, OnStartMoving, OnStopMoving, OnCrouch, OnUncrouch, OnShoot, OnImpact,
+	OnReload, OnEquip, OnHolster, OnHit, OnDeath, OnRespawn, OnFootstep,
 }
 
 /// <summary>
@@ -238,6 +241,13 @@ public sealed class EffectLayer
 	[JsonPropertyName( "fs" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public bool FadeWithSpeed { get; set; }
 
+	/// <summary>
+	/// Whether it shows where the last shot hit, facing out of what it hit (impact sparks), rather than at its place;
+	/// only for a layer shown when a shot is fired or hits.
+	/// </summary>
+	[JsonPropertyName( "ah" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public bool AtHit { get; set; }
+
 	/// <summary>What the layer is; only right on a layer within bounds (see <see cref="Sanitized"/>).</summary>
 	[JsonIgnore]
 	public LayerKind KindIs => Parsed( Kind, LayerKind.Sprite );
@@ -377,6 +387,7 @@ public sealed class EffectLayer
 			Burst = isMoment && !isLight ? MathF.Round( Limited( Burst, 0f, MaxBurst, 0f ) ) : 0f,
 			ShowFor = isMoment ? Limited( ShowFor, 0f, MaxShowFor, 0f ) : 0f,
 			FadeWithSpeed = FadeWithSpeed,
+			AtHit = AtHit && When is nameof( LayerWhen.OnShoot ) or nameof( LayerWhen.OnHit ),
 		};
 	}
 

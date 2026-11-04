@@ -179,6 +179,10 @@
                 }
             }
             <ToggleRow Label="Fade with how fast it moves" Value=@selected.FadeWithSpeed OnChanged=@(( bool v ) => SetAll( l => l.FadeWithSpeed = v ))></ToggleRow>
+            @if ( selected.WhenIs is LayerWhen.OnShoot or LayerWhen.OnHit )
+            {
+                <ToggleRow Label="Show where the shot hits" Value=@selected.AtHit OnChanged=@(( bool v ) => SetAll( l => l.AtHit = v ))></ToggleRow>
+            }
 
             @if ( chosen == 1 )
             {
@@ -769,6 +773,7 @@
         new( "A cone", nameof( LayerShape.Cone ) ),
         new( "A line", nameof( LayerShape.Line ) ),
         new( "A shape", nameof( LayerShape.Shape ) ),
+        new( "Along the shot", nameof( LayerShape.Shot ) ),
     };
 
     static List<UIDropdown.Item> StandardShapeChoices() => Enum.GetValues<StandardShape>().Select( x => new UIDropdown.Item( ShapeName( x ), x.ToString() ) ).ToList();
@@ -809,6 +814,13 @@
         LayerWhen.OnUncrouch => "On standing up",
         LayerWhen.OnShoot => "On shooting or swinging",
         LayerWhen.OnImpact => "On hitting something hard",
+        LayerWhen.OnReload => "On reloading",
+        LayerWhen.OnEquip => "On drawing a weapon",
+        LayerWhen.OnHolster => "On putting a weapon away",
+        LayerWhen.OnHit => "On a shot or swing hitting",
+        LayerWhen.OnDeath => "On dying",
+        LayerWhen.OnRespawn => "On spawning again",
+        LayerWhen.OnFootstep => "On each footstep",
         _ => "Always",
     };
 

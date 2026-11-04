@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using PlayerModels.Core;
 using Sandbox;
@@ -23,9 +24,17 @@ internal sealed class EffectRack
 	// An effect with a key fades in and out over this long
 	private const float KeyFadeSeconds = 0.5f;
 
+	// How far a shot reaches, and a swing (from a weapon that marks no muzzle: a crowbar, a sword)
+	private const float ShotReach = 4096f;
+	private const float SwingReach = 72f;
+
 	private readonly List<EffectLayerObject> _layers = new();
 	private readonly EffectSignals _signals = new();
 	private IReadOnlyList<Effect> _wanted = Array.Empty<Effect>();
+	private IReadOnlyList<Effect> _weaponEffects;
+
+	// Read through: a hot reload keeps this object but not fields added since
+	private IReadOnlyList<Effect> WeaponEffects => _weaponEffects ?? Array.Empty<Effect>();
 	private IReadOnlyList<Accessory> _items = Array.Empty<Accessory>();
 	private IReadOnlyList<DrawnShape> _shapes = Array.Empty<DrawnShape>();
 	private string _key = "";
@@ -65,6 +74,9 @@ internal sealed class EffectRack
 	// Whether the schedule reads the body each frame; a scene that doesn't run it (a preview) has it read when placed
 	private bool _readEachFrame;
 
+	// Whether any layer shows along a shot or where it hits, or when it hits: only then is a shot traced
+	private bool _wantsShot;
+
 	/// <summary>The citizen the effects are worn over: where they are, for how much of them shows.</summary>
 	internal SkinnedModelRenderer Source { get; private set; }
 
@@ -83,27 +95,43 @@ internal sealed class EffectRack
 	/// <paramref name="citizen"/> posing <paramref name="model"/> through <paramref name="transfer"/> (no transfer: the
 	/// citizen wears them itself). <paramref name="items"/> are the items worn, which effects can come from, and
 	/// <paramref name="shapes"/> the drawn shapes the look carries, which its layers can name;
-	/// <paramref name="keyShown"/> says whether an effect with a key shows now (null: always), and <paramref name="health"/>
-	/// reads the wearer's health (null: never hurt). They are built on a later <see cref="Place"/>, once the schedule lets
-	/// them through; the same effects again change nothing.
+	/// <paramref name="keyShown"/> says whether an effect with a key shows now (null: always), and <paramref name="wearer"/>
+	/// who wears them (null: nobody in particular, see <see cref="EffectWearer"/>). They are built on a later
+	/// <see cref="Place"/>, once the schedule lets them through; the same effects again change nothing.
 	/// </summary>
 	internal void Apply( IReadOnlyList<Effect> effects, IReadOnlyList<Accessory> items, IReadOnlyList<DrawnShape> shapes, GameObject parent,
-		PoseTransfer transfer, SkinnedModelRenderer citizen, Model model, Func<string, bool> keyShown, Func<float> health )
+		PoseTransfer transfer, SkinnedModelRenderer citizen, Model model, Func<string, bool> keyShown, EffectWearer wearer )
 	{
 		_wanted = effects ?? Array.Empty<Effect>();
 		_items = items ?? Array.Empty<Accessory>();
 		_shapes = shapes ?? Array.Empty<DrawnShape>();
 		_parent = parent;
 		_keyShown = keyShown;
-		_signals.Health = health;
+		_signals.Wearer = wearer ?? EffectWearer.None;
 		Source = citizen;
+		_joints ??= new EffectJoints( transfer, citizen.Model, model );
+		Rebuild();
+	}
 
-		var key = _wanted.Count == 0 ? "" : JsonSerializer.Serialize( _wanted ) + ItemsKey( _wanted, _items );
+	/// <summary>
+	/// Wears <paramref name="effects"/> beside the body's, coming from the weapon held: the design's of the weapon held
+	/// now (see <see cref="WeaponDesign.Effects"/>), or none. Built like the body's, when they change.
+	/// </summary>
+	internal void ApplyWeapon( IReadOnlyList<Effect> effects )
+	{
+		_weaponEffects = effects;
+		if ( _joints is not null )
+			Rebuild();
+	}
+
+	// Built again on the next Place when what is worn changed
+	private void Rebuild()
+	{
+		var key = _wanted.Count + WeaponEffects.Count == 0 ? "" : JsonSerializer.Serialize( _wanted ) + JsonSerializer.Serialize( WeaponEffects ) + ItemsKey( _wanted, _items );
 		if ( key == _key )
 			return;
 
 		_key = key;
-		_joints ??= new EffectJoints( transfer, citizen.Model, model );
 		_pending = true;
 	}
 
@@ -115,7 +143,7 @@ internal sealed class EffectRack
 	/// </summary>
 	internal void Place( SkinnedModelRenderer citizen, SkinnedModelRenderer model, PoseTransfer transfer, AccessoryRack worn, HeldItems held )
 	{
-		if ( _pending && _parent.IsValid() && (Schedule()?.TryBuild( Count( _wanted ) ) ?? true) )
+		if ( _pending && _parent.IsValid() && (Schedule()?.TryBuild( Count( _wanted ) + Count( WeaponEffects ) ) ?? true) )
 			Build( model );
 
 		if ( _layers.Count == 0 )
@@ -134,6 +162,9 @@ internal sealed class EffectRack
 			ReadNow();
 
 		_joints.NextFrame();
+		if ( _wantsShot && _signals.Has( LayerWhen.OnShoot ) )
+			Shoot();
+
 		for ( var e = 0; e < _effects; e++ )
 		{
 			var shows = !_keyed[ e ] || (_keyShown?.Invoke( _ids[ e ] ) ?? true);
@@ -177,8 +208,30 @@ internal sealed class EffectRack
 			return;
 
 		var now = RealTime.Now;
-		_signals.Read( Source, _lastRead < 0f ? 0f : now - _lastRead );
+		_signals.Read( Source, _lastRead < 0f ? 0f : now - _lastRead, _held?.Holding );
 		_lastRead = now;
+	}
+
+	// Works out where the shot just fired went: from the weapon's muzzle along where the wearer aims, one trace that
+	// passes through the shooter, to what it hit or as far as it reaches (a swing reaches only so far). Skipped for a body
+	// out of view or too far to show effects: nothing there would show it
+	private void Shoot()
+	{
+		if ( _paused || _share <= 0f || _held is null || !_held.TryGetTip( out var tip ) )
+			return;
+
+		var direction = _signals.Wearer.Aim?.Invoke() ?? tip.Rotation.Forward;
+		var reach = _held.HoldsMuzzle ? ShotReach : SwingReach;
+		var shooter = _signals.Wearer.Shooter.IsValid() ? _signals.Wearer.Shooter : Source.GameObject.Root;
+		var trace = Source.Scene.Trace.Ray( tip.Position, tip.Position + direction * reach ).IgnoreGameObjectHierarchy( shooter ).Run();
+		_signals.Shot = new EffectSignals.ShotPath
+		{
+			Origin = tip.Position, Direction = direction, Hit = trace.Hit, HitPosition = trace.HitPosition, HitNormal = trace.Normal,
+			Distance = trace.Hit ? trace.Fraction * reach : reach,
+		};
+
+		if ( trace.Hit )
+			_signals.Hit();
 	}
 
 	/// <summary>
@@ -230,6 +283,7 @@ internal sealed class EffectRack
 	internal void Release()
 	{
 		ReturnLayers();
+		_signals.Release();
 		_key = "";
 		_pending = false;
 	}
@@ -305,11 +359,12 @@ internal sealed class EffectRack
 		var schedule = Schedule();
 		var motion = _joints.BodyScale * model.WorldScale.x;
 		var index = 0;
-		Size( _wanted.Count );
+		Size( _wanted.Count + WeaponEffects.Count );
+		_wantsShot = false;
 
 		using ( _parent.Scene.Push() )
 		{
-			foreach ( var effect in _wanted )
+			foreach ( var effect in _wanted.Concat( WeaponEffects ) )
 			{
 				if ( effect.Off )
 					continue;
@@ -330,7 +385,8 @@ internal sealed class EffectRack
 					var kind = data.KindIs;
 					var layer = schedule?.Take( kind ) ?? EffectLayerObject.Make( kind );
 					layer.Root.SetParent( _parent, false );
-					layer.Configure( effect, shown, data, index++, motion, _shapes );
+					layer.Configure( effect, shown, data, index++, motion, _shapes, FootOf( effect, data ) );
+					_wantsShot |= data.ShapeIs == LayerShape.Shot || data.AtHit || data.WhenIs == LayerWhen.OnHit;
 					layer.Root.Enabled = true;
 					_layers.Add( layer );
 
@@ -386,6 +442,18 @@ internal sealed class EffectRack
 		}
 
 		return _joints.TryGet( joint, citizen, model, transfer, out var placed ) ? placed : new Transform( model.WorldPosition, model.WorldRotation, scale );
+	}
+
+	// Which foot a layer's steps are (0 left, 1 right): a layer on a foot steps with that foot alone; -1 for either
+	private static int FootOf( Effect effect, EffectLayer layer )
+	{
+		var anchorJoint = effect.Anchor?.KindIs == AnchorKind.Joint ? effect.Anchor.Joint : null;
+		return (layer.Joint ?? anchorJoint) switch
+		{
+			nameof( Effect.Joint.LeftFoot ) => 0,
+			nameof( Effect.Joint.RightFoot ) => 1,
+			_ => -1,
+		};
 	}
 
 	private static int JointOf( EffectAnchor anchor )

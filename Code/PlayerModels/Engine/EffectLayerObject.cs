@@ -119,6 +119,14 @@ internal sealed class EffectLayerObject
 	private float _level = 1f;
 	private bool _fadesWithSpeed;
 
+	// Which foot its steps are (0 left, 1 right, -1 either); whether it runs along the last shot, or shows where it hit;
+	// and how far apart sprites along a shot are, for its size
+	private int _foot = -1;
+	private bool _alongShot;
+	private bool _atHit;
+	private float _shotSpacing = 1f;
+	private Transform _hit;
+
 	// How fast its place moves, and where it was last frame
 	private float _speed;
 	private Vector3 _lastPosition;
@@ -188,8 +196,12 @@ internal sealed class EffectLayerObject
 	/// a citizen's unit is on this body, and <paramref name="shapes"/> the drawn shapes its look carries. Runs when the look
 	/// changes: what it works out (a formation's points) is kept.
 	/// </summary>
-	internal void Configure( Effect effect, int effectIndex, EffectLayer data, int index, float motion, IReadOnlyList<DrawnShape> shapes )
+	internal void Configure( Effect effect, int effectIndex, EffectLayer data, int index, float motion, IReadOnlyList<DrawnShape> shapes, int foot = -1 )
 	{
+		_foot = foot;
+		_alongShot = data.ShapeIs == LayerShape.Shot;
+		_atHit = data.AtHit;
+		_hit = default;
 		_drawn = Kind == LayerKind.Sprite ? Find( shapes, data.DrawnPicture ) : null;
 		_drawnGeneration = -1;
 		if ( _drawn?.Sticker is { } sticker )
@@ -314,14 +326,24 @@ internal sealed class EffectLayerObject
 			offset += Wobble( beat ) * (_beatAmount * JiggleReach);
 
 		var placed = from.ToWorld( new Transform( offset, turn * _facing ) );
+		var wanted = gate > 0f && Wants( signals, now );
+		if ( _atHit && _bursting )
+			_hit = HitOf( signals.Shot, from.Scale.x );
+
+		// Where the last shot hit stays its place until the next: what it threw there lives out its life there
+		if ( _atHit && _hit.Scale.x > 0f )
+			placed = _hit;
+
 		Root.WorldTransform = placed;
 		if ( _drawn is not null && _drawnGeneration != ShapeTextures.Generation )
 			UseDrawn();
 		if ( ToJoint >= 0 )
 			_points.LineEnd = placed.PointToLocal( lineEnd );
 
+		if ( _alongShot && _bursting )
+			AlongShot( signals.Shot, placed );
+
 		FollowSpeed( placed.Position, delta );
-		var wanted = gate > 0f && Wants( signals, now );
 		_level = Approach( _level, wanted ? 1f : 0f, delta / FadeSeconds );
 
 		var shown = gate * (_fadesWithSpeed ? Math.Clamp( _speed / (FullSpeed * _motion), 0f, 1f ) : 1f);
@@ -332,13 +354,14 @@ internal sealed class EffectLayerObject
 		Beat( beat, shown );
 	}
 
-	// Whether its layer wants to show now: always, while something is so, or for a moment after it happens, which bursts
+	// Whether its layer wants to show now: always, while something is so, or for a moment after it happens, which bursts.
+	// A layer on a foot steps with that foot alone
 	private bool Wants( EffectSignals signals, float now )
 	{
 		if ( _when < LayerWhen.OnJump )
 			return signals.Has( _when );
 
-		if ( signals.Has( _when ) )
+		if ( _when == LayerWhen.OnFootstep ? signals.HasFootstep( _foot ) : signals.Has( _when ) )
 		{
 			_momentUntil = now + _showFor;
 			_bursting = true;
@@ -347,15 +370,37 @@ internal sealed class EffectLayerObject
 		return now < _momentUntil;
 	}
 
+	// Where a shot hit, facing out of what it hit, at the body's scale; where it ended if it hit nothing
+	private static Transform HitOf( in EffectSignals.ShotPath shot, float scale )
+	{
+		var normal = shot.Hit ? shot.HitNormal : -shot.Direction;
+		return new Transform( shot.End, Rotation.LookAt( normal.IsNearZeroLength ? Vector3.Up : normal ), MathF.Max( scale, 0.01f ) );
+	}
+
+	// Sprites come from the line from its place to where the shot ended, as many as fill it, at most the burst's
+	private void AlongShot( in EffectSignals.ShotPath shot, Transform placed )
+	{
+		if ( Kind != LayerKind.Sprite || shot.Distance <= 0f )
+			return;
+
+		_points.LineEnd = placed.PointToLocal( shot.End );
+		_shotCount = MathF.Min( _burst, MathF.Ceiling( shot.Distance / _shotSpacing ) );
+	}
+
+	// How many sprites the last shot's line takes (see AlongShot); the burst's own otherwise
+	private float _shotCount = -1f;
+
 	// A moment's sprites all at once: the emitter starts again with them (after it starts for the moment, which would
 	// forget them), then bursts nothing until the next moment
 	private void Burst()
 	{
 		_bursting = false;
-		if ( Kind != LayerKind.Sprite || _burst <= 0f )
+		var burst = _alongShot && _shotCount >= 0f ? _shotCount : _burst;
+		_shotCount = -1f;
+		if ( Kind != LayerKind.Sprite || burst <= 0f )
 			return;
 
-		_emitter.Burst = MathF.Max( 1f, MathF.Round( _burst * _share ) );
+		_emitter.Burst = MathF.Max( 1f, MathF.Round( burst * _share ) );
 		_emitter.ResetEmitter();
 		_emitter.Burst = 0f;
 	}
@@ -467,7 +512,7 @@ internal sealed class EffectLayerObject
 			LayerShape.Ring => _ring,
 			LayerShape.Box => _box,
 			LayerShape.Cone => _cone,
-			LayerShape.Line or LayerShape.Shape => _points,
+			LayerShape.Line or LayerShape.Shape or LayerShape.Shot => _points,
 			_ => _sphere,
 		};
 
@@ -508,6 +553,14 @@ internal sealed class EffectLayerObject
 				_points.LineStart = ToJoint >= 0 ? Vector3.Zero : Vector3.Backward * spread;
 				_points.LineEnd = ToJoint >= 0 ? Vector3.Zero : Vector3.Forward * spread;
 				_points.Velocity = data.Speed * moves;
+				break;
+
+			case LayerShape.Shot:
+				_points.IsLine = true;
+				_points.LineStart = Vector3.Zero;
+				_points.LineEnd = Vector3.Forward * MathF.Max( spread, 1f );
+				_points.Velocity = data.Speed * moves;
+				_shotSpacing = MathF.Max( data.Size * size * motion * 0.6f, 0.5f );
 				break;
 
 			case LayerShape.Shape:

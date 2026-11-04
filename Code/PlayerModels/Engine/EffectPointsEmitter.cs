@@ -6,7 +6,7 @@ namespace PlayerModels.Engine;
 /// <summary>
 /// Sends an effect layer's sprites out from points worked out beforehand: a standard shape's formation (see
 /// <see cref="Core.StandardShapes.Formation"/>), stepping round its points far apart each time so the whole shape shows
-/// however few sprites are out, or anywhere along a line
+/// however few sprites are out, or spread evenly along a line
 /// (across the way the layer faces, or to another joint, moved every frame). Points are in the layer's own space and
 /// sizes; each sprite starts outwards from the middle at <see cref="Velocity"/>. Made only by effect layers, never saved:
 /// public only as the scene's components are. Emits as the effect steps: no allocations.
@@ -41,6 +41,7 @@ public sealed class EffectPointsEmitter : ParticleEmitter
 	private float[] _points = Array.Empty<float>();
 	private int _stride = 1;
 	private int _next;
+	private float _along;
 
 	// About a golden share of the way round each time, and never a step that comes back before every point is used
 	private const float StrideShare = 0.618f;
@@ -50,7 +51,9 @@ public sealed class EffectPointsEmitter : ParticleEmitter
 		Vector3 local;
 		if ( IsLine )
 		{
-			local = Vector3.Lerp( LineStart, LineEnd, Random.Shared.Float() );
+			// Spread evenly along it, each a golden share further than the last, so a burst fills it without gaps
+			_along = (_along + StrideShare) % 1f;
+			local = Vector3.Lerp( LineStart, LineEnd, _along );
 		}
 		else
 		{

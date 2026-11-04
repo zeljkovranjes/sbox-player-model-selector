@@ -29,6 +29,11 @@ internal sealed class PlayerBodies
 
 	private static string UsableKey( string model, string bones ) => $"{model}|{bones}";
 
+	// The player object last seen for each connection, and when one came back after theirs was gone: a respawn. Made
+	// where used: a hot reload keeps this object but not fields added since
+	private Dictionary<Guid, Player> _players;
+	private Dictionary<Guid, float> _respawnedAt;
+
 	// The models picks loaded, so a body put on for a model already worn goes on the moment it is found. Both made where
 	// used: a hot reload keeps this object but not fields added since
 	private Dictionary<string, Model> _models;
@@ -39,15 +44,16 @@ internal sealed class PlayerBodies
 	{
 		foreach ( var player in scene.GetAll<Player>() )
 		{
+			NoteRespawn( player );
 			if ( player.Controller.IsValid() && player.Controller.Renderer.IsValid() )
-				Show( player.Controller.Renderer, selector.ShownLookOf( player.Network.Owner ), player.Network.Owner, selector, health: player );
+				Show( player.Controller.Renderer, selector.ShownLookOf( player.Network.Owner ), player.Network.Owner, selector, player: player );
 		}
 
 		// Sandbox's ragdolls are made on every client by a broadcast, each with the dead player's connection
 		foreach ( var corpse in scene.GetAll<DeathCameraTarget>() )
 		{
 			if ( corpse.Components.Get<SkinnedModelRenderer>() is { } renderer )
-				Show( renderer, selector.ShownLookOf( corpse.Connection ), corpse.Connection, selector );
+				Show( renderer, selector.ShownLookOf( corpse.Connection ), corpse.Connection, selector, corpse: corpse );
 		}
 
 		ShowStandIns( scene, selector, false );
@@ -110,10 +116,25 @@ internal sealed class PlayerBodies
 		_loading.Clear();
 	}
 
-	// dressedAs is the body whose outfit a stock character wears: the citizen itself when null. health is the player
-	// whose health effects that show when hurt read, if the body is a living player's
+	// A player object for a connection whose last one is gone is that player spawning again. A scan apart: a respawn is
+	// told within one, and the first player object seen for a connection (a join) isn't one
+	private void NoteRespawn( Player player )
+	{
+		_players ??= new();
+		var id = player.Network.OwnerId;
+		if ( _players.TryGetValue( id, out var last ) && last == player )
+			return;
+
+		if ( last is not null && !last.IsValid() )
+			(_respawnedAt ??= new())[ id ] = RealTime.Now;
+
+		_players[ id ] = player;
+	}
+
+	// dressedAs is the body whose outfit a stock character wears: the citizen itself when null. player is the player whose
+	// body it is, if a living player's, and corpse the ragdoll it is, if one (see WearerOf)
 	private void Show( SkinnedModelRenderer citizen, PlayerLook look, Connection owner, PlayerModelSelector selector, SkinnedModelRenderer dressedAs = null,
-		Player health = null )
+		Player player = null, DeathCameraTarget corpse = null )
 	{
 		var body = ModelBody.On( citizen );
 
@@ -129,7 +150,7 @@ internal sealed class PlayerBodies
 			if ( body.IsValid() )
 				body.TakeOff();
 
-			ShowCitizenEffects( citizen, look, owner, selector, health );
+			ShowCitizenEffects( citizen, look, owner, selector, player, corpse );
 			return;
 		}
 
@@ -138,7 +159,7 @@ internal sealed class PlayerBodies
 		// The same model posed the same way only needs the rest of the look; bones picked differently need a new pose plan
 		if ( body.IsValid() && body.ModelId == pick && body.BonesKey == bones )
 		{
-			body.ApplyLook( look, KeyShownFor( selector, owner ), HealthOf( health ) );
+			body.ApplyLook( look, KeyShownFor( selector, owner ), WearerOf( player, corpse ) );
 			body.ShownLook = look;
 			return;
 		}
@@ -147,21 +168,23 @@ internal sealed class PlayerBodies
 			_ = ShowAsync( citizen, look, owner, dressedAs ?? citizen );
 	}
 
-	// The citizen's own effects, for a player who picked no model (or one that can't be worn); none for a look without any
-	private static void ShowCitizenEffects( SkinnedModelRenderer citizen, PlayerLook look, Connection owner, PlayerModelSelector selector, Player health )
+	// The citizen's own effects and weapon designs, for a player who picked no model (or one that can't be worn); none for
+	// a look without any
+	private void ShowCitizenEffects( SkinnedModelRenderer citizen, PlayerLook look, Connection owner, PlayerModelSelector selector, Player player,
+		DeathCameraTarget corpse )
 	{
 		var worn = CitizenEffects.On( citizen );
 		if ( worn.IsValid() && ReferenceEquals( worn.ShownLook, look ) )
 			return;
 
-		if ( look.Effects.Count == 0 )
+		if ( look.Effects.Count == 0 && look.Weapons.Count == 0 )
 		{
 			worn?.TakeOff();
 			return;
 		}
 
 		using ( citizen.Scene.Push() )
-			CitizenEffects.Wear( citizen, look, KeyShownFor( selector, owner ), HealthOf( health ) );
+			CitizenEffects.Wear( citizen, look, KeyShownFor( selector, owner ), WearerOf( player, corpse ) );
 	}
 
 	// Whether owner's effect with a key shows now, by its id: made once a look changes, read every frame
@@ -170,9 +193,25 @@ internal sealed class PlayerBodies
 		return effect => selector.IsKeyShown( owner, effect );
 	}
 
-	private static Func<float> HealthOf( Player player )
+	// Who wears a body's effects (see EffectWearer): a living player's health, aim and whether they just spawned again; a
+	// ragdoll's death. Made when a look goes on a body, never each scan
+	private EffectWearer WearerOf( Player player, DeathCameraTarget corpse )
 	{
-		return player is null ? null : () => player.IsValid() ? player.Health : 0f;
+		if ( corpse.IsValid() )
+			return new EffectWearer { DiedAt = RealTime.Now - (float)(DateTime.Now - corpse.Created).TotalSeconds };
+
+		if ( !player.IsValid() )
+			return EffectWearer.None;
+
+		var controller = player.Controller;
+		var respawned = _respawnedAt is not null && _respawnedAt.TryGetValue( player.Network.OwnerId, out var at ) ? at : (float?)null;
+		return new EffectWearer
+		{
+			Health = () => player.IsValid() ? player.Health : 0f,
+			Aim = () => controller.IsValid() ? controller.EyeAngles.Forward : Vector3.Forward,
+			Shooter = player.GameObject,
+			RespawnedAt = respawned,
+		};
 	}
 
 	private async Task ShowAsync( SkinnedModelRenderer citizen, PlayerLook look, Connection owner, SkinnedModelRenderer dressedAs )

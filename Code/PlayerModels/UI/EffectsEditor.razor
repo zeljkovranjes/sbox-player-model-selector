@@ -72,6 +72,14 @@
                 <div class="reset @( IsAsMade( selected ) ? "disabled" : "" )" @onclick=@(() => ResetSliders( selected ))>Reset sliders</div>
             </div>
 
+            <div class="row">
+                <div class="label">Key</div>
+                <TextEntry class="key-entry" Placeholder="None, always shows" Value:bind=@KeyText AutoComplete=@KeysMatching></TextEntry>
+                <KeyGlyph class="key-glyph" Key=@selected.Key></KeyGlyph>
+                <div class="reset @( selected.Key is null ? "disabled" : "" )" @onclick=@(() => SetKey( selected, null ))>Clear</div>
+            </div>
+            <div class="note">@KeyNote( selected )</div>
+
             @if ( CycleOf( selected ) is { } cycle )
             {
                 var mode = cycle.ColorModeIs;
@@ -136,7 +144,7 @@
     bool IsFull => Look.Effects.Count >= Effect.MaxWorn;
 
     protected override int BuildHash() => HashCode.Combine( Look?.Serialize(), _selected, Locked, Selector?.EffectsBudget, Selector?.EffectsQuality,
-        string.Join( ";", Others().Select( x => $"{x.Id}{Selector?.HidesEffectsOf( x )}" ) ) );
+        string.Join( ";", Others().Select( x => $"{x.Id}{Selector?.HidesEffectsOf( x )}" ) ), (int)(Selector?.TriggerWait() ?? 0f) );
 
     // A copy of the preset, selected for its sliders
     void Add( Effect preset )
@@ -186,6 +194,49 @@
         effect.Hue = effect.Size = effect.Amount = effect.Speed = 0f;
         Changed?.Invoke();
         StateHasChanged();
+    }
+
+    // The selected effect's key as typed: a key's name puts it on, an empty box takes it off, anything else waits for more
+    string KeyText
+    {
+        get => Selected?.Key ?? "";
+        set
+        {
+            if ( Selected is not { } effect )
+                return;
+
+            var key = Effect.KeyNamed( value );
+            if ( key is not null || string.IsNullOrWhiteSpace( value ) )
+                SetKey( effect, key );
+        }
+    }
+
+    static object[] KeysMatching( string typed )
+    {
+        var start = typed?.Trim() ?? "";
+        return Effect.Keys.Where( x => x.StartsWith( start, StringComparison.OrdinalIgnoreCase ) ).Cast<object>().ToArray();
+    }
+
+    void SetKey( Effect effect, string key )
+    {
+        if ( effect.Key == key )
+            return;
+
+        effect.Key = key;
+        Changed?.Invoke();
+        StateHasChanged();
+    }
+
+    // What a key does, and how long until one works again
+    string KeyNote( Effect effect )
+    {
+        var minutes = (int)(Effect.TriggerCooldownSeconds / 60f);
+        if ( effect.Key is null )
+            return $"Give it a key and it shows only when you press it, for {Effect.TriggerSeconds:0} seconds. Effect keys work once every {minutes} minutes.";
+
+        var wait = Selector?.TriggerWait() ?? 0f;
+        var ready = wait > 0f ? $" Your next one in {(int)wait / 60}:{(int)wait % 60:00}." : "";
+        return $"Press {effect.Key.ToUpperInvariant()} and it shows for {Effect.TriggerSeconds:0} seconds, for everyone. Effect keys work once every {minutes} minutes, whichever effect they are for.{ready}";
     }
 
     // The first layer of the effect whose colours cycle; the colours set here go to every such layer of it

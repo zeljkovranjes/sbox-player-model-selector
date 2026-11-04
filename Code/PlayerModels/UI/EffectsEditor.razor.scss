@@ -63,6 +63,28 @@ EffectsEditor
 		flex-shrink: 0;
 	}
 
+	// the key that shows the selected effect: typed, with the key's picture beside it
+	.key-entry
+	{
+		@include ui-text-entry;
+		flex-grow: 1;
+	}
+
+	.key-glyph
+	{
+		width: 28px;
+		height: 28px;
+		flex-shrink: 0;
+		background-size: contain;
+		background-repeat: no-repeat;
+		background-position: center;
+
+		&.none
+		{
+			width: 0px;
+		}
+	}
+
 	// a setting chosen from a list: its name, then the list
 	.setting
 	{

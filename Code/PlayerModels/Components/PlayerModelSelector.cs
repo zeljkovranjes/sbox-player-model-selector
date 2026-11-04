@@ -111,9 +111,10 @@ public sealed partial class PlayerModelSelector : Component
 	private TimeSince _sinceScan;
 	private bool _restored;
 
-	// The look each player is shown with, kept with the text, host rules and effects budget it was read from: every scan
-	// asks for every player's, and reading the text each time made garbage for each player ten times a second
-	private Dictionary<Guid, (string Text, int Rules, EffectBudget Effects, PlayerLook Look)> _shownLooks;
+	// The look each player is shown with, kept with the text (and the look read from it), host rules, effects budget and
+	// triggered effects it was made from: every scan asks for every player's, and reading the text each time made garbage
+	// for each player ten times a second
+	private Dictionary<Guid, (string Text, PlayerLook Read, int Rules, EffectBudget Effects, int Triggered, PlayerLook Look)> _shownLooks;
 
 	// Who hosts, last seen: when that changes the host left and another took over (see TrackHost)
 	private Guid? _knownHost;
@@ -132,8 +133,8 @@ public sealed partial class PlayerModelSelector : Component
 
 	/// <summary>
 	/// How this connection is shown: <see cref="LookOf"/>, within what the host allows right now, with only as much of its
-	/// effects as this player chose to see. The same object is returned until their look, the host's rules or that
-	/// choice change, so read it but never change it.
+	/// effects as this player chose to see, and its effects that show on a key only while just triggered. The same object
+	/// is returned until any of that changes, so read it but never change it.
 	/// </summary>
 	public PlayerLook ShownLookOf( Connection connection )
 	{
@@ -144,11 +145,14 @@ public sealed partial class PlayerModelSelector : Component
 		var effects = ViewedBudget( connection );
 
 		_shownLooks ??= new();
-		if ( _shownLooks.TryGetValue( id, out var known ) && known.Rules == rules && known.Effects == effects && known.Text == text )
+		var isKnown = _shownLooks.TryGetValue( id, out var known ) && known.Text == text;
+		var read = isKnown ? known.Read : PlayerLook.Parse( text );
+		var triggered = TriggeredOf( id, read );
+		if ( isKnown && known.Rules == rules && known.Effects == effects && known.Triggered == triggered )
 			return known.Look;
 
-		var look = Shown( PlayerLook.Parse( text ), isHost, effects );
-		_shownLooks[ id ] = (text, rules, effects, look);
+		var look = Shown( read.WithTriggered( triggered ), isHost, effects );
+		_shownLooks[ id ] = (text, read, rules, effects, triggered, look);
 		return look;
 	}
 
@@ -444,6 +448,8 @@ public sealed partial class PlayerModelSelector : Component
 
 	protected override void OnUpdate()
 	{
+		PollEffectKeys();
+
 		if ( _sinceScan < ScanInterval )
 			return;
 

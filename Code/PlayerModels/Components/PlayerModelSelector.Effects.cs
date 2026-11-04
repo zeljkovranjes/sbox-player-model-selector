@@ -6,8 +6,9 @@ using Sandbox;
 
 namespace PlayerModels.Components;
 
-// Effects: the host's switch and budget, kept with the other rules and synced from the host the same way, and how
-// much of them this player chose to see. Nothing is taken from anyone's look: what isn't shown comes back once allowed.
+// Effects: the host's switch and budget, kept with the other rules and synced from the host the same way, how much of
+// them this player chose to see, and the effects that show on a key. Nothing is taken from anyone's look: what isn't
+// shown comes back once allowed.
 public sealed partial class PlayerModelSelector
 {
 	/// <summary>
@@ -34,6 +35,19 @@ public sealed partial class PlayerModelSelector
 	// What this player chose to see of effects, read from their machine once rather than each scan
 	private EffectBudget.Quality? _effectsQuality;
 	private HashSet<long> _hiddenEffects;
+
+	// Host: when each player last pressed an effect key. One press per player per cooldown, whichever of their
+	// effects it was for, so changing ids or keys gets around nothing
+	private Dictionary<Guid, RealTimeSince> _hostTriggers;
+
+	// Every machine: when the host last said each player's effect was triggered, by player and effect id
+	private Dictionary<(Guid Player, string Effect), RealTimeSince> _triggers;
+
+	// This player: the keys of the effects they wear (key, effect id), read again when their look changes, and when they
+	// last pressed one
+	private List<(string Key, string Effect)> _ownKeys;
+	private string _ownKeysFrom;
+	private RealTimeSince? _sinceOwnTrigger;
 
 	/// <summary>Shows the effects players other than the host wear, or keeps them off. Host only.</summary>
 	public void SetAllowEffects( bool allow )
@@ -86,6 +100,89 @@ public sealed partial class PlayerModelSelector
 		var player = (long)connection.SteamId.Value;
 		LocalPrefs.SetEffectsHidden( player, hidden );
 		_hiddenEffects = LocalPrefs.HiddenEffects();
+	}
+
+	/// <summary>Seconds until this player may press an effect key again; 0 when they may now.</summary>
+	internal float TriggerWait()
+	{
+		return _sinceOwnTrigger is { } since ? Math.Max( 0f, Effect.TriggerCooldownSeconds - since ) : 0f;
+	}
+
+	// Every frame: an effect key pressed asks the host to show that effect, at most once per cooldown
+	private void PollEffectKeys()
+	{
+		var text = LookTextOf( KeyOf( Connection.Local ) );
+		if ( text != _ownKeysFrom )
+		{
+			_ownKeysFrom = text;
+			_ownKeys ??= new();
+			_ownKeys.Clear();
+			foreach ( var effect in PlayerLook.Parse( text ).Effects )
+			{
+				if ( effect.Key is not null && !effect.Off )
+					_ownKeys.Add( (effect.Key, effect.Id) );
+			}
+		}
+
+		if ( _ownKeys is not { Count: > 0 } || TriggerWait() > 0f )
+			return;
+
+		foreach ( var (key, effect) in _ownKeys )
+		{
+			if ( !Input.Keyboard.Pressed( key ) )
+				continue;
+
+			_sinceOwnTrigger = 0;
+			TriggerOnHost( effect );
+			return;
+		}
+	}
+
+	// Host: shows the effect for everyone, if the caller wears it with a key and hasn't pressed one within the cooldown
+	[Rpc.Host]
+	private void TriggerOnHost( string effect )
+	{
+		if ( effect is null || effect.Length > Effect.MaxIdLength )
+			return;
+
+		var id = KeyOf( Rpc.Caller );
+		_hostTriggers ??= new();
+		if ( _hostTriggers.TryGetValue( id, out var since ) && since < Effect.TriggerCooldownSeconds )
+			return;
+
+		if ( !LookOf( Rpc.Caller ).Effects.Exists( x => x.Id == effect && x.Key is not null && !x.Off ) )
+			return;
+
+		_hostTriggers[ id ] = 0;
+		EffectTriggered( id, effect );
+	}
+
+	[Rpc.Broadcast]
+	private void EffectTriggered( Guid player, string effect )
+	{
+		if ( Rpc.Caller is not { IsHost: true } || effect is null || effect.Length > Effect.MaxIdLength )
+			return;
+
+		_triggers ??= new();
+		_triggers[ (player, effect) ] = 0;
+	}
+
+	// Which of the look's effects (a bit each, by place) were triggered within the last TriggerSeconds. Runs for every
+	// player every scan: no allocations
+	private int TriggeredOf( Guid player, PlayerLook look )
+	{
+		if ( _triggers is not { Count: > 0 } )
+			return 0;
+
+		var triggered = 0;
+		for ( var i = 0; i < look.Effects.Count; i++ )
+		{
+			if ( look.Effects[ i ].Key is not null && _triggers.TryGetValue( (player, look.Effects[ i ].Id), out var since )
+				&& since < Effect.TriggerSeconds )
+				triggered |= 1 << i;
+		}
+
+		return triggered;
 	}
 
 	// The budget this player sees connection's effects within: the server's, lowered to what they chose to see, and

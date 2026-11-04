@@ -111,6 +111,10 @@ public sealed partial class PlayerModelSelector : Component
 	private TimeSince _sinceScan;
 	private bool _restored;
 
+	// The look each player is shown with, kept with the text and host rules it was read from: every scan asks for every
+	// player's, and reading the text each time made garbage for each player ten times a second
+	private Dictionary<Guid, (string Text, int Rules, PlayerLook Look)> _shownLooks;
+
 	// Who hosts, last seen: when that changes the host left and another took over (see TrackHost)
 	private Guid? _knownHost;
 
@@ -123,17 +127,36 @@ public sealed partial class PlayerModelSelector : Component
 	/// <summary>How this connection looks: the model the host chose for them, or the one they picked and how they customised it.</summary>
 	public PlayerLook LookOf( Connection connection )
 	{
-		var id = KeyOf( connection );
-		if ( HostPicks?.TryGetValue( id, out var chosen ) == true )
-			return PlayerLook.Parse( chosen );
-
-		return PlayerLook.Parse( Picks.TryGetValue( id, out var look ) ? look : null );
+		return PlayerLook.Parse( LookTextOf( KeyOf( connection ) ) );
 	}
 
-	/// <summary>How this connection is shown: <see cref="LookOf"/>, within what the host allows right now.</summary>
+	/// <summary>
+	/// How this connection is shown: <see cref="LookOf"/>, within what the host allows right now. The same object is
+	/// returned until their look or the host's rules change, so read it but never change it.
+	/// </summary>
 	public PlayerLook ShownLookOf( Connection connection )
 	{
-		return Shown( LookOf( connection ), (connection ?? Connection.Local)?.IsHost ?? true );
+		var id = KeyOf( connection );
+		var text = LookTextOf( id );
+		var isHost = (connection ?? Connection.Local)?.IsHost ?? true;
+		var rules = isHost ? 0 : 1 | (BlockBodyGroups ? 2 : 0) | (BlockAccessories ? 4 : 0) | (BlockCloudModels ? 8 : 0);
+
+		_shownLooks ??= new();
+		if ( _shownLooks.TryGetValue( id, out var known ) && known.Rules == rules && known.Text == text )
+			return known.Look;
+
+		var look = Shown( PlayerLook.Parse( text ), isHost );
+		_shownLooks[ id ] = (text, rules, look);
+		return look;
+	}
+
+	// The host's choice for this connection, else their own pick, as the network carries it
+	private string LookTextOf( Guid id )
+	{
+		if ( HostPicks?.TryGetValue( id, out var chosen ) == true )
+			return chosen;
+
+		return Picks.TryGetValue( id, out var look ) ? look : null;
 	}
 
 	/// <summary>

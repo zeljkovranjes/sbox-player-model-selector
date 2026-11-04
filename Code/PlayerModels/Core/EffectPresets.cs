@@ -9,11 +9,14 @@ namespace PlayerModels.Core;
 /// </summary>
 public static class EffectPresets
 {
+	// Confetti's colours, one to each piece in turn. Before All, which is made from it: statics start in order
+	private static readonly string[] ConfettiColours = { "#ff4a6a", "#ffd23a", "#3ad8ff", "#7aff6a", "#c07aff" };
+
 	/// <summary>Every preset, in the order they are offered. Never worn as they are: see <see cref="Copy"/>.</summary>
 	public static IReadOnlyList<Effect> All { get; } = new[]
 	{
 		GlowingEyes(), FireHands(), SparkleHalo(), HolyAura(), DarkAura(), Hearts(), SnowCloud(), RainCloud(),
-		ElectricBody(), FlameHead(), LanternHand(), Rainbow(),
+		ElectricBody(), MagicOrbs(), FlameHead(), LanternHand(), SpeedTrail(), SwordSlash(), ConfettiBurst(), Rainbow(),
 	};
 
 	/// <summary>A copy of <paramref name="preset"/> to wear beside <paramref name="worn"/>, with an id none of them has.</summary>
@@ -41,6 +44,51 @@ public static class EffectPresets
 	private static EffectLayer Light( string colour, float reach, float brightness )
 	{
 		return new EffectLayer { Kind = nameof( LayerKind.Light ), Color = colour, Size = reach, Amount = brightness };
+	}
+
+	// A trail width wide where it starts and widthEnd at its end, staying behind for lifetime seconds, as much as its
+	// place moves
+	private static EffectLayer Trail( string colour, string colourEnd, float width, float widthEnd, float lifetime )
+	{
+		return new EffectLayer
+		{
+			Kind = nameof( LayerKind.Trail ), Color = colour, ColorEnd = colourEnd, Size = width, SizeEnd = widthEnd, Lifetime = lifetime,
+			FadeWithSpeed = true,
+		};
+	}
+
+	private static Effect From( this Effect effect, AnchorKind kind, Effect.Joint fallback )
+	{
+		effect.Anchor = new EffectAnchor { Kind = kind.ToString(), Joint = fallback.ToString() };
+		return effect;
+	}
+
+	// Shows for a moment, burst sprites at once, and for showFor seconds after
+	private static EffectLayer At( this EffectLayer layer, LayerWhen when, float burst = 0f, float showFor = 0f )
+	{
+		layer.When = when.ToString();
+		layer.Burst = burst;
+		layer.ShowFor = showFor;
+		return layer;
+	}
+
+	private static EffectLayer While( this EffectLayer layer, LayerWhen when )
+	{
+		layer.When = when.ToString();
+		return layer;
+	}
+
+	private static EffectLayer Looking( this EffectLayer layer, StandardShape shape )
+	{
+		layer.Picture = shape.ToString();
+		return layer;
+	}
+
+	private static EffectLayer Palette( this EffectLayer layer, LayerColorMode mode, params string[] colours )
+	{
+		layer.ColorMode = mode.ToString();
+		layer.Palette = colours.Length > 0 ? new List<string>( colours ) : null;
+		return layer;
 	}
 
 	private static EffectLayer Beating( this EffectLayer layer, LayerRhythm rhythm, float speed, float amount )
@@ -148,6 +196,39 @@ public static class EffectPresets
 		Sprite( LayerPicture.Glow, "#9ccaff", "#3a6aff", 14f, 6f, 0.12f, 40f ).From( LayerShape.AroundBody, 30f ).Moving( 0f, 0f, true )
 			.Beating( LayerRhythm.Flicker, 14f, 0.6f ),
 		Light( "#5aa0ff", 70f, 1.2f ).On( Effect.Joint.Chest ).Beating( LayerRhythm.Flicker, 14f, 0.8f ) );
+
+	// Two glowing orbs circling the hips, leaving a short streak, and a third bobbing about beside the head
+	private static Effect MagicOrbs() => Made( "Magic orbs", Effect.Joint.Hips,
+		Sprite( LayerPicture.Glow, "#c08aff", "#5a2aff", 3.4f, 0.8f, 0.4f, 45f ).From( LayerShape.Point, 0f, 16f, 0f, 6f )
+			.Beating( LayerRhythm.Spin, 0.45f, 1f ),
+		Sprite( LayerPicture.Glow, "#7ad8ff", "#2a6aff", 3.4f, 0.8f, 0.4f, 45f ).From( LayerShape.Point, 0f, 16f, 0f, -2f )
+			.Beating( LayerRhythm.Spin, 0.45f, 1f ),
+		Sprite( LayerPicture.Glow, "#ff8ae0", "#ff2a8a", 3f, 1f, 0.35f, 35f ).On( Effect.Joint.Head ).From( LayerShape.Point, 0f, 2f, 11f, 4f )
+			.Beating( LayerRhythm.Jiggle, 0.8f, 0.7f ),
+		Light( "#a08aff", 60f, 0.8f ).From( LayerShape.Point, 0f, 0f, 0f, 4f ).Beating( LayerRhythm.Pulse, 0.6f, 0.3f ) );
+
+	// A streak behind each foot as you run, and sparks kicked up while moving
+	private static Effect SpeedTrail() => Made( "Speed trail", Effect.Joint.Hips,
+		Trail( "#8af4ff", "#2a5aff", 5f, 1f, 0.7f ).On( Effect.Joint.LeftFoot ).From( LayerShape.Point, 0f, 0f, 0f, 1f ),
+		Trail( "#8af4ff", "#2a5aff", 5f, 1f, 0.7f ).On( Effect.Joint.RightFoot ).From( LayerShape.Point, 0f, 0f, 0f, 1f ),
+		Sprite( LayerPicture.Spark, "#d8fcff", "#3a8aff", 1.6f, 0.4f, 0.35f, 30f ).On( Effect.Joint.LeftFoot ).From( LayerShape.Sphere, 2f )
+			.Moving( 30f, 60f ).While( LayerWhen.Moving ),
+		Sprite( LayerPicture.Spark, "#d8fcff", "#3a8aff", 1.6f, 0.4f, 0.35f, 30f ).On( Effect.Joint.RightFoot ).From( LayerShape.Sphere, 2f )
+			.Moving( 30f, 60f ).While( LayerWhen.Moving ) );
+
+	// A bright arc behind the tip of the weapon held as it swings, and sparks when it strikes
+	private static Effect SwordSlash() => Made( "Sword slash", Effect.Joint.RightHand,
+			Trail( "#ffffff", "#5a9aff", 5f, 0.5f, 0.25f ),
+			Sprite( LayerPicture.Spark, "#fff4c8", "#ff9a3a", 1.8f, 0.4f, 0.45f, 0f ).From( LayerShape.Sphere, 1f ).Moving( 90f, 220f )
+				.At( LayerWhen.OnShoot, 16f ) )
+		.From( AnchorKind.HeldWeapon, Effect.Joint.RightHand );
+
+	// Confetti thrown up when you jump, and a ring of it when you land
+	private static Effect ConfettiBurst() => Made( "Confetti burst", Effect.Joint.Chest,
+		Sprite( LayerPicture.Glow, "#ffffff", null, 1.6f, 1.6f, 1.8f, 0f ).Looking( StandardShape.Rectangle ).From( LayerShape.Sphere, 4f )
+			.Moving( 140f, 220f ).Covering().At( LayerWhen.OnJump, 50f ).Palette( LayerColorMode.Mix, ConfettiColours ),
+		Sprite( LayerPicture.Glow, "#ffffff", null, 1.4f, 1.4f, 1.4f, 0f ).Looking( StandardShape.Star5 ).On( Effect.Joint.Hips )
+			.From( LayerShape.Ring, 10f, 0f, 0f, -20f ).Moving( 90f, 160f ).Covering().At( LayerWhen.OnLand, 40f ).Palette( LayerColorMode.Mix, ConfettiColours ) );
 
 	// The head on fire, lighting up around it
 	private static Effect FlameHead() => Made( "Flame head", Effect.Joint.Crown,

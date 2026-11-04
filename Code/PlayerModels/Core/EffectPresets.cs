@@ -170,10 +170,11 @@ public static class EffectPresets
 		Sprite( LayerPicture.Sparkle, "#fff6d0", "#ffd27a", 1.6f, 0.3f, 1.5f, 10f ).From( LayerShape.AroundBody, 34f ).Moving( 2f, -20f ),
 		Light( "#ffe2a0", 90f, 0.8f ).From( LayerShape.Point, 0f, 0f, 0f, 10f ).Beating( LayerRhythm.Pulse, 0.5f, 0.3f ) );
 
-	// Dark smoke rolling off the body, with a faint purple glow inside it
+	// Dark smoke rolling off the body, big enough to read as smoke in daylight, with a purple glow inside it that shows it
+	// on a dark night
 	private static Effect DarkAura() => Made( "Dark aura", Effect.Joint.Hips,
-		Sprite( LayerPicture.Smoke, "#1c0d26", "#050308", 9f, 16f, 2.2f, 14f ).From( LayerShape.AroundBody, 32f ).Moving( 3f, -8f ).Covering(),
-		Sprite( LayerPicture.Glow, "#4a1a6a", "#1a0628", 6f, 10f, 1.8f, 6f ).From( LayerShape.AroundBody, 30f ).Moving( 0f, 0f, true ) );
+		Sprite( LayerPicture.Smoke, "#2a1238", "#08040c", 14f, 22f, 2.4f, 18f ).From( LayerShape.AroundBody, 32f ).Moving( 3f, -10f ).Covering(),
+		Sprite( LayerPicture.Glow, "#6a2a9a", "#1a0628", 8f, 13f, 1.8f, 9f ).From( LayerShape.AroundBody, 30f ).Moving( 0f, 0f, true ) );
 
 	// Hearts floating up from the chest
 	private static Effect Hearts() => Made( "Hearts", Effect.Joint.Chest,

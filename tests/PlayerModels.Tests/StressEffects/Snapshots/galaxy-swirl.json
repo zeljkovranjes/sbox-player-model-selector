@@ -1,0 +1,38 @@
+{
+  "id": "",
+  "n": "Galaxy swirl",
+  "a": {
+    "j": "RightHand",
+    "u": 8
+  },
+  "l": [
+    {
+      "k": "Sprite",
+      "c": "#fff2c8",
+      "a": 0.8,
+      "t": 1,
+      "n": 0,
+      "fo": true,
+      "kp": 90
+    },
+    {
+      "k": "Sprite",
+      "c": "#fff2c8",
+      "a": 5,
+      "t": 1,
+      "n": 0,
+      "fo": true,
+      "rh": "Pulse",
+      "rs": 0.5,
+      "ra": 0.2,
+      "kp": 1
+    },
+    {
+      "k": "Light",
+      "c": "#fff2c8",
+      "a": 40,
+      "t": 1,
+      "n": 0.6
+    }
+  ]
+}

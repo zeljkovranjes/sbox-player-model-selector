@@ -1,0 +1,43 @@
+{
+  "id": "",
+  "n": "Kill counter",
+  "a": {
+    "j": "RightHand",
+    "k": "HeldWeapon"
+  },
+  "l": [
+    {
+      "k": "Sprite",
+      "f": 4,
+      "l": 1.5,
+      "u": 1,
+      "fc": "Left",
+      "p": "Rectangle",
+      "c": "#ff8a2a",
+      "a": 0.5,
+      "t": 1,
+      "n": 0,
+      "fo": true,
+      "kp": 21,
+      "al": "Facing"
+    },
+    {
+      "k": "Sprite",
+      "s": "Line",
+      "r": 8,
+      "c": "#4aa8ff",
+      "a": 2.5,
+      "b": 0.5,
+      "t": 0.4,
+      "n": 0,
+      "fo": true
+    },
+    {
+      "k": "Light",
+      "c": "#4aa8ff",
+      "a": 60,
+      "t": 1,
+      "n": 0
+    }
+  ]
+}

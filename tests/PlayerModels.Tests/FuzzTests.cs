@@ -96,6 +96,12 @@ public class FuzzTests
 			if ( entry.Example is not null )
 				yield return (entry.Example, entry.ExampleKind);
 		}
+
+		foreach ( var effect in StressEffects.StressScripts.All )
+		{
+			foreach ( var script in StressEffects.StressEffectTests.Scripts( effect ) )
+				yield return script;
+		}
 	}
 
 	private static readonly Regex Numbers = new( @"(?<![\w.])\d+(\.\d+)?" );

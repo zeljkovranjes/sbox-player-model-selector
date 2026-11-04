@@ -1,0 +1,59 @@
+{
+  "id": "",
+  "n": "Cross slash",
+  "a": {
+    "j": "Chest",
+    "f": 14
+  },
+  "l": [
+    {
+      "k": "Sprite",
+      "p": "@c4c5dd5f3c830d0c",
+      "c": "#ff3a5a",
+      "a": 44,
+      "t": 0.35,
+      "n": 0,
+      "fo": true,
+      "al": "Facing"
+    },
+    {
+      "k": "Sprite",
+      "p": "@1791ddf1966990b7",
+      "c": "#ff3a5a",
+      "a": 44,
+      "t": 0.35,
+      "n": 0,
+      "fo": true,
+      "al": "Facing"
+    },
+    {
+      "k": "Sprite",
+      "p": "Sparkle",
+      "c": "#ffffff",
+      "a": 14,
+      "b": 4,
+      "t": 0.15,
+      "n": 0
+    }
+  ],
+  "sh": [
+    {
+      "id": "c4c5dd5f3c830d0c",
+      "n": "Cut from the right",
+      "s": [
+        "cziIt1fKg3SMd45Ok6UQz7iTJ8jVm9WYI97au-RdW-ZgA-Rip97lR9Wn38jqZ7is26UvM45xb3Szi1f1fzi3Sxb45vM6Us27iqZ8jn39WlR97ip-RgA-ZgA-Zij9Qk777nF6cpC41qy3JsW1Ztvznu9x0wCwCw_uQx2sfynqwzVpAz_nR0mlh1Lju1th52LgA2leB26b93IZz3NXj3JVN25Sy2bQS1uNx0xLOziIt"
+      ],
+      "fa": 310,
+      "fr": 140
+    },
+    {
+      "id": "1791ddf1966990b7",
+      "n": "Cut from the left",
+      "s": [
+        "cMdItKgKgItMdHGOkFrQzEdTJDcVmCpYICEauBudWBmgABuipCElRCpn3DcqZEds2FrvMHGxbItziKg1fMd3SOk45Qz6UTJ7iVm8jYI9Wau97dW-RgA-ZgA-Zdc9QbE77Y66cW941VN3JTp1ZSQznRCx0P9wCPAuQOJsfNYqwMqpAMAnRLZlhK0juKSh5J0gAJaeBJFb9I3ZzIyXjI2VNJGSyJkQSKRNxLOLOMdIt"
+      ],
+      "fa": 230,
+      "fr": -140
+    }
+  ]
+}

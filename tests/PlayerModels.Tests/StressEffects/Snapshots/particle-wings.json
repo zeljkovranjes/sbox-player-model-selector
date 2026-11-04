@@ -1,0 +1,49 @@
+{
+  "id": "",
+  "n": "Particle wings",
+  "a": {
+    "j": "Chest",
+    "f": -6,
+    "u": 4
+  },
+  "l": [
+    {
+      "k": "Sprite",
+      "s": "Shape",
+      "r": 22,
+      "fc": "Back",
+      "fm": "@c931850c0d88396b",
+      "fi": true,
+      "c": "#fff6d8",
+      "a": 1.6,
+      "t": 1,
+      "n": 0,
+      "fo": true,
+      "kp": 100
+    },
+    {
+      "k": "Sprite",
+      "s": "Shape",
+      "r": 22,
+      "fc": "Back",
+      "fm": "@c931850c0d88396b",
+      "fi": true,
+      "p": "Teardrop",
+      "c": "#ffb04a",
+      "a": 1.8,
+      "g": 25,
+      "t": 2.5,
+      "n": 5
+    }
+  ],
+  "sh": [
+    {
+      "id": "c931850c0d88396b",
+      "n": "Wings",
+      "s": [
+        "ceZjMRmxmGZ3_AAzMBmuZEKyPHCh0JmlpMfZLPCdBR7W8UeayXXbGZ6e7czjMfXnC",
+        "chmjMuZxm5m3___zM-ZuZ71yP49h02ZlpzgZLw9dBuEW8rhayoobGmFe7jMjMgonC"
+      ]
+    }
+  ]
+}

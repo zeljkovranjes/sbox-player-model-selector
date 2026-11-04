@@ -44,7 +44,11 @@
                     <div class="title">@shown.Name</div>
                 </div>
             }
-            @for ( var i = 0; i < FillersFor( EffectPresets.All.Count ); i++ )
+            <div class="tile effect surprise @( IsFull ? "disabled" : "" )" Tooltip="A new effect from parts of the others, within this server's budget" @onclick=@AddSurprise>
+                <div class="thumb surprise-icon">casino</div>
+                <div class="title">Surprise me</div>
+            </div>
+            @for ( var i = 0; i < FillersFor( EffectPresets.All.Count + 1 ); i++ )
             {
                 <div class="tile-filler"></div>
             }
@@ -114,7 +118,30 @@
             <SliderRow Label="Speed" Signed=@true Value=@selected.Speed OnChanged=@(( float value ) => Set( () => selected.Speed = value ))></SliderRow>
             <div class="row">
                 <div class="reset @( IsAsMade( selected ) ? "disabled" : "" )" @onclick=@(() => ResetSliders( selected ))>Reset sliders</div>
+                <div class="reset" Tooltip="A few changed copies of it to pick from" @onclick=@(() => ShowVariations( selected ))>Variations</div>
             </div>
+            @if ( _variations is { } variations && _variationsOf == selected.Id )
+            {
+                <div class="grid variations">
+                    @for ( var i = 0; i < variations.Count; i++ )
+                    {
+                        var picked = variations[ i ];
+                        <div class="tile effect" Tooltip="Use this one in place of it" @onclick=@(() => UseVariation( selected, picked ))>
+                            <EffectIcon class="thumb" Effect=@picked></EffectIcon>
+                            <div class="title">@( $"Variation {i + 1}" )</div>
+                        </div>
+                    }
+                    @for ( var i = 0; i < FillersFor( variations.Count ); i++ )
+                    {
+                        <div class="tile-filler"></div>
+                    }
+                </div>
+                <div class="row">
+                    <div class="reset" @onclick=@(() => ShowVariations( selected ))>More like it</div>
+                    <div class="reset" @onclick=@HideVariations>Close</div>
+                </div>
+            }
+
             <div class="row">
                 <div class="label">Keep it</div>
                 <TextEntry class="key-entry" Placeholder=@( string.IsNullOrEmpty( selected.Name ) ? "Its name" : selected.Name ) MaxLength=@Effect.MaxNameLength
@@ -213,7 +240,7 @@
 
     protected override int BuildHash() => HashCode.Combine( Look?.Serialize(), _selected, _guides, Locked, Selector?.EffectsBudget, Selector?.EffectsQuality,
         string.Join( ";", Others().Select( x => $"{x.Id}{Selector?.HidesEffectsOf( x )}" ) ),
-        HashCode.Combine( (int)(Selector?.TriggerWait() ?? 0f), History?.CanUndo, History?.CanRedo, _mineRevision, _status ) );
+        HashCode.Combine( (int)(Selector?.TriggerWait() ?? 0f), History?.CanUndo, History?.CanRedo, _mineRevision, _status, _variationsOf, _variations ) );
 
     // My effects, read once and again after each change to them
     List<Effect> _mine;
@@ -222,6 +249,10 @@
     string _status;
 
     List<Effect> Mine => _mine ??= LocalPrefs.MyEffects();
+
+    // The variations offered of the selected effect, by its id
+    List<Effect> _variations;
+    string _variationsOf;
 
     // A copy of the preset (or of one kept in My effects), selected for its sliders
     void Add( Effect preset )
@@ -238,6 +269,28 @@
         }
 
         _selected = effect.Id;
+        _status = null;
+        Changed?.Invoke();
+    }
+
+    // A surprise from the parts of the presets and My effects, within what the server's budget has left
+    void AddSurprise()
+    {
+        if ( IsFull )
+            return;
+
+        var sources = EffectPresets.All.Concat( Mine ).ToList();
+        var surprise = EffectRemix.Surprise( new Random(), sources, Look.Effects, Budget );
+        if ( surprise is null )
+        {
+            _status = "There's no room left in this server's budget for a surprise. Remove or switch off an effect first.";
+            StateHasChanged();
+            return;
+        }
+
+        surprise.Id = Effect.NewId( Look.Effects );
+        Look.Effects.Add( surprise );
+        _selected = surprise.Id;
         _status = null;
         Changed?.Invoke();
     }
@@ -267,6 +320,38 @@
     }
 
     static string KeptTooltip( Effect kept ) => $"{kept.Layers.Count} {(kept.Layers.Count == 1 ? "layer" : "layers")}: click to put it on";
+
+    void ShowVariations( Effect effect )
+    {
+        _variations = EffectRemix.Variations( Look.Standalone( effect ), new Random() );
+        _variationsOf = effect.Id;
+        StateHasChanged();
+    }
+
+    void HideVariations()
+    {
+        _variations = null;
+        _variationsOf = null;
+        StateHasChanged();
+    }
+
+    // The variation takes the selected effect's place, keeping its id, name, key and whether it is on
+    void UseVariation( Effect effect, Effect variation )
+    {
+        var index = Look.Effects.IndexOf( effect );
+        if ( index < 0 )
+            return;
+
+        // Its drawn shapes are the look's already: a variation changes how they show, not what they are
+        var used = EffectPresets.Copy( variation, Array.Empty<Effect>() );
+        used.Shapes = null;
+        used.Id = effect.Id;
+        used.Key = effect.Key;
+        used.Off = effect.Off;
+        Look.Effects[ index ] = used;
+        HideVariations();
+        Changed?.Invoke();
+    }
 
     void Select( Effect effect )
     {

@@ -60,6 +60,8 @@ Drawn shapes on bodies - a drawn shape is drawn on your machine once (128 px), a
 Undo and redo - the arrows on the Effects tab and in the Advanced editor's Effects tab step back and forward through your changes to effects, 50 steps (a slider dragged is one step)
 Several layers at once - Ctrl+click or Shift+click layers in the Advanced editor to choose more than one: a change goes to all of them, and only what they all have shows
 My effects - save the selected effect under a name (Save to My effects, under its sliders) and put it on again from its tile on the Effects tab; up to 50, kept on your machine, each deleted from its tile's corner
+Surprise me - the tile after the presets makes an effect of one to three parts of the presets and My effects, each on the joint it came from, its colors turned at random, within what this server's budget has left (its sprites thinned to fit)
+Variations - Variations, under the selected effect's sliders, offers four copies of it with its colors turned, its size, amount and speed nudged and now and then a layer's rhythm or picture swapped; click one to use it, or More like it for four more
 # Armature
 Armature - give a bone to each body part the automatic setup couldn't find, with the skeleton drawn on the preview
 Shared armatures - Share mine, under the Armature page's lists, publishes your armature for a model where every player of the selector can find it; the Workshop button beside Clear my picks (with how many are shared for the model) opens the armatures players shared, a page at a time sized to fit, where Use takes the parts one gives your copy of the model onto the preview and Apply wears them; picks already shared, by you or anyone, aren't shared again, and copies shared at the same moment are listed once

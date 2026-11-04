@@ -127,6 +127,17 @@ EffectsEditor
 		text-transform: none;
 	}
 
+	// the tile that makes a surprise, a die where the pictures go
+	.tile.surprise .surprise-icon
+	{
+		justify-content: center;
+		align-items: center;
+		font-family: "Material Icons";
+		font-size: 40px;
+		color: $ui-text-muted;
+		text-transform: none;
+	}
+
 	// a kept effect's delete button, in its tile's corner on hover
 	.tile .forget
 	{
@@ -151,6 +162,12 @@ EffectsEditor
 	.tile:hover .forget
 	{
 		opacity: 1;
+	}
+
+	// variations under the sliders: the same tiles, a row of them
+	.grid.variations
+	{
+		margin-top: 4px;
 	}
 
 	// what just happened, said under where it happened

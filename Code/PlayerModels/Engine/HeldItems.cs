@@ -52,7 +52,7 @@ internal sealed class HeldItems
 	}
 
 	/// <summary>Moves each held thing into the model's hand, aimed the way the citizen aims it right now.</summary>
-	internal void Place( SkinnedModelRenderer citizen, SkinnedModelRenderer model )
+	internal void Place( SkinnedModelRenderer citizen, SkinnedModelRenderer model, PoseTransfer transfer )
 	{
 		for ( var i = _held.Count - 1; i >= 0; i-- )
 		{
@@ -68,7 +68,7 @@ internal sealed class HeldItems
 			// Always from where the game holds it, never from last frame's move, so the offset can't add up
 			held.Root.LocalTransform = held.GameLocal;
 
-			if ( !citizen.TryGetBoneTransform( held.SourceBone, out var hand ) || !model.TryGetBoneTransform( held.TargetBone, out var modelHand ) )
+			if ( !citizen.TryGetBoneTransform( held.SourceBone, out var hand ) || !transfer.TryGetPosedBone( model, held.TargetBone, out var modelHand ) )
 				continue;
 
 			var where = held.Root.WorldTransform;

@@ -111,8 +111,8 @@ internal sealed class AccessoryRack
 		return true;
 	}
 
-	/// <summary>Places every item on its joint. Runs every frame, after the model is posed.</summary>
-	internal void Place( SkinnedModelRenderer citizen, SkinnedModelRenderer model )
+	/// <summary>Places every item on its joint. Runs every frame, after the model is posed by <paramref name="transfer"/>.</summary>
+	internal void Place( SkinnedModelRenderer citizen, SkinnedModelRenderer model, PoseTransfer transfer )
 	{
 		for ( var i = 0; i < _worn.Count; i++ )
 		{
@@ -122,19 +122,22 @@ internal sealed class AccessoryRack
 
 			if ( worn.Follows )
 			{
-				PoseClothes( worn, citizen, model );
+				PoseClothes( worn, citizen, model, transfer );
 				continue;
 			}
 
 			if ( worn.TargetBone is null )
 				continue;
 
-			if ( !citizen.TryGetBoneTransform( worn.SourceBone, out var source ) || !model.TryGetBoneTransform( worn.TargetBone, out var target ) )
+			if ( !citizen.TryGetBoneTransform( worn.SourceBone, out var source ) || !transfer.TryGetPosedBone( model, worn.TargetBone, out var target ) )
 				continue;
 
 			// Takes the item's rest pose to where the joint is turned now. Forward, left and up stay the model's own
-			// directions at rest whatever way the rig's bones point, so sliders mean the same on any model
-			var heading = source.Rotation * worn.Rest.Rotation.Inverse;
+			// directions at rest whatever way the rig's bones point, so sliders mean the same on any model. The turn is
+			// the model's bone's, which the solve doesn't turn quite like the citizen's (a head aiming up and down)
+			var heading = transfer.TryGetPosedTurn( model, worn.TargetBone, out var turned ) && citizen.Model.Bones.GetBone( worn.SourceBone ) is { } bind
+				? turned * bind.LocalTransform.Rotation * worn.Rest.Rotation.Inverse
+				: source.Rotation * worn.Rest.Rotation.Inverse;
 			var turn = heading * worn.Turn;
 			var scale = worn.Scale * target.Scale.x;
 			var joint = target.Position + heading * (worn.Offset * target.Scale.x);
@@ -148,7 +151,7 @@ internal sealed class AccessoryRack
 	}
 
 	// Runs every frame for each piece of clothing, over every bone: no allocations
-	private static void PoseClothes( Worn worn, SkinnedModelRenderer citizen, SkinnedModelRenderer model )
+	private static void PoseClothes( Worn worn, SkinnedModelRenderer citizen, SkinnedModelRenderer model, PoseTransfer transfer )
 	{
 		var world = citizen.BoneWorldTransforms;
 		var root = worn.Root.WorldTransform;
@@ -162,7 +165,7 @@ internal sealed class AccessoryRack
 			var bone = worn.Bones[ i ];
 			Transform pose;
 
-			if ( bone.Source >= 0 && bone.Source < world.Length && model.TryGetBoneTransform( bone.Target, out var target ) )
+			if ( bone.Source >= 0 && bone.Source < world.Length && transfer.TryGetPosedBone( model, bone.Target?.Name, out var target ) )
 			{
 				var source = world[ bone.Source ];
 				var along = (source.Position - world[ bone.Anchor ].Position + facing * worn.Offset) * target.Scale.x;

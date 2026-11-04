@@ -93,6 +93,21 @@ public sealed class PlayerLook
 		set => DrawnShapes = value ?? new();
 	}
 
+	/// <summary>
+	/// The player's designs for weapons (see <see cref="WeaponDesign"/>), one a weapon, at most
+	/// <see cref="WeaponDesign.MaxPerLook"/>. They belong to the player rather than the model: shared looks leave them out.
+	/// </summary>
+	[JsonIgnore]
+	public List<WeaponDesign> Weapons { get; set; } = new();
+
+	// Designs as they are saved: left out with none, so a look without any reads exactly as it did before them
+	[JsonPropertyName( nameof( Weapons ) ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingNull )]
+	public List<WeaponDesign> SavedWeapons
+	{
+		get => Weapons is { Count: > 0 } ? Weapons : null;
+		set => Weapons = value ?? new();
+	}
+
 	/// <summary>Whether this is the default citizen.</summary>
 	[JsonIgnore]
 	public bool IsDefault => string.IsNullOrEmpty( Model );
@@ -146,7 +161,12 @@ public sealed class PlayerLook
 		foreach ( var effect in Effects ?? new() )
 			shapes.Add( effect?.Shapes );
 
+		foreach ( var design in Weapons ?? new() )
+			shapes.Add( design?.Shapes );
+
+		// The body's effects name shapes first: past the look's cap, a weapon's sticker gives way
 		var effects = Effect.Sanitized( Effects, shapes );
+		var weapons = WeaponDesign.Sanitized( Weapons, shapes );
 		return new PlayerLook
 		{
 			Model = model.Length <= MaxModelLength ? model : "",
@@ -181,6 +201,7 @@ public sealed class PlayerLook
 				.Where( x => x.Key is not null && Enum.IsDefined( typeof( BoneRole ), x.Key ) && x.Value is not null && x.Value.Length <= MaxNameLength )
 				.ToDictionary( x => x.Key, x => x.Value.Trim() ),
 			Effects = effects,
+			Weapons = weapons,
 			DrawnShapes = new List<DrawnShape>( shapes.Used ),
 		};
 	}
@@ -201,13 +222,18 @@ public sealed class PlayerLook
 
 	/// <summary>
 	/// The customisation alone, within bounds, for sharing: the bones picked by hand are left out, as they belong to the
-	/// model's armature (shared on its own), not to the look.
+	/// model's armature (shared on its own), not to the look, and so are the weapon designs, which are the player's (shared
+	/// in the Weapon Workshop), with the drawn shapes only they name.
 	/// </summary>
 	public PlayerLook Customisation()
 	{
 		var copy = Sanitized();
 		copy.Bones.Clear();
-		return copy;
+		if ( copy.Weapons.Count == 0 )
+			return copy;
+
+		copy.Weapons.Clear();
+		return copy.Sanitized();
 	}
 
 	/// <summary>A look shared as JSON (see <see cref="Customisation"/>), or null when it isn't one that customises a model.</summary>
@@ -237,12 +263,23 @@ public sealed class PlayerLook
 
 	/// <summary>
 	/// Takes <paramref name="other"/>'s customisation (skin, colours, finishes, body groups, morphs, body shape, items,
-	/// effects) in
-	/// place of this look's own. The model and the bones picked by hand stay: they belong to the model, not the look.
+	/// effects) in place of this look's own. The model, the bones picked by hand and the weapon designs stay: they belong
+	/// to the model and to the player, not the look (the drawn shapes the designs name stay with them).
 	/// </summary>
 	public void TakeCustomisationFrom( PlayerLook other )
 	{
 		var look = other.Sanitized();
+		var weapons = Weapons ?? new();
+		var named = new HashSet<string>();
+		foreach ( var design in weapons )
+			named.UnionWith( design.DrawnShapeIds() );
+
+		foreach ( var shape in DrawnShapes ?? new() )
+		{
+			if ( named.Contains( shape.Id ) && !look.DrawnShapes.Exists( x => x.Id == shape.Id ) )
+				look.DrawnShapes.Add( shape );
+		}
+
 		Skin = look.Skin;
 		Tint = look.Tint;
 		BodyGroups = look.BodyGroups;
@@ -253,6 +290,7 @@ public sealed class PlayerLook
 		PartFinishes = look.PartFinishes;
 		Accessories = look.Accessories;
 		Effects = look.Effects;
+		Weapons = weapons;
 		DrawnShapes = look.DrawnShapes;
 	}
 
@@ -272,44 +310,139 @@ public sealed class PlayerLook
 		return copy;
 	}
 
-	/// <summary>The look without its effects: what shows while the host keeps players' effects off.</summary>
+	/// <summary>
+	/// The look without its effects: what shows while the host keeps players' effects off. Its weapon designs stay, with
+	/// the drawn shapes they name.
+	/// </summary>
 	public PlayerLook WithoutEffects()
 	{
 		var copy = Sanitized();
 		copy.Effects.Clear();
-		copy.DrawnShapes.Clear();
-		return copy;
+		return copy.Sanitized();
+	}
+
+	/// <summary>The look without its weapon designs: what shows while the host keeps players' weapon designs off.</summary>
+	public PlayerLook WithoutWeapons()
+	{
+		var copy = Sanitized();
+		copy.Weapons.Clear();
+		return copy.Sanitized();
 	}
 
 	/// <summary>
-	/// The default citizen wearing this look's effects and nothing else: what a look without a model keeps, as the
-	/// citizen has nothing else to customise.
+	/// The look with only what of its weapon designs a server allows: without their props while <paramref name="props"/>
+	/// is off, and without their effects while <paramref name="effects"/> is off. This very look when nothing is held
+	/// back, else a copy.
+	/// </summary>
+	public PlayerLook WithWeaponsAllowed( bool props, bool effects )
+	{
+		if ( (props || !Weapons.Exists( x => x.Props is not null )) && (effects || !Weapons.Exists( x => x.Effects is not null )) )
+			return this;
+
+		var copy = Sanitized();
+		foreach ( var design in copy.Weapons )
+		{
+			design.Props = props ? design.Props : null;
+			design.Effects = effects ? design.Effects : null;
+		}
+
+		return copy.Sanitized();
+	}
+
+	/// <summary>
+	/// The look with <paramref name="designs"/> (each on its own, carrying the drawn shapes it names, see
+	/// <see cref="StandaloneWeapons"/>) in place of its own: the player's designs follow them from model to model.
+	/// </summary>
+	public PlayerLook WithWeapons( IEnumerable<WeaponDesign> designs )
+	{
+		var copy = Sanitized();
+		copy.Weapons = designs?.Where( x => x is not null ).ToList() ?? new();
+		return copy.Sanitized();
+	}
+
+	/// <summary>Its weapon designs each on its own, carrying the drawn shapes it names: to keep, share or copy as a code.</summary>
+	public List<WeaponDesign> StandaloneWeapons()
+	{
+		var designs = new List<WeaponDesign>();
+		foreach ( var design in Weapons )
+		{
+			if ( StandaloneWeapon( design ) is { } copy )
+				designs.Add( copy );
+		}
+
+		return designs;
+	}
+
+	/// <summary><paramref name="design"/> of this look on its own, within bounds, carrying the drawn shapes it names; null for none.</summary>
+	public WeaponDesign StandaloneWeapon( WeaponDesign design )
+	{
+		if ( design is null )
+			return null;
+
+		var copy = JsonSerializer.Deserialize<WeaponDesign>( JsonSerializer.Serialize( design ) );
+		var named = design.DrawnShapeIds().ToHashSet();
+		copy.Shapes = DrawnShapes.Where( x => named.Contains( x.Id ) ).ToList();
+		return copy.Sanitized();
+	}
+
+	/// <summary>The design for the weapon whose world model is <paramref name="weapon"/>; null for none.</summary>
+	public WeaponDesign DesignFor( string weapon )
+	{
+		if ( weapon is null )
+			return null;
+
+		foreach ( var design in Weapons )
+		{
+			if ( design.Weapon == weapon )
+				return design;
+		}
+
+		return null;
+	}
+
+	/// <summary>
+	/// The default citizen wearing this look's effects and weapon designs and nothing else: what a look without a model
+	/// keeps, as the citizen has nothing else to customise.
 	/// </summary>
 	public PlayerLook EffectsAlone()
 	{
 		var copy = Sanitized();
-		return new PlayerLook { Effects = copy.Effects, DrawnShapes = copy.DrawnShapes };
+		return new PlayerLook { Effects = copy.Effects, Weapons = copy.Weapons, DrawnShapes = copy.DrawnShapes };
 	}
 
 	/// <summary>
 	/// The look with only the effects a server allows, for anyone but its host: none from a Workshop share while
 	/// <paramref name="workshop"/> is off, none from a share <paramref name="blocked"/> says the host blocked (by its
 	/// <see cref="ShareOrigin.Key"/>), and drawn shapes (all of them while <paramref name="drawnShapes"/> is off, else
-	/// those from a Workshop that isn't allowed or blocked) shown as plain ones: a circle to come from, a glow to look like.
-	/// This very look when nothing is held back, as mostly nothing is; else a copy. Nothing is taken from the look itself.
+	/// those from a Workshop that isn't allowed or blocked) shown as plain ones: a circle to come from, a glow to look like,
+	/// a star on a weapon. Weapon designs from such a share are left out the same way. This very look when nothing is
+	/// held back, as mostly nothing is; else a copy. Nothing is taken from the look itself.
 	/// </summary>
 	public PlayerLook WithEffectsAllowed( bool workshop, bool drawnShapes, Func<string, bool> blocked )
 	{
 		bool Refused( ShareOrigin origin ) => origin is not null && (!workshop || blocked( origin.Key ));
 		bool Plain( DrawnShape shape ) => !drawnShapes || Refused( shape.ForkedFrom );
 
-		if ( !Effects.Exists( x => Refused( x.ForkedFrom ) ) && !DrawnShapes.Exists( Plain ) )
+		if ( !Effects.Exists( x => Refused( x.ForkedFrom ) ) && !Weapons.Exists( x => Refused( x.ForkedFrom ) ) && !DrawnShapes.Exists( Plain ) )
 			return this;
 
 		var copy = Sanitized();
 		copy.Effects.RemoveAll( x => Refused( x.ForkedFrom ) );
+		copy.Weapons.RemoveAll( x => Refused( x.ForkedFrom ) );
 		var plain = copy.DrawnShapes.Where( Plain ).Select( x => x.Id ).ToHashSet();
-		foreach ( var layer in copy.Effects.SelectMany( x => x.Layers ) )
+		foreach ( var design in copy.Weapons )
+		{
+			foreach ( var sticker in design.Stickers ?? new() )
+			{
+				if ( sticker.DrawnPicture is { } id && plain.Contains( id ) )
+					sticker.Picture = nameof( StandardShape.Star5 );
+			}
+
+			if ( design.Skin is { } skin && DrawnShape.IsReference( skin.PatternShape ) && plain.Contains( skin.PatternShape[ 1.. ] ) )
+				skin.PatternShape = nameof( StandardShape.Star5 );
+		}
+
+		foreach ( var layer in copy.Effects.Concat( copy.Weapons.SelectMany( x => x.Effects ?? new() ) ).SelectMany( x => x.Layers ) )
 		{
 			if ( layer.DrawnFormation is { } formation && plain.Contains( formation ) )
 				layer.Formation = null;
@@ -345,7 +478,7 @@ public sealed class PlayerLook
 	/// </summary>
 	public bool Carry( DrawnShape shape )
 	{
-		var named = Effects.SelectMany( x => x.Layers ).SelectMany( x => new[] { x.DrawnFormation, x.DrawnPicture } ).Where( x => x is not null ).ToHashSet();
+		var named = Named( Effects );
 		if ( DrawnShapes.Exists( x => x.Id == shape.Id ) )
 			return true;
 
@@ -365,10 +498,7 @@ public sealed class PlayerLook
 	public bool Adopt( Effect effect )
 	{
 		var shapes = effect.Shapes ?? new List<DrawnShape>();
-		var named = Effects.SelectMany( x => x.Layers ).Concat( effect.Layers )
-			.SelectMany( x => new[] { x.DrawnFormation, x.DrawnPicture } )
-			.Where( x => x is not null )
-			.ToHashSet();
+		var named = Named( Effects.Append( effect ) );
 
 		if ( named.Count > DrawnShape.MaxPerLook )
 			return false;
@@ -386,17 +516,39 @@ public sealed class PlayerLook
 		return true;
 	}
 
+	// The ids of the drawn shapes effects' layers and the look's weapon designs name
+	private HashSet<string> Named( IEnumerable<Effect> effects )
+	{
+		var named = effects.SelectMany( x => x.Layers ).SelectMany( x => new[] { x.DrawnFormation, x.DrawnPicture } ).Where( x => x is not null ).ToHashSet();
+		foreach ( var design in Weapons )
+			named.UnionWith( design.DrawnShapeIds() );
+
+		return named;
+	}
+
 	/// <summary>
-	/// The look with its effects within <paramref name="budget"/> (see <see cref="EffectBudget.Trim"/>): this very look
-	/// when they fit, as they mostly do, else a copy.
+	/// The look with its effects within <paramref name="budget"/> (see <see cref="EffectBudget.Trim"/>), and each weapon
+	/// design's effects within what is left of it, as one weapon shows at a time beside the body's: this very look when
+	/// they fit, as they mostly do, else a copy.
 	/// </summary>
 	public PlayerLook WithinBudget( EffectBudget budget )
 	{
-		if ( budget.Fits( Effects ) )
+		if ( budget.Fits( Effects ) && !Weapons.Exists( x => x.Effects is not null && !budget.Less( Effects ).Fits( x.Effects ) ) )
 			return this;
 
 		var copy = Sanitized();
 		budget.Trim( copy.Effects );
+		var left = budget.Less( copy.Effects );
+		foreach ( var design in copy.Weapons )
+		{
+			if ( design.Effects is null )
+				continue;
+
+			left.Trim( design.Effects );
+			design.Effects.RemoveAll( x => x.Layers.Count == 0 );
+			design.Effects = design.Effects.Count > 0 ? design.Effects : null;
+		}
+
 		return copy;
 	}
 

@@ -35,6 +35,7 @@ internal static class LocalPrefs
 	internal const int MaxMyEffects = 50;
 
 	private const string MyShapesCookie = "player_model_selector.my_shapes";
+	private const string WeaponDesignsCookie = "player_model_selector.weapon_designs";
 
 	/// <summary>The most shapes kept in My shapes.</summary>
 	internal const int MaxMyShapes = 50;
@@ -84,24 +85,37 @@ internal static class LocalPrefs
 	internal static PlayerLook LookFor( string model )
 	{
 		var looks = Game.Cookies.Get( LooksCookie, new Dictionary<string, string>() );
-		return looks.TryGetValue( model ?? "", out var saved ) ? PlayerLook.Parse( saved ).WithModel( model ) : new PlayerLook { Model = model ?? "" };
+		var look = looks.TryGetValue( model ?? "", out var saved ) ? PlayerLook.Parse( saved ).WithModel( model ) : new PlayerLook { Model = model ?? "" };
+
+		// Weapon designs are the player's, whichever model they wear: the ones kept last go on it
+		return Game.Cookies.TryGetString( WeaponDesignsCookie, out _ ) ? look.WithWeapons( WeaponDesigns() ) : look;
 	}
 
 	/// <summary>
-	/// Keeps <paramref name="look"/> as how its model is customised; for the default citizen, the effects it wears (see
-	/// <see cref="PlayerLook.EffectsAlone"/>), and nothing once it wears none.
+	/// Keeps <paramref name="look"/> as how its model is customised, and its weapon designs as the player's; for the
+	/// default citizen, the effects and designs it wears (see <see cref="PlayerLook.EffectsAlone"/>), and nothing once it
+	/// wears none.
 	/// </summary>
 	internal static void Remember( PlayerLook look )
 	{
+		Game.Cookies.Set( WeaponDesignsCookie, look.StandaloneWeapons() );
+
 		var looks = Game.Cookies.Get( LooksCookie, new Dictionary<string, string>() );
 		if ( !look.IsDefault )
 			looks[ look.Model ] = look.Serialize();
-		else if ( look.Effects.Count > 0 )
+		else if ( look.Effects.Count > 0 || look.Weapons.Count > 0 )
 			looks[ "" ] = look.EffectsAlone().Serialize();
 		else if ( !looks.Remove( "" ) )
 			return;
 
 		Game.Cookies.Set( LooksCookie, looks );
+	}
+
+	/// <summary>The player's weapon designs as kept last, each on its own (carrying its drawn shapes), within bounds.</summary>
+	internal static List<WeaponDesign> WeaponDesigns()
+	{
+		var kept = Game.Cookies.Get( WeaponDesignsCookie, new List<WeaponDesign>() ) ?? new List<WeaponDesign>();
+		return kept.Select( x => x?.Sanitized() ).Where( x => x is not null ).Take( WeaponDesign.MaxPerLook ).ToList();
 	}
 
 	/// <summary>The looks saved for <paramref name="model"/>, in the order they were saved.</summary>

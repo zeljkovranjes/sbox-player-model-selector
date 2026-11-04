@@ -64,6 +64,28 @@ public readonly record struct EffectBudget( int Layers, int Lights, int Sprites 
 	/// <summary>The smaller of this budget and <paramref name="other"/>, number by number.</summary>
 	public EffectBudget Min( EffectBudget other ) => new( Math.Min( Layers, other.Layers ), Math.Min( Lights, other.Lights ), Math.Min( Sprites, other.Sprites ) );
 
+	/// <summary>
+	/// What is left of this budget once <paramref name="effects"/> show (as far as they fit): for what shows beside them,
+	/// a held weapon's effects.
+	/// </summary>
+	public EffectBudget Less( IReadOnlyList<Effect> effects )
+	{
+		var layers = 0;
+		var lights = 0;
+		var sprites = 0f;
+		foreach ( var effect in effects )
+		{
+			if ( effect.Off )
+				continue;
+
+			layers += effect.LayersOn();
+			lights += effect.Lights();
+			sprites += effect.LiveSprites();
+		}
+
+		return new EffectBudget( Math.Max( 0, Layers - layers ), Math.Max( 0, Lights - lights ), (int)Math.Max( 0f, Sprites - sprites ) );
+	}
+
 	/// <summary>Whether <paramref name="effects"/> show whole within this budget: the switched off ones (and layers) don't count.</summary>
 	public bool Fits( IReadOnlyList<Effect> effects )
 	{

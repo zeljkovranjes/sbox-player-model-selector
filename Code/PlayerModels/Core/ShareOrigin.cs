@@ -9,11 +9,12 @@ namespace PlayerModels.Core;
 /// </summary>
 public sealed class ShareOrigin
 {
-	/// <summary>What a share can be: an effect (or one layer of one), or a shape or sticker.</summary>
+	/// <summary>What a share can be: an effect (or one layer of one), a shape or sticker, or a weapon's design.</summary>
 	public const string EffectKind = "effect";
 	public const string ShapeKind = "shape";
+	public const string WeaponKind = "weapon";
 
-	/// <summary>Which Workshop it is in: <see cref="EffectKind"/> or <see cref="ShapeKind"/>.</summary>
+	/// <summary>Which Workshop it is in: <see cref="EffectKind"/>, <see cref="ShapeKind"/> or <see cref="WeaponKind"/>.</summary>
 	[JsonPropertyName( "k" )]
 	public string Kind { get; set; } = "";
 
@@ -42,7 +43,7 @@ public sealed class ShareOrigin
 	/// <summary>A copy within bounds (its name tidied), or null when it names no share: an unknown kind, no record or no author.</summary>
 	public ShareOrigin Sanitized()
 	{
-		if ( Kind is not (EffectKind or ShapeKind) || Id <= 0 || Author <= 0 )
+		if ( Kind is not (EffectKind or ShapeKind or WeaponKind) || Id <= 0 || Author <= 0 )
 			return null;
 
 		return new ShareOrigin { Kind = Kind, Id = Id, Name = SharePost.Tidy( Name, SharePost.MaxNameLength ), Author = Author };

@@ -10,6 +10,10 @@ namespace PlayerModels.Core;
 /// </summary>
 public static class EffectPresets
 {
+	// How far behind the body falling snow lags, and orbs' streaks: a little, so they stay on a runner yet still drift
+	private const float SnowDrag = 0.4f;
+	private const float OrbDrag = 0.5f;
+
 	// Confetti's colours, one to each piece in turn. Before All, which is made from it: statics start in order
 	private static readonly string[] ConfettiColours = { "#ff4a6a", "#ffd23a", "#3ad8ff", "#7aff6a", "#c07aff" };
 
@@ -161,11 +165,13 @@ public static class EffectPresets
 		return layer;
 	}
 
-	private static EffectLayer Moving( this EffectLayer layer, float speed, float gravity, bool follow = false )
+	// follow keeps sprites with the body once out (drag lags them a little behind it); without, they trail
+	private static EffectLayer Moving( this EffectLayer layer, float speed, float gravity, bool follow = false, float drag = 0f )
 	{
 		layer.Speed = speed;
 		layer.Gravity = gravity;
 		layer.Follow = follow;
+		layer.Drag = drag;
 		return layer;
 	}
 
@@ -229,12 +235,12 @@ public static class EffectPresets
 	// A little white cloud over the head, snowing
 	private static Effect SnowCloud() => Made( "Snow cloud", Effect.Joint.Crown,
 		Sprite( LayerPicture.Smoke, "#f4f6fa", "#d8dde6", 8f, 10f, 2f, 8f ).From( LayerShape.Sphere, 6f, 0f, 0f, 10f ).Moving( 0f, 0f, true ).Covering(),
-		Sprite( LayerPicture.Snowflake, "#ffffff", null, 2f, 1.6f, 2f, 18f ).From( LayerShape.Sphere, 7f, 0f, 0f, 8f ).Moving( 0f, 25f, true ).Covering() );
+		Sprite( LayerPicture.Snowflake, "#ffffff", null, 2f, 1.6f, 2f, 18f ).From( LayerShape.Sphere, 7f, 0f, 0f, 8f ).Moving( 0f, 25f, true, SnowDrag ).Covering() );
 
 	// A dark cloud over the head, raining
 	private static Effect RainCloud() => Made( "Rain cloud", Effect.Joint.Crown,
 		Sprite( LayerPicture.Smoke, "#5a6270", "#3a404a", 8f, 10f, 2f, 8f ).From( LayerShape.Sphere, 6f, 0f, 0f, 10f ).Moving( 0f, 0f, true ).Covering(),
-		Sprite( LayerPicture.Droplet, "#9fc6ff", null, 3.5f, 3.5f, 0.5f, 40f ).From( LayerShape.Sphere, 6f, 0f, 0f, 7f ).Moving( 0f, 260f, true ) );
+		Sprite( LayerPicture.Droplet, "#9fc6ff", null, 3.5f, 3.5f, 0.5f, 40f ).From( LayerShape.Sphere, 6f, 0f, 0f, 7f ).Moving( 0f, 260f ) );
 
 	// Sparks crackling all over the body, flashes of blue between them, and a flickering blue light
 	private static Effect ElectricBody() => Made( "Electric body", Effect.Joint.Hips,
@@ -246,11 +252,11 @@ public static class EffectPresets
 
 	// Two glowing orbs circling the hips, leaving a short streak, and a third bobbing about beside the head
 	private static Effect MagicOrbs() => Made( "Magic orbs", Effect.Joint.Hips,
-		Sprite( LayerPicture.Glow, "#c08aff", "#5a2aff", 3.4f, 0.8f, 0.4f, 45f ).From( LayerShape.Point, 0f, 16f, 0f, 6f )
+		Sprite( LayerPicture.Glow, "#c08aff", "#5a2aff", 3.4f, 0.8f, 0.4f, 45f ).From( LayerShape.Point, 0f, 16f, 0f, 6f ).Moving( 0f, 0f, true, OrbDrag )
 			.Beating( LayerRhythm.Spin, 0.45f, 1f ),
-		Sprite( LayerPicture.Glow, "#7ad8ff", "#2a6aff", 3.4f, 0.8f, 0.4f, 45f ).From( LayerShape.Point, 0f, 16f, 0f, -2f )
+		Sprite( LayerPicture.Glow, "#7ad8ff", "#2a6aff", 3.4f, 0.8f, 0.4f, 45f ).From( LayerShape.Point, 0f, 16f, 0f, -2f ).Moving( 0f, 0f, true, OrbDrag )
 			.Beating( LayerRhythm.Spin, 0.45f, 1f ),
-		Sprite( LayerPicture.Glow, "#ff8ae0", "#ff2a8a", 3f, 1f, 0.35f, 35f ).On( Effect.Joint.Head ).From( LayerShape.Point, 0f, 2f, 11f, 4f )
+		Sprite( LayerPicture.Glow, "#ff8ae0", "#ff2a8a", 3f, 1f, 0.35f, 35f ).On( Effect.Joint.Head ).From( LayerShape.Point, 0f, 2f, 11f, 4f ).Moving( 0f, 0f, true, OrbDrag )
 			.Beating( LayerRhythm.Jiggle, 0.8f, 0.7f ),
 		Light( "#a08aff", 60f, 0.8f ).From( LayerShape.Point, 0f, 0f, 0f, 4f ).Beating( LayerRhythm.Pulse, 0.6f, 0.3f ) );
 

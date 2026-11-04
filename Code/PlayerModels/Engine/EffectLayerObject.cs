@@ -525,7 +525,7 @@ internal sealed class EffectLayerObject
 		var particles = _particles;
 		particles.Lifetime = new ParticleFloat( data.Lifetime * (1f - LifetimeSpread), data.Lifetime * (1f + LifetimeSpread) );
 		particles.TimeScale = effect.SpeedFactor;
-		particles.LocalSpace = data.Follow ? 1f : 0f;
+		particles.LocalSpace = data.StaysWithBody;
 
 		// A cycle or a mix colours each sprite itself, on the particle threads
 		var colours = _cycle is not null || _mix;

@@ -106,6 +106,15 @@
                     <UIDropdown Items=@ShapeChoices() Value=@selected.ShapeIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Shape = (string)v ))
                                 Tokenize=@false></UIDropdown>
                 </div>
+                <div class="row">
+                    <div class="label">As you move</div>
+                    <UIDropdown Items=@MovesChoices() Value=@( selected.Follow ? WithBody : LeftBehind ) ValueChanged=@(( object v ) => SetAll( l => l.Follow = (string)v == WithBody ))
+                                Tokenize=@false></UIDropdown>
+                </div>
+                @if ( selected.Follow )
+                {
+                    <NumberRow Label="Drag" Unit=@NumberRow.Field.Fraction Value=@selected.Drag OnChanged=@(( float v ) => SetAll( l => l.Drag = v ))></NumberRow>
+                }
                 @if ( selected.ShapeIs != LayerShape.Point )
                 {
                     <NumberRow Label=@( selected.ShapeIs == LayerShape.Cone ? "Length" : "Spread" ) Unit=@NumberRow.Field.Spread Value=@selected.Spread
@@ -221,7 +230,6 @@
                 @if ( kind == LayerKind.Sprite )
                 {
                     <NumberRow Label="Falls (rises below 0)" Unit=@NumberRow.Field.Gravity Value=@selected.Gravity OnChanged=@(( float v ) => SetAll( l => l.Gravity = v ))></NumberRow>
-                    <ToggleRow Label="Sprites move with the body" Value=@selected.Follow OnChanged=@(( bool v ) => SetAll( l => l.Follow = v ))></ToggleRow>
                     <div class="row">
                         <div class="label">Faces</div>
                         <UIDropdown Items=@FacingChoices() Value=@selected.FacingIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Facing = (string)v )) Tokenize=@false></UIDropdown>
@@ -771,6 +779,16 @@
         Effect.Joint.LeftFoot => "Left foot",
         Effect.Joint.RightFoot => "Right foot",
         _ => joint.ToString(),
+    };
+
+    // Whether sprites stay with the body as it moves (dragging behind a little, as much as Drag says) or trail behind it
+    const string WithBody = "with";
+    const string LeftBehind = "trail";
+
+    static List<UIDropdown.Item> MovesChoices() => new()
+    {
+        new( "Moves with the body", WithBody ),
+        new( "Leaves a trail behind", LeftBehind ),
     };
 
     static List<UIDropdown.Item> ShapeChoices() => new()

@@ -226,6 +226,17 @@ public sealed class EffectLayer
 	[JsonPropertyName( "fo" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public bool Follow { get; set; }
 
+	/// <summary>
+	/// While sprites move with the body (<see cref="Follow"/>), how far they lag behind it: 0 stays right on it, 1 is left
+	/// behind as a trail is, and between lags a little.
+	/// </summary>
+	[JsonPropertyName( "dg" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
+	public float Drag { get; set; }
+
+	/// <summary>How much sprites move with the body, 0 (a trail, left behind) to 1 (right on it): see <see cref="Follow"/> and <see cref="Drag"/>.</summary>
+	[JsonIgnore]
+	public float StaysWithBody => Follow ? 1f - Math.Clamp( Drag, 0f, 1f ) : 0f;
+
 	/// <summary>Whether sprites (or a trail) cover what is behind them (smoke, hearts) instead of glowing over it.</summary>
 	[JsonPropertyName( "so" ), JsonIgnore( Condition = JsonIgnoreCondition.WhenWritingDefault )]
 	public bool Solid { get; set; }
@@ -420,6 +431,7 @@ public sealed class EffectLayer
 			Lifetime = Limited( Lifetime, MinLifetime, MaxLifetime, 1f ),
 			Amount = isLight ? Limited( Amount, 0f, MaxBrightness, 1f ) : Limited( Amount, 0f, MaxRate, 0f ),
 			Follow = Follow,
+			Drag = Follow ? Limited( Drag, 0f, 1f, 0f ) : 0f,
 			Solid = Solid,
 			Rhythm = Rhythm == nameof( LayerRhythm.Steady ) ? null : Rhythm,
 			RhythmSpeed = Limited( RhythmSpeed, 0f, MaxRhythmSpeed, 0f ),

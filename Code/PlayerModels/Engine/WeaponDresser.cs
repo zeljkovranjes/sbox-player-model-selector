@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
 using PlayerModels.Core;
+using PlayerModels.Core.Script;
 using Sandbox;
 
 namespace PlayerModels.Engine;
@@ -26,10 +27,6 @@ internal sealed class WeaponDresser
 	private const float StickerDepth = 2.5f;
 	private const float StickerAttenuation = 0.6f;
 
-	// A sticker's moving colour: a rainbow turns round the wheel this often a second, a pulse beats this often and deep
-	private const float RainbowTurns = 0.5f;
-	private const float PulseBeats = 1f;
-	private const float PulseDepth = 0.5f;
 	private const float MillisecondsPerSecond = 1000f;
 
 	private sealed class Stuck
@@ -38,11 +35,9 @@ internal sealed class WeaponDresser
 		public WeaponSticker Sticker;
 		public DrawnShape Drawn;
 		public int Generation = -1;
-		public Color[] Palette;
 
-		// Read once when stuck, not each frame: reading the motion from its name boxes it
-		public Sticker.Motion Motion;
-		public Color Own;
+		// How its fill moves, worked out by its motion's script (see PresetScripts.StickerMotionScript); null for still
+		public MovingColour Colour;
 	}
 
 	private IReadOnlyList<WeaponDesign> _designs = Array.Empty<WeaponDesign>();
@@ -201,8 +196,13 @@ internal sealed class WeaponDresser
 			if ( stuck.Drawn is not null && stuck.Generation != ShapeTextures.Generation )
 				UseDrawn( stuck );
 
-			if ( stuck.Motion != Sticker.Motion.None )
-				stuck.Decal.ColorTint = ColourOf( stuck, ms, i );
+			// World at War's clan tag colourings count the stickers as their elements, so stickers along a weapon wipe and
+			// scroll in turn
+			if ( stuck.Colour is { } moving )
+			{
+				var (r, g, b) = moving.At( (long)(ms * stuck.Sticker.Speed), i, _stickers.Count );
+				stuck.Decal.ColorTint = new Color( r, g, b, 1f );
+			}
 		}
 	}
 
@@ -403,7 +403,11 @@ internal sealed class WeaponDresser
 				go.SetParent( parent, false );
 				go.LocalTransform = place.WithScale( 1f );
 
-				var stuck = new Stuck { Sticker = fitted, Drawn = Find( fitted.DrawnPicture ), Motion = fitted.AnimationIs, Own = Color.Parse( fitted.Color ?? "" ) ?? Color.White };
+				var stuck = new Stuck
+				{
+					Sticker = fitted, Drawn = Find( fitted.DrawnPicture ),
+					Colour = MovingColour.OfSticker( fitted.AnimationIs, fitted.CycleColours(), fitted.Color, ScriptPrograms.Cache, ScriptPrograms.Stack ),
+				};
 				var size = fitted.Size * scale;
 				var decal = go.AddComponent<Decal>();
 				decal.Decals = new List<DecalDefinition>
@@ -415,7 +419,6 @@ internal sealed class WeaponDresser
 				decal.SortLayer = (uint)_stickers.Count;
 				decal.ColorTint = stuck.Drawn?.Sticker is not null ? Color.White : Color.Parse( fitted.Color ) ?? Color.White;
 				stuck.Decal = decal;
-				stuck.Palette = PaletteOf( fitted );
 				go.Enabled = true;
 				_stickers.Add( stuck );
 			}
@@ -453,48 +456,6 @@ internal sealed class WeaponDresser
 		var definition = stuck.Decal.Decals is { Count: > 0 } decals ? decals[ 0 ] : null;
 		if ( definition is not null && definition.ColorTexture != texture )
 			definition.ColorTexture = texture;
-	}
-
-	private static Color[] PaletteOf( WeaponSticker sticker )
-	{
-		var colours = sticker.CycleColours();
-		var palette = new Color[ colours.Count ];
-		for ( var i = 0; i < colours.Count; i++ )
-			palette[ i ] = Color.Parse( colours[ i ] ) ?? Color.White;
-
-		return palette;
-	}
-
-	// A moving sticker's colour ms milliseconds in, the i-th sticker of the weapon: World at War's clan tag colourings
-	// count the stickers as their elements, so stickers along a weapon wipe and scroll in turn
-	private Color ColourOf( Stuck stuck, long ms, int i )
-	{
-		var sticker = stuck.Sticker;
-		var scaled = (long)(ms * sticker.Speed);
-		var palette = stuck.Palette;
-		var count = _stickers.Count;
-		switch ( stuck.Motion )
-		{
-			case Sticker.Motion.Rainbow:
-				return new ColorHsv( (scaled / MillisecondsPerSecond * RainbowTurns + i / (float)count) % 1f * 360f, 1f, 1f, 1f ).ToColor();
-
-			case Sticker.Motion.Pulse:
-			{
-				var own = stuck.Own;
-				var level = 1f - PulseDepth * (0.5f - 0.5f * MathF.Cos( scaled / MillisecondsPerSecond * PulseBeats * MathF.Tau ));
-				return new Color( own.r * level, own.g * level, own.b * level, 1f );
-			}
-
-			case Sticker.Motion.Cyln:
-				return palette.Length >= 2 && ColorCycle.IsScannerHighlight( scaled, i, count ) ? palette[ 0 ] : palette[ ^1 ];
-
-			default:
-			{
-				var kind = stuck.Motion == Sticker.Motion.Cycl ? ColorCycle.Kind.Cycl : ColorCycle.Kind.Rain;
-				var index = ColorCycle.PaletteIndex( kind, scaled, i, count, palette.Length );
-				return index >= 0 ? palette[ index ] : Color.White;
-			}
-		}
 	}
 
 	private void Undress()

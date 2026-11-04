@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using PlayerModels.Core;
+using PlayerModels.Core.Script;
 using PlayerModels.Engine;
 using Sandbox;
 using Sandbox.UI;
@@ -22,7 +23,7 @@ public sealed class EffectIcon : Panel
 	[Parameter] public Effect Effect { get; set; }
 
 	// A picture whose colours cycle: its panel, its layer's mode, its colours and its place among the pictures
-	private sealed record Cycling( Panel Picture, LayerColorMode Mode, Color[] Colours, int Index );
+	private sealed record Cycling( Panel Picture, MovingColour Colour, int Index );
 
 	private readonly List<Cycling> _cycling = new();
 	private Effect _shown;
@@ -44,7 +45,10 @@ public sealed class EffectIcon : Panel
 
 		var ms = (long)(RealTime.Now * MillisecondsPerSecond);
 		foreach ( var cycling in _cycling )
-			cycling.Picture.Style.BackgroundTint = ColourOf( cycling, ms );
+		{
+			var (r, g, b) = cycling.Colour.At( ms, cycling.Index, MostPictures );
+			cycling.Picture.Style.BackgroundTint = new Color( r, g, b, 1f );
+		}
 	}
 
 	private void ShowDrawn()
@@ -89,29 +93,13 @@ public sealed class EffectIcon : Panel
 
 			picture.Style.BackgroundTint = Color.Parse( layer.Color ) ?? Color.White;
 
-			if ( layer.ColorModeIs != LayerColorMode.Fixed )
-			{
-				var colours = layer.CycleColours();
-				var parsed = new Color[ colours.Count ];
-				for ( var i = 0; i < colours.Count; i++ )
-					parsed[ i ] = Color.Parse( colours[ i ] ) ?? Color.White;
-
-				_cycling.Add( new Cycling( picture, layer.ColorModeIs, parsed, shown ) );
-			}
+			// A tile's pictures count as the cycle's elements; mixed colours scroll as rain does, to show they change
+			var mode = layer.ColorModeIs == LayerColorMode.Mix ? LayerColorMode.Rain : layer.ColorModeIs;
+			if ( mode != LayerColorMode.Fixed && MovingColour.Of( PresetScripts.ColorModeScript( mode ), layer.CycleColours(), ScriptPrograms.Cache, ScriptPrograms.Stack ) is { } colour )
+				_cycling.Add( new Cycling( picture, colour, shown ) );
 
 			shown++;
 		}
-	}
-
-	// The colour the cycle gives this picture now, the pictures counted as its elements
-	private static Color ColourOf( Cycling cycling, long ms )
-	{
-		if ( cycling.Mode == LayerColorMode.Cyln )
-			return ColorCycle.IsScannerHighlight( ms, cycling.Index, MostPictures ) ? cycling.Colours[ 0 ] : cycling.Colours[ 1 ];
-
-		var kind = cycling.Mode == LayerColorMode.Cycl ? ColorCycle.Kind.Cycl : ColorCycle.Kind.Rain;
-		var index = ColorCycle.PaletteIndex( kind, ms, cycling.Index, MostPictures, cycling.Colours.Length );
-		return index >= 0 ? cycling.Colours[ index ] : Color.White;
 	}
 
 	// The animation a layer's picture plays on the tile (see EffectsEditor.razor.scss)

@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using PlayerModels.Core;
+using PlayerModels.Core.Script;
 using PlayerModels.Engine;
 using Sandbox;
 using Sandbox.UI;
@@ -13,12 +15,20 @@ namespace PlayerModels.UI;
 /// </summary>
 public sealed class ShapeIcon : Panel
 {
-	// A rainbow sticker turns round the wheel this often a second, a pulsing one beats this often and this deep, at speed 1;
-	// as on a body (see Sticker.Drive)
-	private const float RainbowTurns = 0.5f;
-	private const float PulseBeats = 1f;
-	private const float PulseDepth = 0.5f;
 	private const float MillisecondsPerSecond = 1000f;
+
+	// The most stickers' motions kept for the tiles showing them: past it they are made again as they are asked for
+	private const int MostMotions = 64;
+
+	// Each sticker's motion, made once for it (again when it changes in place, as the shape creator changes it)
+	private sealed class Moving
+	{
+		public int Signature;
+		public int Count;
+		public MovingColour Colour;
+	}
+
+	private static readonly Dictionary<Sticker, Moving> Motions = new();
 
 	/// <summary>The shape pictured.</summary>
 	[Parameter] public DrawnShape Shape { get; set; }
@@ -50,34 +60,45 @@ public sealed class ShapeIcon : Panel
 		Style.BackgroundTint = shape.Sticker is { IsAnimated: true } sticker ? FillAt( sticker, RealTime.Now ) : Color.White;
 	}
 
-	/// <summary>The colour an animated sticker's fill is <paramref name="seconds"/> into its animation; white for one that isn't.</summary>
+	/// <summary>
+	/// The colour an animated sticker's fill is <paramref name="seconds"/> into its animation, as its motion's script works
+	/// it out (the sticker one element of as many as its palette has colours); white for one that isn't animated.
+	/// </summary>
 	internal static Color FillAt( Sticker sticker, float seconds )
 	{
-		var fill = Color.Parse( sticker.Fill ) ?? Color.White;
-		var time = seconds * sticker.Speed;
-		switch ( sticker.AnimationIs )
+		var signature = SignatureOf( sticker );
+		if ( !Motions.TryGetValue( sticker, out var moving ) || moving.Signature != signature )
 		{
-			case Sticker.Motion.Rainbow:
-				return new ColorHsv( time * RainbowTurns % 1f * 360f, 1f, 1f, 1f ).ToColor();
+			if ( Motions.Count >= MostMotions )
+				Motions.Clear();
 
-			case Sticker.Motion.Pulse:
+			var cycle = sticker.CycleColours();
+			moving = new Moving
 			{
-				var level = 1f - PulseDepth * (0.5f - 0.5f * MathF.Cos( time * PulseBeats * MathF.Tau ));
-				return new Color( fill.r * level, fill.g * level, fill.b * level, 1f );
-			}
+				Signature = signature, Count = cycle.Count,
+				Colour = MovingColour.OfSticker( sticker.AnimationIs, cycle, sticker.Fill, ScriptPrograms.Cache, ScriptPrograms.Stack ),
+			};
 
-			case Sticker.Motion.None:
-				return Color.White;
+			Motions[ sticker ] = moving;
 		}
 
-		// A cycle through the palette, the sticker one element of as many as the palette has colours
-		var colours = sticker.CycleColours();
-		var ms = (long)(time * MillisecondsPerSecond);
-		if ( sticker.AnimationIs == Sticker.Motion.Cyln )
-			return Color.Parse( colours[ ColorCycle.IsScannerHighlight( ms, 0, colours.Count ) ? 0 : 1 ] ) ?? Color.White;
+		if ( moving.Colour is null )
+			return Color.White;
 
-		var kind = sticker.AnimationIs == Sticker.Motion.Cycl ? ColorCycle.Kind.Cycl : ColorCycle.Kind.Rain;
-		var index = ColorCycle.PaletteIndex( kind, ms, 0, colours.Count, colours.Count );
-		return index >= 0 ? Color.Parse( colours[ index ] ) ?? Color.White : Color.White;
+		var (r, g, b) = moving.Colour.At( (long)(seconds * sticker.Speed * MillisecondsPerSecond), 0, moving.Count );
+		return new Color( r, g, b, 1f );
+	}
+
+	// What its motion depends on, without allocating
+	private static int SignatureOf( Sticker sticker )
+	{
+		var signature = HashCode.Combine( sticker.Animation, sticker.Fill );
+		if ( sticker.Palette is { } palette )
+		{
+			foreach ( var colour in palette )
+				signature = HashCode.Combine( signature, colour );
+		}
+
+		return signature;
 	}
 }

@@ -23,112 +23,95 @@
     {
         @if ( Advanced )
         {
-            <FoldingSection Title="Styles" Key=@FoldKey( "Styles" ) Summary=@SavedSummary()>
-                <Body>
-                    <div class="row save-row">
-                        <TextEntry class="name-entry" Placeholder=@NextStyleName() Value:bind=@_lookName @onsubmit=@SaveStyle></TextEntry>
-                        <div class="button" @onclick=@SaveStyle>Save style</div>
-                    </div>
-                    @foreach ( var saved in SavedLooks() )
+            <div class="section-header">Styles</div>
+            <div class="row save-row">
+                <TextEntry class="name-entry" Placeholder=@NextStyleName() Value:bind=@_lookName @onsubmit=@SaveStyle></TextEntry>
+                <div class="button" @onclick=@SaveStyle>Save style</div>
+            </div>
+            @foreach ( var saved in SavedLooks() )
+            {
+                var name = saved.Name;
+                var editing = name == _style;
+                <div class="row saved-look @( editing ? "editing" : "" )">
+                    <div class="saved-name">@name</div>
+                    @if ( editing )
                     {
-                        var name = saved.Name;
-                        var editing = name == _style;
-                        <div class="row saved-look @( editing ? "editing" : "" )">
-                            <div class="saved-name">@name</div>
-                            @if ( editing )
-                            {
-                                <div class="button @( StyleChanged( saved ) ? "" : "disabled" )" @onclick=@SaveStyleChanges>Save changes</div>
-                            }
-                            else
-                            {
-                                <div class="button" @onclick=@(() => SwitchStyle( name ))>Switch</div>
-                            }
-                            <div class="icon-button" Tooltip="Delete" @onclick=@(() => DeleteSavedLook( name ))>delete</div>
-                        </div>
+                        <div class="button @( StyleChanged( saved ) ? "" : "disabled" )" @onclick=@SaveStyleChanges>Save changes</div>
                     }
-                </Body>
-            </FoldingSection>
+                    else
+                    {
+                        <div class="button" @onclick=@(() => SwitchStyle( name ))>Switch</div>
+                    }
+                    <div class="icon-button" @onclick=@(() => DeleteSavedLook( name ))>delete</div>
+                </div>
+            }
         }
         else if ( !Compact )
         {
             <div class="top">
-                <div class="intro">Change how it looks; Apply wears it.</div>
-                <div class="buttons">
-                    <div class="reset @( Look.IsCustomised ? "" : "disabled" )" @onclick=@ResetAll>Reset everything</div>
-                    <div class="reset" Tooltip="Every option, with the model in the middle of the screen" @onclick=@(() => OpenAdvanced?.Invoke())>Advanced editor</div>
-                    <div class="reset workshop" Tooltip="Looks players shared for this model" @onclick=@(() => ShowWorkshop?.Invoke( true ))>@WorkshopLabel</div>
-                </div>
+                <div class="intro">Change how the model looks: the preview shows it, and Apply wears it.</div>
+                <div class="reset @( Look.IsCustomised ? "" : "disabled" )" @onclick=@ResetAll>Reset everything</div>
+                <div class="reset" @onclick=@(() => OpenAdvanced?.Invoke())>Advanced editor</div>
+                <div class="reset workshop" @onclick=@(() => ShowWorkshop?.Invoke( true ))>@WorkshopLabel</div>
             </div>
 
-            <FoldingSection Title="Saved Looks" Key=@FoldKey( "Saved Looks" ) Folded=@true Summary=@SavedSummary()>
-                <Body>
-                    <div class="row save-row">
-                        <TextEntry class="name-entry" Placeholder=@NextLookName() Value:bind=@_lookName @onsubmit=@SaveLook></TextEntry>
-                        <div class="button" @onclick=@SaveLook>Save</div>
-                    </div>
-                    @foreach ( var saved in SavedLooks() )
-                    {
-                        var name = saved.Name;
-                        <div class="row saved-look">
-                            <div class="saved-name" @onclick=@(() => UseSavedLook( name ))>@name</div>
-                            <div class="button" @onclick=@(() => UseSavedLook( name ))>Use</div>
-                            <div class="icon-button" Tooltip="Delete" @onclick=@(() => DeleteSavedLook( name ))>delete</div>
-                        </div>
-                    }
-                </Body>
-            </FoldingSection>
+            <div class="section-header">Saved Looks</div>
+            <div class="row save-row">
+                <TextEntry class="name-entry" Placeholder=@NextLookName() Value:bind=@_lookName @onsubmit=@SaveLook></TextEntry>
+                <div class="button" @onclick=@SaveLook>Save</div>
+            </div>
+            @foreach ( var saved in SavedLooks() )
+            {
+                var name = saved.Name;
+                <div class="row saved-look">
+                    <div class="saved-name" @onclick=@(() => UseSavedLook( name ))>@name</div>
+                    <div class="button" @onclick=@(() => UseSavedLook( name ))>Use</div>
+                    <div class="icon-button" @onclick=@(() => DeleteSavedLook( name ))>delete</div>
+                </div>
+            }
         }
 
-        <FoldingSection Title="Color" Key=@FoldKey( "Color" )>
-            <Body>
-                @if ( Skins() is { Count: > 1 } skins )
-                {
-                    <div class="row">
-                        <div class="label">Skin</div>
-                        <ScrollingDropdown Items=@skins Value=@( Look.Skin ?? "" ) ValueChanged=@SetSkin Tokenize=@false></ScrollingDropdown>
-                    </div>
-                }
-                <ColorRow Label=@WholeLabel Hex=@Look.Tint OnChanged=@SetTint></ColorRow>
-                @foreach ( var part in ColorParts() )
-                {
-                    var name = part;
-                    <ColorRow Label=@( name.Replace( '_', ' ' ) ) Hex=@PartColour( name ) OnChanged=@(( string hex ) => SetPartColour( name, hex ))
-                              @onmouseenter=@(() => Point( PartHighlight.Part( name ) )) @onmouseleave=@(() => Point( null ))></ColorRow>
-                }
-            </Body>
-        </FoldingSection>
+        <div class="section-header">Color</div>
+        @if ( Skins() is { Count: > 1 } skins )
+        {
+            <div class="row">
+                <div class="label">Skin</div>
+                <ScrollingDropdown Items=@skins Value=@( Look.Skin ?? "" ) ValueChanged=@SetSkin Tokenize=@false></ScrollingDropdown>
+            </div>
+        }
+        <ColorRow Label=@WholeLabel Hex=@Look.Tint OnChanged=@SetTint></ColorRow>
+        @foreach ( var part in ColorParts() )
+        {
+            var name = part;
+            <ColorRow Label=@( name.Replace( '_', ' ' ) ) Hex=@PartColour( name ) OnChanged=@(( string hex ) => SetPartColour( name, hex ))
+                      @onmouseenter=@(() => Point( PartHighlight.Part( name ) )) @onmouseleave=@(() => Point( null ))></ColorRow>
+        }
 
         @if ( Advanced || Compact )
         {
-            <FoldingSection Title="Finish" Key=@FoldKey( "Finish" )>
-                <Body>
-                    <div class="row">
-                        <div class="label">@WholeLabel</div>
-                        <ScrollingDropdown Items=@Finishes() Value=@( Look.Finish ?? "" ) ValueChanged=@SetFinish Tokenize=@false></ScrollingDropdown>
-                    </div>
-                    @foreach ( var part in FinishParts() )
-                    {
-                        var name = part;
-                        <div class="row" @onmouseenter=@(() => Point( PartHighlight.Part( name ) )) @onmouseleave=@(() => Point( null ))>
-                            <div class="label">@( name.Replace( '_', ' ' ) )</div>
-                            <ScrollingDropdown Items=@PartFinishChoices( name ) Value=@PartFinish( name ) ValueChanged=@(( object finish ) => SetPartFinish( name, finish )) Tokenize=@false></ScrollingDropdown>
-                        </div>
-                    }
-                </Body>
-            </FoldingSection>
+            <div class="section-header">Finish</div>
+            <div class="row">
+                <div class="label">@WholeLabel</div>
+                <ScrollingDropdown Items=@Finishes() Value=@( Look.Finish ?? "" ) ValueChanged=@SetFinish Tokenize=@false></ScrollingDropdown>
+            </div>
+            @foreach ( var part in FinishParts() )
+            {
+                var name = part;
+                <div class="row" @onmouseenter=@(() => Point( PartHighlight.Part( name ) )) @onmouseleave=@(() => Point( null ))>
+                    <div class="label">@( name.Replace( '_', ' ' ) )</div>
+                    <ScrollingDropdown Items=@PartFinishChoices( name ) Value=@PartFinish( name ) ValueChanged=@(( object finish ) => SetPartFinish( name, finish )) Tokenize=@false></ScrollingDropdown>
+                </div>
+            }
         }
 
         @if ( !Compact )
         {
-            <FoldingSection Title="Body Shape" Key=@FoldKey( "Body Shape" ) Folded=@( !Advanced ) Summary=@ShapeSummary()>
-                <Body>
-                    @foreach ( var part in Enum.GetValues<BodyShape.Part>() )
-                    {
-                        var shape = part;
-                        <SliderRow Label=@ShapeLabel( shape ) Value=@ShapeOf( shape ) Signed=@true OnChanged=@(( float amount ) => SetShape( shape, amount ))></SliderRow>
-                    }
-                </Body>
-            </FoldingSection>
+            <div class="section-header">Body Shape</div>
+            @foreach ( var part in Enum.GetValues<BodyShape.Part>() )
+            {
+                var shape = part;
+                <SliderRow Label=@ShapeLabel( shape ) Value=@ShapeOf( shape ) Signed=@true OnChanged=@(( float amount ) => SetShape( shape, amount ))></SliderRow>
+            }
         }
 
         @if ( BodyParts().Any() && BodyGroupsLocked )
@@ -138,45 +121,39 @@
         }
         else if ( BodyParts().Any() )
         {
-            <FoldingSection Title="Body Groups" Key=@FoldKey( "Body Groups" ) Summary=@( Look.BodyGroups.Count > 0 ? $"{Look.BodyGroups.Count} changed" : "As made" )>
-                <Body>
-                    @foreach ( var part in BodyParts() )
-                    {
-                        var name = part.Name;
-                        var current = ChoiceOf( name );
-                        <div class="row" @onmouseenter=@(() => Point( PartHighlight.Group( name, current ) )) @onmouseleave=@(() => Point( null ))>
-                            <div class="label">@( name.Replace( '_', ' ' ) )</div>
-                            <div class="choices">
-                                @foreach ( var choice in ChoicesOf( part ) )
-                                {
-                                    var index = choice.Index;
-                                    <div class="choice @( choice.Index == current ? "active" : "" )" @onclick=@(() => Choose( name, index ))
-                                         @onmouseenter=@(() => Point( PartHighlight.Group( name, index ) ))
-                                         @onmouseleave=@(() => Point( PartHighlight.Group( name, ChoiceOf( name ) ) ))>@choice.Label</div>
-                                }
-                            </div>
-                        </div>
-                        @foreach ( var colour in ChoiceColours( part, current ) )
+            <div class="section-header">Body Groups</div>
+            @foreach ( var part in BodyParts() )
+            {
+                var name = part.Name;
+                var current = ChoiceOf( name );
+                <div class="row" @onmouseenter=@(() => Point( PartHighlight.Group( name, current ) )) @onmouseleave=@(() => Point( null ))>
+                    <div class="label">@( name.Replace( '_', ' ' ) )</div>
+                    <div class="choices">
+                        @foreach ( var choice in ChoicesOf( part ) )
                         {
-                            var material = colour;
-                            <ColorRow Label=@( $"{name.Replace( '_', ' ' )} color" ) Hex=@PartColour( material ) OnChanged=@(( string hex ) => SetPartColour( material, hex ))></ColorRow>
+                            var index = choice.Index;
+                            <div class="choice @( choice.Index == current ? "active" : "" )" @onclick=@(() => Choose( name, index ))
+                                 @onmouseenter=@(() => Point( PartHighlight.Group( name, index ) ))
+                                 @onmouseleave=@(() => Point( PartHighlight.Group( name, ChoiceOf( name ) ) ))>@choice.Label</div>
                         }
-                    }
-                </Body>
-            </FoldingSection>
+                    </div>
+                </div>
+                @foreach ( var colour in ChoiceColours( part, current ) )
+                {
+                    var material = colour;
+                    <ColorRow Label=@( $"{name.Replace( '_', ' ' )} color" ) Hex=@PartColour( material ) OnChanged=@(( string hex ) => SetPartColour( material, hex ))></ColorRow>
+                }
+            }
         }
 
         @if ( MorphNames().Any() )
         {
-            <FoldingSection Title="Morphs" Key=@FoldKey( "Morphs" ) Summary=@( Look.Morphs.Count > 0 ? $"{Look.Morphs.Count} set" : "As made" )>
-                <Body>
-                    @foreach ( var morph in MorphNames() )
-                    {
-                        var name = morph;
-                        <SliderRow Label=@name Value=@WeightOf( name ) OnChanged=@(( float weight ) => SetMorph( name, weight ))></SliderRow>
-                    }
-                </Body>
-            </FoldingSection>
+            <div class="section-header">Morphs</div>
+            @foreach ( var morph in MorphNames() )
+            {
+                var name = morph;
+                <SliderRow Label=@name Value=@WeightOf( name ) OnChanged=@(( float weight ) => SetMorph( name, weight ))></SliderRow>
+            }
         }
 
         @if ( !Compact && !Advanced )
@@ -225,14 +202,6 @@
     PlayerLook CurrentLook => Look.IsCustomised ? Look.Customisation() : null;
 
     string WorkshopLabel => Shared.Looks.CountOf( Look.Model ) is > 0 and var count ? $"Workshop ({count})" : "Workshop";
-
-    // Where each group's folding is kept: the page, the Advanced editor and an item's options each keep their own
-    string FoldKey( string group ) => $"{(Compact ? "Item" : Advanced ? "Advanced" : "Customize")}/{group}";
-
-    // What a folded group holds, in a few words
-    string SavedSummary() => SavedLooks().Count is > 0 and var saved ? $"{saved} saved" : "None yet";
-
-    string ShapeSummary() => Look.Shape.Count > 0 ? $"{Look.Shape.Count} changed" : "As made";
 
     // A shared look in place of this one's customisation, on the preview until Apply; the armature stays
     string UseSharedLook( PlayerLook look, string from )

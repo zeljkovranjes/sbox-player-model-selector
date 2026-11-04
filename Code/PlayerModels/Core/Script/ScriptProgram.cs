@@ -41,6 +41,12 @@ public sealed class ScriptProgram
 	internal int[] EventFunctions { get; init; }
 	internal bool HasCalls { get; init; }
 
+	// One bit for each input (see ScriptInput) any of its code reads
+	internal ulong InputsRead { get; init; }
+
+	/// <summary>Whether any of its code reads <paramref name="input"/>: a skin script that never reads where it is along the weapon colours whole bands.</summary>
+	public bool Reads( ScriptInput input ) => (InputsRead & (1UL << (int)input)) != 0;
+
 	/// <summary>The property-setting statements, by the site number each SetProp carries.</summary>
 	public IReadOnlyList<ScriptSite> Sites { get; init; }
 

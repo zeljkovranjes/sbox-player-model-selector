@@ -415,6 +415,46 @@ color = if i == position then highlight else rest
 
 <br>
 
+## Weapon skin scripts
+
+A weapon skin's moving colours are scripts too, run on your machine once a frame
+for each different skin (however many players wear it) into a small table the
+skin shader reads. A skin script runs once for each band along the weapon (`i`
+of `count`), or at 64 places along it when it reads `along` (0 at the weapon's
+back, 1 at its front), or once in all when it reads neither. It sets `color`
+(painted over the weapon, keeping its light and dark) and `alpha` (how much it
+covers), `shade` (what the weapon's own colour is multiplied by), `glow`,
+`sheen`, and `scroll` and `spin` (how far its pattern has moved). Its `time`
+and `t` run at the skin's own speed; its palette is in linear light, as the
+shader lights it.
+
+```lua skin
+-- Rainbow: the colour wheel laid along the weapon, flowing forwards
+color = Color.FromHsv( Math.Frac( along - time * 0.00025 ) * 360, 1, 1 )
+alpha = 0.85
+glow = color * 0.12
+local covers = alpha --> 0.85
+```
+
+```lua skin
+-- Pulse: the weapon's own colour brighter in the palette's first colour, and back, once a second
+local beat = 0.5 - 0.5 * Math.Cos( t * Math.PI * 2 )
+shade = Color.White + (palette[ 0 ] * 1.4 - Color.White) * beat
+local strength = beat --> 1
+```
+
+```lua skin
+-- A pattern scrolling half its size a second and turning once every four
+scroll = t * 0.5
+spin = t * 0.25
+local moved = scroll --> 0.75
+```
+
+Every stock moving colour (Rainbow, Rain, Cycle, Scanner, Pulse, Glow,
+Shimmer, Palette) and the pattern's scroll and spin are scripts like these.
+
+<br>
+
 ## Keys
 
 An effect can be shown by a key, for a moment each press. A player gets at most
@@ -3056,7 +3096,7 @@ end
 
 #### `i: number`
 
-Which element this run colours, from 0: a particle, a shape point, an emblem layer.
+Which element this run colours, from 0: a particle, a shape point, an emblem layer, a band of a weapon's skin.
 
 ```lua sticker
 local second = i == 1 --> false
@@ -3064,7 +3104,7 @@ local second = i == 1 --> false
 
 #### `count: number`
 
-How many elements there are.
+How many elements there are (a weapon skin's bands).
 
 ```lua sticker
 local last = i == count - 1 --> false
@@ -3089,7 +3129,7 @@ local across = origin.X --> 0.5
 
 #### `palette: {Color}`
 
-The sticker's palette (the game's five colours unless it has its own).
+The sticker's or weapon skin's palette (the game's five colours unless it has its own).
 
 ```lua sticker
 local first = palette[ 0 ] --> #ff3333
@@ -3114,7 +3154,7 @@ local other = rest --> #ffffff
 
 #### `color: Color  (0 to 1)`
 
-The element's colour (write it to change it).
+The element's colour (write it to change it); on a weapon's skin, the colour painted over the weapon, keeping its light and dark.
 
 ```lua sticker
 color = Color.Red
@@ -3123,7 +3163,7 @@ local now = color --> #ff0000
 
 #### `alpha: number  (0 to 1)`
 
-How solid the element is, 0 to 1.
+How solid the element is, 0 to 1; on a weapon's skin, how much its colour covers the weapon (all of it unless set, once color is).
 
 ```lua sticker
 alpha = 0.5
@@ -3155,6 +3195,61 @@ How far the element is moved from its place.
 ```lua sticker
 offset = Vector3( 0, 0, 1 )
 local now = offset --> Vector3( 0, 0, 1 )
+```
+
+### Skin
+
+#### `along: number`
+
+Where along the weapon this run colours, 0 at its back to 1 at its front: a skin that reads it is worked out at 64 places along the weapon and blended between them, one that doesn't once a band.
+
+```lua skin
+local front = along > 0.5 --> false
+```
+
+#### `glow: Color  (0 to 4)`
+
+The light the weapon gives off there, as a colour (black for none; up to 4 times as bright as white).
+
+```lua skin
+glow = Color( 1, 0.5, 0 )
+local now = glow --> #ff8000
+```
+
+#### `sheen: number  (0 to 1)`
+
+How glossy a sheen over the weapon makes it there, 0 as it is to 1 polished.
+
+```lua skin
+sheen = 0.5
+local now = sheen --> 0.5
+```
+
+#### `shade: Color  (0 to 4)`
+
+What the weapon's own colour is multiplied by there (white leaves it; up to 4 times brighter).
+
+```lua skin
+shade = Color( 1, 0.5, 0 )
+local now = shade --> #ff8000
+```
+
+#### `scroll: number  (-1000000 to 1000000)`
+
+How far the weapon's pattern is moved along it, in repeats (a gradient's a quarter as far).
+
+```lua skin
+scroll = t * 0.5
+local now = scroll --> 0.75
+```
+
+#### `spin: number  (-1000000 to 1000000)`
+
+How far the weapon's pattern is turned on top of its own angle, in turns.
+
+```lua skin
+spin = t * 0.25
+local now = spin --> 0.375
 ```
 
 ### Events

@@ -110,6 +110,9 @@ internal sealed class ScriptContext
 			if ( Kind == ScriptKind.Sticker )
 				return ScriptPlace.StickerRun;
 
+			if ( Kind == ScriptKind.Skin )
+				return ScriptPlace.SkinRun;
+
 			return Tree?.Root is { } root && InFunction( root, Caret ) ? ScriptPlace.Effect : ScriptPlace.EffectBuild;
 		}
 	}

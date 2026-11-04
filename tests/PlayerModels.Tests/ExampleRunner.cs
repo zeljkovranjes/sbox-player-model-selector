@@ -38,8 +38,8 @@ internal static class ExampleRunner
 	private static readonly Regex Expectation = new( @"^\s*local\s+(\w+)\b.*-->\s*(.+?)\s*$", RegexOptions.Multiline );
 
 	/// <summary>
-	/// The inputs examples run with: 1.5 s in, element 2 of 5 (at 0.5, -0.25 on its shape), a quarter through its life,
-	/// running sideways on the ground with the effect's place at (100, 200, 50).
+	/// The inputs examples run with: 1.5 s in, element 2 of 5 (at 0.5, -0.25 on its shape; a quarter along a weapon), a
+	/// quarter through its life, running sideways on the ground with the effect's place at (100, 200, 50).
 	/// </summary>
 	public static ScriptIO Inputs()
 	{
@@ -62,6 +62,7 @@ internal static class ExampleRunner
 		io.Set( ScriptInput.Foot, (int)Effect.Joint.LeftFoot );
 		io.Set( ScriptInput.ShotHit, 1 );
 		io.Set( ScriptInput.ShotDistance, 400 );
+		io.Set( ScriptInput.Along, 0.25 );
 		return io;
 	}
 
@@ -75,7 +76,7 @@ internal static class ExampleRunner
 		var io = Inputs();
 		switch ( kind )
 		{
-			case ScriptKind.Sticker:
+			case ScriptKind.Sticker or ScriptKind.Skin:
 				Assert.True( machine.RunElement( io ), "Example faulted: " + machine.Fault.Describe( result.Program ) + "\n---\n" + code );
 				break;
 			default:

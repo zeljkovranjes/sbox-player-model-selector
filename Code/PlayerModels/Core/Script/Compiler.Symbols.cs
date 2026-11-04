@@ -93,7 +93,7 @@ public sealed partial class Compiler
 				PushConstant( new double[] { symbol.Function } );
 				break;
 			case SymbolKind.Alias when symbol.Input >= 0:
-				Emit( OpCode.LoadInput, (int)symbol.Input, symbol.Type.Width );
+				LoadInput( (int)symbol.Input, symbol.Type.Width );
 				Push( symbol.Type.Width );
 				break;
 		}

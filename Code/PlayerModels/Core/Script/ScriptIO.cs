@@ -2,7 +2,8 @@ namespace PlayerModels.Core.Script;
 
 /// <summary>
 /// The value slots a host fills before a run: the body's state, the element being coloured (a particle, a shape point,
-/// an emblem layer), the event's arguments. Vectors take three slots in a row (x, y, z).
+/// an emblem layer, a band of a weapon's skin and where along the weapon it is), the event's arguments. Vectors take
+/// three slots in a row (x, y, z).
 /// </summary>
 public enum ScriptInput
 {
@@ -12,16 +13,19 @@ public enum ScriptInput
 	Dt, Amount, Foot, Key,
 	ShotOriginX, ShotOriginY, ShotOriginZ, ShotDirectionX, ShotDirectionY, ShotDirectionZ, ShotHit,
 	ShotHitPositionX, ShotHitPositionY, ShotHitPositionZ, ShotHitNormalX, ShotHitNormalY, ShotHitNormalZ, ShotDistance,
+	Along,
 	Total,
 }
 
 /// <summary>
-/// The value slots an element run writes: its colour (r, g, b, a), alpha, size, rotation, offset (x, y, z) and, for a
-/// particle, its place in the world (x, y, z) and which of its layer's pictures it shows.
+/// The value slots an element run writes: its colour (r, g, b, a), alpha, size, rotation, offset (x, y, z), for a
+/// particle its place in the world (x, y, z) and which of its layer's pictures it shows, and for a band of a weapon's
+/// skin its glow (r, g, b, a), sheen, shade (r, g, b, a) and how far its pattern is scrolled and spun.
 /// </summary>
 public enum ScriptOutput
 {
 	ColorR, ColorG, ColorB, ColorA, Alpha, Size, Rotation, OffsetX, OffsetY, OffsetZ, PositionX, PositionY, PositionZ, Frame,
+	GlowR, GlowG, GlowB, GlowA, Sheen, ShadeR, ShadeG, ShadeB, ShadeA, Scroll, Spin,
 	Total,
 }
 
@@ -37,13 +41,14 @@ public enum ScriptEvent
 /// What the host and a script exchange for one run, filled by the host and read back after: <see cref="Inputs"/> (see
 /// <see cref="ScriptInput"/>), and <see cref="Outputs"/> (see <see cref="ScriptOutput"/>) with a bit in
 /// <see cref="OutputsSet"/> for each output the script wrote (bit 0 colour, 1 alpha, 2 size, 3 rotation, 4 offset,
-/// 5 position, 6 frame).
+/// 5 position, 6 frame, 7 glow, 8 sheen, 9 shade, 10 scroll, 11 spin).
 /// Outputs start as the host's own values, so a script can read and change them. One is reused for every run.
 /// </summary>
 public sealed class ScriptIO
 {
 	/// <summary>The bits of <see cref="OutputsSet"/>.</summary>
-	public const int ColorSet = 1, AlphaSet = 2, SizeSet = 4, RotationSet = 8, OffsetSet = 16, PositionSet = 32, FrameSet = 64;
+	public const int ColorSet = 1, AlphaSet = 2, SizeSet = 4, RotationSet = 8, OffsetSet = 16, PositionSet = 32, FrameSet = 64,
+		GlowSet = 128, SheenSet = 256, ShadeSet = 512, ScrollSet = 1024, SpinSet = 2048;
 
 	public readonly double[] Inputs = new double[ (int)ScriptInput.Total ];
 	public readonly double[] Outputs = new double[ (int)ScriptOutput.Total ];
@@ -72,7 +77,12 @@ public sealed class ScriptIO
 		(int)ScriptOutput.Rotation => RotationSet,
 		<= (int)ScriptOutput.OffsetZ => OffsetSet,
 		<= (int)ScriptOutput.PositionZ => PositionSet,
-		_ => FrameSet,
+		(int)ScriptOutput.Frame => FrameSet,
+		<= (int)ScriptOutput.GlowA => GlowSet,
+		(int)ScriptOutput.Sheen => SheenSet,
+		<= (int)ScriptOutput.ShadeA => ShadeSet,
+		(int)ScriptOutput.Scroll => ScrollSet,
+		_ => SpinSet,
 	};
 }
 

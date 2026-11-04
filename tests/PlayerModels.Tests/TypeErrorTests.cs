@@ -61,7 +61,7 @@ public class TypeErrorTests
 	[InlineData( "local glow = Sprite()\nlocal x = time", "2:11: 'time' changes while the effect runs: use it inside a function, like function OnUpdate( dt ) ... end" )]
 	[InlineData( "function OnUpdate( dt )\n\tlocal glow = Sprite()\nend", "2:15: 'Sprite' can only be used while the effect is built (at the top of the script), not while it runs" )]
 	[InlineData( "local glow = Sprite()\nfunction OnUpdate( dt )\n\tglow.LooksLike = Picture.Flame\nend", "3:2: Layer.LooksLike can only be set while the effect is built (at the top of the script); while it runs, change things like Color, Size, Amount or Off" )]
-	[InlineData( "local glow = Sprite()\nlocal x = i", "2:11: 'i' is for sticker scripts: in a particle function use p.Index" )]
+	[InlineData( "local glow = Sprite()\nlocal x = i", "2:11: 'i' is for sticker and weapon skin scripts: in a particle function use p.Index" )]
 	[InlineData( "local glow = Sprite()\nfunction OnLnad()\nend", "2:10: There is no event 'OnLnad': did you mean 'OnLand'?" )]
 	[InlineData( "local glow = Sprite()\nfunction OnLand( a, b )\nend", "2:21: OnLand takes at most 1 parameter: function OnLand( fallSpeed: number )" )]
 	[InlineData( "local glow = Sprite()\nfunction OnJump()\nend\nfunction OnJump()\nend", "4:10: OnJump is already handled earlier in the script" )]

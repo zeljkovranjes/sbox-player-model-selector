@@ -5,12 +5,16 @@ using System.Text;
 
 namespace PlayerModels.Core.Script;
 
-/// <summary>What a script is for: an effect (built once, then its functions run), a shape (built once into points), or a sticker (run per element, each frame).</summary>
-public enum ScriptKind { Effect, Shape, Sticker }
+/// <summary>
+/// What a script is for: an effect (built once, then its functions run), a shape (built once into points), a sticker (run
+/// per element, each frame), or a weapon's skin (run per band along the weapon, each frame, into its colours).
+/// </summary>
+public enum ScriptKind { Effect, Shape, Sticker, Skin }
 
 /// <summary>
 /// Where in a script a library name can be used: while an effect or a shape is built (its top level, once), while an
-/// effect runs (its event and particle functions, each frame or event), or in a sticker's per-element run.
+/// effect runs (its event and particle functions, each frame or event), in a sticker's per-element run, or in a weapon
+/// skin's per-band run.
 /// </summary>
 [Flags]
 public enum ScriptPlace
@@ -20,10 +24,12 @@ public enum ScriptPlace
 	EffectRun = 2,
 	ShapeBuild = 4,
 	StickerRun = 8,
+	SkinRun = 16,
 	Build = EffectBuild | ShapeBuild,
-	Run = EffectRun | StickerRun,
+	Run = EffectRun | StickerRun | SkinRun,
+	Element = StickerRun | SkinRun,
 	Effect = EffectBuild | EffectRun,
-	All = EffectBuild | EffectRun | ShapeBuild | StickerRun,
+	All = EffectBuild | EffectRun | ShapeBuild | StickerRun | SkinRun,
 }
 
 /// <summary>What a library entry is.</summary>

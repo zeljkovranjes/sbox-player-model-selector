@@ -9,6 +9,7 @@ public sealed partial class Compiler
 	{
 		ScriptKind.Effect => ScriptPlace.Effect,
 		ScriptKind.Shape => ScriptPlace.ShapeBuild,
+		ScriptKind.Skin => ScriptPlace.SkinRun,
 		_ => ScriptPlace.StickerRun,
 	};
 

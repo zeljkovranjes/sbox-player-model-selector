@@ -133,9 +133,10 @@ public sealed partial class ScriptMachine
 
 	/// <summary>
 	/// Sets the palette a sticker script reads (<c>palette</c>, <c>highlight</c>, <c>rest</c>) from colours as hex: its
-	/// own, or the game's five for none; the highlight and rest are its first two when it has two or more. Not per frame.
+	/// own, or the game's five for none; the highlight and rest are its first two when it has two or more. In
+	/// <paramref name="linear"/> light (a weapon skin's, as its shader lights them) rather than as picked. Not per frame.
 	/// </summary>
-	public void SetPalette( IReadOnlyList<string> own )
+	public void SetPalette( IReadOnlyList<string> own, bool linear = false )
 	{
 		var colours = own is { Count: > 0 } ? own : ColorCycle.GamePalette;
 		var count = Math.Min( colours.Count, EffectLayer.MaxPalette );
@@ -144,13 +145,13 @@ public sealed partial class ScriptMachine
 
 		var at = _paletteAt;
 		for ( var i = 0; i < count; i++ )
-			WriteColor( colours[ i ], Arena, at + i * 4 );
+			WriteColor( colours[ i ], Arena, at + i * 4, linear );
 
 		Globals[ ScriptLibrary.PaletteSlot ] = at;
 		Globals[ ScriptLibrary.PaletteSlot + 1 ] = count;
 		var two = own is { Count: >= 2 };
-		WriteColor( two ? own[ 0 ] : ColorCycle.ScannerHighlight, Globals, ScriptLibrary.HighlightSlot );
-		WriteColor( two ? own[ 1 ] : ColorCycle.ScannerRest, Globals, ScriptLibrary.RestSlot );
+		WriteColor( two ? own[ 0 ] : ColorCycle.ScannerHighlight, Globals, ScriptLibrary.HighlightSlot, linear );
+		WriteColor( two ? own[ 1 ] : ColorCycle.ScannerRest, Globals, ScriptLibrary.RestSlot, linear );
 	}
 
 	/// <summary>
@@ -212,17 +213,23 @@ public sealed partial class ScriptMachine
 	/// </summary>
 	internal int TryAppendArena( int slots ) => _arenaUsed + slots > ScriptLimits.MaxArenaSlots ? -1 : AppendArena( slots );
 
-	/// <summary>Writes the colour <paramref name="hex"/> (white when it isn't one) as r, g, b, a at <paramref name="at"/>.</summary>
-	internal static void WriteColor( string hex, double[] into, int at )
+	/// <summary>
+	/// Writes the colour <paramref name="hex"/> (white when it isn't one) as r, g, b, a at <paramref name="at"/>, its r, g
+	/// and b in <paramref name="linear"/> light when asked.
+	/// </summary>
+	internal static void WriteColor( string hex, double[] into, int at, bool linear = false )
 	{
 		if ( !ScriptMath.TryParseColor( hex, out var r, out var g, out var b, out var a ) )
 			(r, g, b, a) = (1, 1, 1, 1);
 
-		into[ at ] = r;
-		into[ at + 1 ] = g;
-		into[ at + 2 ] = b;
+		into[ at ] = linear ? Linear( r ) : r;
+		into[ at + 1 ] = linear ? Linear( g ) : g;
+		into[ at + 2 ] = linear ? Linear( b ) : b;
 		into[ at + 3 ] = a;
 	}
+
+	/// <summary>A colour channel as picked (sRGB) in linear light.</summary>
+	public static double Linear( double srgb ) => srgb <= 0.04045 ? srgb / 12.92 : Math.Pow( (srgb + 0.055) / 1.055, 2.4 );
 
 	private bool Stop( FaultKind kind, int pc, int index = 0, int count = 0, string message = null )
 	{

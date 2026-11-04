@@ -303,6 +303,10 @@ public sealed partial class Compiler
 			message = $"'{name}' can only be used while the effect is built (at the top of the script), not while it runs";
 		else if ( where == ScriptPlace.StickerRun )
 			message = $"'{name}' is for sticker scripts" + (entry.Name == "i" ? ": in a particle function use p.Index" : "");
+		else if ( where == ScriptPlace.Element )
+			message = $"'{name}' is for sticker and weapon skin scripts" + (entry.Name == "i" ? ": in a particle function use p.Index" : "");
+		else if ( where == ScriptPlace.SkinRun )
+			message = $"'{name}' is for weapon skin scripts";
 		else if ( (where & ScriptPlace.Run) != 0 && (here & ScriptPlace.Build) != 0 && _kind == ScriptKind.Effect )
 			message = $"'{name}' changes while the effect runs: use it inside a function, like function OnUpdate( dt ) ... end";
 		else if ( (where & ScriptPlace.Effect) == where )

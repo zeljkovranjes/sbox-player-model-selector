@@ -82,7 +82,7 @@ public sealed partial class Compiler
 				Emit( OpCode.LoadGlobal, entry.Slot, width );
 				break;
 			case EntryKind.Input:
-				Emit( OpCode.LoadInput, entry.Slot, width );
+				LoadInput( entry.Slot, width );
 				break;
 			case EntryKind.Output:
 				Emit( OpCode.LoadOutput, entry.Slot, width );
@@ -162,7 +162,7 @@ public sealed partial class Compiler
 			case PropertyAccess.Component: Emit( OpCode.Pick, owner.Width, entry.Slot ); break;
 			case PropertyAccess.ListCount: Emit( OpCode.ListCount ); break;
 			case PropertyAccess.Intrinsic: Emit( OpCode.Intrinsic, entry.Slot ); break;
-			case PropertyAccess.Input: Emit( OpCode.LoadInput, entry.Slot, width ); break;
+			case PropertyAccess.Input: LoadInput( entry.Slot, width ); break;
 			case PropertyAccess.Output: Emit( OpCode.LoadOutput, entry.Slot, width ); break;
 			default: Emit( OpCode.GetProp, entry.Slot ); break;
 		}
@@ -170,6 +170,15 @@ public sealed partial class Compiler
 		Pop( owner.Width );
 		Push( width );
 		return entry.Type;
+	}
+
+	// Reads an input onto the stack, noting the program reads it (see ScriptProgram.Reads)
+	private void LoadInput( int slot, int width )
+	{
+		for ( var i = 0; i < width; i++ )
+			_inputsRead |= 1UL << (slot + i);
+
+		Emit( OpCode.LoadInput, slot, width );
 	}
 
 	private static IEnumerable<string> MemberNames( IEnumerable<LibraryEntry> entries )

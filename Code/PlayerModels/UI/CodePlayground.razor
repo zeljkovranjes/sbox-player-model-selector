@@ -16,7 +16,7 @@
             <TextLabel class="playground-status @( _error is null ? "" : "error" )" Text=@( _error ?? _result )></TextLabel>
             <div class="spacer"></div>
             <div class="playground-button" Tooltip="Put the example back as it was" @onclick=@ResetExample>Reset example</div>
-            @if ( CopyInto is not null )
+            @if ( CopyInto is not null && Kind != ScriptKind.Skin )
             {
                 <div class="playground-button" Tooltip="Put it in the script you are editing (or a new one)" @onclick=@(() => CopyInto( _entry?.Source ?? Example ))>@CopyLabel</div>
             }
@@ -111,7 +111,7 @@
 
     int _errorAt = -1;
 
-    // Runs the code as it is now: an effect worn on the preview, a shape drawn, a sticker run once for one element; the
+    // Runs the code as it is now: an effect worn on the preview, a shape drawn, a sticker or skin run once for one element; the
     // last good result stays while it has an error
     void Run()
     {
@@ -125,13 +125,14 @@
         }
 
         var machine = new ScriptMachine( compiled.Program );
-        if ( Kind == ScriptKind.Sticker )
+        if ( Kind is ScriptKind.Sticker or ScriptKind.Skin )
         {
             var io = new ScriptIO();
             io.Set( ScriptInput.Time, 1500 );
             io.Set( ScriptInput.Seconds, 1.5 );
             io.Set( ScriptInput.Index, 2 );
             io.Set( ScriptInput.Count, 5 );
+            io.Set( ScriptInput.Along, 0.25 );
             if ( !machine.RunElement( io ) )
             {
                 Fail( machine.Fault.Describe( compiled.Program ) );

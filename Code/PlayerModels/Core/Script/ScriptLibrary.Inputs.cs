@@ -6,9 +6,11 @@ public static partial class ScriptLibrary
 {
 	private static void AddInputs( List<LibraryEntry> entries )
 	{
-		const string inputs = "Inputs", sticker = "Sticker", particle = "Particle", shot = "Shot";
+		const string inputs = "Inputs", sticker = "Sticker", skin = "Skin", particle = "Particle", shot = "Shot";
 		var run = ScriptPlace.Run;
 		var element = ScriptPlace.StickerRun;
+		var coloured = ScriptPlace.Element;
+		var band = ScriptPlace.SkinRun;
 		var b = ScriptType.Bool;
 		var v = ScriptType.Vector3;
 		var c = ScriptType.Color;
@@ -25,19 +27,26 @@ public static partial class ScriptLibrary
 		entries.Add( Input( "anchorPosition", v, ScriptInput.AnchorPositionX, inputs, "Where the effect's own place is in the world (its joint, item or weapon, moved by its Offset): to remember a path, or emit above it.",
 			"local glow = Sprite()\nlocal start = Vector3.Zero\nfunction OnSpawn()\n\tstart = anchorPosition\nend\nfunction OnJump()\n\tglow.EmitAt( anchorPosition + Vector3( 0, 0, 60 ), 10 )\nend", ScriptPlace.EffectRun ) );
 
-		entries.Add( Input( "i", N, ScriptInput.Index, sticker, "Which element this run colours, from 0: a particle, a shape point, an emblem layer.", "local second = i == 1 --> false", element ) );
-		entries.Add( Input( "count", N, ScriptInput.Count, sticker, "How many elements there are.", "local last = i == count - 1 --> false", element ) );
+		entries.Add( Input( "i", N, ScriptInput.Index, sticker, "Which element this run colours, from 0: a particle, a shape point, an emblem layer, a band of a weapon's skin.", "local second = i == 1 --> false", coloured ) );
+		entries.Add( Input( "count", N, ScriptInput.Count, sticker, "How many elements there are (a weapon skin's bands).", "local last = i == count - 1 --> false", coloured ) );
 		entries.Add( Input( "life", N, ScriptInput.Life, sticker, "How far through its life the element is, 0 to 1 (a particle's; 0 for a shape's points).", "local young = life < 0.5 --> true", element ) );
 		entries.Add( Input( "origin", v, ScriptInput.OriginX, sticker, "Where the element is on its shape, before its offset: a shape point's or emblem layer's x and y on the square (-1 to 1), a particle's place on its layer's shape.",
 			"local right = origin.X > 0 --> true\nlocal across = origin.X --> 0.5", element ) );
-		entries.Add( Reserved( "palette", ScriptType.ListOf( c ), PaletteSlot, sticker, "The sticker's palette (the game's five colours unless it has its own).", "local first = palette[ 0 ] --> #ff3333\nlocal n = palette.Count --> 5" ) );
+		entries.Add( Reserved( "palette", ScriptType.ListOf( c ), PaletteSlot, sticker, "The sticker's or weapon skin's palette (the game's five colours unless it has its own).", "local first = palette[ 0 ] --> #ff3333\nlocal n = palette.Count --> 5" ) );
 		entries.Add( Reserved( "highlight", c, HighlightSlot, sticker, "The Cyln scanner's highlight: the palette's first colour when it has two or more, else red.", "local eye = highlight --> #ff3333" ) );
 		entries.Add( Reserved( "rest", c, RestSlot, sticker, "The Cyln scanner's other colour: the palette's second when it has two or more, else white.", "local other = rest --> #ffffff" ) );
-		entries.Add( Output( "color", c, ScriptOutput.ColorR, sticker, "The element's colour (write it to change it).", "color = Color.Red\nlocal now = color --> #ff0000", element, 0, 1 ) );
-		entries.Add( Output( "alpha", N, ScriptOutput.Alpha, sticker, "How solid the element is, 0 to 1.", "alpha = 0.5\nlocal now = alpha --> 0.5", element, 0, 1 ) );
+		entries.Add( Output( "color", c, ScriptOutput.ColorR, sticker, "The element's colour (write it to change it); on a weapon's skin, the colour painted over the weapon, keeping its light and dark.", "color = Color.Red\nlocal now = color --> #ff0000", coloured, 0, 1 ) );
+		entries.Add( Output( "alpha", N, ScriptOutput.Alpha, sticker, "How solid the element is, 0 to 1; on a weapon's skin, how much its colour covers the weapon (all of it unless set, once color is).", "alpha = 0.5\nlocal now = alpha --> 0.5", coloured, 0, 1 ) );
 		entries.Add( Output( "size", N, ScriptOutput.Size, sticker, "How big the element is, times its own size.", "size = 1.5\nlocal now = size --> 1.5", element, 0, EffectLayer.MaxSize ) );
 		entries.Add( Output( "rotation", N, ScriptOutput.Rotation, sticker, "How far the element is turned, in degrees.", "rotation = 90\nlocal now = rotation --> 90", element, -MaxRotation, MaxRotation ) );
 		entries.Add( Output( "offset", v, ScriptOutput.OffsetX, sticker, "How far the element is moved from its place.", "offset = Vector3( 0, 0, 1 )\nlocal now = offset --> Vector3( 0, 0, 1 )", element, -EffectLayer.MaxOffset, EffectLayer.MaxOffset ) );
+
+		entries.Add( Input( "along", N, ScriptInput.Along, skin, "Where along the weapon this run colours, 0 at its back to 1 at its front: a skin that reads it is worked out at 64 places along the weapon and blended between them, one that doesn't once a band.", "local front = along > 0.5 --> false", band ) );
+		entries.Add( Output( "glow", c, ScriptOutput.GlowR, skin, "The light the weapon gives off there, as a colour (black for none; up to 4 times as bright as white).", "glow = Color( 1, 0.5, 0 )\nlocal now = glow --> #ff8000", band, 0, MaxSkinLight ) );
+		entries.Add( Output( "sheen", N, ScriptOutput.Sheen, skin, "How glossy a sheen over the weapon makes it there, 0 as it is to 1 polished.", "sheen = 0.5\nlocal now = sheen --> 0.5", band, 0, 1 ) );
+		entries.Add( Output( "shade", c, ScriptOutput.ShadeR, skin, "What the weapon's own colour is multiplied by there (white leaves it; up to 4 times brighter).", "shade = Color( 1, 0.5, 0 )\nlocal now = shade --> #ff8000", band, 0, MaxSkinLight ) );
+		entries.Add( Output( "scroll", N, ScriptOutput.Scroll, skin, "How far the weapon's pattern is moved along it, in repeats (a gradient's a quarter as far).", "scroll = t * 0.5\nlocal now = scroll --> 0.75", band, -MaxSkinTravel, MaxSkinTravel ) );
+		entries.Add( Output( "spin", N, ScriptOutput.Spin, skin, "How far the weapon's pattern is turned on top of its own angle, in turns.", "spin = t * 0.25\nlocal now = spin --> 0.375", band, -MaxSkinTravel, MaxSkinTravel ) );
 
 		var particleRun = ScriptPlace.EffectRun;
 		const string setup = "local glow = Sprite()\nfunction glow.Particle( p )\n\t";
@@ -64,6 +73,12 @@ public static partial class ScriptLibrary
 		entries.Add( Member( "Shot.Distance", N, PropertyAccess.Input, (int)ScriptInput.ShotDistance, shot, "How far it went.", shotSetup + "sparks.Emit( Math.Min( shot.Distance / 100, 20 ) )\nend", particleRun ) );
 	}
 
+	/// <summary>How bright a weapon skin's glow and shade go: four times white.</summary>
+	internal const double MaxSkinLight = 4;
+
+	/// <summary>How far a weapon skin's pattern can be scrolled or spun, in repeats or turns: hours of the fastest.</summary>
+	internal const double MaxSkinTravel = 1_000_000;
+
 	/// <summary>The furthest an element output can be turned, in degrees.</summary>
 	internal const double MaxRotation = 3600;
 
@@ -76,19 +91,23 @@ public static partial class ScriptLibrary
 	private static LibraryEntry Input( string name, ScriptType type, ScriptInput slot, string category, string doc, string example, ScriptPlace where ) => new()
 	{
 		Name = name, Kind = EntryKind.Input, Type = type, Category = category, Doc = doc, Example = example, Where = where,
-		Access = PropertyAccess.Input, Slot = (int)slot, ExampleKind = (where & ScriptPlace.StickerRun) != 0 ? ScriptKind.Sticker : ScriptKind.Effect,
+		Access = PropertyAccess.Input, Slot = (int)slot, ExampleKind = ExampleKindOf( where ),
 	};
+
+	// Where an example of a name usable in where runs: a sticker script's, a skin script's, else an effect's
+	private static ScriptKind ExampleKindOf( ScriptPlace where ) =>
+		(where & ScriptPlace.StickerRun) != 0 ? ScriptKind.Sticker : where == ScriptPlace.SkinRun ? ScriptKind.Skin : ScriptKind.Effect;
 
 	private static LibraryEntry Reserved( string name, ScriptType type, int slot, string category, string doc, string example ) => new()
 	{
-		Name = name, Kind = EntryKind.Input, Type = type, Category = category, Doc = doc, Example = example, Where = ScriptPlace.StickerRun,
+		Name = name, Kind = EntryKind.Input, Type = type, Category = category, Doc = doc, Example = example, Where = ScriptPlace.Element,
 		Access = PropertyAccess.Reserved, Slot = slot,
 	};
 
 	private static LibraryEntry Output( string name, ScriptType type, ScriptOutput slot, string category, string doc, string example, ScriptPlace where, double min, double max ) => new()
 	{
 		Name = name, Kind = EntryKind.Output, Type = type, Category = category, Doc = doc, Example = example, Where = where, WriteWhere = where,
-		Access = PropertyAccess.Output, Slot = (int)slot, Min = min, Max = max,
+		Access = PropertyAccess.Output, Slot = (int)slot, Min = min, Max = max, ExampleKind = ExampleKindOf( where ),
 	};
 
 	private static LibraryEntry Member( string name, ScriptType type, PropertyAccess access, int slot, string category, string doc, string example,

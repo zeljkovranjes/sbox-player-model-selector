@@ -17,7 +17,7 @@ public static partial class ScriptLibrary
 	public static readonly string[] Categories =
 	{
 		"Keywords", "Types", "Parameters", "Math", "Color", "Vector3", "Lists", "Effect", "Layer", "Particle", "Shape", "Emblem",
-		"Inputs", "Sticker", "Events", "Shot", "Choices", "Keys",
+		"Inputs", "Sticker", "Skin", "Events", "Shot", "Choices", "Keys",
 	};
 
 	/// <summary>The reserved script variables of a sticker: its palette (a list), highlight and rest colours.</summary>

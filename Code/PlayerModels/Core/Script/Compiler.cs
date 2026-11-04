@@ -66,6 +66,7 @@ public sealed partial class Compiler
 	private int _position;
 	private Stmt _statement;
 	private bool _hasCalls;
+	private ulong _inputsRead;
 
 	// Whether the script changes list items (list[ i ] = ...): then every list it writes out is made afresh each time
 	// its line runs, as Lua makes a new table, rather than once when it compiles
@@ -158,7 +159,7 @@ public sealed partial class Compiler
 		{
 			Kind = _kind, Source = _tree.Source, Lines = _lines, Code = code.ToArray(), Positions = positions.ToArray(),
 			Constants = _constants.ToArray(), Strings = _strings.ToArray(), Functions = functions, GlobalSlots = _globalSlots,
-			Arena = _arena.ToArray(), EventFunctions = _events, HasCalls = _hasCalls, Sites = _sites, RunningSets = _runningSets,
+			Arena = _arena.ToArray(), EventFunctions = _events, HasCalls = _hasCalls, InputsRead = _inputsRead, Sites = _sites, RunningSets = _runningSets,
 			Symbols = _symbols, Keys = _keys, GlobalNames = names, Parameters = _parameters,
 		};
 	}
@@ -168,6 +169,7 @@ public sealed partial class Compiler
 	{
 		ScriptKind.Effect => ScriptPlace.EffectBuild,
 		ScriptKind.Shape => ScriptPlace.ShapeBuild,
+		ScriptKind.Skin => ScriptPlace.SkinRun,
 		_ => ScriptPlace.StickerRun,
 	};
 

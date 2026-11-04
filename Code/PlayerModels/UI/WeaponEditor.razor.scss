@@ -190,13 +190,10 @@ WeaponEditor
 		@include ui-label;
 	}
 
+	// undo, redo, the Workshop and Reset; in the Workshop, back and what it lists, as on the other pages
 	.top
 	{
-		flex-direction: row;
-		align-items: center;
-		flex-shrink: 0;
-		gap: 6px;
-		margin-bottom: 4px;
+		@include ui-top-row;
 
 		> .tool
 		{
@@ -214,24 +211,20 @@ WeaponEditor
 				pointer-events: none;
 			}
 		}
+	}
 
-		> .back
-		{
-			@include ui-button;
-			flex-shrink: 0;
-			width: 28px;
-			padding: 0;
-			font-family: "Material Icons";
-			font-size: 16px;
-			text-transform: none;
-		}
+	// the Workshop's two scopes, this weapon's designs and every weapon, as tabs over it like the Effects Workshop's
+	.workshop-tabs
+	{
+		flex-direction: row;
+		flex-shrink: 0;
+		margin-bottom: 8px;
+		border-bottom: 1px solid $ui-block-border;
+	}
 
-		> .intro
-		{
-			font-size: $ui-settings-font;
-			color: $ui-text-muted;
-			flex-grow: 1;
-		}
+	.workshop-tab
+	{
+		@include ui-tab;
 	}
 
 	.subheading

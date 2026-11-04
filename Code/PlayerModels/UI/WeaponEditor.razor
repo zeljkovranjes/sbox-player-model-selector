@@ -17,10 +17,15 @@
     }
     else if ( _workshop )
     {
+        // Which weapon's designs, as the Effects Workshop's tabs say which kind: this one (or the one picked), or every one
+        <div class="workshop-tabs">
+            <div class="workshop-tab @( _allWeapons ? "" : "active" )" @onclick=@(() => ShowAll( false ))>@( _browsing == Weapon ? "This weapon" : WeaponDesign.NameOf( _browsing ) )</div>
+            <div class="workshop-tab @( _allWeapons ? "active" : "" )" @onclick=@(() => ShowAll( true ))>All weapons</div>
+        </div>
         @if ( _allWeapons )
         {
             <div class="top">
-                <div class="back" Tooltip="Back to this weapon's designs" @onclick=@(() => ShowAll( false ))>arrow_back</div>
+                <div class="back" Tooltip="Back" @onclick=@(() => ShowWorkshop( false ))>arrow_back</div>
                 <div class="intro">Every weapon here: pick one to see the designs players shared for it.</div>
             </div>
             <div class="grid">
@@ -36,10 +41,6 @@
         }
         else
         {
-            <div class="row">
-                <div class="label">@( $"Designs for the {WeaponDesign.NameOf( _browsing )}" )</div>
-                <div class="reset" Tooltip="Designs for every weapon here" @onclick=@(() => ShowAll( true ))>All weapons</div>
-            </div>
             <SharingPanel T="WeaponDesign" Library=@Shared.Weapons Noun="design" ModelId=@_browsing Scope=" for this weapon" Workshop=@true Pictures=@true Searchable=@true
                           Intro="Designs players shared for this weapon: Top lists the best rated first, New the newest. Use one to put an editable copy on your weapon; Fork does the same, credited."
                           UseEntry=@UseShared Fork=@ForkShared ForkTip="Put a copy on your weapon, to change and publish as your own" OriginOf=@(( WeaponDesign x ) => x.ForkedFrom)

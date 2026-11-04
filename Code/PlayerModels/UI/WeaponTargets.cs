@@ -57,9 +57,10 @@ internal sealed class WeaponTargets : IGizmoTargets
 		if ( _weapon() is not { } weapon || !weapon.IsValid() || !TryPose( out var pose ) )
 			return false;
 
+		// Where it is now, as an item's frame is: from its part's middle (or the weapon's origin), moved by its offset
 		var from = Prop is { } prop ? PartMiddle( weapon.Model, prop.Part ) : Vector3.Zero;
 		var world = weapon.WorldTransform;
-		frame = new TransformGizmo.Frame( world.PointToWorld( from ), world.Rotation, world.Scale.x );
+		frame = new TransformGizmo.Frame( world.PointToWorld( from + pose.Offset ), world.Rotation, world.Scale.x );
 		return true;
 	}
 
@@ -197,8 +198,7 @@ internal sealed class WeaponTargets : IGizmoTargets
 		if ( !TryFrame( out var frame ) || !TryPose( out var pose ) )
 			return false;
 
-		var middle = frame.Pivot + frame.Axes * pose.Offset * frame.Scale;
-		bounds = BBox.FromPositionAndSize( middle, MathF.Max( 4f, Prop is not null ? 8f : pose.Size ) );
+		bounds = BBox.FromPositionAndSize( frame.Pivot, MathF.Max( 4f, Prop is not null ? 8f : pose.Size ) );
 		return true;
 	}
 

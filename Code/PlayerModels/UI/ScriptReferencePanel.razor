@@ -57,7 +57,7 @@
             else if ( _page is { } page )
             {
                 <TextLabel class="page-title" Text=@page.Title></TextLabel>
-                @if ( page.Clip is not null )
+                @if ( page.Clip is not null && FileSystem.Mounted.FileExists( ClipFolder + page.Clip + ".webp" ) )
                 {
                     <div class="clip" style="background-image: url( @( ClipFolder + page.Clip + ".webp" ) )"></div>
                 }

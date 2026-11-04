@@ -13,7 +13,7 @@
 
     <div class="section-header">Concepts</div>
     <div class="chips">
-        @foreach ( var page in Concepts )
+        @foreach ( var page in ConceptPages )
         {
             var shown = page;
             <div class="chip @( shown == _page ? "active" : "" )" @onclick=@(() => Show( shown ))>@shown.Title</div>
@@ -22,7 +22,7 @@
 
     <div class="section-header">How to</div>
     <div class="chips">
-        @foreach ( var page in HowTo )
+        @foreach ( var page in HowToPages )
         {
             var shown = page;
             <div class="chip @( shown == _page ? "active" : "" )" @onclick=@(() => Show( shown ))>@shown.Title</div>
@@ -60,7 +60,7 @@
     // A concept explained in a paragraph, or a guide in steps, each with its clip
     sealed record Page( string Title, string Clip, string Text, string[] Steps = null );
 
-    static readonly Page[] Concepts =
+    static readonly Page[] ConceptPages =
     {
         new( "Effect", "effect",
             "An effect is something you wear that isn't a model: glowing eyes, fire in your hands, a halo. Click one on the Effects tab to put it on; the preview shows it, Apply wears it, and everyone sees it. You can wear several at once, switch them off and on, and change each with four sliders: color, size, amount and speed." ),
@@ -77,14 +77,20 @@
         new( "Keys", "keys",
             "Give an effect a key and it shows only when you press it, for 10 seconds, for everyone, fading in and out. To keep anyone from flooding the server, effect keys work once every 2 minutes for each player, whichever effect the key is for. Switching an effect off is always free." ),
         new( "Shape", "shape",
-            "A shape is one of 40 standard shapes: circles, polygons, stars, hearts, lines, spirals and solids like a sphere or a torus. Sprites can come from a shape, along its outline or all over it (through a solid), or each sprite can look like the shape." ),
+            "A shape is one of 40 standard shapes (circles, polygons, stars, hearts, lines, spirals and solids like a sphere or a torus) or one you drew in the shape creator. Sprites can come from a shape, along its outline or all over it (through a solid), or each sprite can look like the shape." ),
+        new( "Sticker", "sticker",
+            "A sticker is a shape with colors of its own: a fill, an outline round it, and, if you like, a color that moves (Rainbow, the clan tag colors, or a pulse). As what sprites look like, each sprite is the sticker and covers what is behind it, so a rainbow heart stays a rainbow heart in any effect. A plain shape has no colors of its own: it takes the layer's color, like the other pictures." ),
+        new( "Workshop, Use and Fork", "workshop",
+            "The Workshop, on the Effects tab, lists the effects, single layers, shapes and stickers players shared, for any model. Use puts a copy on you (a single layer joins the effect you selected; a shape goes to My shapes). Fork opens a copy in the Advanced editor or the shape creator, to change and share as your own. Both remember the share: \"Based on\" its name and author shows with it, and stays when you share yours." ),
+        new( "Shape creator", "creator",
+            "The shape creator makes shapes of your own: strokes drawn with the mouse, filled or as lines, text, and other shapes put together, mirrored, turned and sized. Use one as where sprites come from (sparkles tracing a word) or as what each sprite looks like, and keep it in My shapes. A shape has up to 500 points and a look carries up to 8; everyone sees them with nothing to download." ),
         new( "Color cycles", "colors",
             "A color cycle colors a layer's sprites one by one, the way World at War's clan tags did: Rain scrolls the colors along, Cycle wipes one color across them, and Scanner sweeps a highlight back and forth. Mixed gives each sprite one of the colors for its life, like confetti. Use the game's colors or your own." ),
         new( "Budget and settings", "budget",
             "Each server lets each player show so many layers, lights and sprites at once. Past that, your last layers wait (marked over budget) until you remove or switch off some; nothing is lost. The host can turn effects off or change the budget on the Server page, and you can lower Effects quality or hide one player's effects on your own screen." ),
     };
 
-    static readonly Page[] HowTo =
+    static readonly Page[] HowToPages =
     {
         new( "Build an effect from layers", "build", null, new[]
         {
@@ -115,11 +121,26 @@
             "Swing: the trail shows as fast as the tip moves, and sparks fly when you hit.",
             "In the Advanced editor, change the trail's color, width and how long it lasts.",
         } ),
+        new( "Remix from the Workshop", "remix", null, new[]
+        {
+            "On the Effects tab, open the Workshop, and search or filter for something close to what you want.",
+            "Press Fork on it: the Advanced editor opens with a copy you wear, based on the share.",
+            "Change its layers, colors, sizes or where it comes from.",
+            "Press Apply to wear it, Save to My effects to keep it, or Share this effect to publish yours: it says what it is based on.",
+        } ),
+        new( "Draw your own shape", "draw", null, new[]
+        {
+            "In the Advanced editor's Effects tab, select a sprites layer and pick Draw a new shape at the end of Looks like (or of a shape's list).",
+            "Draw with the left mouse button; turn on Draw filled shapes for solid ones. Undo takes back a stroke.",
+            "Add text, combine it with a star or one of your shapes, then mirror, turn and size it.",
+            "Turn on sticker for colors of its own, an outline and a moving color.",
+            "Name it, press Save to My shapes, then Use as Looks like or Use as Comes from.",
+        } ),
     };
 
     static string ClipOf( Page page ) => $"{ClipFolder}{page.Clip}.webp";
 
-    Page _page = Concepts[ 0 ];
+    Page _page = ConceptPages[ 0 ];
 
     void Show( Page page )
     {

@@ -24,6 +24,19 @@ public static class ScriptMath
 	/// <summary>a / b, 0 when b is 0.</summary>
 	public static double Divide( double a, double b ) => b == 0 ? 0 : Safe( a / b );
 
+	/// <summary>
+	/// 0 at or below <paramref name="from"/>, 1 at or above <paramref name="to"/>, easing smoothly between (like HLSL's
+	/// smoothstep); a step at <paramref name="from"/> when the two are the same.
+	/// </summary>
+	public static double SmoothStep( double from, double to, double x )
+	{
+		if ( from == to )
+			return x < from ? 0 : 1;
+
+		var t = Math.Clamp( Safe( (x - from) / (to - from) ), 0, 1 );
+		return t * t * (3 - 2 * t);
+	}
+
 	/// <summary>C#'s remainder (its sign is a's), 0 when b is 0.</summary>
 	public static double Remainder( double a, double b ) => b == 0 ? 0 : Safe( a % b );
 

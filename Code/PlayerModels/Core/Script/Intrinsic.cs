@@ -8,7 +8,7 @@ public enum Intrinsic
 {
 	None,
 
-	Abs, Sign, Floor, Ceiling, Round, Frac, Min, Max, Clamp, Lerp, Sin, Cos, Tan, Atan2, Sqrt, Pow, Noise, Random,
+	Abs, Sign, Floor, Ceiling, Round, Frac, Min, Max, Clamp, Lerp, Sin, Cos, Tan, Atan2, Sqrt, Pow, Exp, SmoothStep, Noise, Random,
 	ColorNew, ColorParse, ColorFromHsv, ColorLerp,
 	VectorNew, VectorLerp, VectorDot, VectorCross, VectorDistance, VectorLength, VectorNormal,
 

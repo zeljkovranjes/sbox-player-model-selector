@@ -32,6 +32,10 @@ public static partial class ScriptLibrary
 			P( "y", N, "Up" ), P( "x", N, "Across" ) ) );
 		entries.Add( Function( "Math.Sqrt", Intrinsic.Sqrt, N, math, "The square root of x; 0 for a negative x.", "local s = Math.Sqrt( 16 ) --> 4", all, P( "x", N, "A number", "0 or more" ) ) );
 		entries.Add( Function( "Math.Pow", Intrinsic.Pow, N, math, "x to the power y; 0 where that isn't a number.", "local p = Math.Pow( 2, 10 ) --> 1024", all, P( "x", N, "The base" ), P( "y", N, "The power" ) ) );
+		entries.Add( Function( "Math.Exp", Intrinsic.Exp, N, math, "e (2.71828...) to the power x: Math.Exp( -k * t ) dies away smoothly from 1.", "local e = Math.Exp( 1 ) --> 2.7183\nlocal fading = Math.Exp( -3 ) --> 0.0498", all,
+			P( "x", N, "The power" ) ) );
+		entries.Add( Function( "Math.SmoothStep", Intrinsic.SmoothStep, N, math, "0 at or below from, 1 at or above to, easing smoothly between (like HLSL's smoothstep).", "local half = Math.SmoothStep( 0, 1, 0.5 ) --> 0.5\nlocal eased = Math.SmoothStep( 0, 1, 0.25 ) --> 0.1562", all,
+			P( "from", N, "Where it starts rising" ), P( "to", N, "Where it reaches 1" ), P( "x", N, "The number" ) ) );
 		entries.Add( Function( "Math.Noise", Intrinsic.Noise, N, math, "Smooth noise, 0 to 1, the same on every client: nearby inputs give nearby values.", "local n = Math.Noise( 0.5, 2 ) --> 0.2582", all,
 			P( "x", N, "Where along it" ), P( "y", N, "A second direction, for 2D noise", null, new[] { 0.0 } ) ) );
 		entries.Add( Function( "Math.Random", Intrinsic.Random, N, math, "A number from 0 up to 1 picked by seed: the same seed gives the same number on every client.", "local r = Math.Random( 7 ) --> 0.9843", all,

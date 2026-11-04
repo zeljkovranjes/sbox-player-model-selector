@@ -23,6 +23,7 @@ public sealed partial class ScriptMachine
 			case Script.Intrinsic.Tan: s[ sp - 1 ] = ScriptMath.Safe( Math.Tan( s[ sp - 1 ] ) ); return sp;
 			case Script.Intrinsic.Sqrt: s[ sp - 1 ] = s[ sp - 1 ] > 0 ? Math.Sqrt( s[ sp - 1 ] ) : 0; return sp;
 			case Script.Intrinsic.Random: s[ sp - 1 ] = ScriptMath.Random( s[ sp - 1 ] ); return sp;
+			case Script.Intrinsic.Exp: s[ sp - 1 ] = ScriptMath.Safe( Math.Exp( s[ sp - 1 ] ) ); return sp;
 			case Script.Intrinsic.Min: s[ sp - 2 ] = Math.Min( s[ sp - 2 ], s[ sp - 1 ] ); return sp - 1;
 			case Script.Intrinsic.Max: s[ sp - 2 ] = Math.Max( s[ sp - 2 ], s[ sp - 1 ] ); return sp - 1;
 			case Script.Intrinsic.Atan2: s[ sp - 2 ] = ScriptMath.Safe( Math.Atan2( s[ sp - 2 ], s[ sp - 1 ] ) ); return sp - 1;
@@ -35,6 +36,9 @@ public sealed partial class ScriptMachine
 				return sp - 2;
 			}
 
+			case Script.Intrinsic.SmoothStep:
+				s[ sp - 3 ] = ScriptMath.SmoothStep( s[ sp - 3 ], s[ sp - 2 ], s[ sp - 1 ] );
+				return sp - 2;
 			case Script.Intrinsic.Lerp:
 				s[ sp - 3 ] = Lerp( s[ sp - 3 ], s[ sp - 2 ], s[ sp - 1 ] );
 				return sp - 2;

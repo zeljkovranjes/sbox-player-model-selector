@@ -1009,6 +1009,34 @@ x to the power y; 0 where that isn't a number.
 local p = Math.Pow( 2, 10 ) --> 1024
 ```
 
+#### `Math.Exp( x: number ): number`
+
+e (2.71828...) to the power x: Math.Exp( -k * t ) dies away smoothly from 1.
+
+| Parameter | Type | Range | What it is |
+|---|---|---|---|
+| `x` | number | any | The power |
+
+```lua sticker
+local e = Math.Exp( 1 ) --> 2.7183
+local fading = Math.Exp( -3 ) --> 0.0498
+```
+
+#### `Math.SmoothStep( from: number, to: number, x: number ): number`
+
+0 at or below from, 1 at or above to, easing smoothly between (like HLSL's smoothstep).
+
+| Parameter | Type | Range | What it is |
+|---|---|---|---|
+| `from` | number | any | Where it starts rising |
+| `to` | number | any | Where it reaches 1 |
+| `x` | number | any | The number |
+
+```lua sticker
+local half = Math.SmoothStep( 0, 1, 0.5 ) --> 0.5
+local eased = Math.SmoothStep( 0, 1, 0.25 ) --> 0.1562
+```
+
 #### `Math.Noise( x: number, [y: number] ): number`
 
 Smooth noise, 0 to 1, the same on every client: nearby inputs give nearby values.

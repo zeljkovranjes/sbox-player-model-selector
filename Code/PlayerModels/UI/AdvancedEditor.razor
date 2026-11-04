@@ -26,6 +26,11 @@
         <div class="tool" Tooltip="Home" @onclick=@(() => _viewport?.FrameAll())>Frame all</div>
     </div>
 
+    @if ( ShownTab == Tab.Effects )
+    {
+        <TestBar class="tests" Stage=@Stage></TestBar>
+    }
+
     @if ( !string.IsNullOrEmpty( _viewport?.Status ) )
     {
         <div class="status">@_viewport.Status</div>

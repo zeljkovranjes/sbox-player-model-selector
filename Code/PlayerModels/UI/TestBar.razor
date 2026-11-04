@@ -1,0 +1,303 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Components
+@using PlayerModels.Core
+@using PlayerModels.Core.Script
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root class="@( Compact ? "compact" : "" )">
+    @foreach ( var action in Actions )
+    {
+        var shown = action;
+        <div class="test @( _last == shown.Name && _loop ? "looping" : "" )" Tooltip=@shown.Tip @onclick=@(() => Act( shown ))>
+            <div class="test-icon">@shown.Icon</div>
+            @if ( !Compact )
+            {
+                <TextLabel class="test-name" Text=@shown.Name></TextLabel>
+            }
+        </div>
+    }
+    @foreach ( var key in Keys() )
+    {
+        var shown = key;
+        <div class="test" Tooltip=@( $"Press {shown.ToUpperInvariant()}: here only, never sent, and with no wait" ) @onclick=@(() => Press( shown ))>
+            <KeyGlyph class="test-key" Key=@shown></KeyGlyph>
+        </div>
+    }
+    <div class="separator"></div>
+    <div class="test @( _walking ? "on" : "" )" Tooltip="Walk or run back and forth (trails, fading with speed, footprints)" @onclick=@ToggleWalk>
+        <div class="test-icon">@( _speed > WalkSpeed ? "directions_run" : "directions_walk" )</div>
+    </div>
+    <div class="test" Tooltip=@( $"Speed: {_speed:0} units a second" ) @onclick=@NextSpeed><TextLabel class="test-name" Text=@( $"{_speed:0}" )></TextLabel></div>
+    <div class="test @( _loop ? "on" : "" )" Tooltip=@( $"Loop: the last action again every {LoopSeconds:0} seconds" ) @onclick=@ToggleLoop><div class="test-icon">repeat</div></div>
+    <div class="test" Tooltip="Slow motion" @onclick=@NextSlow><TextLabel class="test-name" Text=@( $"{_slow:0.##}x" )></TextLabel></div>
+    <div class="test @( _paused ? "on" : "" )" Tooltip=@( _paused ? "Play" : "Pause" ) @onclick=@TogglePause><div class="test-icon">@( _paused ? "play_arrow" : "pause" )</div></div>
+    <div class="test @( _paused ? "" : "disabled" )" Tooltip="One frame on" @onclick=@Step><div class="test-icon">skip_next</div></div>
+</root>
+
+@code
+{
+    /// <summary>The preview the actions play on.</summary>
+    [Parameter] public ModelPreview Stage { get; set; }
+
+    /// <summary>Icons only, for a small preview.</summary>
+    [Parameter] public bool Compact { get; set; }
+
+    // The citizen's animation parameters the actions play
+    const string AttackParameter = "b_attack";
+    const string JumpParameter = "b_jump";
+    const string ReloadParameter = "b_reload";
+    const string HoldParameter = "holdtype";
+    const int Pistol = 1;
+    const int Melee = 5;
+
+    // How a fall, a hurt and footsteps come, and how far and fast the body walks
+    const float FallSpeed = 420f;
+    const float Damage = 25f;
+    const float StepSeconds = 0.35f;
+    const float WalkSpeed = 120f;
+    const float WalkReach = 50f;
+    const float LoopSeconds = 2f;
+    const float TargetDistance = 160f;
+    static readonly float[] Speeds = { 120f, 300f };
+    static readonly float[] Slows = { 1f, 0.5f, 0.25f };
+
+    sealed record Action( string Name, string Icon, string Tip, ScriptEvent Event );
+
+    static readonly Action[] Actions =
+    {
+        new( "Swing", "sports_martial_arts", "Swing or attack: the attack animation, as Sword slash and Blade trail show on", ScriptEvent.Shoot ),
+        new( "Shoot", "my_location", "Shoot at a target: tracers, impact sparks and the shot's hit", ScriptEvent.Hit ),
+        new( "Reload", "autorenew", "Reload", ScriptEvent.Reload ),
+        new( "Equip", "back_hand", "Take out a weapon", ScriptEvent.Equip ),
+        new( "Holster", "do_not_touch", "Put the weapon away", ScriptEvent.Holster ),
+        new( "Jump", "arrow_upward", "Jump", ScriptEvent.Jump ),
+        new( "Land", "arrow_downward", "Land from a height", ScriptEvent.Land ),
+        new( "Hurt", "healing", "Get hurt", ScriptEvent.Hurt ),
+        new( "Death", "sentiment_very_dissatisfied", "Die", ScriptEvent.Death ),
+        new( "Respawn", "replay", "Come back", ScriptEvent.Respawn ),
+        new( "Steps", "directions_walk", "Footsteps, left and right", ScriptEvent.Footstep ),
+    };
+
+    string _last;
+    bool _loop;
+    bool _walking;
+    bool _paused;
+    bool _stepping;
+    float _speed = WalkSpeed;
+    float _slow = 1f;
+    RealTimeSince _sinceLoop;
+    RealTimeSince _sinceStep;
+    int _foot;
+    bool _stepsOn;
+    Vector3 _home;
+    bool _hasHome;
+    GameObject _target;
+
+    protected override int BuildHash() => HashCode.Combine( _last, _loop, _walking, _paused, _speed, _slow, string.Join( ",", Keys() ), Compact );
+
+    EffectRack Rack() => Stage?.Body?.Effects ?? (Stage?.Citizen is { } citizen && citizen.IsValid() ? CitizenEffects.On( citizen )?.Effects : null);
+
+    // The keys the effects shown on the preview have
+    IEnumerable<string> Keys() => Stage?.Look?.Effects.Where( x => x.Key is not null ).Select( x => x.Key ).Distinct() ?? Enumerable.Empty<string>();
+
+    void Act( Action action )
+    {
+        _last = action.Name;
+        _sinceLoop = 0;
+        var citizen = Stage?.Citizen;
+        if ( citizen is null || !citizen.IsValid() )
+            return;
+
+        switch ( action.Event )
+        {
+            case ScriptEvent.Shoot:
+                citizen.Set( HoldParameter, Melee );
+                citizen.Set( AttackParameter, true );
+                Rack()?.Simulate( ScriptEvent.Shoot );
+                break;
+            case ScriptEvent.Hit:
+                PutTarget( citizen );
+                citizen.Set( HoldParameter, Pistol );
+                citizen.Set( AttackParameter, true );
+                Rack()?.Simulate( ScriptEvent.Shoot );
+                break;
+            case ScriptEvent.Reload:
+                citizen.Set( ReloadParameter, true );
+                Rack()?.Simulate( ScriptEvent.Reload );
+                break;
+            case ScriptEvent.Equip or ScriptEvent.Holster:
+                citizen.Set( HoldParameter, action.Event == ScriptEvent.Equip ? Pistol : 0 );
+                Rack()?.Simulate( action.Event );
+                break;
+            case ScriptEvent.Jump:
+                citizen.Set( JumpParameter, true );
+                Rack()?.Simulate( ScriptEvent.Jump );
+                break;
+            case ScriptEvent.Land:
+                Rack()?.Simulate( ScriptEvent.Land, FallSpeed );
+                break;
+            case ScriptEvent.Hurt:
+                Rack()?.Simulate( ScriptEvent.Hurt, Damage );
+                break;
+            case ScriptEvent.Footstep:
+                _stepsOn = !_stepsOn;
+                break;
+            default:
+                Rack()?.Simulate( action.Event );
+                break;
+        }
+
+        StateHasChanged();
+    }
+
+    // A key pressed on the preview: its effects' OnKey, here only, with no wait
+    void Press( string key )
+    {
+        _last = null;
+        Rack()?.Simulate( ScriptEvent.Key );
+    }
+
+    // A wall in front of the body to shoot at, in the preview's own scene
+    void PutTarget( SkinnedModelRenderer citizen )
+    {
+        if ( _target.IsValid() )
+            return;
+
+        using ( citizen.Scene.Push() )
+        {
+            _target = new GameObject( true, "Test target" );
+            _target.NetworkMode = NetworkMode.Never;
+            _target.Flags |= GameObjectFlags.NotSaved;
+            _target.WorldPosition = citizen.WorldPosition + citizen.WorldRotation.Forward * TargetDistance + Vector3.Up * 40f;
+            _target.WorldScale = new Vector3( 0.2f, 2f, 2f );
+            var model = _target.AddComponent<ModelRenderer>();
+            model.Model = Model.Load( "models/dev/box.vmdl" );
+            var collider = _target.AddComponent<BoxCollider>();
+            collider.Scale = new Vector3( 50f, 50f, 50f );
+        }
+    }
+
+    void ToggleWalk()
+    {
+        _walking = !_walking;
+        StateHasChanged();
+    }
+
+    void NextSpeed()
+    {
+        _speed = Speeds[ (Array.IndexOf( Speeds, _speed ) + 1) % Speeds.Length ];
+        StateHasChanged();
+    }
+
+    void ToggleLoop()
+    {
+        _loop = !_loop;
+        _sinceLoop = 0;
+        StateHasChanged();
+    }
+
+    void NextSlow()
+    {
+        _slow = Slows[ (Array.IndexOf( Slows, _slow ) + 1) % Slows.Length ];
+        UseTime();
+        StateHasChanged();
+    }
+
+    void TogglePause()
+    {
+        _paused = !_paused;
+        UseTime();
+        StateHasChanged();
+    }
+
+    // One frame on, then paused again
+    void Step()
+    {
+        if ( !_paused || Stage?.Citizen?.Scene is not { } scene )
+            return;
+
+        _stepping = true;
+        scene.TimeScale = _slow;
+    }
+
+    void UseTime()
+    {
+        if ( Stage?.Citizen?.Scene is { } scene )
+            scene.TimeScale = _paused ? 0f : _slow;
+    }
+
+    public override void Tick()
+    {
+        base.Tick();
+        var citizen = Stage?.Citizen;
+        if ( citizen is null || !citizen.IsValid() )
+            return;
+
+        if ( _stepping )
+        {
+            _stepping = false;
+            UseTime();
+        }
+
+        if ( _loop && _last is not null && _sinceLoop >= LoopSeconds && Actions.FirstOrDefault( x => x.Name == _last ) is { } again )
+            Act( again );
+
+        if ( _stepsOn && _sinceStep >= StepSeconds )
+        {
+            _sinceStep = 0;
+            _foot = 1 - _foot;
+            Rack()?.Simulate( ScriptEvent.Footstep, (float)(_foot == 0 ? Effect.Joint.LeftFoot : Effect.Joint.RightFoot) );
+        }
+
+        Walk( citizen );
+    }
+
+    // Back and forth along the way it faces, at the speed chosen, its legs walking or running
+    void Walk( SkinnedModelRenderer citizen )
+    {
+        if ( !_hasHome )
+        {
+            _home = citizen.GameObject.WorldPosition;
+            _hasHome = true;
+        }
+
+        if ( !_walking )
+        {
+            if ( citizen.GameObject.WorldPosition != _home )
+            {
+                citizen.GameObject.WorldPosition = _home;
+                citizen.Set( "move_speed", 0f );
+                citizen.Set( "move_x", 0f );
+                citizen.Set( "wish_x", 0f );
+            }
+
+            return;
+        }
+
+        var phase = RealTime.Now * _speed / WalkReach;
+        var along = MathF.Sin( phase ) * WalkReach;
+        var going = MathF.Cos( phase ) * _speed;
+        citizen.GameObject.WorldPosition = _home + citizen.WorldRotation.Forward * along;
+        citizen.Set( "move_speed", MathF.Abs( going ) );
+        citizen.Set( "move_groundspeed", MathF.Abs( going ) );
+        citizen.Set( "move_x", going );
+        citizen.Set( "wish_x", going );
+        citizen.Set( "b_grounded", true );
+    }
+
+    public override void OnDeleted()
+    {
+        base.OnDeleted();
+        if ( _target.IsValid() )
+            _target.Destroy();
+
+        if ( Stage?.Citizen?.Scene is { } scene )
+            scene.TimeScale = 1f;
+    }
+}

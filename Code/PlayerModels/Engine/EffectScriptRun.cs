@@ -139,6 +139,18 @@ internal sealed class EffectScriptRun : IScriptHost
 		ApplyLive();
 	}
 
+	/// <summary>Runs <paramref name="scriptEvent"/> now with <paramref name="amount"/> (a preview's test bar), then gives its layers what it changed.</summary>
+	internal void Simulate( ScriptEvent scriptEvent, float amount )
+	{
+		IO.Set( ScriptInput.Amount, amount );
+		IO.Set( ScriptInput.Foot, amount );
+		if ( scriptEvent == ScriptEvent.Key )
+			IO.Set( ScriptInput.Key, Math.Max( 0, _key ) );
+
+		Event( scriptEvent );
+		ApplyLive();
+	}
+
 	/// <summary>
 	/// Runs layer <paramref name="layer"/>'s particle function for the sprite whose inputs and outputs <see cref="IO"/>
 	/// holds, within what the body and the frame have left; false when it didn't run to the end (out of budget, or it

@@ -132,6 +132,23 @@ internal sealed partial class EffectRack
 		}
 	}
 
+	/// <summary>
+	/// Makes <paramref name="scriptEvent"/> happen to the body now, for a preview's test bar: a layer showing on it shows,
+	/// and every script handling it runs it (with <paramref name="amount"/>: a fall's speed, a hurt's damage, a foot).
+	/// Only here: nothing is sent, nothing is held to a rate.
+	/// </summary>
+	internal void Simulate( ScriptEvent scriptEvent, float amount = 0f )
+	{
+		if ( Enum.TryParse<LayerWhen>( "On" + scriptEvent, out var when ) )
+		{
+			_signals.Simulate( when, amount );
+			return;
+		}
+
+		for ( var e = 0; e < _effects; e++ )
+			_runs[ e ]?.Simulate( scriptEvent, amount );
+	}
+
 	// Lets go of the effects' scripts with their layers
 	private void ForgetRuns()
 	{

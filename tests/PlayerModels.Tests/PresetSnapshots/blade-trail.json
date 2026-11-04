@@ -1,0 +1,1 @@
+{"id":"","n":"Blade trail","a":{"j":"RightHand","k":"HeldWeapon"},"l":[{"k":"Trail","c":"#ffffff","c2":"#5a9aff","a":5,"b":0.5,"t":0.25,"n":10,"fs":true},{"k":"Sprite","s":"Sphere","r":1,"p":"Spark","c":"#fff4c8","c2":"#ff9a3a","a":1.8,"b":0.4,"v":90,"g":220,"t":0.45,"n":0,"wh":"OnShoot","bu":16}]}

@@ -16,7 +16,8 @@ public static partial class PresetScripts
 		("Glowing eyes", GlowingEyes), ("Fire hands", FireHands), ("Sparkle halo", SparkleHalo), ("Holy aura", HolyAura),
 		("Dark aura", DarkAura), ("Hearts", Hearts), ("Snow cloud", SnowCloud), ("Rain cloud", RainCloud),
 		("Electric body", ElectricBody), ("Magic orbs", MagicOrbs), ("Flame head", FlameHead), ("Lantern hand", LanternHand),
-		("Speed trail", SpeedTrail), ("Sword slash", SwordSlash), ("Confetti burst", ConfettiBurst), ("Rainbow", Rainbow),
+		("Speed trail", SpeedTrail), ("Sword slash", SwordSlash), ("Blade trail", BladeTrail), ("Confetti burst", ConfettiBurst),
+		("Rainbow", Rainbow), ("Bullet tracer", BulletTracer), ("Muzzle flash", MuzzleFlash), ("Impact sparks", ImpactSparks),
 	};
 
 	/// <summary>

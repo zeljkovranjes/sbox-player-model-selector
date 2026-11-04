@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 
 namespace PlayerModels.Core;
@@ -17,7 +18,13 @@ public sealed class SharePost
 	/// <summary>The longest description.</summary>
 	public const int MaxDescriptionLength = 128;
 
-	// Past any real armature or look, items included, with room in a record (64 KB) for the JSON around it
+	/// <summary>
+	/// The most a record holds, in UTF-8 bytes: the Workshop's own limit on a record's value. A post past it isn't
+	/// published, and one read past it (hand-made) isn't one.
+	/// </summary>
+	public const int MaxRecordBytes = 65536;
+
+	// Past any real armature, look, effect or shape, items included, with room in a record for the JSON around it
 	private const int MaxItemLength = 32 * 1024;
 	private const int MaxKindLength = 32;
 	private const int MaxModelLength = 512;
@@ -50,7 +57,8 @@ public sealed class SharePost
 	/// </summary>
 	public static SharePost Parse( string json )
 	{
-		if ( string.IsNullOrWhiteSpace( json ) )
+		// A character is at least a byte: longer than a record holds is refused before it is read
+		if ( string.IsNullOrWhiteSpace( json ) || json.Length > MaxRecordBytes )
 			return null;
 
 		SharePost post;
@@ -69,6 +77,15 @@ public sealed class SharePost
 		post.Name = Tidy( post.Name, MaxNameLength );
 		post.Description = Tidy( post.Description, MaxDescriptionLength );
 		return post;
+	}
+
+	/// <summary>Why <paramref name="json"/> (a post as it is published) can't be: past what a record holds; null when it can.</summary>
+	public static string TooBig( string json )
+	{
+		var bytes = Encoding.UTF8.GetByteCount( json ?? "" );
+		return bytes <= MaxRecordBytes && (json ?? "").Length > 0 && Parse( json ) is not null
+			? null
+			: $"Too big to publish: {bytes / 1024f:0.0} KB of the {MaxRecordBytes / 1024} KB a share holds.";
 	}
 
 	/// <summary>

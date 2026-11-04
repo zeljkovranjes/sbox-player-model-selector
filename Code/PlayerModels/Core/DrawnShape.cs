@@ -218,6 +218,28 @@ public sealed class DrawnShape
 		};
 	}
 
+	/// <summary>The longest shape read from the Workshop or a code, as JSON: past the longest a shape within its caps can be.</summary>
+	public const int MaxSharedLength = 16 * 1024;
+
+	/// <summary>A shape shared as JSON (see <see cref="SharedForm"/>), within bounds, or null when it isn't one.</summary>
+	public static DrawnShape ParseShared( string json )
+	{
+		if ( string.IsNullOrWhiteSpace( json ) || json.Length > MaxSharedLength || !json.TrimStart().StartsWith( '{' ) )
+			return null;
+
+		try
+		{
+			return JsonSerializer.Deserialize<DrawnShape>( json )?.Sanitized();
+		}
+		catch ( JsonException )
+		{
+			return null;
+		}
+	}
+
+	/// <summary>The shape as it is shared: within bounds.</summary>
+	public string SharedForm() => Sanitized() is { } copy ? JsonSerializer.Serialize( copy ) : "";
+
 	/// <summary>A copy with another name, kept within bounds.</summary>
 	public DrawnShape Named( string name ) => new DrawnShape { Name = name, Strokes = Strokes, Sticker = Sticker, ForkedFrom = ForkedFrom }.Sanitized();
 

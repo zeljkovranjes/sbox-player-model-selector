@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
@@ -236,6 +237,63 @@ public sealed class Effect
 		}
 
 		return kept;
+	}
+
+	/// <summary>The longest effect read from the Workshop or a code, as JSON: far past any real one.</summary>
+	public const int MaxSharedLength = 32 * 1024;
+
+	/// <summary>
+	/// An effect shared as JSON (see <see cref="SharedForm"/>), within bounds and carrying its drawn shapes, or null when it
+	/// isn't one: unreadable, too long, or with nothing to show.
+	/// </summary>
+	public static Effect ParseShared( string json )
+	{
+		if ( string.IsNullOrWhiteSpace( json ) || json.Length > MaxSharedLength || !json.TrimStart().StartsWith( '{' ) )
+			return null;
+
+		try
+		{
+			return JsonSerializer.Deserialize<Effect>( json )?.Sanitized();
+		}
+		catch ( JsonException )
+		{
+			return null;
+		}
+	}
+
+	/// <summary>The effect as it is shared: within bounds, switched on, with the drawn shapes it carries.</summary>
+	public string SharedForm()
+	{
+		var copy = Sanitized();
+		if ( copy is null )
+			return "";
+
+		copy.Off = false;
+		return JsonSerializer.Serialize( copy );
+	}
+
+	/// <summary>
+	/// Whether <paramref name="other"/> is the same effect: the same layers, place, sliders and shapes, whatever it is
+	/// called, whether it is on, its key and where it came from. The same one is never shared twice.
+	/// </summary>
+	public bool SameAs( Effect other )
+	{
+		return other is not null && Comparable( this ) == Comparable( other );
+	}
+
+	private static string Comparable( Effect effect )
+	{
+		var copy = effect.Sanitized();
+		if ( copy is null )
+			return "";
+
+		copy.Id = "";
+		copy.Name = "";
+		copy.Off = false;
+		copy.Key = null;
+		copy.ForkedFrom = null;
+		copy.Shapes = null;
+		return JsonSerializer.Serialize( copy );
 	}
 
 	/// <summary>An id none of <paramref name="effects"/> has: "e1", "e2" and so on.</summary>

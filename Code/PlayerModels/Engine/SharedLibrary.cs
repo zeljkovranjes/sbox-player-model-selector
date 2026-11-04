@@ -9,17 +9,22 @@ using Sandbox.Services;
 namespace PlayerModels.Engine;
 
 /// <summary>
-/// Things of one kind players share for models (armatures, looks), kept in the addon's cloud tables
-/// (<see cref="Database"/>): a public record for each thing published (a <see cref="SharePost"/>: the item with the name and
-/// description its author gave it), grouped by model, and one public vote per player per item, grouped as an up or a
-/// down vote on it so the votes are counted without being read. What is published stays as it was published: changing
-/// it means publishing it again, as a new one, and taking the old one down. Each share is also kept by its author
-/// (<see cref="AuthorIndex"/>). Calls fail with the backend's own exception; <see cref="Shared.Why"/> words it.
+/// Things of one kind players share for models (armatures, looks), or for everyone (effects, shapes: see
+/// <see cref="Shared.Everyone"/>), kept in the addon's cloud tables (<see cref="Database"/>): a public record for each thing
+/// published (a <see cref="SharePost"/>: the item with the name and description its author gave it), grouped by model,
+/// and one public vote per player per item, grouped as an up or a down vote on it so the votes are counted without being
+/// read. What is published stays as it was published: changing it means publishing it again, as a new one, and taking
+/// the old one down. Each share is also kept by its author (<see cref="AuthorIndex"/>). What is listed is kept for a
+/// little while, so pages opening one after another don't each ask again, and writes are spaced out (see
+/// <see cref="Shared.PaceAsync"/>). Calls fail with the backend's own exception; <see cref="Shared.Why"/> words it.
 /// </summary>
 public sealed class SharedLibrary<T>
 {
-	/// <summary>The most one player has published for one model at a time.</summary>
+	/// <summary>The most one player has published for one model (for armatures and looks) at a time.</summary>
 	internal const int MaxPerPlayer = 5;
+
+	// How long a model's list is kept before it is asked for again, unless this player changed it meanwhile
+	private const float ListLife = 20f;
 
 	// The most listed for one model: the votes on all of them are counted in one ask, two groups each (100 at most)
 	private const int MaxListed = 50;
@@ -37,18 +42,21 @@ public sealed class SharedLibrary<T>
 	private readonly Func<T, string> _serialize;
 	private readonly Func<T, string> _modelOf;
 	private readonly Func<T, T, bool> _same;
+	private readonly int _perPlayer;
 	private readonly Dictionary<string, (long Count, RealTimeSince Age)> _counts = new();
 	private readonly Dictionary<string, (long Written, long Votes)> _votesCounted = new();
+	private readonly Dictionary<string, (Task<List<Entry>> Listing, RealTimeSince Age)> _listed = new();
 
 	/// <summary>
 	/// The items of <paramref name="kind"/> ("armature", "look") kept in table <paramref name="table"/> (their votes in
 	/// table <paramref name="votes"/>), read by <paramref name="parse"/> (null for anything that isn't one), written by
 	/// <paramref name="serialize"/>, made for the model <paramref name="modelOf"/> says, and alike when
-	/// <paramref name="same"/> says.
+	/// <paramref name="same"/> says; each player may have <paramref name="perPlayer"/> published for a model at once.
 	/// </summary>
 	internal SharedLibrary( string kind, string table, string votes, Func<string, T> parse, Func<T, string> serialize, Func<T, string> modelOf,
-		Func<T, T, bool> same )
+		Func<T, T, bool> same, int perPlayer = MaxPerPlayer )
 	{
+		_perPlayer = perPlayer;
 		_kind = kind;
 		_table = table;
 		_votes = votes;
@@ -61,10 +69,13 @@ public sealed class SharedLibrary<T>
 	/// <summary>What one item is called ("armature", "look").</summary>
 	internal string Kind => _kind;
 
+	/// <summary>The most one player has published for one model at a time.</summary>
+	internal int PerPlayer => _perPlayer;
+
 	/// <summary>
 	/// An item shared for a model: its record, who shared it, the name and description they gave it, and how it was rated.
 	/// </summary>
-	internal sealed record Entry( long Id, long Author, T Item, string Name, string Description, DateTimeOffset Changed, long Up, long Down )
+	public sealed record Entry( long Id, long Author, T Item, string Name, string Description, DateTimeOffset Changed, long Up, long Down )
 	{
 		/// <summary>Up votes less down votes.</summary>
 		internal long Score => Up - Down;
@@ -91,7 +102,20 @@ public sealed class SharedLibrary<T>
 	/// is, and no player is listed more often than they may publish: only the client checks that when publishing, so
 	/// what is listed is what any client could have written, read within bounds. Ratings count one vote per player.
 	/// </summary>
-	internal async Task<List<Entry>> ListAsync( string model )
+	internal Task<List<Entry>> ListAsync( string model )
+	{
+		if ( _listed.TryGetValue( model, out var listed ) && listed.Age < ListLife && !listed.Listing.IsFaulted && !listed.Listing.IsCanceled )
+			return listed.Listing;
+
+		var listing = ReadListAsync( model );
+		_listed[ model ] = (listing, 0f);
+		return listing;
+	}
+
+	// What is listed for a model is asked for again next time: this player changed it
+	private void Forget( string model ) => _listed.Remove( model );
+
+	private async Task<List<Entry>> ReadListAsync( string model )
 	{
 		var records = await Shared.ReadAsync( Database.GetTable( _table ), GroupOf( model ) );
 		var shared = records
@@ -99,7 +123,7 @@ public sealed class SharedLibrary<T>
 			.Select( x => (x.Record, x.Post, Item: x.Post is null ? default : Parse( x.Post.Item )) )
 			.Where( x => x.Item is not null && x.Post.Kind == _kind && x.Post.Model == model && _modelOf( x.Item ) == model )
 			.GroupBy( x => x.Record.OwnerSteamId )
-			.SelectMany( x => x.OrderByDescending( y => y.Record.CreatedAt ).Take( MaxPerPlayer ) )
+			.SelectMany( x => x.OrderByDescending( y => y.Record.CreatedAt ).Take( _perPlayer ) )
 			.OrderByDescending( x => x.Record.CreatedAt )
 			.Take( MaxListed )
 			.ToList();
@@ -165,20 +189,19 @@ public sealed class SharedLibrary<T>
 	internal async Task<Entry> ShareAsync( T item, string name, string description )
 	{
 		var model = _modelOf( item );
+		Forget( model );
 		if ( (await ListAsync( model )).FirstOrDefault( x => Same( x.Item, item ) ) is { } same )
 			return same;
 
-		var post = new SharePost
-		{
-			Kind = _kind,
-			Model = model,
-			Name = SharePost.Tidy( name, SharePost.MaxNameLength ),
-			Description = SharePost.Tidy( description, SharePost.MaxDescriptionLength ),
-			Item = _serialize( item ),
-		};
+		var post = PostOf( item, name, description );
+		var text = post.Serialize();
+		if ( SharePost.TooBig( text ) is { } why )
+			throw new ArgumentException( why );
 
-		var record = await Database.GetTable( _table ).Create( NewKey(), post.Serialize(), GroupOf( model ), isPublic: true );
+		await Shared.PaceAsync();
+		var record = await Database.GetTable( _table ).Create( NewKey(), text, GroupOf( model ), isPublic: true );
 		_counts.Remove( model );
+		Forget( model );
 
 		// The share stands without it; only the author's list of shares misses it
 		try
@@ -193,6 +216,19 @@ public sealed class SharedLibrary<T>
 		return null;
 	}
 
+	/// <summary>
+	/// <paramref name="item"/> as it would be published under <paramref name="name"/> with <paramref name="description"/>:
+	/// for its size, before publishing (see <see cref="SharePost.TooBig"/>).
+	/// </summary>
+	internal SharePost PostOf( T item, string name, string description ) => new()
+	{
+		Kind = _kind,
+		Model = _modelOf( item ),
+		Name = SharePost.Tidy( name, SharePost.MaxNameLength ),
+		Description = SharePost.Tidy( description, SharePost.MaxDescriptionLength ),
+		Item = _serialize( item ),
+	};
+
 	/// <summary>Takes down what this player published as record <paramref name="id"/>. False when it isn't theirs.</summary>
 	internal async Task<bool> UnshareAsync( long id, string model )
 	{
@@ -200,8 +236,10 @@ public sealed class SharedLibrary<T>
 		if ( record is null || record.OwnerSteamId != Game.SteamId.Value )
 			return false;
 
+		await Shared.PaceAsync();
 		await record.Delete();
 		_counts.Remove( model );
+		Forget( model );
 
 		try
 		{
@@ -225,13 +263,20 @@ public sealed class SharedLibrary<T>
 		foreach ( var group in new[] { UpGroup( id ), DownGroup( id ) } )
 		{
 			foreach ( var record in (await table.ListOwned( group, 0, 1 )).Records )
+			{
+				await Shared.PaceAsync();
 				await record.Delete();
+			}
 		}
 
 		if ( vote != 0 )
+		{
+			await Shared.PaceAsync();
 			await table.Create( Votes.KeyOf( id, Game.SteamId.Value ), "1", vote > 0 ? UpGroup( id ) : DownGroup( id ), isPublic: true );
+		}
 
 		LocalPrefs.SetVote( VoteKey( id ), vote );
+		_listed.Clear();
 	}
 
 	/// <summary>How this player rated the item with record id <paramref name="id"/>: 1 up, -1 down, 0 not at all.</summary>

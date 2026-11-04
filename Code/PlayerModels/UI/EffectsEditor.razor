@@ -9,10 +9,33 @@
 @inherits Panel
 @namespace PlayerModels.UI
 
-<root>
+<root class="@( Workshop && !_guides ? "workshop" : "" )">
     @if ( _guides )
     {
         <EffectGuides Back=@(() => ShowGuides( false ))></EffectGuides>
+    }
+    else if ( Workshop && Look is not null )
+    {
+        <div class="workshop-tabs">
+            <div class="workshop-tab @( _shapesTab ? "" : "active" )" @onclick=@(() => ShowShapesTab( false ))>Effects</div>
+            <div class="workshop-tab @( _shapesTab ? "active" : "" )" @onclick=@(() => ShowShapesTab( true ))>Shapes &amp; stickers</div>
+        </div>
+        @if ( _shapesTab )
+        {
+            <SharingPanel T="DrawnShape" Library=@Shared.Shapes Noun="shape" ModelId=@Shared.Everyone Scope=@Everywhere Workshop=@true Pictures=@true Searchable=@true
+                          Intro="Shapes and stickers players made: Top lists the best rated first, New the newest. Use one to keep it in My shapes; Fork opens it in the shape creator."
+                          Facets=@ShapeFacets UseEntry=@UseSharedShape Fork=@ForkShape ForkTip="Open a copy of it in the shape creator, to change and publish as your own"
+                          OriginOf=@(( DrawnShape x ) => x.ForkedFrom) Describe=@ShapeCreator.DescribeShape
+                          Back=@(() => ShowWorkshop?.Invoke( false ))></SharingPanel>
+        }
+        else
+        {
+            <SharingPanel T="Effect" Library=@Shared.Effects Noun="effect" ModelId=@Shared.Everyone Scope=@Everywhere Workshop=@true Pictures=@true Searchable=@true
+                          Intro="Effects and single layers players shared: Top lists the best rated first, New the newest. Use one to wear a copy (a layer joins the effect you selected); Fork opens a copy in the Advanced editor."
+                          Facets=@EffectFacets UseEntry=@UseSharedEffect Fork=@ForkEffect ForkTip="Open a copy of it in the Advanced editor, to change and publish as your own"
+                          OriginOf=@(( Effect x ) => x.ForkedFrom) Describe=@DescribeEffect
+                          Back=@(() => ShowWorkshop?.Invoke( false ))></SharingPanel>
+        }
     }
     else if ( Look is null )
     {
@@ -25,6 +48,7 @@
             <div class="tool @( History?.CanUndo == true ? "" : "disabled" )" Tooltip="Undo the last change to your effects" @onclick=@(() => Undo?.Invoke())>undo</div>
             <div class="tool @( History?.CanRedo == true ? "" : "disabled" )" Tooltip="Redo" @onclick=@(() => Redo?.Invoke())>redo</div>
             <div class="reset" Tooltip="What each part of an effect is, and how to do the harder things" @onclick=@(() => ShowGuides( true ))>Guides</div>
+            <div class="reset" Tooltip="Effects, shapes and stickers players shared" @onclick=@(() => ShowWorkshop?.Invoke( true ))>Workshop</div>
             <div class="reset @( Selected is null ? "disabled" : "" )" Tooltip=@( Selected is null ? "Select an effect you wear first" : "Every layer of it, placed by hand" )
                  @onclick=@(() => OpenAdvanced?.Invoke( Selected?.Id ))>Edit in Advanced editor</div>
         </div>
@@ -112,6 +136,10 @@
         @if ( Selected is { } selected )
         {
             <div class="section-header">@selected.Name</div>
+            @if ( selected.ForkedFrom is { } origin )
+            {
+                <div class="note">@ShapeCreator.BasedOn( origin )</div>
+            }
             <SliderRow Label="Color" Value=@selected.Hue OnChanged=@(( float value ) => Set( () => selected.Hue = value ))></SliderRow>
             <SliderRow Label="Size" Signed=@true Value=@selected.Size OnChanged=@(( float value ) => Set( () => selected.Size = value ))></SliderRow>
             <SliderRow Label="Amount" Signed=@true Value=@selected.Amount OnChanged=@(( float value ) => Set( () => selected.Amount = value ))></SliderRow>
@@ -148,6 +176,8 @@
                            Value:bind=@_keepName @onsubmit=@(() => Keep( selected ))></TextEntry>
                 <div class="reset @( Mine.Count >= LocalPrefs.MaxMyEffects ? "disabled" : "" )" @onclick=@(() => Keep( selected ))>Save to My effects</div>
             </div>
+            <SharingPanel T="Effect" Library=@Shared.Effects Noun="effect" ModelId=@Shared.Everyone Scope=@Everywhere Current=@Shareable( selected )
+                          ShareLabel="Share this effect" Describe=@DescribeEffect Workshop=@false></SharingPanel>
 
             <div class="row">
                 <div class="label">Key</div>
@@ -179,7 +209,7 @@
         }
     }
 
-    @if ( Selector is { } selector && !_guides )
+    @if ( Selector is { } selector && !_guides && !Workshop )
     {
         <div class="section-header">What You See</div>
         <div class="setting">
@@ -210,6 +240,15 @@
     /// <summary>Opens the Advanced editor on the effect given, by id.</summary>
     [Parameter] public Action<string> OpenAdvanced { get; set; }
 
+    /// <summary>Whether the Workshop shows (effects, shapes and stickers players shared) in place of the effects.</summary>
+    [Parameter] public bool Workshop { get; set; }
+
+    /// <summary>Opens the Workshop (true) or goes back to the effects (false); the page decides, as its pane fits the Workshop.</summary>
+    [Parameter] public Action<bool> ShowWorkshop { get; set; }
+
+    /// <summary>Opens the Advanced editor's shape creator on a copy of the shape given (a fork from the Workshop).</summary>
+    [Parameter] public Action<DrawnShape> OpenShapeCreator { get; set; }
+
     /// <summary>The steps back and forward through changes to the effects, and what takes them.</summary>
     [Parameter] public EditHistory History { get; set; }
     [Parameter] public Action Undo { get; set; }
@@ -238,9 +277,168 @@
 
     bool IsFull => Look.Effects.Count >= Effect.MaxWorn;
 
-    protected override int BuildHash() => HashCode.Combine( Look?.Serialize(), _selected, _guides, Locked, Selector?.EffectsBudget, Selector?.EffectsQuality,
+    // The look as text, as last drawn: what the panel is drawn again for
+    string _lookText;
+
+    protected override int BuildHash() => HashCode.Combine( _lookText = Look?.Serialize(), _selected, _guides, Locked, Selector?.EffectsBudget, Selector?.EffectsQuality,
         string.Join( ";", Others().Select( x => $"{x.Id}{Selector?.HidesEffectsOf( x )}" ) ),
-        HashCode.Combine( (int)(Selector?.TriggerWait() ?? 0f), History?.CanUndo, History?.CanRedo, _mineRevision, _status, _variationsOf, _variations ) );
+        HashCode.Combine( (int)(Selector?.TriggerWait() ?? 0f), History?.CanUndo, History?.CanRedo, _mineRevision, _status, _variationsOf, _variations,
+            HashCode.Combine( Workshop, _shapesTab ) ) );
+
+    // Effects and shapes are shared for everyone, not for a model
+    const string Everywhere = "";
+
+    // Which of the Workshop's tabs shows: shapes and stickers, or effects
+    bool _shapesTab;
+
+    void ShowShapesTab( bool shapes )
+    {
+        _shapesTab = shapes;
+        StateHasChanged();
+    }
+
+    // The selected effect as it would be shared, carrying its drawn shapes: made again only when the look changes
+    Effect _shareable;
+    string _shareableFor;
+
+    Effect Shareable( Effect effect )
+    {
+        var key = effect.Id + _lookText;
+        if ( key != _shareableFor )
+        {
+            _shareableFor = key;
+            _shareable = Look.Standalone( effect );
+        }
+
+        return _shareable;
+    }
+
+    /// <summary>What a row says about an effect: how many layers, of what, and where it comes from.</summary>
+    public static string DescribeEffect( Effect effect )
+    {
+        var kinds = effect.Layers.Select( x => x.KindIs ).Distinct().Select( x => x switch { LayerKind.Light => "light", LayerKind.Trail => "trail", _ => "sprites" } );
+        var layers = effect.Layers.Count == 1 ? "One layer" : $"{effect.Layers.Count} layers";
+        return $"{layers}: {string.Join( ", ", kinds )}, from the {AnchorWords( effect.Anchor )}";
+    }
+
+    static string AnchorWords( EffectAnchor anchor ) => anchor.KindIs switch
+    {
+        AnchorKind.Item => "item worn",
+        AnchorKind.HeldWeapon => "weapon held",
+        _ => anchor.Joint switch
+        {
+            nameof( Effect.Joint.LeftEye ) or nameof( Effect.Joint.RightEye ) or nameof( Effect.Joint.Eyes ) => "eyes",
+            nameof( Effect.Joint.LeftHand ) or nameof( Effect.Joint.RightHand ) => "hands",
+            nameof( Effect.Joint.LeftFoot ) or nameof( Effect.Joint.RightFoot ) => "feet",
+            nameof( Effect.Joint.Crown ) => "top of the head",
+            _ => anchor.Joint.ToLowerInvariant(),
+        },
+    };
+
+    // What an effect share is filtered by: where it comes from, whether it is a whole effect or one layer, what it has
+    static IEnumerable<string> EffectFacets( Effect effect )
+    {
+        yield return $"Comes from: {AnchorWords( effect.Anchor )}";
+        yield return effect.Layers.Count == 1 ? "Kind: single layer" : "Kind: whole effect";
+        foreach ( var kind in effect.Layers.Select( x => x.KindIs ).Distinct() )
+            yield return $"Has: {kind switch { LayerKind.Light => "a light", LayerKind.Trail => "a trail", _ => "sprites" }}";
+
+        if ( effect.Shapes is { Count: > 0 } )
+            yield return "Has: drawn shapes";
+    }
+
+    static IEnumerable<string> ShapeFacets( DrawnShape shape )
+    {
+        yield return shape.Sticker is null ? "Kind: shape" : "Kind: sticker";
+        if ( shape.Sticker is { IsAnimated: true } sticker )
+            yield return $"Moves: {sticker.AnimationIs.ToString().ToLowerInvariant()}";
+    }
+
+    static ShareOrigin OriginOf<T>( SharedLibrary<T>.Entry entry, string kind ) => new() { Kind = kind, Id = entry.Id, Name = entry.Name, Author = entry.Author };
+
+    // A copy of the share to wear, crediting it: a single layer joins the selected effect when it has room, anything else
+    // is an effect of its own. Budget-checked like any effect put on
+    string UseSharedEffect( SharedLibrary<Effect>.Entry entry )
+    {
+        var copy = EffectPresets.Copy( entry.Item, Look.Effects );
+        copy.ForkedFrom = OriginOf( entry, ShareOrigin.EffectKind );
+        copy.Name = string.IsNullOrEmpty( entry.Name ) ? copy.Name : SharePost.Tidy( entry.Name, Effect.MaxNameLength );
+        var who = Whose( entry );
+
+        if ( copy.Layers.Count == 1 && Selected is { } selected && selected.Layers.Count < Effect.MaxLayers && LayersWorn() < Effect.MaxLookLayers )
+        {
+            foreach ( var shape in copy.Shapes ?? new() )
+            {
+                if ( !Look.Carry( shape ) )
+                    return $"A look carries up to {DrawnShape.MaxPerLook} drawn shapes, and this would take it past that.";
+            }
+
+            var layer = copy.Layers[ 0 ];
+            layer.Joint ??= copy.Anchor.KindIs == AnchorKind.Joint && copy.Anchor.Joint != selected.Anchor.Joint ? copy.Anchor.Joint : null;
+            selected.Layers.Add( layer );
+            Changed?.Invoke();
+            return $"Added {who} layer \"{entry.Name}\" to {selected.Name}. Apply wears it.";
+        }
+
+        if ( IsFull || LayersWorn() + copy.Layers.Count > Effect.MaxLookLayers )
+            return $"You wear as many effects as a look can ({Effect.MaxWorn} effects, {Effect.MaxLookLayers} layers). Remove one first.";
+
+        if ( !Look.Adopt( copy ) )
+            return $"A look carries up to {DrawnShape.MaxPerLook} drawn shapes, and this would take it past that. Remove an effect with drawn shapes first.";
+
+        _selected = copy.Id;
+        Changed?.Invoke();
+        return Budget.Fits( Look.Effects ) ? $"Put on {who} effect \"{entry.Name}\". Apply wears it."
+            : $"Put on {who} effect \"{entry.Name}\", but it is over this server's budget: its last layers wait until you remove some.";
+    }
+
+    // "your", "Ana's", or "a player's" while Steam doesn't say whose
+    static string Whose( SharedLibrary<Effect>.Entry entry )
+    {
+        var name = AuthorIndex.NameOf( entry.Author );
+        return entry.IsMine ? "your" : name == "A player" ? "a player's" : $"{name}'s";
+    }
+
+    // A copy worn and opened in the Advanced editor, crediting the share
+    void ForkEffect( SharedLibrary<Effect>.Entry entry )
+    {
+        if ( UseSharedEffectAsNew( entry ) is { } effect )
+            OpenAdvanced?.Invoke( effect.Id );
+    }
+
+    Effect UseSharedEffectAsNew( SharedLibrary<Effect>.Entry entry )
+    {
+        var copy = EffectPresets.Copy( entry.Item, Look.Effects );
+        copy.ForkedFrom = OriginOf( entry, ShareOrigin.EffectKind );
+        copy.Name = string.IsNullOrEmpty( entry.Name ) ? copy.Name : SharePost.Tidy( entry.Name, Effect.MaxNameLength );
+        if ( IsFull || !Look.Adopt( copy ) )
+            return null;
+
+        _selected = copy.Id;
+        Changed?.Invoke();
+        return copy;
+    }
+
+    int LayersWorn() => Look.Effects.Sum( x => x.Layers.Count );
+
+    // A shape shared is used by keeping it in My shapes, crediting the share, to pick in a layer's lists
+    string UseSharedShape( SharedLibrary<DrawnShape>.Entry entry )
+    {
+        var shape = Credited( entry );
+        return LocalPrefs.SaveMyShape( shape ) ? $"\"{shape.Name}\" is in My shapes: pick it in a layer's Comes from or Looks like, in the Advanced editor."
+            : $"My shapes is full ({LocalPrefs.MaxMyShapes}). Delete one in the shape creator first.";
+    }
+
+    void ForkShape( SharedLibrary<DrawnShape>.Entry entry )
+    {
+        OpenShapeCreator?.Invoke( Credited( entry ) );
+    }
+
+    static DrawnShape Credited( SharedLibrary<DrawnShape>.Entry entry )
+    {
+        var name = string.IsNullOrWhiteSpace( entry.Name ) ? "Shape" : entry.Name;
+        return DrawnShape.From( entry.Item.Decode(), name, entry.Item.Sticker, OriginOf( entry, ShareOrigin.ShapeKind ) );
+    }
 
     // My effects, read once and again after each change to them
     List<Effect> _mine;

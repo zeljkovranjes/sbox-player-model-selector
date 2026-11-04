@@ -157,13 +157,79 @@
 		color: $ui-blue;
 	}
 
-	// RowHeight in SharingPanel.razor: the list counts how many fit by it
+	// RowHeight in SharingPanel.razor: the list counts how many fit by it; PicturedRowHeight with a picture
 	.shared
 	{
 		height: 34px;
 		flex-shrink: 0;
 		padding: 2px 4px;
 		border-bottom: 1px solid $ui-separator;
+
+		&.pictured
+		{
+			height: 48px;
+		}
+	}
+
+	// a picture of what was shared, drawn here from what it is, on a dark ground so glows show
+	.picture
+	{
+		position: relative;
+		width: 42px;
+		height: 42px;
+		flex-shrink: 0;
+		background-color: #1b1d22;
+		border-radius: 2px;
+		overflow: hidden;
+
+		&.big
+		{
+			width: 64px;
+			height: 64px;
+		}
+
+		> .fill
+		{
+			position: absolute;
+			left: 0px;
+			top: 0px;
+			right: 0px;
+			bottom: 0px;
+			background-repeat: no-repeat;
+			background-position: center;
+			background-size: contain;
+		}
+	}
+
+	// the search box and the lists of filters, over the list
+	.filters
+	{
+		gap: 6px;
+
+		UIDropdown
+		{
+			flex-shrink: 1;
+			min-width: 0px;
+			max-width: 170px;
+		}
+	}
+
+	.search-entry
+	{
+		@include ui-text-entry;
+		flex-grow: 1;
+		min-width: 120px;
+	}
+
+	// what can be done to a share in its details, under its author and rating
+	.actions
+	{
+		padding: 0 4px 6px 4px;
+	}
+
+	.spacer
+	{
+		flex-grow: 1;
 	}
 
 	.shared-text

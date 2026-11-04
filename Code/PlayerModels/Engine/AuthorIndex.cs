@@ -33,6 +33,7 @@ internal static class AuthorIndex
 	/// <summary>Records <paramref name="post"/>, published as record <paramref name="id"/>, as this player's.</summary>
 	internal static async Task RecordAsync( SharePost post, long id )
 	{
+		await Shared.PaceAsync();
 		await Database.GetTable( Table ).Create( KeyOf( post.Kind, id ), post.Serialize(), GroupOf( Game.SteamId.Value ), isPublic: true );
 	}
 
@@ -42,7 +43,21 @@ internal static class AuthorIndex
 		var key = KeyOf( kind, id );
 		var own = await Database.GetTable( Table ).ListOwned( GroupOf( Game.SteamId.Value ), 0, MaxOwned );
 		if ( own.Records.FirstOrDefault( x => x.Key == key ) is { } mine )
+		{
+			await Shared.PaceAsync();
 			await mine.Delete();
+		}
+	}
+
+	/// <summary>A player as Steam names them now (players rename themselves); "A player" until Steam says, "You" for this one.</summary>
+	internal static string NameOf( long author )
+	{
+		var name = new Friend( author ).Name;
+		var known = !string.IsNullOrWhiteSpace( name ) && name != "[unknown]";
+		if ( author == Game.SteamId.Value )
+			return known ? $"{name} (you)" : "You";
+
+		return known ? name : "A player";
 	}
 
 	/// <summary>What <paramref name="author"/> shared, the newest first.</summary>

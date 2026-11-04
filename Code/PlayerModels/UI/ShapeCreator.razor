@@ -14,6 +14,11 @@
         <div class="intro">Draw with the left mouse button, write text, or put shapes together. Save it to My shapes, or use it on the layer.</div>
     </div>
 
+    @if ( _forkedFrom is { } origin )
+    {
+        <div class="note">@BasedOn( origin )</div>
+    }
+
     <div class="canvas-row">
         <ShapeCanvas class="canvas" Strokes=@_strokes Sticker=@_sticker Closed=@_closed Drawn=@AddStroke></ShapeCanvas>
         <div class="canvas-tools">
@@ -100,6 +105,10 @@
     {
         <div class="note status">@_status</div>
     }
+    @if ( Named is { } named )
+    {
+        <SharingPanel T="DrawnShape" Library=@Shared.Shapes Noun="shape" ModelId=@Shared.Everyone Scope=@Everywhere Current=@named ShareLabel="Share this shape" Describe=@DescribeShape Workshop=@false></SharingPanel>
+    }
 
     <div class="section-header">My Shapes</div>
     @if ( Mine.Count == 0 )
@@ -124,7 +133,7 @@
 
 @code
 {
-    /// <summary>The shape to start from (a kept one); null for a new one.</summary>
+    /// <summary>The shape to start from (a kept one, or one forked from the Workshop); null for a new one.</summary>
     [Parameter] public DrawnShape Start { get; set; }
 
     /// <summary>Uses the shape on the layer being edited: as where its sprites come from (false) or what they look like (true).</summary>
@@ -135,6 +144,9 @@
 
     /// <summary>Goes back to the layer.</summary>
     [Parameter] public Action Back { get; set; }
+
+    // Shapes are shared for everyone, not for a model
+    const string Everywhere = "";
 
     // A turn and a size step of the tools
     const float TurnDegrees = 15f;
@@ -173,7 +185,7 @@
         }
     }
 
-    // The shape with the name typed for it: what is kept
+    // What is shared: the shape with the name typed for it
     DrawnShape Named => string.IsNullOrWhiteSpace( _name ) ? null : Current;
 
     List<DrawnShape> Mine => _mine ??= LocalPrefs.MyShapes();
@@ -203,6 +215,9 @@
         _status = null;
         Changed();
     }
+
+    /// <summary>The credit a copy of a share shows: "Based on "name" by author."</summary>
+    public static string BasedOn( ShareOrigin origin ) => $"Based on \"{origin.Name}\" by {AuthorIndex.NameOf( origin.Author )}.";
 
     void Changed()
     {
@@ -369,7 +384,7 @@
             : $"{kept} of {DrawnShape.MaxPoints} points, {_strokes.Count} {(_strokes.Count == 1 ? "stroke" : "strokes")}.";
     }
 
-    // What a shape is, in a few words: how many strokes and points, and whether it is a sticker
+    /// <summary>What a row says about a shape: how many strokes and points, and whether it is a sticker.</summary>
     public static string DescribeShape( DrawnShape shape )
     {
         var what = shape.Sticker is { } sticker ? sticker.IsAnimated ? $"{sticker.AnimationIs} sticker" : "Sticker" : "Shape";

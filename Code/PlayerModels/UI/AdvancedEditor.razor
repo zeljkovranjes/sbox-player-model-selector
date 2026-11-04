@@ -46,7 +46,8 @@
                     }
                     else if ( ShownTab == Tab.Effects )
                     {
-                        <LayerEditor Look=@_look Changed=@Changed Stage=@Stage Locked=@EffectsLocked EffectId=@EffectId History=@History Undo=@Undo Redo=@Redo></LayerEditor>
+                        <LayerEditor Look=@_look Changed=@Changed Stage=@Stage Locked=@EffectsLocked EffectId=@EffectId History=@History Undo=@Undo Redo=@Redo
+                                     StartShape=@StartShape></LayerEditor>
                     }
                     else
                     {
@@ -106,6 +107,9 @@
     public EditHistory History { get; init; }
     public Action Undo { get; init; }
     public Action Redo { get; init; }
+
+    /// <summary>A shape to open the Effects tab's shape creator on (a fork from the Workshop); null to open on the layers.</summary>
+    public DrawnShape StartShape { get; init; }
 
     // The tabs of options down the right
     enum Tab { Look, Accessories, Effects }

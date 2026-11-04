@@ -20,6 +20,15 @@
     {
         <ShapeCreator Start=@_creatorStart UseOnLayer=@UseShape CanUse=@( Layer?.KindIs == LayerKind.Sprite ) Back=@(() => ShowView( View.Layers ))></ShapeCreator>
     }
+    else if ( _view == View.ShapesWorkshop && Look is not null )
+    {
+        <div class="shapes-workshop">
+            <SharingPanel T="DrawnShape" Library=@Shared.Shapes Noun="shape" ModelId=@Shared.Everyone Scope=@Everywhere Workshop=@true Pictures=@true Searchable=@true
+                          Intro="Shapes and stickers players made. Use one to put it on the selected layer (and keep it in My shapes); Fork opens it in the shape creator."
+                          UseEntry=@UseSharedShape Fork=@ForkShape ForkTip="Open a copy of it in the shape creator, to change and publish as your own"
+                          OriginOf=@(( DrawnShape x ) => x.ForkedFrom) Describe=@ShapeCreator.DescribeShape Back=@(() => ShowView( View.Layers ))></SharingPanel>
+        </div>
+    }
     else if ( Look is null || Look.Effects.Count == 0 || Effect is not { } effect )
     {
         <div class="note">No effects yet. Put one on from the Effects tab, then build on it here, layer by layer.</div>
@@ -30,6 +39,10 @@
     else
     {
         <div class="section-header">Effect</div>
+        @if ( effect.ForkedFrom is { } origin )
+        {
+            <div class="note">@ShapeCreator.BasedOn( origin )</div>
+        }
         <div class="row">
             <div class="label">Effect</div>
             <UIDropdown Items=@EffectChoices() Value=@effect.Id ValueChanged=@SelectEffect Tokenize=@false></UIDropdown>
@@ -164,6 +177,14 @@
             }
             <ToggleRow Label="Fade with how fast it moves" Value=@selected.FadeWithSpeed OnChanged=@(( bool v ) => SetAll( l => l.FadeWithSpeed = v ))></ToggleRow>
 
+            @if ( chosen == 1 )
+            {
+                <div class="row">
+                    <div class="reset" Tooltip="Keep this layer alone in My effects, to add again" @onclick=@(() => KeepLayer( selected ))>Save layer to My effects</div>
+                </div>
+                <SharingPanel T="Effect" Library=@Shared.Effects Noun="effect" ModelId=@Shared.Everyone Scope=@Everywhere Current=@LayerShare( effect, selected )
+                              ShareLabel="Share this layer" Describe=@EffectsEditor.DescribeEffect Workshop=@false></SharingPanel>
+            }
             @if ( _status is not null )
             {
                 <div class="note status">@_status</div>
@@ -238,6 +259,9 @@
     /// <summary>The effect to edit first, by id: the first one worn when it isn't worn.</summary>
     [Parameter] public string EffectId { get; set; }
 
+    /// <summary>A shape to open the shape creator on (a fork from the Workshop); null to open on the layers.</summary>
+    [Parameter] public DrawnShape StartShape { get; set; }
+
     /// <summary>The steps back and forward through changes to the effects, and what takes them.</summary>
     [Parameter] public EditHistory History { get; set; }
     [Parameter] public Action Undo { get; set; }
@@ -267,10 +291,29 @@
 
     View _view;
     DrawnShape _creatorStart;
+    DrawnShape _startSeen;
     string _status;
 
-    protected override int BuildHash() => HashCode.Combine( Look?.Serialize(), _effect, _layer, _more, _keep, Locked, Selector?.EffectsBudget,
+    // Shapes are shared for everyone, not for a model
+    const string Everywhere = "";
+
+    // The look as text, as last drawn
+    string _lookText;
+
+    protected override int BuildHash() => HashCode.Combine( _lookText = Look?.Serialize(), _effect, _layer, _more, _keep, Locked, Selector?.EffectsBudget,
         HashCode.Combine( string.Join( ",", _chosen ), History?.CanUndo, History?.CanRedo, _view, _creatorStart, _status ) );
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+
+        // A fork from the Workshop opens the creator on it, once
+        if ( StartShape is not null && !ReferenceEquals( StartShape, _startSeen ) )
+        {
+            _startSeen = StartShape;
+            OpenCreator( StartShape );
+        }
+    }
 
     void ShowView( View view )
     {
@@ -330,6 +373,13 @@
             return;
         }
 
+        if ( choice == WorkshopChoice )
+        {
+            _pickingPicture = asPicture;
+            ShowView( View.ShapesWorkshop );
+            return;
+        }
+
         if ( choice.StartsWith( MineChoice ) )
         {
             if ( LocalPrefs.MyShapes().FirstOrDefault( x => x.Name == choice[ MineChoice.Length.. ] ) is { } mine )
@@ -348,7 +398,11 @@
     }
 
     const string DrawChoice = "draw";
+    const string WorkshopChoice = "workshop";
     const string MineChoice = "mine:";
+
+    // Whether the Workshop was opened from Looks like, so a shape used from it goes there
+    bool _pickingPicture;
 
     // A list of shapes, then the drawn ones the look carries, My shapes, and the creator and the Workshop at its end
     List<UIDropdown.Item> ShapePickerChoices( List<UIDropdown.Item> standard )
@@ -361,7 +415,56 @@
             choices.Add( new UIDropdown.Item( $"My shape: {shape.Name}", MineChoice + shape.Name ) );
 
         choices.Add( new UIDropdown.Item( "Draw a new shape...", DrawChoice ) );
+        choices.Add( new UIDropdown.Item( "Workshop...", WorkshopChoice ) );
         return choices;
+    }
+
+    // A shape from the Workshop: kept in My shapes, crediting the share, and put on the selected layer when it is sprites
+    string UseSharedShape( SharedLibrary<DrawnShape>.Entry entry )
+    {
+        var shape = Credited( entry );
+        LocalPrefs.SaveMyShape( shape );
+        if ( Layer?.KindIs != LayerKind.Sprite )
+            return $"\"{shape.Name}\" is in My shapes. Select a sprites layer to use it on.";
+
+        UseShape( shape, _pickingPicture );
+        return null;
+    }
+
+    void ForkShape( SharedLibrary<DrawnShape>.Entry entry )
+    {
+        OpenCreator( Credited( entry ) );
+    }
+
+    static DrawnShape Credited( SharedLibrary<DrawnShape>.Entry entry )
+    {
+        var origin = new ShareOrigin { Kind = ShareOrigin.ShapeKind, Id = entry.Id, Name = entry.Name, Author = entry.Author };
+        return DrawnShape.From( entry.Item.Decode(), string.IsNullOrWhiteSpace( entry.Name ) ? "Shape" : entry.Name, entry.Item.Sticker, origin );
+    }
+
+    // The selected layer on its own, as an effect of one layer from where it shows now, to share: made again only when
+    // the look changes
+    Effect _layerShare;
+    string _layerShareFor;
+
+    Effect LayerShare( Effect effect, EffectLayer layer )
+    {
+        var key = $"{effect.Id}:{_layer}:{_lookText}";
+        if ( key == _layerShareFor )
+            return _layerShare;
+
+        _layerShareFor = key;
+        var copy = JsonSerializer.Deserialize<EffectLayer>( JsonSerializer.Serialize( layer ) );
+        copy.Off = false;
+        _layerShare = Look.Standalone( new Effect { Name = SharePost.Tidy( $"{effect.Name}: {NameOf( layer )}", Effect.MaxNameLength ), Anchor = effect.Anchor, Layers = new() { copy } } );
+        return _layerShare;
+    }
+
+    void KeepLayer( EffectLayer layer )
+    {
+        var kept = LayerShare( Effect, layer );
+        _status = kept is not null && LocalPrefs.SaveMyEffect( kept ) ? $"Saved to My effects as \"{kept.Name}\"." : $"My effects is full ({LocalPrefs.MaxMyEffects}). Delete one first.";
+        StateHasChanged();
     }
 
     void Set( Action change )

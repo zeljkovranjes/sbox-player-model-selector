@@ -19,6 +19,10 @@
         </div>
 
         <div class="row author">
+            @if ( Pictures )
+            {
+                <SharedPicture class="picture big" Item=@open.Item></SharedPicture>
+            }
             <img class="avatar" src="avatar:@open.Author" />
             <div class="shared-text">
                 <div class="shared-name">@AuthorOf( open )</div>
@@ -32,6 +36,13 @@
             <div class="vote @VoteClass( open, -1 )" @onclick=@(() => _ = VoteAsync( open, -1 ))>thumb_down</div>
             <div class="votes">@open.Down</div>
             <div class="button" @onclick=@(() => UseShared( open ))>Use</div>
+            @if ( Fork is not null )
+            {
+                <div class="button" Tooltip=@ForkTip @onclick=@(() => Fork( open ))>Fork</div>
+            }
+        </div>
+        <div class="row actions">
+            <div class="spacer"></div>
             @if ( open.IsMine )
             {
                 <div class="button @( _busy ? "disabled" : "" )" @onclick=@(() => _ = TakeDownAsync( open ))>Take down</div>
@@ -39,9 +50,18 @@
             else
             {
                 <div class="button" Tooltip="Hide everything this player shares, on your screen only" @onclick=@(() => ToggleHidden( open ))>@( IsHidden( open ) ? "Unhide author" : "Hide author" )</div>
+                @if ( Block is not null )
+                {
+                    var blocked = IsBlocked?.Invoke( open ) == true;
+                    <div class="button" Tooltip="Hide it, and every copy of it, from everyone on your server" @onclick=@(() => SetBlocked( open, !blocked ))>@( blocked ? "Unblock on this server" : "Block on this server" )</div>
+                }
             }
         </div>
 
+        @if ( OriginOf?.Invoke( open.Item ) is { } origin )
+        {
+            <div class="note">@ShapeCreator.BasedOn( origin )</div>
+        }
         <div class="description @( open.Description == "" ? "empty" : "" )">@( open.Description == "" ? "No description." : open.Description )</div>
 
         @if ( _status is not null )
@@ -66,7 +86,7 @@
                 <div class="shared-text">
                     <div class="shared-name">@NameOf( other.Post.Name )</div>
                     <div class="shared-detail">
-                        <div class="shared-changes">@( $"{Capitalised( other.Post.Kind )} for {ModelName( other.Post.Model )}" )</div>
+                        <div class="shared-changes">@( other.Post.Model == Shared.Everyone ? Capitalised( other.Post.Kind ) : $"{Capitalised( other.Post.Kind )} for {ModelName( other.Post.Model )}" )</div>
                     </div>
                 </div>
                 <div class="shared-age">@Ago( other.Published )</div>
@@ -78,7 +98,7 @@
     {
         <div class="top">
             <div class="back" Tooltip="Back" @onclick=@(() => Back?.Invoke())>arrow_back</div>
-            <div class="intro">@Capitalised( Noun )s players shared for this model: Top lists the best rated first, New the newest. Use one to put it on the preview; Apply wears it.</div>
+            <div class="intro">@( Intro ?? $"{Capitalised( Noun )}s players shared{Scope}: Top lists the best rated first, New the newest. Use one to put it on the preview; Apply wears it." )</div>
         </div>
 
         <div class="section-header sorted">
@@ -88,6 +108,21 @@
                 <div class="sort-choice @( _newest ? "active" : "" )" @onclick=@(() => SortBy( true ))>New</div>
             </div>
         </div>
+
+        @if ( Searchable || Facets is not null )
+        {
+            <div class="row filters">
+                @if ( Searchable )
+                {
+                    <TextEntry class="search-entry" Placeholder=@( $"Search {Noun}s" ) Value:bind=@Search HasClearButton=@true></TextEntry>
+                }
+                @foreach ( var group in FacetGroups() )
+                {
+                    var name = group.Key;
+                    <UIDropdown Items=@FacetChoices( group ) Value=@( _facets.GetValueOrDefault( name ) ?? "" ) ValueChanged=@(( object v ) => SetFacet( name, v as string )) Tokenize=@false></UIDropdown>
+                }
+            </div>
+        }
 
         <div class="row code-row">
             <TextEntry class="code-entry" Placeholder=@( $"Paste {A( Noun )} code" ) Value:bind=@_code @onsubmit=@UseCode></TextEntry>
@@ -102,17 +137,25 @@
         <div class="list" @ref="_list">
         @if ( _loading )
         {
-            <div class="note">Looking for @( Noun )s shared for this model...</div>
+            <div class="note">@( $"Looking for {Noun}s shared{Scope}..." )</div>
         }
         else if ( _listed && _entries.Count == 0 )
         {
-            <div class="note">No one has shared @A( Noun ) for this model yet.</div>
+            <div class="note">@( $"No one has shared {A( Noun )}{Scope} yet." )</div>
+        }
+        else if ( _listed && _shown.Count == 0 && Filtering )
+        {
+            <div class="note">@( $"No {Noun}s match. Clear the search or the filters to see them all." )</div>
         }
 
         @foreach ( var entry in PageOfEntries )
         {
             var shared = entry;
-            <div class="row shared @( IsHidden( shared ) ? "hidden-author" : "" )">
+            <div class="row shared @( IsHidden( shared ) ? "hidden-author" : "" ) @( Pictures ? "pictured" : "" )">
+                @if ( Pictures )
+                {
+                    <SharedPicture class="picture" Item=@shared.Item></SharedPicture>
+                }
                 <img class="avatar" src="avatar:@shared.Author" />
                 <div class="shared-text">
                     <div class="shared-name">@NameOf( shared )</div>
@@ -128,6 +171,10 @@
                 <div class="vote @VoteClass( shared, -1 )" @onclick=@(() => _ = VoteAsync( shared, -1 ))>thumb_down</div>
                 <div class="votes">@shared.Down</div>
                 <div class="button" @onclick=@(() => UseShared( shared ))>Use</div>
+                @if ( Fork is not null )
+                {
+                    <div class="button" Tooltip=@ForkTip @onclick=@(() => Fork( shared ))>Fork</div>
+                }
             </div>
         }
         </div>
@@ -145,7 +192,7 @@
     else
     {
         <div class="row">
-            <div class="button @( CanShare ? "" : "disabled" )" @onclick=@OpenShare>Share mine</div>
+            <div class="button @( CanShare ? "" : "disabled" )" @onclick=@OpenShare>@ShareLabel</div>
             <div class="button @( Current is null ? "disabled" : "" )" @onclick=@CopyCode>Copy code</div>
         </div>
 
@@ -198,8 +245,55 @@
     /// <summary>Leaves the Workshop, back to the page's options.</summary>
     [Parameter] public Action Back { get; set; }
 
-    // The Workshop's list, a page at a time: as many rows (each RowHeight tall) as its room holds, so it never scrolls
+    /// <summary>
+    /// What the things are shared for, as the panel's sentences end ("for this model"); empty for things shared for
+    /// everyone (effects, shapes).
+    /// </summary>
+    [Parameter] public string Scope { get; set; } = " for this model";
+
+    /// <summary>What the button that publishes this player's own says.</summary>
+    [Parameter] public string ShareLabel { get; set; } = "Share mine";
+
+    /// <summary>What the Workshop says at its top in place of its own sentence; null for that.</summary>
+    [Parameter] public string Intro { get; set; }
+
+    /// <summary>Whether the Workshop has a search box: names, descriptions, authors and what rows say.</summary>
+    [Parameter] public bool Searchable { get; set; }
+
+    /// <summary>
+    /// What each thing can be filtered by, as "Group: value" ("Comes from: Head"); the Workshop has a list for each group
+    /// found, and one of the #tags its descriptions use. Null for no filters.
+    /// </summary>
+    [Parameter] public Func<T, IEnumerable<string>> Facets { get; set; }
+
+    /// <summary>Whether rows show a picture of what was shared (see <see cref="SharedPicture"/>).</summary>
+    [Parameter] public bool Pictures { get; set; }
+
+    /// <summary>
+    /// Puts a Workshop share on the look being edited, knowing which share it is (to credit it), in place of
+    /// <see cref="Use"/>; says what happened. Null to use <see cref="Use"/>.
+    /// </summary>
+    [Parameter] public Func<SharedLibrary<T>.Entry, string> UseEntry { get; set; }
+
+    /// <summary>Opens a copy of a share to change and publish as one's own; null for no Fork button.</summary>
+    [Parameter] public Action<SharedLibrary<T>.Entry> Fork { get; set; }
+
+    /// <summary>What Fork does, in its tooltip.</summary>
+    [Parameter] public string ForkTip { get; set; } = "Open a copy of it to change and publish as your own";
+
+    /// <summary>The share a thing was based on, credited in its details; null for none.</summary>
+    [Parameter] public Func<T, ShareOrigin> OriginOf { get; set; }
+
+    /// <summary>Blocks a share on the host's server (true) or lets it show again; null for no Block button (not the host).</summary>
+    [Parameter] public Action<SharedLibrary<T>.Entry, bool> Block { get; set; }
+
+    /// <summary>Whether the host blocked a share on their server.</summary>
+    [Parameter] public Func<SharedLibrary<T>.Entry, bool> IsBlocked { get; set; }
+
+    // The Workshop's list, a page at a time: as many rows (each RowHeight tall, taller with pictures) as its room holds,
+    // so it never scrolls
     const float RowHeight = 34f;
+    const float PicturedRowHeight = 48f;
     Panel _list;
     int _page, _perPage = 1;
 
@@ -229,12 +323,82 @@
     string _code;
     int _revision;
 
-    bool AtLimit => _entries.Count( x => x.IsMine ) >= SharedLibrary<T>.MaxPerPlayer;
+    bool AtLimit => _entries.Count( x => x.IsMine ) >= Library.PerPlayer;
+
+    // What the list is narrowed to: words searched for, and the value picked in each group of filters ("" for any)
+    string _search = "";
+    readonly Dictionary<string, string> _facets = new();
+    const string TagGroup = "Tag";
+
+    string Search
+    {
+        get => _search;
+        set
+        {
+            _search = value ?? "";
+            _page = 0;
+            Arrange();
+        }
+    }
+
+    bool Filtering => !string.IsNullOrWhiteSpace( _search ) || _facets.Values.Any( x => !string.IsNullOrEmpty( x ) );
+
+    // Each share's filters: its own, and the #tags of its description
+    IEnumerable<string> FacetsOf( SharedLibrary<T>.Entry entry )
+    {
+        foreach ( var facet in Facets?.Invoke( entry.Item ) ?? Enumerable.Empty<string>() )
+            yield return facet;
+
+        foreach ( var word in (entry.Description ?? "").Split( ' ' ) )
+        {
+            if ( word.Length > 1 && word[ 0 ] == '#' )
+                yield return $"{TagGroup}: {word.ToLowerInvariant()}";
+        }
+    }
+
+    // The groups of filters the shares listed have, each with its values, in the order first found
+    List<IGrouping<string, string>> FacetGroups() => Facets is null ? new()
+        : _entries.SelectMany( FacetsOf ).Distinct().Where( x => x.Contains( ": " ) ).GroupBy( x => x[ ..x.IndexOf( ": " ) ] ).ToList();
+
+    static List<UIDropdown.Item> FacetChoices( IGrouping<string, string> group )
+    {
+        var choices = new List<UIDropdown.Item> { new( $"{group.Key}: any", "" ) };
+        choices.AddRange( group.Select( x => new UIDropdown.Item( x, x ) ) );
+        return choices;
+    }
+
+    void SetFacet( string group, string facet )
+    {
+        _facets[ group ] = facet ?? "";
+        _page = 0;
+        Arrange();
+        Redraw();
+    }
+
+    bool Matches( SharedLibrary<T>.Entry entry )
+    {
+        foreach ( var facet in _facets.Values )
+        {
+            if ( !string.IsNullOrEmpty( facet ) && !FacetsOf( entry ).Contains( facet ) )
+                return false;
+        }
+
+        var search = _search.Trim();
+        return search == "" || $"{entry.Name} {entry.Description} {AuthorOf( entry )} {Describe?.Invoke( entry.Item )}".Contains( search, StringComparison.OrdinalIgnoreCase );
+    }
+
+    void SetBlocked( SharedLibrary<T>.Entry entry, bool blocked )
+    {
+        Block?.Invoke( entry, blocked );
+        _status = blocked ? $"\"{NameOf( entry )}\" and every copy of it are hidden on your server. Unblock it here or on the Server page."
+            : $"\"{NameOf( entry )}\" shows on your server again.";
+        Redraw();
+    }
 
     // The one listed that is just like this player's now, if any: that isn't published a second time
     SharedLibrary<T>.Entry Same => Current is null ? null : _entries.FirstOrDefault( x => Library.Same( x.Item, Current ) );
 
-    bool CanShare => Current is not null && !_busy && Same is null && !AtLimit;
+    bool CanShare => Current is not null && !_busy && Same is null && !AtLimit && SharePost.TooBig( Library.PostOf( Current, Noun, "" ).Serialize() ) is null;
 
     // Why Share mine is off, when it is for something the player can do about
     string ShareNote
@@ -247,13 +411,16 @@
                     : $"This {Noun} is shared already, by {AuthorOf( same )}. Rate theirs in the Workshop instead.";
             }
 
-            return AtLimit ? $"You've published {SharedLibrary<T>.MaxPerPlayer} {Noun}s for this model, the most at once. Take one down in the Workshop first." : null;
+            if ( Current is not null && SharePost.TooBig( Library.PostOf( Current, Noun, "" ).Serialize() ) is { } tooBig )
+                return tooBig;
+
+            return AtLimit ? $"You've published {Library.PerPlayer} {Noun}s{Scope}, the most at once. Take one down in the Workshop first." : null;
         }
     }
 
     // The authors' names are part of it: they come from Steam as they are now, and players change them
     protected override int BuildHash() => HashCode.Combine( ModelId, Current, Workshop, _revision, _status, _loading, _busy,
-        HashCode.Combine( _page, _perPage, NamesHash() ) );
+        HashCode.Combine( _page, _perPage, NamesHash(), _search ) );
 
     int Pages => Math.Max( 1, (_shown.Count + _perPage - 1) / _perPage );
 
@@ -268,7 +435,7 @@
     void Arrange()
     {
         _hidden = LocalPrefs.HiddenAuthors();
-        var kept = _entries.Where( x => _showHidden || !IsHidden( x ) );
+        var kept = _entries.Where( x => (_showHidden || !IsHidden( x )) && Matches( x ) );
         _shown = (_newest ? kept.OrderByDescending( x => x.Changed ) : kept).ToList();
         _page = Math.Clamp( _page, 0, Pages - 1 );
     }
@@ -326,7 +493,7 @@
         if ( !Workshop || _list is null || !_list.IsValid() || ScaleToScreen <= 0f )
             return;
 
-        var fits = Math.Max( 1, (int)(_list.Box.Rect.Height / (RowHeight * ScaleToScreen)) );
+        var fits = Math.Max( 1, (int)(_list.Box.Rect.Height / ((Pictures ? PicturedRowHeight : RowHeight) * ScaleToScreen)) );
         if ( fits == _perPage )
             return;
 
@@ -534,6 +701,13 @@
 
     void UseShared( SharedLibrary<T>.Entry entry )
     {
+        if ( UseEntry is not null )
+        {
+            _status = UseEntry( entry );
+            Redraw();
+            return;
+        }
+
         Took( entry.Item, entry.IsMine ? $"your {Noun}" : $"{AuthorOf( entry )}'s {Noun}" );
     }
 
@@ -605,15 +779,7 @@
     }
 
     // The author as Steam names them now (players rename themselves); "A player" until Steam says
-    static string AuthorOf( SharedLibrary<T>.Entry entry )
-    {
-        var name = new Friend( entry.Author ).Name;
-        var known = !string.IsNullOrWhiteSpace( name ) && name != "[unknown]";
-        if ( entry.IsMine )
-            return known ? $"{name} (you)" : "You";
-
-        return known ? name : "A player";
-    }
+    static string AuthorOf( SharedLibrary<T>.Entry entry ) => AuthorIndex.NameOf( entry.Author );
 
     // The names of the authors shown, to draw again when Steam learns or changes one. Every frame: no allocations
     int NamesHash()

@@ -10,6 +10,27 @@ EffectsEditor
 	font-family: $body-font;
 	color: $ui-text;
 
+	// the Workshop fills the pane, which doesn't scroll then (see .fit-pane): its padding includes the pane's 4px
+	&.workshop
+	{
+		flex-grow: 1;
+		padding: 8px 18px 8px 10px;
+	}
+
+	// the Workshop's two halves, effects and shapes, as tabs over it
+	.workshop-tabs
+	{
+		flex-direction: row;
+		flex-shrink: 0;
+		margin-bottom: 8px;
+		border-bottom: 1px solid $ui-block-border;
+	}
+
+	.workshop-tab
+	{
+		@include ui-tab;
+	}
+
 	.note
 	{
 		flex-shrink: 0;

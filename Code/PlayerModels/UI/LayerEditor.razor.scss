@@ -64,6 +64,25 @@ LayerEditor
 		}
 	}
 
+	// the Workshop's shapes, opened from a shape list: a fixed height for its list to page in, as the pane scrolls
+	.shapes-workshop
+	{
+		flex-direction: column;
+		flex-shrink: 0;
+		height: 620px;
+
+		> .sharing
+		{
+			flex-grow: 1;
+		}
+
+		// the pane is narrow: a row keeps its picture, name and buttons, without its age and avatar
+		.shared .shared-age, .shared .avatar
+		{
+			display: none;
+		}
+	}
+
 	.note.status
 	{
 		color: $ui-text;

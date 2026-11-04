@@ -224,7 +224,10 @@
         <DragHandle class="edge right" Started=@StartResize Moved=@(( Vector2 d ) => Resize( d, 1, 0 )) Ended=@EndMove></DragHandle>
         <DragHandle class="edge top" Started=@StartResize Moved=@(( Vector2 d ) => Resize( d, 0, -1 )) Ended=@EndMove></DragHandle>
         <DragHandle class="edge bottom" Started=@StartResize Moved=@(( Vector2 d ) => Resize( d, 0, 1 )) Ended=@EndMove></DragHandle>
-        <DragHandle class="corner" Started=@StartResize Moved=@(( Vector2 d ) => Resize( d, 1, 1 )) Ended=@EndMove></DragHandle>
+        <DragHandle class="corner top-left" Started=@StartResize Moved=@(( Vector2 d ) => Resize( d, -1, -1 )) Ended=@EndMove></DragHandle>
+        <DragHandle class="corner top-right" Started=@StartResize Moved=@(( Vector2 d ) => Resize( d, 1, -1 )) Ended=@EndMove></DragHandle>
+        <DragHandle class="corner bottom-left" Started=@StartResize Moved=@(( Vector2 d ) => Resize( d, -1, 1 )) Ended=@EndMove></DragHandle>
+        <DragHandle class="corner bottom-right" Started=@StartResize Moved=@(( Vector2 d ) => Resize( d, 1, 1 )) Ended=@EndMove></DragHandle>
     }
 </root>
 

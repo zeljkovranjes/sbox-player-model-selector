@@ -42,23 +42,29 @@
     }
     <div class="note">@( _status ?? HintText() )</div>
 
-    <div class="subheading">Add a layer</div>
-    <div class="row">
-        <div class="label">Shape</div>
-        <ScrollingDropdown Items=@AddChoices() Value=@( "" ) ValueChanged=@AddPicked Tokenize=@false></ScrollingDropdown>
-    </div>
-    <div class="row">
-        <div class="label">Draw</div>
-        <div class="reset @( _tool == Tool.Draw ? "active" : "" )" Tooltip="Each stroke on the canvas is a layer of its own" @onclick=@(() => UseTool( Tool.Draw ))>Draw by hand</div>
-        <div class="reset @( _tool == Tool.Erase ? "active" : "" )" Tooltip="Cut away this layer, or every layer below the eraser" @onclick=@(() => UseTool( Tool.Erase ))>Eraser</div>
-    </div>
-    <div class="row">
-        <div class="label">Text</div>
-        <TextEntry class="entry" Placeholder="Letters, digits and . , ! ? & + - : # @@" MaxLength=@HersheyFont.MaxLength Value:bind=@_text @onsubmit=@AddText></TextEntry>
-        <div class="reset @( string.IsNullOrWhiteSpace( _text ) || IsFull ? "disabled" : "" )" @onclick=@AddText>Add text</div>
-    </div>
+    <FoldingSection Title="Add a Layer" Key="Creator/Add a Layer">
+        <Body>
+            <div class="row">
+                <div class="label">Shape</div>
+                <ScrollingDropdown Items=@AddChoices() Value=@( "" ) ValueChanged=@AddPicked Tokenize=@false></ScrollingDropdown>
+            </div>
+            <div class="row">
+                <div class="label">Draw</div>
+                <div class="segmented">
+                    <div class="reset @( _tool == Tool.Draw ? "active" : "" )" Tooltip="Each stroke on the canvas is a layer of its own" @onclick=@(() => UseTool( Tool.Draw ))><div class="glyph">gesture</div>By hand</div>
+                    <div class="reset @( _tool == Tool.Erase ? "active" : "" )" Tooltip="Cut away this layer, or every layer below the eraser" @onclick=@(() => UseTool( Tool.Erase ))><div class="glyph">cleaning_services</div>Eraser</div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="label">Text</div>
+                <TextEntry class="entry" Placeholder="Letters, digits and . , ! ? & + - : # @@" MaxLength=@HersheyFont.MaxLength Value:bind=@_text @onsubmit=@AddText></TextEntry>
+                <div class="tool @( string.IsNullOrWhiteSpace( _text ) || IsFull ? "disabled" : "" )" Tooltip="Add text (Enter)" @onclick=@AddText>add</div>
+            </div>
+        </Body>
+    </FoldingSection>
 
-    <div class="section-header">@( $"Layers ({_layers.Count} of {EmblemLayer.MaxPerEmblem})" )</div>
+    <FoldingSection Title=@( $"Layers ({_layers.Count} of {EmblemLayer.MaxPerEmblem})" ) Key="Creator/Layers" Info="Each shape, drawing and text is a layer, the top of the list in front. Ctrl+click to choose more than one; right-click a layer for its menu.">
+        <Body>
     @if ( _layers.Count == 0 )
     {
         <div class="note">Add a shape, draw on the canvas or write text: each is a layer, the top of the list in front.</div>
@@ -69,40 +75,43 @@
         var layer = _layers[ index ];
         <div class="row layer @( _selected.Contains( index ) ? "selected" : "" ) @( layer.Hidden ? "hidden" : "" )" @onclick=@(() => PickRow( index ))
              @onrightclick=@(() => OpenMenu( index ))>
-            <div class="icon-button" Tooltip=@( layer.Hidden ? "Show" : "Hide" ) @onclick=@(( PanelEvent e ) => Act( e, () => SetHidden( index, !layer.Hidden ) ))>@( layer.Hidden ? "visibility_off" : "visibility" )</div>
-            <div class="icon-button" Tooltip=@( layer.Locked ? "Unlock" : "Lock: it stays put on the canvas" ) @onclick=@(( PanelEvent e ) => Act( e, () => SetLocked( index, !layer.Locked ) ))>@( layer.Locked ? "lock" : "lock_open" )</div>
+            <div class="icon-button @( layer.Hidden ? "" : "on-hover" )" Tooltip=@( layer.Hidden ? "Show" : "Hide" ) @onclick=@(( PanelEvent e ) => Act( e, () => SetHidden( index, !layer.Hidden ) ))>@( layer.Hidden ? "visibility_off" : "visibility" )</div>
+            <div class="icon-button @( layer.Locked ? "" : "on-hover" )" Tooltip=@( layer.Locked ? "Unlock" : "Lock: it stays put on the canvas" ) @onclick=@(( PanelEvent e ) => Act( e, () => SetLocked( index, !layer.Locked ) ))>@( layer.Locked ? "lock" : "lock_open" )</div>
             <div class="swatch" style="background-color: @( layer.Eraser ? "transparent" : layer.Color )">@( layer.Eraser ? "cleaning_services" : "" )</div>
             <div class="layer-name">@NameOf( layer )</div>
             @if ( layer.Group > 0 )
             {
                 <div class="group-mark" Tooltip="Grouped: picked and moved together">link</div>
             }
-            <div class="icon-button @( index == _layers.Count - 1 ? "disabled" : "" )" Tooltip="Up (towards the front)" @onclick=@(( PanelEvent e ) => Act( e, () => MoveLayer( index, 1 ) ))>arrow_upward</div>
-            <div class="icon-button @( index == 0 ? "disabled" : "" )" Tooltip="Down (towards the back)" @onclick=@(( PanelEvent e ) => Act( e, () => MoveLayer( index, -1 ) ))>arrow_downward</div>
+            <div class="icon-button on-hover @( index == _layers.Count - 1 ? "disabled" : "" )" Tooltip="Up (towards the front)" @onclick=@(( PanelEvent e ) => Act( e, () => MoveLayer( index, 1 ) ))>arrow_upward</div>
+            <div class="icon-button on-hover @( index == 0 ? "disabled" : "" )" Tooltip="Down (towards the back)" @onclick=@(( PanelEvent e ) => Act( e, () => MoveLayer( index, -1 ) ))>arrow_downward</div>
             <div class="icon-button" Tooltip="More: duplicate, delete, to front or back, lock, hide, group (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => OpenMenu( index ) ))>more_vert</div>
         </div>
     }
     @if ( HasSelection )
     {
         <div class="row actions">
-            <div class="reset @( IsFull ? "disabled" : "" )" Tooltip="Ctrl+D" @onclick=@Duplicate>Duplicate</div>
-            <div class="reset" Tooltip="Delete" @onclick=@DeleteSelected>Delete</div>
-            <div class="reset" @onclick=@ToFront>To front</div>
-            <div class="reset" @onclick=@ToBack>To back</div>
+            <div class="tool @( IsFull ? "disabled" : "" )" Tooltip="Duplicate (Ctrl+D)" @onclick=@Duplicate>library_add</div>
+            <div class="tool" Tooltip="Delete (Delete)" @onclick=@DeleteSelected>delete</div>
+            <div class="tool" Tooltip="To front" @onclick=@ToFront>flip_to_front</div>
+            <div class="tool" Tooltip="To back" @onclick=@ToBack>flip_to_back</div>
             @if ( _selected.Count > 1 )
             {
-                <div class="reset" Tooltip="Ctrl+G" @onclick=@Group>Group</div>
+                <div class="tool" Tooltip="Group (Ctrl+G)" @onclick=@Group>link</div>
             }
             @if ( Chosen().Any( x => x.Group > 0 ) )
             {
-                <div class="reset" Tooltip="Ctrl+Shift+G" @onclick=@Ungroup>Ungroup</div>
+                <div class="tool" Tooltip="Ungroup (Ctrl+Shift+G)" @onclick=@Ungroup>link_off</div>
             }
         </div>
     }
+        </Body>
+    </FoldingSection>
 
     @if ( Primary is { } selected )
     {
-        <div class="section-header">@( _selected.Count > 1 ? $"{_selected.Count} layers" : NameOf( selected ) )</div>
+        <FoldingSection Title=@( _selected.Count > 1 ? $"{_selected.Count} layers" : NameOf( selected ) ) Key="Creator/Layer">
+            <Body>
         @if ( _selected.Count > 1 )
         {
             <div class="note">Changes go to all of them. Drag one to move them all; the wheel sizes and Shift+wheel turns them together. Ctrl+click a layer to add or drop it.</div>
@@ -170,6 +179,8 @@
                 </div>
             }
         }
+            </Body>
+        </FoldingSection>
     }
 </root>
 

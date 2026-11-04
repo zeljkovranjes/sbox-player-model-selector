@@ -16,7 +16,11 @@
             <div class="mode @( _emblemMode ? "" : "active" )" Tooltip="One plain shape, for sprites to come from or to look like: drawn, written, put together and erased" @onclick=@(() => SetMode( false ))>Shape</div>
             <div class="mode @( _emblemMode ? "active" : "" )" Tooltip="Layers of shapes, text and drawings, each with its own colors, like a game's emblem editor" @onclick=@(() => SetMode( true ))>Sticker</div>
         </div>
-        <div class="intro">@( _emblemMode ? "Each layer a shape, text or a drawing: move, turn, size and color it." : "Draw with the left mouse button, write text, put shapes together, or erase." )</div>
+        <div class="intro" Tooltip=@( _emblemMode ? "Each layer a shape, text or a drawing: move, turn, size and color it." : "Draw with the left mouse button, write text, put shapes together, or erase." )>@( _emblemMode ? "Layer shapes, text and drawings." : "Draw, write, combine or erase." )</div>
+        @if ( _emblemMode )
+        {
+            <div class="reset @( _emblem is null ? "disabled" : "" )" Tooltip="Edit as code: the sticker's layers as a script; the layers and the code stay in step" @onclick=@(() => OpenCode( CodeEditor.StickerCode.Layers ))><div class="glyph code">code</div>Code</div>
+        }
     </div>
 
     @if ( _leaving )
@@ -79,44 +83,51 @@
         <div class="note">@PointsText()</div>
         <ToggleRow Label="Draw filled shapes (each stroke closes round on itself)" Value=@_closed OnChanged=@SetClosed></ToggleRow>
 
-        <div class="row">
-            <div class="label">Text</div>
-            <TextEntry class="entry" Placeholder="Letters, digits and . , ! ? & + - : # @@" MaxLength=@HersheyFont.MaxLength Value:bind=@_text @onsubmit=@AddText></TextEntry>
-            <div class="reset @( string.IsNullOrWhiteSpace( _text ) ? "disabled" : "" )" @onclick=@AddText>Add text</div>
-        </div>
-        <div class="row">
-            <div class="label">Combine with</div>
-            <ScrollingDropdown Items=@CombineChoices() Value=@_combineWith ValueChanged=@SetCombineWith Tokenize=@false></ScrollingDropdown>
-            <div class="reset" @onclick=@Combine>Add it</div>
-        </div>
-
+        <FoldingSection Title="Add to It" Key="Creator/Add to It">
+            <Body>
+                <div class="row">
+                    <div class="label">Text</div>
+                    <TextEntry class="entry" Placeholder="Letters, digits and . , ! ? & + - : # @@" MaxLength=@HersheyFont.MaxLength Value:bind=@_text @onsubmit=@AddText></TextEntry>
+                    <div class="tool @( string.IsNullOrWhiteSpace( _text ) ? "disabled" : "" )" Tooltip="Add text (Enter)" @onclick=@AddText>add</div>
+                </div>
+                <div class="row">
+                    <div class="label">Combine with</div>
+                    <ScrollingDropdown Items=@CombineChoices() Value=@_combineWith ValueChanged=@SetCombineWith Tokenize=@false></ScrollingDropdown>
+                    <div class="tool" Tooltip="Add it: put this shape together with yours" @onclick=@Combine>add</div>
+                </div>
+            </Body>
+        </FoldingSection>
     }
 
     @if ( _emblemMode )
     {
-        <div class="row">
-            <div class="reset @( _emblem is null ? "disabled" : "" )" Tooltip="Open the sticker's layers as a script: the layers and the code stay in step" @onclick=@(() => OpenCode( CodeEditor.StickerCode.Layers ))>Edit as code</div>
-            <div class="reset" Tooltip="A script of the sticker's own: colours its layers as it shows, and moves sprites showing it" @onclick=@(() => OpenCode( CodeEditor.StickerCode.Animation ))>@( _stickerScript is null ? "Animate with code" : "Edit its script" )</div>
-            @if ( _stickerScript is not null )
-            {
-                <div class="reset" Tooltip="Let the sticker's own script go: its layers keep their own colours" @onclick=@(() => SetStickerScript( null ))>Remove script</div>
-            }
-        </div>
-        <div class="row">
-            <div class="label">Printed on</div>
-            <ScrollingDropdown Items=@FinishChoices() Value=@_finish.ToString() ValueChanged=@SetFinish Tokenize=@false></ScrollingDropdown>
-        </div>
-        <div class="note">@FinishNote()</div>
+        <FoldingSection Title="Printed On" Key="Creator/Printed On" Summary=@_finish.ToString() Info=@FinishNote()>
+            <Body>
+                <div class="row">
+                    <div class="label">Printed on</div>
+                    <ScrollingDropdown Items=@FinishChoices() Value=@_finish.ToString() ValueChanged=@SetFinish Tokenize=@false></ScrollingDropdown>
+                </div>
+                <div class="row">
+                    <div class="label">Its own script</div>
+                    <div class="reset" Tooltip="A script of the sticker's own: colours its layers as it shows, and moves sprites showing it" @onclick=@(() => OpenCode( CodeEditor.StickerCode.Animation ))><div class="glyph">animation</div>@( _stickerScript is null ? "Animate with code" : "Edit its script" )</div>
+                    @if ( _stickerScript is not null )
+                    {
+                        <div class="tool" Tooltip="Remove script: let the sticker's own script go; its layers keep their own colours" @onclick=@(() => SetStickerScript( null ))>delete</div>
+                    }
+                </div>
+            </Body>
+        </FoldingSection>
     }
 
-    <div class="section-header">Keep and use it</div>
+    <FoldingSection Title="Keep and Use It" Key="Creator/Keep and Use It" Summary=@( string.IsNullOrWhiteSpace( _name ) ? "Not named yet" : _name )>
+        <Body>
     <div class="row">
         <div class="label">Name</div>
         <TextEntry class="entry" Placeholder="What to call it" MaxLength=@DrawnShape.MaxNameLength Value:bind=@_name></TextEntry>
     </div>
     <div class="row">
-        <div class="reset @( Named is null ? "disabled" : "" )" Tooltip=@( Named is null ? "Draw something and name it first" : _draft is null ? "" : "Finish the draft: keep it in My shapes" ) @onclick=@Save>@( _draft is null ? "Save to My shapes" : "Finish (save to My shapes)" )</div>
-        <div class="reset @( Current is null ? "disabled" : "" )" Tooltip="Keep it unfinished, to come back to: it isn't used or shared until you finish it" @onclick=@(() => SaveDraft( false ))>Save draft</div>
+        <div class="reset @( Named is null ? "disabled" : "" )" Tooltip=@( Named is null ? "Draw something and name it first" : _draft is null ? "" : "Finish the draft: keep it in My shapes" ) @onclick=@Save><div class="glyph">bookmark_add</div>@( _draft is null ? "Save to My shapes" : "Finish (save to My shapes)" )</div>
+        <div class="tool @( Current is null ? "disabled" : "" )" Tooltip="Save draft: keep it unfinished, to come back to; it isn't used or shared until you finish it" @onclick=@(() => SaveDraft( false ))>edit_note</div>
     </div>
     @if ( _confirmDrop is { } oldest )
     {
@@ -147,10 +158,15 @@
     {
         <div class="note">@DraftTip</div>
     }
+        </Body>
+    </FoldingSection>
 
-    <div class="section-header">My Shapes</div>
-    <ShapeShelf Active=@_name ActiveDraft=@_draft?.Id Open=@Load OpenDraft=@OpenDraft Publish=@Publish Revision=@_shelfRevision
-                Empty="Shapes and stickers you save, use from the Workshop or fork show here, to change and use again; drafts too, marked with a pencil."></ShapeShelf>
+    <FoldingSection Title="My Shapes" Key="Creator/My Shapes" Info="Shapes and stickers you save, use from the Workshop or fork show here, to change and use again; drafts too, marked with a pencil.">
+        <Body>
+            <ShapeShelf Active=@_name ActiveDraft=@_draft?.Id Open=@Load OpenDraft=@OpenDraft Publish=@Publish Revision=@_shelfRevision
+                        Empty="None yet: save one, or use or fork one from the Workshop."></ShapeShelf>
+        </Body>
+    </FoldingSection>
 </root>
 
 @code

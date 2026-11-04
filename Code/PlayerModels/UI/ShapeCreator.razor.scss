@@ -7,13 +7,20 @@ ShapeCreator
 {
 	flex-direction: column;
 	flex-shrink: 0;
-	padding: 4px 14px 4px 6px;
+	// the Effects tab it opens in pads it already, as far from the right edge as from the left
+	padding: 4px 0px;
 	font-family: $body-font;
 	color: $ui-text;
 
+	// back, Shape or Sticker, what it is for (the rest in its tooltip) and, for a sticker, its code: one row in the pane
 	.top
 	{
 		@include ui-top-row;
+
+		> .intro
+		{
+			min-width: 90px;
+		}
 	}
 
 	// Sticker mode's panel: its canvas, tools and layers, down the page like the rest; out of the way while the Workshop
@@ -36,27 +43,44 @@ ShapeCreator
 		flex-shrink: 0;
 	}
 
+	// the choice picked: blue, over the button's gradient
 	.reset.active
 	{
 		@include ui-selected;
+		background-image: none;
+		border-color: $ui-blue;
 	}
 
-	// Draw or Emblem, like the Workshop's tabs
+	// Shape or Sticker, joined into one strip as choices that take turns
 	.modes
 	{
 		flex-direction: row;
 		flex-shrink: 0;
-		gap: 2px;
 	}
 
 	.mode
 	{
 		@include ui-button;
 		flex-shrink: 0;
+		border-radius: 0px;
+		margin-left: -1px;
+
+		&:first-child
+		{
+			margin-left: 0px;
+			border-radius: 2px 0px 0px 2px;
+		}
+
+		&:last-child
+		{
+			border-radius: 0px 2px 2px 0px;
+		}
 
 		&.active
 		{
 			@include ui-selected;
+			background-image: none;
+			border-color: $ui-blue;
 		}
 	}
 
@@ -149,10 +173,12 @@ ShapeCreator
 	}
 
 	// the canvas, square, on the dark ground sprites show on, with the shape's square marked out; its tools beside it
+	// the tools at the pane's right edge, so the row reaches across it as the rows under it do
 	.canvas-row
 	{
 		flex-direction: row;
 		flex-shrink: 0;
+		justify-content: space-between;
 		gap: 6px;
 	}
 
@@ -179,13 +205,25 @@ ShapeCreator
 		pointer-events: none;
 	}
 
-	// an emblem's layers, the top of the stack first: shown, locked, its colour, its name, what can be done to it
+	// an emblem's layers, the top of the stack first: shown, locked, its colour, its name, what can be done to it; showing,
+	// locking and moving it show on the row pointed at and the selected one (and hidden or locked always says so)
 	.layer
 	{
 		gap: 2px;
+		min-height: 28px;
 		padding: 0 4px;
 		border-radius: 2px;
 		cursor: pointer;
+
+		.on-hover
+		{
+			display: none;
+		}
+
+		&:hover .on-hover, &.selected .on-hover
+		{
+			display: flex;
+		}
 
 		&:hover
 		{
@@ -265,7 +303,51 @@ ShapeCreator
 	.actions
 	{
 		flex-wrap: wrap;
+		gap: 6px;
 		padding: 4px 0;
+	}
+
+	// an icon before a button's words; the way into the code editor in the accent colour, so it is found
+	.reset > .glyph
+	{
+		font-family: "Material Icons";
+		font-size: 15px;
+		text-transform: none;
+
+		&.code
+		{
+			color: $ui-blue;
+		}
+	}
+
+	// two choices that take turns, joined into one strip
+	.segmented
+	{
+		flex-direction: row;
+		flex-shrink: 0;
+
+		> .reset
+		{
+			border-radius: 0px;
+			margin-left: -1px;
+
+			&:first-child
+			{
+				margin-left: 0px;
+				border-radius: 2px 0px 0px 2px;
+			}
+
+			&:last-child
+			{
+				border-radius: 0px 2px 2px 0px;
+			}
+		}
+	}
+
+	.top > .reset
+	{
+		@include ui-button;
+		flex-shrink: 0;
 	}
 
 	.canvas-tools
@@ -291,6 +373,8 @@ ShapeCreator
 		&.active
 		{
 			@include ui-selected;
+			background-image: none;
+			border-color: $ui-blue;
 		}
 
 		&.disabled

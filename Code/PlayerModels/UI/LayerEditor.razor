@@ -121,6 +121,10 @@
                     </div>
                     <ToggleRow Label=@( selected.DrawnFormation is null && StandardShapes.IsSolid( selected.FormationIs ) ? "All through it (not just its surface)" : "All over it (not just its outline)" )
                                Value=@selected.Fill OnChanged=@(( bool v ) => SetAll( l => l.Fill = v ))></ToggleRow>
+                    <div class="row">
+                        <div class="label">Shape lies</div>
+                        <UIDropdown Items=@ShapeLiesChoices() Value=@ShapeLies( selected ) ValueChanged=@(( object v ) => SetAll( l => l.Facing = (string)v )) Tokenize=@false></UIDropdown>
+                    </div>
                 }
                 <div class="row">
                     <div class="label">Looks like</div>
@@ -215,6 +219,10 @@
                 {
                     <NumberRow Label="Falls (rises below 0)" Unit=@NumberRow.Field.Gravity Value=@selected.Gravity OnChanged=@(( float v ) => SetAll( l => l.Gravity = v ))></NumberRow>
                     <ToggleRow Label="Sprites move with the body" Value=@selected.Follow OnChanged=@(( bool v ) => SetAll( l => l.Follow = v ))></ToggleRow>
+                    <div class="row">
+                        <div class="label">Sprites lie</div>
+                        <UIDropdown Items=@AlignChoices() Value=@selected.AlignIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Align = (string)v )) Tokenize=@false></UIDropdown>
+                    </div>
                     <div class="row">
                         <div class="label">Faces</div>
                         <UIDropdown Items=@FacingChoices() Value=@selected.FacingIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Facing = (string)v )) Tokenize=@false></UIDropdown>
@@ -814,7 +822,31 @@
         new( "Jiggle", nameof( LayerRhythm.Jiggle ) ),
     };
 
-    static List<UIDropdown.Item> FacingChoices() => Enum.GetValues<LayerFacing>().Select( x => new UIDropdown.Item( x.ToString(), x.ToString() ) ).ToList();
+    static List<UIDropdown.Item> FacingChoices() => Enum.GetValues<LayerFacing>().Select( x => new UIDropdown.Item( x switch
+    {
+        LayerFacing.Flat => "Flat on the ground",
+        LayerFacing.Camera => "The camera",
+        _ => x.ToString(),
+    }, x.ToString() ) ).ToList();
+
+    // How a shape the sprites come from lies: up like a sign, flat on the ground (a magic circle), or facing whoever looks
+    static List<UIDropdown.Item> ShapeLiesChoices() => new()
+    {
+        new( "Upright", nameof( LayerFacing.Forward ) ),
+        new( "Flat on the ground", nameof( LayerFacing.Flat ) ),
+        new( "Facing the camera", nameof( LayerFacing.Camera ) ),
+    };
+
+    static string ShapeLies( EffectLayer layer ) => layer.FacingIs is LayerFacing.Flat or LayerFacing.Camera ? layer.FacingIs.ToString() : nameof( LayerFacing.Forward );
+
+    // Which way each sprite lies (the slash's swing plane comes with weapon effects)
+    static List<UIDropdown.Item> AlignChoices() => new()
+    {
+        new( "Facing the camera", nameof( LayerAlign.Camera ) ),
+        new( "Flat on the ground", nameof( LayerAlign.Ground ) ),
+        new( "The way the layer faces", nameof( LayerAlign.Facing ) ),
+        new( "Out from the middle", nameof( LayerAlign.Outward ) ),
+    };
 
     static List<UIDropdown.Item> ColourModeChoices() => new()
     {

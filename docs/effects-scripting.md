@@ -139,6 +139,54 @@ local layers = 2
 A layer's fields are listed under [Layer](#layer). Values out of a field's range
 are held to it (a sprite is never bigger than 48, a light never brighter than 4).
 
+A magic circle on the floor: the effect comes from the ground under the feet
+(`Joint.Ground`), its circle of sprites lies flat (`Facing.Flat`, turned the way
+the body faces) and each sprite lies flat on the ground too (`Align.Ground`), so
+it reads as a circle drawn on the floor wherever the player walks or runs.
+
+```lua effect
+Effect.Name = "Magic circle"
+Effect.Joint = Joint.Ground
+
+-- Runes kept out all the time, spread evenly round a circle lying on the floor
+local runes = Sprite()
+runes.ComesFrom = ComesFrom.Shape
+runes.Formation = Shapes.Circle
+runes.Facing = Facing.Flat
+runes.Spread = 28
+runes.Offset = Vector3( 0, 0, 0.5 )
+runes.LooksLike = Picture.Sparkle
+runes.Align = Align.Ground
+runes.Color = Color.Parse( "#7ad8ff" )
+runes.Size = 4
+runes.Amount = 0
+runes.Keep = 16
+runes.Follow = true
+
+function runes.Particle( p )
+	p.Rotation = t * 40 + p.Index * 22.5
+	p.Alpha = 0.6 + 0.4 * Math.Sin( t * 3 + p.Index )
+end
+
+-- The ring itself, one sprite as wide as the circle, flat under the runes
+local ring = Sprite()
+ring.LooksLike = Shapes.Ring
+ring.Align = Align.Ground
+ring.Color = Color.Parse( "#7ad8ff" )
+ring.Size = 60
+ring.Amount = 0
+ring.Keep = 1
+ring.Follow = true
+
+local glow = Light()
+glow.Offset = Vector3( 0, 0, 4 )
+glow.Color = Color.Parse( "#7ad8ff" )
+glow.Size = 80
+glow.Amount = 0.6
+
+local flat = runes.Align --> Align.Ground
+```
+
 <br>
 
 ## Functions while it runs

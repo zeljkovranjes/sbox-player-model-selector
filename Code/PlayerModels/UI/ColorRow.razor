@@ -7,7 +7,7 @@
 <root>
     <div class="label">@Label</div>
     <UIColor Property=@_so?.GetProperty( nameof( Picked ) )></UIColor>
-    <div class="reset @( string.IsNullOrEmpty( Hex ) || !CanReset ? "disabled" : "" )" @onclick=@(() => OnChanged?.Invoke( "" ))>@ResetLabel</div>
+    <div class="reset clear @( string.IsNullOrEmpty( Hex ) || !CanReset ? "disabled" : "" )" Tooltip=@ResetLabel @onclick=@(() => OnChanged?.Invoke( "" ))>@( ResetLabel == "Remove" ? "close" : "restart_alt" )</div>
 </root>
 
 @code
@@ -21,7 +21,7 @@
     /// <summary>Called with the new colour as <c>#rrggbb</c>, or empty when reset.</summary>
     [Parameter] public Action<string> OnChanged { get; set; }
 
-    /// <summary>What the button that sends an empty colour says: what it does for this row ("Reset", "Remove").</summary>
+    /// <summary>What the button that sends an empty colour does for this row ("Reset", "Remove"): its tooltip and icon.</summary>
     [Parameter] public string ResetLabel { get; set; } = "Reset";
 
     /// <summary>Whether that button can be pressed now.</summary>

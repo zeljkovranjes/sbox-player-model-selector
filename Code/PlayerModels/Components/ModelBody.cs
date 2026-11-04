@@ -44,6 +44,9 @@ public sealed class ModelBody : Component
 	/// <summary>The renderer showing the picked model.</summary>
 	internal SkinnedModelRenderer Renderer => _renderer;
 
+	/// <summary>The effects it wears; null before its look is first put on.</summary>
+	internal EffectRack Effects => _effects;
+
 	private SkinnedModelRenderer _renderer;
 	private PoseTransfer _transfer;
 	// The citizen's renderers this hid, each with the shadows the game wants it to cast
@@ -55,6 +58,7 @@ public sealed class ModelBody : Component
 	private TimeSince _sincePosed;
 	private LookPainter _painter;
 	private AccessoryRack _accessories;
+	private EffectRack _effects;
 
 	/// <summary>
 	/// Puts <paramref name="model"/> on <paramref name="source"/>'s body, in the scene that is active now, dressed in
@@ -92,8 +96,8 @@ public sealed class ModelBody : Component
 	}
 
 	/// <summary>
-	/// Customises the model as <paramref name="look"/> says: body group choices, morph weights, skin, colours and body
-	/// shape. Whatever it no longer lists goes back to the model's default.
+	/// Customises the model as <paramref name="look"/> says: body group choices, morph weights, skin, colours, body
+	/// shape, items and effects. Whatever it no longer lists goes back to the model's default.
 	/// </summary>
 	internal void ApplyLook( PlayerLook look )
 	{
@@ -111,6 +115,9 @@ public sealed class ModelBody : Component
 		// Made here too, for the same reason
 		_accessories ??= new AccessoryRack();
 		_accessories.Apply( look.Accessories, GameObject, _transfer, Source.Model, _renderer.Model, FindOwnRenderers );
+
+		_effects ??= new EffectRack();
+		_effects.Apply( look.Effects, GameObject, _transfer, Source.Model, _renderer.Model );
 	}
 
 	/// <summary>
@@ -209,6 +216,7 @@ public sealed class ModelBody : Component
 		_transfer.Apply( Source, _renderer );
 		_held.Place( Source, _renderer, _transfer );
 		_accessories?.Place( Source, _renderer, _transfer );
+		_effects?.Place( Source, _renderer, _transfer );
 	}
 
 	/// <summary>
@@ -219,6 +227,7 @@ public sealed class ModelBody : Component
 	{
 		_cancel?.Cancel();
 		_held?.Release();
+		_effects?.Release();
 		ShowSource();
 
 		// Switched off at once, so it isn't drawn, posed or found again before it is removed

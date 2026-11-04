@@ -39,6 +39,9 @@ Shared looks - Share mine, under the Customize options, publishes your look for 
 Share details - sharing a look or an armature asks what to call it (up to 32 characters) and for a description (optional, up to 128); the Workshop lists each by its name with its author's Steam avatar and name as they are now, and the info button beside one shows its description, its author and everything else they shared
 Publishing - what you publish stays as it was published: to share changes, publish again as a new one (5 at once per model); your own can be taken down from the info button
 Workshop status - a red bar reads "Facepunch Workshop is currently unresponsive" while Facepunch's service isn't answering, and goes away by itself when it is back (asked every 30 seconds)
+# Effects
+Any model - effects are made on the citizen and worn in proportion on any model, from its eyes (each eye or between them), the top of its head (however high it reaches over its head bone), head, neck, chest, hips, hands or feet; a joint the model doesn't mark is stood in for, so an effect always shows
+Drawn on your machine - effects' pictures (glow, spark, flame, smoke, sparkle, heart, snowflake, droplet) are drawn from lines on every machine, so effects add nothing to download or publish
 # Armature
 Armature - give a bone to each body part the automatic setup couldn't find, with the skeleton drawn on the preview
 Shared armatures - Share mine, under the Armature page's lists, publishes your armature for a model where every player of the selector can find it; the Workshop button beside Clear my picks (with how many are shared for the model) opens the armatures players shared, a page at a time sized to fit, where Use takes the parts one gives your copy of the model onto the preview and Apply wears them; picks already shared, by you or anyone, aren't shared again, and copies shared at the same moment are listed once
@@ -55,6 +58,7 @@ Your model's arms - your weapons show the arms of the model you wear, moved by t
 # Multiplayer
 Host leaving - when the host leaves, whoever hosts next takes over the selector, with everyone's picks and the rules as they were
 Distant players - other players' models are posed every frame only near you; past 750 units 30 times a second, past 2,000 units 15, and out of view 10 (for their shadows), so a full server costs less each frame; they still move with their players every frame
+Effects at a distance - other players' effects show in full within 750 units, half their sprites up to 2,000 and none past that, and pause out of view; all of them together show at most 6,000 sprites and 16 lights, the nearest players first, and a crowd joining has its effects built a few at a time
 # Server
 Server page - the host decides which models players can wear: models from sbox.game, from mounted games, or neither; the default citizen and the game's own models always stay
 Blocking - the host can block any other model right from the grid; whoever wears it goes back to the citizen

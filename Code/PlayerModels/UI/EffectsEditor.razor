@@ -60,8 +60,10 @@
     else if ( _category == Category.Shapes )
     {
         <div class="top">
-            <div class="intro">Shapes sprites come from or look like: the standard ones, and yours to draw, write and erase. Click one to change it in the creator.</div>
-            <div class="reset" Tooltip="Shapes players shared" @onclick=@(() => ShowWorkshop?.Invoke( true ))>Workshop</div>
+            <div class="intro" Tooltip="Shapes sprites come from or look like: the standard ones, and yours to draw, write and erase">Click a shape to change it in the creator.</div>
+            <div class="buttons">
+                <div class="reset" Tooltip="Shapes players shared" @onclick=@(() => ShowWorkshop?.Invoke( true ))>Workshop</div>
+            </div>
         </div>
         <div class="section-header">My Shapes</div>
         <div class="grid">
@@ -74,7 +76,7 @@
                 <div class="tile-filler"></div>
             }
         </div>
-        <ShapeShelf Stickers=@false Open=@OpenShape OpenDraft=@OpenShapeDraft Empty="Shapes you save, use from the Workshop or fork show here; drafts too, marked with a pencil."></ShapeShelf>
+        <ShapeShelf Stickers=@false Open=@OpenShape OpenDraft=@OpenShapeDraft Empty="None yet: draw one with New shape, or use one from the Workshop. Drafts show here too, marked with a pencil."></ShapeShelf>
         <div class="section-header">Standard Shapes</div>
         <div class="grid">
             @foreach ( var standard in Enum.GetValues<StandardShape>() )
@@ -94,8 +96,10 @@
     else if ( _category == Category.Stickers )
     {
         <div class="top">
-            <div class="intro">Stickers are layers of shapes, text and drawings in colors of their own, for sprites and weapons. Click one to change it in the creator.</div>
-            <div class="reset" Tooltip="Stickers players shared" @onclick=@(() => ShowWorkshop?.Invoke( true ))>Workshop</div>
+            <div class="intro" Tooltip="Stickers are layers of shapes, text and drawings in colors of their own, for sprites and weapons">Click a sticker to change it in the creator.</div>
+            <div class="buttons">
+                <div class="reset" Tooltip="Stickers players shared" @onclick=@(() => ShowWorkshop?.Invoke( true ))>Workshop</div>
+            </div>
         </div>
         <div class="section-header">My Stickers</div>
         <div class="grid">
@@ -108,7 +112,7 @@
                 <div class="tile-filler"></div>
             }
         </div>
-        <ShapeShelf Stickers=@true Open=@OpenShape OpenDraft=@OpenShapeDraft Empty="Stickers you save, use from the Workshop or fork show here; drafts too, marked with a pencil."></ShapeShelf>
+        <ShapeShelf Stickers=@true Open=@OpenShape OpenDraft=@OpenShapeDraft Empty="None yet: make one with New sticker, or use one from the Workshop. Drafts show here too, marked with a pencil."></ShapeShelf>
     }
     else
     {

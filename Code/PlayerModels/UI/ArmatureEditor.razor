@@ -23,9 +23,11 @@
     else
     {
         <div class="top">
-            <div class="intro">Parts found automatically are locked. A missing part can be given a bone: pick the part, then its bone. Saved for this model when you press Apply.</div>
-            <div class="reset @( Look.Bones.Count > 0 ? "" : "disabled" )" @onclick=@ClearAll>Clear my picks</div>
-            <div class="reset workshop" @onclick=@(() => ShowWorkshop( true ))>@WorkshopLabel</div>
+            <div class="intro" Tooltip="Parts found automatically are locked. A missing part can be given a bone: pick the part, then its bone. Saved for this model when you press Apply.">Pick a missing part, then its bone; Apply keeps it.</div>
+            <div class="buttons">
+                <div class="reset @( Look.Bones.Count > 0 ? "" : "disabled" )" Tooltip="Every bone you picked goes back to missing" @onclick=@ClearAll>Clear my picks</div>
+                <div class="reset workshop" Tooltip="Armatures players shared for this model" @onclick=@(() => ShowWorkshop( true ))>@WorkshopLabel</div>
+            </div>
         </div>
 
         <div class="columns">

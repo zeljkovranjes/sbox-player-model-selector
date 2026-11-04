@@ -256,9 +256,12 @@ WeaponEditor
 		gap: 4px;
 		padding: 4px 0;
 
+		// the picture over the name strip, which sits at the tile's bottom as a spawn icon's does
 		> .tile
 		{
+			position: relative;
 			flex-direction: column;
+			height: 86px;
 			width: 19%;
 			flex-grow: 1;
 			max-width: 19%;
@@ -275,7 +278,7 @@ WeaponEditor
 			> .thumb
 			{
 				@include ui-tile-thumb;
-				height: 64px;
+				height: 56px;
 			}
 
 			> .title

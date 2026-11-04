@@ -416,6 +416,7 @@ for everyone.
 | Layers | 8 per effect |
 | Kept sprites | 100 per layer |
 | Beam points | 64 per beam |
+| Ghosts | 30 a second, 8 out at once, per layer |
 | Shape points | 500 per shape |
 | Emblem layers | 32 |
 | Palette | 32 colours |
@@ -688,7 +689,7 @@ local look: Picture = Picture.Flame --> Picture.Flame
 
 #### `Layer`
 
-A layer of the effect, made by Sprite(), Light(), Trail() or Beam().
+A layer of the effect, made by Sprite(), Light(), Trail(), Beam() or Ghost().
 
 ```lua effect
 local glow: Layer = Sprite()
@@ -1717,6 +1718,18 @@ local kind = bolt.Kind --> Kind.Beam
 local points = bolt.Keep --> 16
 ```
 
+#### `Ghost(): Layer`
+
+Adds ghosts: see-through copies of the body (or of the item or weapon its effect comes from), each the pose as it was, tinted Color fading to ColorEnd and gone after Lifetime: afterimages. Amount is how many a second (at most 30); at most 8 are out at once.
+
+```lua effect
+local afterimage = Ghost()
+afterimage.Color = Color.Parse( "#7ad8ff" )
+afterimage.Amount = 12
+afterimage.Lifetime = 0.4
+local kind = afterimage.Kind --> Kind.Ghost
+```
+
 #### `Layer.Emit( count: number )`
 
 Sends out count sprites of the layer at once, where it is (within the budget).
@@ -1752,7 +1765,7 @@ end
 
 #### `Layer.Kind: Kind  (read only)`
 
-What the layer is: Sprite(), Light(), Trail() or Beam() made it.
+What the layer is: Sprite(), Light(), Trail(), Beam() or Ghost() made it.
 
 Set: read only.
 
@@ -3364,7 +3377,7 @@ end
 
 What a layer is: sprites, a light, or a trail it leaves.
 
-`Kind.Sprite`, `Kind.Light`, `Kind.Trail`, `Kind.Beam`
+`Kind.Sprite`, `Kind.Light`, `Kind.Trail`, `Kind.Beam`, `Kind.Ghost`
 
 ```lua sticker
 local picked = Kind.Light --> Kind.Light

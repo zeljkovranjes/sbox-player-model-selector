@@ -66,7 +66,7 @@ internal static class ExampleRunner
 	}
 
 	// An effect needs a layer: an example that makes none is run with one added after it
-	private static readonly Regex MakesLayer = new( @"\b(Sprite|Light|Trail|Beam)\(\)|Effect\.Include" );
+	private static readonly Regex MakesLayer = new( @"\b(Sprite|Light|Trail|Beam|Ghost)\(\)|Effect\.Include" );
 
 	/// <summary>Runs <paramref name="code"/> as a script of <paramref name="kind"/> and checks its expectations; gives how many it checked.</summary>
 	public static int Run( string code, ScriptKind kind )

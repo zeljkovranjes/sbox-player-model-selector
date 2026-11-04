@@ -30,7 +30,7 @@ internal sealed partial class ScriptBuilder
 	private ScriptBuild FinishEffect()
 	{
 		if ( _layers.Count == 0 )
-			return Failed( "An effect needs at least one layer: add one with Sprite(), Light(), Trail() or Beam()" );
+			return Failed( "An effect needs at least one layer: add one with Sprite(), Light(), Trail(), Beam() or Ghost()" );
 
 		var shapes = new List<DrawnShape>();
 		var emblems = new Dictionary<string, IReadOnlyList<EmblemPart>>();

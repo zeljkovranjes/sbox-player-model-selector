@@ -71,4 +71,15 @@ public class LayerFieldTests
 	[Fact]
 	public void AnAlignmentThisVersionDoesntKnowDropsTheLayer() =>
 		Assert.Null( new EffectLayer { Align = "Sideways" }.Sanitized() );
+
+	[Theory]
+	[InlineData( 12f, 0.4f, 12f, 48f )]
+	[InlineData( 500f, 0.4f, EffectLayer.MaxGhostRate, 80f )]
+	[InlineData( 30f, 5f, EffectLayer.MaxGhostRate, 80f )]
+	public void GhostsAreHeldToTheirRateAndCountAgainstTheBudget( float amount, float lifetime, float rate, float sprites )
+	{
+		var layer = RoundTrip( $"local afterimage = Ghost()\nafterimage.Amount = {amount}\nafterimage.Lifetime = {lifetime}" );
+		Assert.Equal( (LayerKind.Ghost, rate), (layer.KindIs, layer.Amount) );
+		Assert.Equal( sprites, layer.LiveSprites(), 3 );
+	}
 }

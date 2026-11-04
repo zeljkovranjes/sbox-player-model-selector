@@ -23,7 +23,7 @@ public static class ScriptProperties
 
 	public static readonly IReadOnlyList<ScriptProperty> All = new ScriptProperty[]
 	{
-		new( PropertyId.LayerKind, TypeKind.Layer, "Kind", ScriptEnums.Kind.Type, "What the layer is: Sprite(), Light(), Trail() or Beam() made it.", ReadOnly: true, ExampleResult: "Kind.Sprite" ),
+		new( PropertyId.LayerKind, TypeKind.Layer, "Kind", ScriptEnums.Kind.Type, "What the layer is: Sprite(), Light(), Trail(), Beam() or Ghost() made it.", ReadOnly: true, ExampleResult: "Kind.Sprite" ),
 		new( PropertyId.LayerOff, TypeKind.Layer, "Off", ScriptType.Bool, "Whether it is switched off: kept, but not shown.", Live: true, ExampleValue: "true", ExampleResult: "true" ),
 		new( PropertyId.LayerJoint, TypeKind.Layer, "Joint", ScriptEnums.Joint.Type, "The joint it comes from, in place of its effect's.", ExampleValue: "Joint.LeftHand", ExampleResult: "Joint.LeftHand" ),
 		new( PropertyId.LayerComesFrom, TypeKind.Layer, "ComesFrom", ScriptEnums.ComesFrom.Type, "Where its sprites come from around its place (\"Comes from\").", ExampleValue: "ComesFrom.Sphere", ExampleResult: "ComesFrom.Sphere" ),

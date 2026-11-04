@@ -32,7 +32,7 @@ public static partial class ScriptLibrary
 		Type( entries, "Key", "A key that can show an effect, written as text: \"g\", \"f1\", \"mouse4\". Any other text is an error.", "Effect.Key = \"g\"", ScriptKind.Effect );
 		Type( entries, "Shape", "A standard shape (Shapes.Heart) or one the script drew (Shapes.New).", "local s: Shape = Shapes.Heart --> Shapes.Heart" );
 		Type( entries, "Picture", "What a sprite looks like: a curated picture (Picture.Flame) or any shape.", "local look: Picture = Picture.Flame --> Picture.Flame" );
-		Type( entries, "Layer", "A layer of the effect, made by Sprite(), Light(), Trail() or Beam().", "local glow: Layer = Sprite()", ScriptKind.Effect );
+		Type( entries, "Layer", "A layer of the effect, made by Sprite(), Light(), Trail(), Beam() or Ghost().", "local glow: Layer = Sprite()", ScriptKind.Effect );
 		Type( entries, "Effect", "An effect: this one (Effect), or one to include (Effects.Preset).", "Effect.Include( Effects.Preset( \"Hearts\" ) )", ScriptKind.Effect );
 		Type( entries, "EmblemLayer", "One layer of an emblem, made by shape.AddLayer.", "local badge = Shapes.New( \"Badge\" )\nlocal star: EmblemLayer = badge.AddLayer( Shapes.Star5 )", ScriptKind.Effect );
 		Type( entries, "list", "{ a, b, c }: items of one type, numbered from 0, written {T} as a type. An item changes in place with list[ i ] = value (every variable holding the list sees it); a list keeps its size.", "local odd: {number} = { 1, 3, 5 }\nodd[ 1 ] = 4\nlocal second = odd[ 1 ] --> 4" );

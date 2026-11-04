@@ -20,6 +20,8 @@ public static partial class ScriptLibrary
 		entries.Add( Function( "Trail", Intrinsic.Trail, ScriptType.Layer, layer, "Adds a trail left behind as its place moves.", "local streak = Trail()\nlocal kind = streak.Kind --> Kind.Trail", build ) );
 		entries.Add( Function( "Beam", Intrinsic.Beam, ScriptType.Layer, layer, "Adds a beam: a glowing ribbon through its points in order (Keep of them, 16 unless set, 2 to 64), laid evenly along where it comes from (to ToJoint for ComesFrom.Line) and moved by its particle function: bolts, lasers, ropes. Size is its width; its colour runs from Color to ColorEnd along it.",
 			"local bolt = Beam()\nbolt.ComesFrom = ComesFrom.Line\nbolt.ToJoint = Joint.RightHand\nlocal kind = bolt.Kind --> Kind.Beam\nlocal points = bolt.Keep --> 16", build ) );
+		entries.Add( Function( "Ghost", Intrinsic.Ghost, ScriptType.Layer, layer, "Adds ghosts: see-through copies of the body (or of the item or weapon its effect comes from), each the pose as it was, tinted Color fading to ColorEnd and gone after Lifetime: afterimages. Amount is how many a second (at most 30); at most 8 are out at once.",
+			"local afterimage = Ghost()\nafterimage.Color = Color.Parse( \"#7ad8ff\" )\nafterimage.Amount = 12\nafterimage.Lifetime = 0.4\nlocal kind = afterimage.Kind --> Kind.Ghost", build ) );
 		entries.Add( Space( "Effects", effect, "Whole effects to include in this one: the player's own (\"My effects\") and the presets." ) );
 		entries.Add( Function( "Effects.Mine", Intrinsic.EffectsMine, ScriptType.Effect, effect, "One of the player's saved effects, by name, to include.", "Effect.Include( Effects.Mine( \"Fire hands\" ) )", build,
 			P( "name", name, "Its name in My effects" ) ) );

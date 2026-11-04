@@ -224,7 +224,8 @@ public sealed partial class Compiler
 	}
 
 	// The intrinsics that make a layer, a shape or an emblem layer: the site making it goes with them
-	private static bool Makes( Intrinsic op ) => op is Intrinsic.Sprite or Intrinsic.Light or Intrinsic.Trail or Intrinsic.Beam or Intrinsic.ShapeNew
+	private static bool Makes( Intrinsic op ) => op is Intrinsic.Sprite or Intrinsic.Light or Intrinsic.Trail or Intrinsic.Beam or Intrinsic.Ghost
+		or Intrinsic.ShapeNew
 		or Intrinsic.ShapeText or Intrinsic.ShapesMine or Intrinsic.StickersMine or Intrinsic.EmblemsMine or Intrinsic.ShapeAddLayer;
 
 	// The local a top-level `local name = <call>` keeps what the call makes in

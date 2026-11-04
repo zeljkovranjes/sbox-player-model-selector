@@ -5,10 +5,11 @@ using System.Text.Json.Serialization;
 namespace PlayerModels.Core;
 
 /// <summary>
-/// What a layer of an effect is: sprites (flames, sparks, hearts), a light, a trail left behind as it moves, or a beam (a
-/// ribbon through points it keeps, like a bolt between the hands).
+/// What a layer of an effect is: sprites (flames, sparks, hearts), a light, a trail left behind as it moves, a beam (a
+/// ribbon through points it keeps, like a bolt between the hands), or ghosts (see-through copies of the body, or of what
+/// the effect comes from, left behind as it moves: afterimages).
 /// </summary>
-public enum LayerKind { Sprite, Light, Trail, Beam }
+public enum LayerKind { Sprite, Light, Trail, Beam, Ghost }
 
 /// <summary>
 /// Where a layer's sprites come from, around its place: one point, a ball, a flat ring, all around the body (an upright
@@ -114,6 +115,14 @@ public sealed class EffectLayer
 	public const float MinBeamPoints = 2f;
 	public const float MaxBeamPoints = 64f;
 	public const float BeamPoints = 16f;
+
+	/// <summary>
+	/// How many ghosts a layer leaves a second at most, how many are out at once at most, and how many sprites one counts
+	/// as in the budget (a copy of a body costs about as much to draw as a handful of sprites).
+	/// </summary>
+	public const float MaxGhostRate = 30f;
+	public const float MaxGhosts = 8f;
+	public const float GhostSprites = 10f;
 
 	private const string White = "#ffffff";
 
@@ -340,12 +349,13 @@ public sealed class EffectLayer
 	/// <summary>
 	/// How many of its sprites are out at once at most, at <paramref name="amount"/> times its own amount: what it makes
 	/// over a lifetime, and a moment's burst on top, and those it keeps (whatever the amount: a formation stays whole); a
-	/// beam its points; a light, a trail or a layer switched off has none.
+	/// beam its points, ghosts what they cost; a light, a trail or a layer switched off has none.
 	/// </summary>
 	public float LiveSprites( float amount = 1f ) => Off ? 0f : KindIs switch
 	{
 		LayerKind.Sprite => (Amount * Lifetime + Burst) * amount + Keep,
 		LayerKind.Beam => Keep,
+		LayerKind.Ghost => MathF.Min( Amount * Lifetime, MaxGhosts ) * GhostSprites,
 		_ => 0f,
 	};
 
@@ -410,7 +420,7 @@ public sealed class EffectLayer
 			Speed = Limited( Speed, 0f, MaxSpeed, 0f ),
 			Gravity = Limited( Gravity, -MaxGravity, MaxGravity, 0f ),
 			Lifetime = Limited( Lifetime, MinLifetime, MaxLifetime, 1f ),
-			Amount = isLight ? Limited( Amount, 0f, MaxBrightness, 1f ) : Limited( Amount, 0f, MaxRate, 0f ),
+			Amount = isLight ? Limited( Amount, 0f, MaxBrightness, 1f ) : Limited( Amount, 0f, Kind == nameof( LayerKind.Ghost ) ? MaxGhostRate : MaxRate, 0f ),
 			Follow = Follow,
 			Solid = Solid,
 			Rhythm = Rhythm == nameof( LayerRhythm.Steady ) ? null : Rhythm,

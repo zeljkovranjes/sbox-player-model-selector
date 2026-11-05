@@ -96,7 +96,7 @@ public sealed partial class ModelPreview
 			_ => null,
 		};
 
-		if ( parameter is not null && _aloneAnimated && HasParameter( _aloneRenderer.Model.Graph1(), parameter ) )
+		if ( parameter is not null && _aloneAnimated && HasParameter( _aloneRenderer.Model, parameter ) )
 		{
 			_aloneRenderer.Write( parameter, true );
 			return true;
@@ -107,19 +107,7 @@ public sealed partial class ModelPreview
 		return false;
 	}
 
-	private static bool HasParameter( AnimationGraph graph, string name )
-	{
-		if ( graph is null )
-			return false;
-
-		for ( var i = 0; i < graph.ParamCount; i++ )
-		{
-			if ( graph.GetParameterName( i ) == name )
-				return true;
-		}
-
-		return false;
-	}
+	private static bool HasParameter( Model model, string name ) => model.HasGraph1Parameter( name );
 
 	// Once a frame, after the citizen and what it holds: the weapon alone shown, dressed and placed, or taken away
 	private void TickAlone()

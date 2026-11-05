@@ -447,17 +447,19 @@ EffectIcon .picture
 	&.pulse { animation-name: effect-pulse; }
 	&.flicker { animation-name: effect-flicker; animation-duration: 0.6s; }
 	&.spin { animation-name: effect-spin; animation-duration: 4s; animation-timing-function: linear; }
-	&.rise { animation-name: effect-rise; animation-duration: 1.6s; }
-	&.fall { animation-name: effect-fall; animation-duration: 1.2s; }
+	&.rise { animation-name: effect-rise; animation-duration: 1.6s; animation-timing-function: linear; }
+	&.fall { animation-name: effect-fall; animation-duration: 1.2s; animation-timing-function: linear; }
 	&.glow { animation-name: effect-pulse; animation-duration: 3s; }
-	&.sweep { animation-name: effect-sweep; animation-duration: 1.4s; }
+	&.sweep { animation-name: effect-sweep; animation-duration: 1.4s; animation-timing-function: linear; }
 }
 
-// a trail: a streak sweeping across the tile and fading behind
+// a trail: a streak sweeping across the tile and fading behind (these three run at a steady pace, whole for most of their
+// loop and fading only to hide the jump back: eased over the whole loop, they sat at nothing and a tile looked empty)
 @keyframes effect-sweep
 {
 	0% { opacity: 0; transform: translateX( -35% ) scaleX( 2.4 ) scaleY( 0.5 ); }
-	40% { opacity: 1; }
+	20% { opacity: 1; }
+	75% { opacity: 1; }
 	100% { opacity: 0; transform: translateX( 35% ) scaleX( 2.4 ) scaleY( 0.5 ); }
 }
 
@@ -486,13 +488,15 @@ EffectIcon .picture
 @keyframes effect-rise
 {
 	0% { opacity: 0; transform: translateY( 20% ) scale( 0.8 ); }
-	30% { opacity: 1; }
+	20% { opacity: 1; }
+	75% { opacity: 1; }
 	100% { opacity: 0; transform: translateY( -25% ) scale( 1.05 ); }
 }
 
 @keyframes effect-fall
 {
 	0% { opacity: 0; transform: translateY( -25% ); }
-	30% { opacity: 1; }
+	20% { opacity: 1; }
+	75% { opacity: 1; }
 	100% { opacity: 0; transform: translateY( 25% ); }
 }

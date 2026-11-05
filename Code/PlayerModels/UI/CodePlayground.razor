@@ -57,6 +57,8 @@
     // It updates this long after typing pauses
     const float RunAfter = 0.15f;
 
+    const string ExampleInFront = "\nEffect.Offset = Vector3( 14, 0, 0 )";
+
     CodeEntry _entry;
     ModelPreview _preview;
     string _shown;
@@ -116,7 +118,19 @@
     void Run()
     {
         _pending = false;
+
+        // A shape's picture stays only while the example is a shape's: the panel is kept from one example to the next
+        if ( Kind != ScriptKind.Shape )
+            _shape = null;
+
         var source = ScriptReference.Runnable( _entry?.Source ?? "", Kind );
+
+        // An example that says nothing of where its sprites go has them in the middle of the default joint, inside the body:
+        // a step in front of it they show (on the preview alone: Copy hands over the code as it is). Last, so errors keep
+        // their lines
+        if ( Kind == ScriptKind.Effect && !source.Contains( "Joint" ) && !source.Contains( "Offset" ) && !source.Contains( "Anchor" ) )
+            source += ExampleInFront;
+
         var compiled = ScriptCompiler.Compile( source, Kind );
         if ( !compiled.Succeeded )
         {

@@ -21,8 +21,8 @@ internal static partial class StressScripts
 		local reach = 22
 
 		Effect.Name = "Cross slash"
-		Effect.Joint = Joint.Chest
-		Effect.Offset = Vector3( 14, 0, 0 )
+		Effect.Joint = Joint.Ground
+		Effect.Offset = Vector3( 20, 0, 24 )
 
 		-- A crescent of 140 degrees, thickest in the middle; side 1 sweeps anticlockwise to its front straight up, -1 is its
 		-- mirror image (clockwise); each clear at its tail and whole at its front
@@ -56,6 +56,7 @@ internal static partial class StressScripts
 
 		-- The cuts lie in a plane facing forwards, so the X is seen from the front
 		local first = Sprite()
+		first.Offset = Vector3( 0, 0, 24 )
 		first.LooksLike = downRight
 		first.Color = slashColor
 		first.Size = reach * 2
@@ -65,6 +66,7 @@ internal static partial class StressScripts
 		first.Align = Align.Facing
 
 		local second = Sprite()
+		second.Offset = Vector3( 0, 0, 24 )
 		second.LooksLike = downLeft
 		second.Color = slashColor
 		second.Size = reach * 2
@@ -73,19 +75,24 @@ internal static partial class StressScripts
 		second.Follow = true
 		second.Align = Align.Facing
 
-		-- Each cuts down across the middle, turning on a little as it fades
+		-- Each cuts down across the middle, turning on a little as it fades, moved so its arc passes through the middle
+		local across = reach * 0.56
+
 		function first.Particle( p )
-			p.Rotation = -135 + p.Life * 25
+			p.Rotation = 115 + p.Life * 25
+			p.Offset = Vector3( 0, across, -across )
 			p.Alpha = 1 - p.Life * p.Life
 		end
 
 		function second.Particle( p )
-			p.Rotation = 135 - p.Life * 25
+			p.Rotation = -115 - p.Life * 25
+			p.Offset = Vector3( 0, -across, -across )
 			p.Alpha = 1 - p.Life * p.Life
 		end
 
 		-- The flash where they cross
 		local flash = Sprite()
+		flash.Offset = Vector3( 0, 0, 24 )
 		flash.LooksLike = Picture.Sparkle
 		flash.Color = Color.White
 		flash.Size = 14

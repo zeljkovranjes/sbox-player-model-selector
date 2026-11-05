@@ -23,7 +23,7 @@ public static partial class ScriptLibrary
 		entries.Add( Function( "Ghost", Intrinsic.Ghost, ScriptType.Layer, layer, "Adds ghosts: see-through copies of the body (or of the item or weapon its effect comes from), each the pose as it was, tinted Color fading to ColorEnd and gone after Lifetime: afterimages. Amount is how many a second (at most 30); at most 8 are out at once.",
 			"local afterimage = Ghost()\nafterimage.Color = Color.Parse( \"#7ad8ff\" )\nafterimage.Amount = 12\nafterimage.Lifetime = 0.4\nlocal kind = afterimage.Kind --> Kind.Ghost", build ) );
 		entries.Add( Space( "Effects", effect, "Whole effects to include in this one: the player's own (\"My effects\") and the presets." ) );
-		entries.Add( Function( "Effects.Mine", Intrinsic.EffectsMine, ScriptType.Effect, effect, "One of the player's saved effects, by name, to include (in a weapon design: to put on the weapon; one the design carries counts too).", "Effect.Include( Effects.Mine( \"Fire hands\" ) )", build | ScriptPlace.WeaponBuild,
+		entries.Add( Function( "Effects.Mine", Intrinsic.EffectsMine, ScriptType.Effect, effect, "One of the player's saved effects, by name, to include (in a weapon design: to put on the weapon; one the design carries counts too).", "-- Takes an effect you saved: save one as Fire hands on the\n-- Effects tab, or name one you have.\n-- Until you do, the stock one shows here.\nEffect.Include( Effects.Mine( \"Fire hands\" ) )", build | ScriptPlace.WeaponBuild,
 			P( "name", name, "Its name in My effects" ) ) );
 		entries.Add( Function( "Effects.Preset", Intrinsic.EffectsPreset, ScriptType.Effect, effect, "One of the stock presets, by name, to include (in a weapon design: to put on the weapon).", "Effect.Include( Effects.Preset( \"Hearts\" ) )", build | ScriptPlace.WeaponBuild,
 			P( "name", name, "Its name in the Effects tab" ) ) );
@@ -139,13 +139,13 @@ public static partial class ScriptLibrary
 			P( "name", ScriptType.String, "What it is called" ) ) );
 		entries.Add( Function( "Shapes.Text", Intrinsic.ShapeText, s, shape, "Text as a shape, in single lines the same on every machine (letters, digits, common punctuation; up to 24).", "local word = Shapes.Text( \"COOL\" )", build,
 			P( "text", ScriptType.String, "What it says" ) ) );
-		entries.Add( Function( "Shapes.Mine", Intrinsic.ShapesMine, s, shape, "One of the player's own shapes (My shapes), by name; checked when the script compiles.", "local logo = Shapes.Mine( \"COOL\" )", build,
+		entries.Add( Function( "Shapes.Mine", Intrinsic.ShapesMine, s, shape, "One of the player's own shapes (My shapes), by name; checked when the script compiles.", "-- Takes a shape of yours: draw one called COOL in the\n-- shape creator, or name one you have.\n-- Until you do, a stand-in shows here.\nlocal logo = Shapes.Mine( \"COOL\" )\nlocal glow = Sprite()\nglow.LooksLike = logo\nglow.Size = 14\nglow.Amount = 4", build,
 			P( "name", ScriptType.String, "Its name in My shapes" ) ) );
 		entries.Add( Space( "Stickers", shape, "The player's own stickers (shapes with colours), from My shapes." ) );
-		entries.Add( Function( "Stickers.Mine", Intrinsic.StickersMine, s, shape, "One of the player's own stickers, by name; checked when the script compiles.", "local skull = Stickers.Mine( \"Gold skull\" )", build,
+		entries.Add( Function( "Stickers.Mine", Intrinsic.StickersMine, s, shape, "One of the player's own stickers, by name; checked when the script compiles.", "-- Takes a sticker of yours: make one called Gold skull in\n-- the creator's Sticker mode, or name one you have.\n-- Until you do, a stand-in shows here.\nlocal skull = Stickers.Mine( \"Gold skull\" )\nlocal badge = Sprite()\nbadge.LooksLike = skull\nbadge.Size = 14\nbadge.Amount = 4", build,
 			P( "name", ScriptType.String, "Its name in My shapes" ) ) );
 		entries.Add( Space( "Emblems", shape, "The player's own emblems (stacks of shape layers), from My shapes." ) );
-		entries.Add( Function( "Emblems.Mine", Intrinsic.EmblemsMine, s, shape, "One of the player's own emblems, by name; checked when the script compiles.", "local clan = Emblems.Mine( \"Clan\" )", build,
+		entries.Add( Function( "Emblems.Mine", Intrinsic.EmblemsMine, s, shape, "One of the player's own emblems, by name; checked when the script compiles.", "-- Takes a sticker of layers of yours: make one called Clan\n-- in the creator's Sticker mode, or name one you have.\n-- Until you do, a stand-in shows here.\nlocal clan = Emblems.Mine( \"Clan\" )\nlocal badge = Sprite()\nbadge.LooksLike = clan\nbadge.Size = 14\nbadge.Amount = 4", build,
 			P( "name", ScriptType.String, "Its name in My shapes" ) ) );
 		entries.Add( Method( "Shape.Point", Intrinsic.ShapePoint, ScriptType.Void, shape, "Adds a point to the line being drawn (the square is -1 to 1 each way, y up).", "local mark = Shapes.New( \"Mark\" )\nmark.Point( -1, 0 )\nmark.Point( 1, 0 )\nmark.EndLine()\nlocal points = mark.PointCount --> 2", build,
 			P( "x", N, "Across", "-1 to 1" ), P( "y", N, "Up", "-1 to 1" ) ) );

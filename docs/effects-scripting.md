@@ -1734,6 +1734,9 @@ One of the player's saved effects, by name, to include (in a weapon design: to p
 | `name` | string | any | Its name in My effects |
 
 ```lua effect
+-- Takes an effect you saved: save one as Fire hands on the
+-- Effects tab, or name one you have.
+-- Until you do, the stock one shows here.
 Effect.Include( Effects.Mine( "Fire hands" ) )
 ```
 
@@ -2785,7 +2788,14 @@ One of the player's own shapes (My shapes), by name; checked when the script com
 | `name` | string | any | Its name in My shapes |
 
 ```lua effect
+-- Takes a shape of yours: draw one called COOL in the
+-- shape creator, or name one you have.
+-- Until you do, a stand-in shows here.
 local logo = Shapes.Mine( "COOL" )
+local glow = Sprite()
+glow.LooksLike = logo
+glow.Size = 14
+glow.Amount = 4
 ```
 
 #### `Stickers`
@@ -2801,7 +2811,14 @@ One of the player's own stickers, by name; checked when the script compiles.
 | `name` | string | any | Its name in My shapes |
 
 ```lua effect
+-- Takes a sticker of yours: make one called Gold skull in
+-- the creator's Sticker mode, or name one you have.
+-- Until you do, a stand-in shows here.
 local skull = Stickers.Mine( "Gold skull" )
+local badge = Sprite()
+badge.LooksLike = skull
+badge.Size = 14
+badge.Amount = 4
 ```
 
 #### `Emblems`
@@ -2817,7 +2834,14 @@ One of the player's own emblems, by name; checked when the script compiles.
 | `name` | string | any | Its name in My shapes |
 
 ```lua effect
+-- Takes a sticker of layers of yours: make one called Clan
+-- in the creator's Sticker mode, or name one you have.
+-- Until you do, a stand-in shows here.
 local clan = Emblems.Mine( "Clan" )
+local badge = Sprite()
+badge.LooksLike = clan
+badge.Size = 14
+badge.Amount = 4
 ```
 
 #### `Shape.Point( x: number, y: number )`

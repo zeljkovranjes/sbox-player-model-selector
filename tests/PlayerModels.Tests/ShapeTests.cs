@@ -397,4 +397,31 @@ public class MachineTests
 		var effect = ScriptKit.BuildEffect( "local badge = Shapes.New( \"Badge\" )\nbadge.Finish = StickerFinish.Gold\nlocal back = badge.AddLayer( Shapes.Hexagon )\nback.Color = Color.Black\nlocal word = badge.AddLayer( Shapes.Text( \"GG\" ) )\nword.Color = Color.Yellow\nlocal glow = Sprite()\nglow.LooksLike = badge" );
 		ScriptKit.SameEffect( effect, ScriptKit.BuildEffect( ScriptCodegen.Effect( effect ) ) );
 	}
+
+	[Theory]
+	[InlineData( "Shapes.Mine" )]
+	[InlineData( "Stickers.Mine" )]
+	[InlineData( "Emblems.Mine" )]
+	[InlineData( "Effects.Mine" )]
+	public void AnExampleOfMineRunsOnItsStandInAndNamesWhatItNeeds( string name )
+	{
+		var example = ScriptLibrary.All.First( x => x.Name == name ).Example;
+		Assert.StartsWith( "-- Takes ", example );
+		var source = ScriptReference.Runnable( example, ScriptKind.Effect );
+		Assert.False( ScriptCompiler.Compile( source, ScriptKind.Effect ).Succeeded );
+
+		var library = new ExampleLibrary( new LookLibrary( null ) );
+		var compiled = ScriptCompiler.Compile( source, ScriptKind.Effect, library );
+		Assert.Equal( "", string.Join( "\n", compiled.Errors ) );
+		Assert.True( new ScriptMachine( compiled.Program ).Build( library ).Succeeded );
+	}
+
+	[Fact]
+	public void AnExamplesStandInGivesWayToThePlayersOwn()
+	{
+		var mine = DrawnShape.From( HersheyFont.Strokes( "MINE" ), "COOL" );
+		var library = new ExampleLibrary( new LookLibrary( new[] { mine } ) );
+		Assert.Equal( mine.Content, library.Shape( "COOL", LibraryItemKind.Shape ).Content );
+		Assert.Single( library.Items, x => x.Name == "COOL" && x.Kind == LibraryItemKind.Shape );
+	}
 }

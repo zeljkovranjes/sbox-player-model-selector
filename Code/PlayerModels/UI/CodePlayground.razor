@@ -131,7 +131,9 @@
         if ( Kind == ScriptKind.Effect && !source.Contains( "Joint" ) && !source.Contains( "Offset" ) && !source.Contains( "Anchor" ) )
             source += ExampleInFront;
 
-        var compiled = ScriptCompiler.Compile( source, Kind );
+        // What an example takes by name: the player's own, or the reference's stand-in until they have one of that name
+        var library = source.Contains( ".Mine" ) ? new ExampleLibrary( new MyLibrary( Wearer?.Invoke()?.DrawnShapes ) ) : null;
+        var compiled = ScriptCompiler.Compile( source, Kind, library );
         if ( !compiled.Succeeded )
         {
             Fail( compiled.Errors.Count > 0 ? compiled.Errors[ 0 ] : null );
@@ -158,7 +160,7 @@
             return;
         }
 
-        var build = machine.Build();
+        var build = machine.Build( library );
         if ( !build.Succeeded )
         {
             Fail( build.Error );

@@ -395,6 +395,7 @@ end
 local sparks = Sprite()
 sparks.ComesFrom = ComesFrom.Shape
 sparks.Formation = heartRing
+sparks.Spread = 24
 ```
 
 <br>

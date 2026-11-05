@@ -424,4 +424,11 @@ public class MachineTests
 		Assert.Equal( mine.Content, library.Shape( "COOL", LibraryItemKind.Shape ).Content );
 		Assert.Single( library.Items, x => x.Name == "COOL" && x.Kind == LibraryItemKind.Shape );
 	}
+
+	[Fact]
+	public void ANameNotFoundSaysWhereToMakeIt()
+	{
+		var error = ScriptCompiler.Compile( "local s = Shapes.Mine( \"Zzz\" )", ScriptKind.Effect ).Errors[ 0 ].ToString();
+		Assert.Contains( "No shape called 'Zzz' in My shapes. Make it in the shape creator or get it from the Workshop", error );
+	}
 }

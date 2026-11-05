@@ -33,7 +33,7 @@ public sealed class WeaponIcon : Panel
 
 	public WeaponIcon()
 	{
-		_scene = AddChild<ScenePanel>( "render" );
+		_scene = AddChild<PreviewScenePanel>( "render" );
 		_scene.Style.Width = Length.Percent( 100 );
 		_scene.Style.Height = Length.Percent( 100 );
 		using ( _scene.RenderScene.Push() )

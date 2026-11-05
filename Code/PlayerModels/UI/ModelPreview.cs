@@ -157,7 +157,7 @@ public sealed partial class ModelPreview : Panel
 
 	public ModelPreview()
 	{
-		_scene = AddChild<ScenePanel>( "render" );
+		_scene = AddChild<PreviewScenePanel>( "render" );
 		_loading = Add.Label( "Loading model...", "loading" );
 		_message = Add.Label( "", "message" );
 

@@ -48,7 +48,7 @@ public sealed class ViewModelPreview : Panel
 
 	public ViewModelPreview()
 	{
-		_scene = AddChild<ScenePanel>( "render" );
+		_scene = AddChild<PreviewScenePanel>( "render" );
 		_message = Add.Label( "", "message" );
 
 		BuildScene();

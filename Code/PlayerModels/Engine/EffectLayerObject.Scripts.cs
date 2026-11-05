@@ -601,12 +601,14 @@ internal sealed partial class EffectLayerObject
 			_sphere.Velocity = speed;
 			_ring.VelocityFromCenter = speed;
 			_points.Velocity = speed;
+			_outSpeed = speed;
 		}
 
 		if ( machine.IsLiveChanged( layer, PropertyId.LayerSpread ) )
 		{
 			var spread = (float)machine.LiveValue( layer, PropertyId.LayerSpread ) * _sizeFactor;
 			_sphere.Radius = _sphere.Radius > 0f ? spread : 0f;
+			_outSpread = _outSpread > 0f ? spread : 0f;
 			_ring.Radius = spread;
 			_points.Scale = spread;
 		}
@@ -645,7 +647,10 @@ internal sealed partial class EffectLayerObject
 		}
 	}
 
-	/// <summary>Sends <paramref name="count"/> of its sprites out at <paramref name="position"/> in the world (its script's <c>EmitAt</c>).</summary>
+	/// <summary>
+	/// Sends <paramref name="count"/> of its sprites out at <paramref name="position"/> in the world (its script's
+	/// <c>EmitAt</c>): from within its spread, every way, at its speed.
+	/// </summary>
 	internal void EmitAt( Vector3 position, int count )
 	{
 		if ( Kind != LayerKind.Sprite || _keep > 0 || !Root.IsValid() )
@@ -653,7 +658,11 @@ internal sealed partial class EffectLayerObject
 
 		var shown = (int)MathF.Round( count * _share );
 		for ( var i = 0; i < shown && !_particles.IsFull; i++ )
-			_particles.Emit( position, i / (float)Math.Max( 1, shown ) );
+		{
+			var direction = Vector3.Random.Normal;
+			var sprite = _particles.Emit( position + direction * Game.Random.Float( 0f, _outSpread ), i / (float)Math.Max( 1, shown ) );
+			sprite.Velocity = direction * _outSpeed;
+		}
 	}
 
 	private static void ResetOutputs( ScriptIO io )
@@ -669,4 +678,8 @@ internal sealed partial class EffectLayerObject
 	// A colour as #rrggbb, for a script's palette
 	private static string HexOf( Color colour ) => string.Create( CultureInfo.InvariantCulture,
 		$"#{(int)MathF.Round( Math.Clamp( colour.r, 0f, 1f ) * 255f ):x2}{(int)MathF.Round( Math.Clamp( colour.g, 0f, 1f ) * 255f ):x2}{(int)MathF.Round( Math.Clamp( colour.b, 0f, 1f ) * 255f ):x2}" );
+
+	// How far from a place in the world sprites sent there start, and how fast they leave it (see EmitAt)
+	private float _outSpread;
+	private float _outSpeed;
 }

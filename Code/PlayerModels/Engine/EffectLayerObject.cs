@@ -632,6 +632,8 @@ internal sealed partial class EffectLayerObject
 		particles.StartVelocity = shape is LayerShape.Box or LayerShape.Cone ? data.Speed * moves : 0f;
 
 		var spread = data.Spread * size;
+		_outSpread = shape == LayerShape.Point ? 0f : spread;
+		_outSpeed = data.Speed * moves;
 		switch ( shape )
 		{
 			case LayerShape.Ring:

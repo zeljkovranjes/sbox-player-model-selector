@@ -197,6 +197,9 @@ public sealed class EffectBeam : Component, Component.ExecuteInEditor
 	// Seen from every side, glowing over what is behind it (or covering it, solid), unlit, as the line renderer draws
 	private void UseLook()
 	{
+		if ( LineLook() is { } material )
+			_line.Material = material;
+
 		_line.Face = SceneLineObject.FaceMode.Camera;
 		_line.Lighting = false;
 		_line.Opaque = false;
@@ -218,5 +221,23 @@ public sealed class EffectBeam : Component, Component.ExecuteInEditor
 	{
 		_line?.Delete();
 		_line = null;
+	}
+
+	// The line renderer's own material, white: the line object's default material loses the green of every colour (and
+	// draws in stripes) on current engines
+	private const string LineMaterial = "materials/default/default_line.vmat";
+
+	[SkipHotload]
+	private static Material _lineLook;
+
+	private static Material LineLook()
+	{
+		if ( _lineLook is null && Material.Load( LineMaterial )?.CreateCopy() is { } made )
+		{
+			made.Set( "g_tColor", Texture.White );
+			_lineLook = made;
+		}
+
+		return _lineLook;
 	}
 }

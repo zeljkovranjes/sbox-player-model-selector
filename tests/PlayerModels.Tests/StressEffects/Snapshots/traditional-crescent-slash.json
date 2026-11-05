@@ -9,11 +9,12 @@
     {
       "k": "Sprite",
       "j": "Chest",
-      "f": 6,
-      "p": "@ded97f8497146686",
+      "f": 20,
+      "u": 6,
+      "p": "@c96d7a63846fb31c",
       "c": "#ffd27a",
       "a": 44,
-      "t": 0.25,
+      "t": 0.3,
       "n": 0,
       "fo": true,
       "al": "Swing"
@@ -21,11 +22,12 @@
     {
       "k": "Sprite",
       "j": "Chest",
-      "f": 6,
-      "p": "@2a5db696defe3d47",
+      "f": 20,
+      "u": 6,
+      "p": "@9eb07586862c4af2",
       "c": "#ffffff",
       "a": 44,
-      "t": 0.25,
+      "t": 0.3,
       "n": 0,
       "fo": true,
       "al": "Swing"
@@ -33,22 +35,22 @@
   ],
   "sh": [
     {
-      "id": "ded97f8497146686",
+      "id": "c96d7a63846fb31c",
       "n": "Slash",
       "s": [
-        "cvMFrw4GuygH40CJJ1fKg22L94HNf5RPH6UQz7QSj8FUX8xWO9WYI9zaE-IcC-UeA-ZgA-Uh_-Ij99zl79Wn38xpx8Fro7Qtc6UvM5Rw44Hyg220C1f1f0C22yg4Hw45RvM6Utc7Qro8Fpx8xn39Wl79zj9-Ih_-UgA-ZgA-Zh89ujz89ll8EnQ7Fo16BqT45rr3ss92cuJ1KvOz2wOygxJxJx-vxyvuYzbs_0Erl0oqL1Jow1mnV2Bl52Ykc2si_29hg3KgA3Uee3ac63dbV3aZu3TYF3HWb21Uv2cTC1-RU1YPm0qN4z1MKy3KexxI1wjHOvMFr"
+        "cqZDcsXEPuRFKwGGOx3HaziIt1HKI2lLq38NS5MPA6UQz7USr8LUn85Wm9fYp97au-Oc0-Xe8-XhD-OjL97lR9fnW85pZ8LrY7UtU6UvM5Mw_38yt2l0V1H13zi3Sx34lwG5xuR61sX7wqZ8joY9NmU9ukO-GiH-UgA-ZgA-ZiF9ukE86l87_nu69pZ50q94nsZ3Vtv1_u90mwFzKxGxtyBwOy2uuzltN0Prr00qJ1Von1xnE2Ilh2cj92siY23gz2_fM3Cdl3Bb826aS2vYn2eW62HVN1qTf1GRw0bQCzoOUytMnxqK8weJTvKHuttGNsHExqZDc"
       ],
-      "fa": 300,
-      "fr": 150
+      "fa": 290,
+      "fr": 160
     },
     {
-      "id": "2a5db696defe3d47",
+      "id": "9eb07586862c4af2",
       "n": "Slash edge",
       "s": [
-        "cvMFrw4GuygH40CJJ1fKg22L94HNf5RPH6UQz7QSj8FUX8xWO9WYI9zaE-IcC-UeA-ZgA-Uh_-Ij99zl79Wn38xpx8Fro7Qtc6UvM5Rw44Hyg220C1f1f0C22yg4Hw45RvM6Utc7Qro8Fpx8xn39Wl79zj9-Ih_-UgA-ZgA-Zh--Jj69xl09Snr8rpf79rP7Hs66Muh5KwE4Cxh21y51j0L0L1Yyw2gxQ3hvt4cuH5Rsd5_qx6opC7JnR7llf75jr8Hh18OgA8OeJ8HcT75ac7kYn7IWy6lU_57TN5KRe4RPx3SOI2MMi0_LAzsJjySIKwyG4vMFr"
+        "cqZDcsXEPuRFKwGGOx3HaziIt1HKI2lLq38NS5MPA6UQz7USr8LUn85Wm9fYp97au-Oc0-Xe8-XhD-OjL97lR9fnW85pZ8LrY7UtU6UvM5Mw_38yt2l0V1H13zi3Sx34lwG5xuR61sX7wqZ8joY9NmU9ukO-GiH-UgA-ZgA-ZiG-IkL9vmN9NoL8iqG7vr860tt5yvZ4ow_3Yyf2Dz60n1NzG2axg3gv34fuJ5XsX6Hqj6wos7Smz7rk479i88Hg-8KfB8EdD72bF7hZI7DXN6eVT5wTb47Rn3-P125OH1sMd0ZK4y-JYxcH-v0GruGFesSEZqZDc"
       ],
-      "fa": 300,
-      "fr": 150
+      "fa": 290,
+      "fr": 160
     }
   ]
 }

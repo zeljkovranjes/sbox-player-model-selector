@@ -19,16 +19,16 @@ internal static partial class StressScripts
 		local radius = 22
 
 		[Parameter( "Arc length", Min = 60, Max = 300, Step = 10, Group = "Look", Tip = "Degrees of circle the arc covers" )]
-		local arc = 150
+		local arc = 160
 
 		[Parameter( "Thickness", Min = 0.05, Max = 0.6, Step = 0.05, Group = "Look", Tip = "How thick its middle is, a share of its radius" )]
 		local thickness = 0.25
 
 		[Parameter( "Sweep", Min = 0, Max = 180, Step = 5, Group = "Rhythm", Tip = "Degrees it sweeps round with the swing" )]
-		local sweep = 70
+		local sweep = 110
 
 		[Parameter( "Fade", Min = 0.1, Max = 0.6, Step = 0.05, Group = "Rhythm", Tip = "Seconds until it is gone" )]
-		local fade = 0.25
+		local fade = 0.3
 
 		Effect.Name = "Classic slash"
 		Effect.Anchor = Anchor.HeldWeapon
@@ -63,7 +63,7 @@ internal static partial class StressScripts
 		-- The arc: one sprite each swing, in the swing's plane round the chest, glowing over what's behind it
 		local slash = Sprite()
 		slash.Joint = Joint.Chest
-		slash.Offset = Vector3( 6, 0, 0 )
+		slash.Offset = Vector3( 20, 0, 6 )
 		slash.LooksLike = swoosh
 		slash.Color = slashColor
 		slash.Size = radius * 2
@@ -75,7 +75,7 @@ internal static partial class StressScripts
 		-- Its white-hot edge, on the same circle
 		local edge = Sprite()
 		edge.Joint = Joint.Chest
-		edge.Offset = Vector3( 6, 0, 0 )
+		edge.Offset = Vector3( 20, 0, 6 )
 		edge.LooksLike = edgeShape
 		edge.Color = Color.White
 		edge.Size = radius * 2

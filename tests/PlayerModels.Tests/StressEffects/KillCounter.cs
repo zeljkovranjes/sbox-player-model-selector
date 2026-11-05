@@ -51,11 +51,11 @@ internal static partial class StressScripts
 
 		-- The counter: three digits of seven bars each, on the weapon's left side, facing out from it
 		local counter = Sprite()
-		counter.Offset = Vector3( 4, 1.5, 1 )
+		counter.Offset = Vector3( -14, 1.5, -1 )
 		counter.Facing = Facing.Left
 		counter.LooksLike = Shapes.Rectangle
 		counter.Color = digitColor
-		counter.Size = 0.5
+		counter.Size = 0.9
 		counter.Amount = 0
 		counter.Follow = true
 		counter.Keep = 21
@@ -65,7 +65,7 @@ internal static partial class StressScripts
 			local digit = Math.Floor( p.Index / 7 )
 			local segment = p.Index % 7
 			local value = Math.Floor( kills / Math.Pow( 10, 2 - digit ) ) % 10
-			p.Offset = Vector3( (digit - 1) * 1.6 + segmentX[ segment ] * 0.8, 0, segmentY[ segment ] * 0.8 )
+			p.Offset = Vector3( 0, (digit - 1) * 1.8 + segmentX[ segment ] * 0.8, segmentY[ segment ] * 0.8 )
 			p.Rotation = if segment == 1 or segment == 2 or segment == 4 or segment == 5 then 90 else 0
 			p.Alpha = if lit( segmentsOf[ value ], segment ) then 1 else 0.08
 		end
@@ -73,7 +73,8 @@ internal static partial class StressScripts
 		-- A glow along the weapon, more of it with every kill, in the tier's colour
 		local glow = Sprite()
 		glow.ComesFrom = ComesFrom.Line
-		glow.Spread = 8
+		glow.Offset = Vector3( -14, 0, -2 )
+		glow.Spread = 14
 		glow.Color = tiers[ 0 ]
 		glow.Size = 2.5
 		glow.SizeEnd = 0.5

@@ -163,7 +163,7 @@ internal sealed partial class EffectLayerObject
 		_rate = 0f;
 		_most = _keep + EmitRoom;
 		_cycleCount = _keep;
-		_cycleWrap = Math.Min( _cycleWrap, _keep );
+		_cycleWrap = data.ColorModeIs == LayerColorMode.Mix ? Math.Min( _cycleWrap, _keep ) : _keep;
 
 		var particles = _particles;
 		particles.Lifetime = KeptLifetime;

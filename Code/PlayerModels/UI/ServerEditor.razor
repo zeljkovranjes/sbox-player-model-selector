@@ -4,6 +4,7 @@
 @using Sandbox
 @using Sandbox.UI
 @using PlayerModels.Components
+@using PlayerModels.Core
 @using PlayerModels.Engine
 @inherits Panel
 @namespace PlayerModels.UI
@@ -53,6 +54,9 @@
                 {
                     <div class="button" @onclick=@(() => Revert( connection ))>Revert</div>
                 }
+                @{ var muted = selector.IsEffectsMuted( connection ); }
+                <div class="button" Tooltip=@( muted ? "Let everyone see their effects again" : "Hide their effects from everyone here; nothing is taken from their look" )
+                     @onclick=@(() => Mute( connection, !muted ))>@( muted ? "Unmute effects" : "Mute effects" )</div>
             </div>
         }
 
@@ -65,11 +69,11 @@
     <ToggleRow Label="Players can add model folders" Value=@( !selector.BlockModelFolders ) OnChanged=@AllowFolders></ToggleRow>
     <div class="setting">
         <div class="label">New sbox.game models per player</div>
-        <UIDropdown Items=@Choices( DownloadLimits, selector.DownloadLimit, "" ) Value=@selector.DownloadLimit ValueChanged=@SetDownloadLimit Tokenize=@false></UIDropdown>
+        <ScrollingDropdown Items=@Choices( DownloadLimits, selector.DownloadLimit, "" ) Value=@selector.DownloadLimit ValueChanged=@SetDownloadLimit Tokenize=@false></ScrollingDropdown>
     </div>
     <div class="setting">
         <div class="label">Counted over</div>
-        <UIDropdown Items=@Choices( DownloadWindows, selector.DownloadMinutes, " minutes" ) Value=@selector.DownloadMinutes ValueChanged=@SetDownloadMinutes Tokenize=@false></UIDropdown>
+        <ScrollingDropdown Items=@Choices( DownloadWindows, selector.DownloadMinutes, " minutes" ) Value=@selector.DownloadMinutes ValueChanged=@SetDownloadMinutes Tokenize=@false></ScrollingDropdown>
     </div>
     <div class="note">The default citizen and the game's own models can always be worn. Turning a source off puts anyone wearing one of its models back to the citizen. Model folders only put a game's chosen folders first in its group; every mounted game's characters are offered either way, and you can always use them. Everyone here downloads each sbox.game model a player puts on, so each player other than you brings in only so many new ones in that many minutes; models already on the server don't count.</div>
 
@@ -118,6 +122,70 @@
     <ToggleRow Label="Players can change body groups" Value=@( !selector.BlockBodyGroups ) OnChanged=@AllowBodyGroups></ToggleRow>
     <ToggleRow Label="Players can wear items" Value=@( !selector.BlockAccessories ) OnChanged=@AllowAccessories></ToggleRow>
     <div class="note">Turned off, players' models show their own body groups; what they chose comes back when you turn it on. Nobody can hide the body itself, either way. You always can change yours.</div>
+
+    <div class="section-header">Effects</div>
+    <ToggleRow Label="Players can wear effects" Value=@( !selector.BlockEffects ) OnChanged=@AllowEffects></ToggleRow>
+    <div class="setting">
+        <div class="label">Effects each player shows</div>
+        <ScrollingDropdown Items=@BudgetLevels() Value=@selector.EffectsLevel ValueChanged=@SetEffectsBudget Tokenize=@false></ScrollingDropdown>
+    </div>
+    @if ( selector.EffectsLevel == EffectBudget.Level.Custom )
+    {
+        <div class="setting">
+            <div class="label">Layers</div>
+            <ScrollingDropdown Items=@Choices( LayerChoices, selector.EffectLayers, "" ) Value=@selector.EffectLayers ValueChanged=@(( object value ) => SetCustom( value, null, null )) Tokenize=@false></ScrollingDropdown>
+        </div>
+        <div class="setting">
+            <div class="label">Lights</div>
+            <ScrollingDropdown Items=@Choices( LightChoices, selector.EffectLights, "" ) Value=@selector.EffectLights ValueChanged=@(( object value ) => SetCustom( null, value, null )) Tokenize=@false></ScrollingDropdown>
+        </div>
+        <div class="setting">
+            <div class="label">Sprites at once</div>
+            <ScrollingDropdown Items=@Choices( SpriteChoices, selector.EffectSprites, "" ) Value=@selector.EffectSprites ValueChanged=@(( object value ) => SetCustom( null, null, value )) Tokenize=@false></ScrollingDropdown>
+        </div>
+    }
+    <div class="note">Turned off, nobody sees players' effects; they stay with their looks and come back when you turn them on. You always can wear yours. Each player's effects show within this: Low is @BudgetText( EffectBudget.Low ), Normal @BudgetText( EffectBudget.Normal ) and High @BudgetText( EffectBudget.High ); past it their last layers wait and their sprites thin out. Players can see less of everyone's on their own screen, never more.</div>
+    <ToggleRow Label="Effects from the Workshop" Value=@( !selector.BlockWorkshopEffects ) OnChanged=@AllowWorkshopEffects></ToggleRow>
+    <ToggleRow Label="Effects can light things up" Value=@( !selector.BlockEffectLights ) OnChanged=@AllowEffectLights></ToggleRow>
+    <ToggleRow Label="Shapes players drew" Value=@( !selector.BlockDrawnShapes ) OnChanged=@AllowDrawnShapes></ToggleRow>
+    <div class="note">Off, effects used or forked from the Workshop don't show, effects shine no light, or drawn shapes and stickers show as plain circles and glows: nothing is deleted, and it all comes back when you turn it on. Mute one player's effects in Players above, or block one share from the Workshop's details.</div>
+    <ToggleRow Label="Effects can run their scripts" Value=@( !selector.BlockScripts ) OnChanged=@AllowScripts></ToggleRow>
+    <div class="setting">
+        <div class="label">Longest script that runs</div>
+        <ScrollingDropdown Items=@ScriptSizeChoices( selector.ScriptBytes ) Value=@selector.ScriptBytes ValueChanged=@SetScriptBytes Tokenize=@false></ScrollingDropdown>
+    </div>
+    <div class="note">Off, or longer than this, an effect shows what its script made when it was saved, with nothing of it running: its moving, its events and its keys' scripts wait until you allow them. Nothing is deleted. Scripts are never run by the host; each player's machine runs them within their budget.</div>
+
+    <div class="subheading">Blocked from the Workshop</div>
+    @{ var blockedShares = BlockedShares(); }
+    @if ( blockedShares.Count == 0 )
+    {
+        <div class="note">None. Open a share's details in the Effects Workshop and press Block on this server to hide it, and every copy of it, here.</div>
+    }
+    else
+    {
+        var sharePages = PageCount( blockedShares.Count );
+        var sharePage = Math.Clamp( _sharePage, 0, sharePages - 1 );
+        @foreach ( var share in OnPage( blockedShares, sharePage ) )
+        {
+            var key = share.Key;
+            <div class="row">
+                <div class="player">
+                    <div class="name">@( string.IsNullOrEmpty( share.Name ) ? "Untitled" : share.Name )</div>
+                    <div class="detail">@( key.StartsWith( ShareOrigin.ShapeKind ) ? "A shape or sticker" : "An effect" )</div>
+                </div>
+                <div class="button" @onclick=@(() => UnblockShare( key ))>Unblock</div>
+            </div>
+        }
+
+        <Pager Page=@sharePage Pages=@sharePages OnPage=@ShowSharePage></Pager>
+    }
+
+    <div class="section-header">Weapons</div>
+    <ToggleRow Label="Players can customize weapons" Value=@( !selector.BlockWeaponDesigns ) OnChanged=@AllowWeaponDesigns></ToggleRow>
+    <ToggleRow Label="Weapon props" Value=@( !selector.BlockWeaponProps ) OnChanged=@AllowWeaponProps></ToggleRow>
+    <ToggleRow Label="Weapon effects" Value=@( !selector.BlockWeaponEffects ) OnChanged=@AllowWeaponEffects></ToggleRow>
+    <div class="note">Off, players' weapons show as they come, or without the props or effects players gave them: nothing is deleted, and it all comes back when you turn it on. With effects off, weapon effects are off too. Mute one player's in Players above. You always can design yours.</div>
 
     <div class="section-header">Armature</div>
     <ToggleRow Label="Players can set up armatures" Value=@( !selector.BlockArmature ) OnChanged=@AllowArmature></ToggleRow>
@@ -254,7 +322,11 @@
     static List<Connection> Others() => Connection.All.Where( x => x != Connection.Local ).ToList();
 
     protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Selector?.BlockCloudModels, Selector?.BlockMountedModels, Selector?.BlockModelFolders,
-            Selector?.BlockArmature, Selector?.BlockBodyGroups, Selector?.BlockAccessories ),
+            Selector?.BlockArmature, Selector?.BlockBodyGroups, Selector?.BlockAccessories, Selector?.BlockEffects, Selector?.EffectsBudget ),
+        HashCode.Combine( Selector?.BlockWorkshopEffects, Selector?.BlockEffectLights, Selector?.BlockDrawnShapes,
+            HashCode.Combine( Selector?.BlockWeaponDesigns, Selector?.BlockWeaponProps, Selector?.BlockWeaponEffects, Selector?.BlockScripts, Selector?.ScriptBytes ),
+            string.Join( ";", Selector?.MutedEffects ?? Enumerable.Empty<long>() ),
+            string.Join( ";", Selector?.BlockedShares ?? Enumerable.Empty<string>() ), _sharePage ),
         string.Join( ";", Selector?.BlockedModels ?? Enumerable.Empty<string>() ),
         string.Join( ";", Others().Select( x => $"{x.Id}={Selector?.PickOf( x )}{Selector?.IsPickedByHost( x )}" ) ),
         string.Join( ";", Selector?.PlayersMounts().Select( x => $"{x.Ident}={x.Players}" ) ?? Enumerable.Empty<string>() ),
@@ -274,7 +346,9 @@
     }
 
     // The choices for how many new sbox.game models a player brings in, and over how long
+    [SkipHotload]
     static readonly int[] DownloadLimits = { 1, 2, 3, 5, 10, 20, 50 };
+    [SkipHotload]
     static readonly int[] DownloadWindows = { 1, 2, 5, 10, 15, 30, 60 };
 
     // The choices, with the one set now among them even if it was set to another
@@ -319,6 +393,133 @@
     void BlockMount( string ident, bool blocked )
     {
         Selector?.SetMountBlocked( ident, blocked );
+        StateHasChanged();
+    }
+
+    void AllowEffects( bool allow )
+    {
+        Selector?.SetAllowEffects( allow );
+        StateHasChanged();
+    }
+
+    // The budgets, and the choices for each number of a custom one
+    static List<UIDropdown.Item> BudgetLevels() => new()
+    {
+        new( "Low", EffectBudget.Level.Low ),
+        new( "Normal", EffectBudget.Level.Normal ),
+        new( "High", EffectBudget.Level.High ),
+        new( "Custom", EffectBudget.Level.Custom ),
+    };
+
+    [SkipHotload]
+    static readonly int[] LayerChoices = { 1, 2, 4, 8, 12, 16, 24, 32 };
+    [SkipHotload]
+    static readonly int[] LightChoices = { 0, 1, 2, 4, 6, 8 };
+    [SkipHotload]
+    static readonly int[] SpriteChoices = { 50, 100, 200, 400, 700, 1000, 1500, 2000 };
+
+    static string BudgetText( EffectBudget budget ) => $"{budget.Layers} layers, {budget.Lights} {(budget.Lights == 1 ? "light" : "lights")} and {budget.Sprites:N0} sprites at once";
+
+    void SetEffectsBudget( object value )
+    {
+        if ( value is EffectBudget.Level level )
+            Selector?.SetEffectsBudget( level );
+
+        StateHasChanged();
+    }
+
+    // One number of the custom budget changed; the others stay
+    void SetCustom( object layers, object lights, object sprites )
+    {
+        if ( Selector is not { } selector )
+            return;
+
+        selector.SetCustomEffectsBudget( new EffectBudget( layers as int? ?? selector.EffectLayers, lights as int? ?? selector.EffectLights,
+            sprites as int? ?? selector.EffectSprites ) );
+        StateHasChanged();
+    }
+
+    void AllowWorkshopEffects( bool allow )
+    {
+        Selector?.SetAllowWorkshopEffects( allow );
+        StateHasChanged();
+    }
+
+    void AllowEffectLights( bool allow )
+    {
+        Selector?.SetAllowEffectLights( allow );
+        StateHasChanged();
+    }
+
+    void AllowScripts( bool allow )
+    {
+        Selector?.SetAllowScripts( allow );
+        StateHasChanged();
+    }
+
+    // The longest script that runs here, in KB: the hard cap (16 KB) and smaller ones a host may choose
+    [SkipHotload]
+    static readonly int[] ScriptSizes = { 2, 4, 8, 12, 16 };
+
+    static List<UIDropdown.Item> ScriptSizeChoices( int current ) => ScriptSizes.Select( x => x * 1024 ).Append( current ).Distinct().OrderBy( x => x )
+        .Select( x => new UIDropdown.Item( x >= PlayerModels.Core.Script.ScriptLimits.MaxScriptBytes ? $"{x / 1024} KB (the most)" : $"{x / 1024.0:0.#} KB", x ) ).ToList();
+
+    void SetScriptBytes( object value )
+    {
+        if ( value is int bytes )
+            Selector?.SetMaxScriptBytes( bytes );
+
+        StateHasChanged();
+    }
+
+    void AllowDrawnShapes( bool allow )
+    {
+        Selector?.SetAllowDrawnShapes( allow );
+        StateHasChanged();
+    }
+
+    void AllowWeaponDesigns( bool allow )
+    {
+        Selector?.SetAllowWeaponDesigns( allow );
+        StateHasChanged();
+    }
+
+    void AllowWeaponProps( bool allow )
+    {
+        Selector?.SetAllowWeaponProps( allow );
+        StateHasChanged();
+    }
+
+    void AllowWeaponEffects( bool allow )
+    {
+        Selector?.SetAllowWeaponEffects( allow );
+        StateHasChanged();
+    }
+
+    void Mute( Connection connection, bool muted )
+    {
+        Selector?.SetEffectsMuted( connection, muted );
+        StateHasChanged();
+    }
+
+    // The shares blocked here, the latest first, with the names they were blocked under (kept on this machine)
+    int _sharePage;
+
+    static List<BlockedShare> BlockedShares()
+    {
+        var names = LocalPrefs.ServerRules.BlockedShares ?? new();
+        return (Selector?.BlockedShares ?? Enumerable.Empty<string>()).Reverse().Select( key => names.Find( x => x?.Key == key ) ?? new BlockedShare { Key = key } ).ToList();
+    }
+
+    void ShowSharePage( int page )
+    {
+        _sharePage = Math.Max( 0, page );
+        StateHasChanged();
+    }
+
+    void UnblockShare( string key )
+    {
+        Selector?.SetShareBlocked( key, null, false );
         StateHasChanged();
     }
 

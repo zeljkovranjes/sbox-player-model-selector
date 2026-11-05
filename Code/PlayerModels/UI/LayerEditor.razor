@@ -1,0 +1,1224 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using System.Text.Json
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Components
+@using PlayerModels.Core
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    @if ( Locked )
+    {
+        <div class="note">The host keeps effects off on this server, so nobody sees yours. They stay with your look and can still be changed.</div>
+    }
+
+    @if ( _view == View.Creator && Look is not null )
+    {
+        <ShapeCreator @ref="_creator" Start=@_creatorStart StartSticker=@StartSticker StartDraft=@_creatorDraft UseOnLayer=@UseShape CanUse=@( Layer?.KindIs == LayerKind.Sprite ) Back=@(() => ShowView( View.Layers ))></ShapeCreator>
+    }
+    else if ( _view == View.ShapesWorkshop && Look is not null )
+    {
+        <div class="shapes-workshop">
+            <SharingPanel T="DrawnShape" Library=@Shared.Shapes Noun="shape" ModelId=@Shared.Everyone Scope=@Everywhere Workshop=@true Pictures=@true Searchable=@true
+                          Shows=@Listed
+                          Intro=@( _workshopStickers ? "Stickers players made. Use one to put it on the selected layer (and keep it in My stickers); Fork opens it in the creator." : "Shapes players made. Use one to put it on the selected layer (and keep it in My shapes); Fork opens it in the creator." )
+                          UseEntry=@UseSharedShape Fork=@ForkShape ForkTip="Open a copy of it in the shape creator, to change and publish as your own"
+                          OriginOf=@(( DrawnShape x ) => x.ForkedFrom) Describe=@ShapeCreator.DescribeShape Back=@(() => ShowView( View.Layers ))></SharingPanel>
+        </div>
+    }
+    else if ( Look is null || Look.Effects.Count == 0 || Effect is not { } effect )
+    {
+        <div class="note">No effects yet. Start a new one here and build it layer by layer, or put one on from the Effects tab.</div>
+        <div class="row">
+            <div class="reset @( CanStart ? "" : "disabled" )" Tooltip="An effect of your own, from scratch" @onclick=@NewEffect>New effect</div>
+            <div class="reset" @onclick=@(() => OpenCreator( null ))>Shape creator</div>
+        </div>
+    }
+    else
+    {
+        <div class="row effect-bar">
+            <ScrollingDropdown Items=@EffectChoices() Value=@effect.Id ValueChanged=@SelectEffect Tokenize=@false Tooltip="The effect you edit"></ScrollingDropdown>
+            <div class="reset @( CanStart ? "" : "disabled" )" Tooltip=@( CanStart ? "New effect: one of your own, from scratch" : $"A look wears up to {Effect.MaxWorn} effects and {Effect.MaxLookLayers} layers" )
+                 @onclick=@NewEffect><div class="glyph">add</div>New</div>
+            <div class="tool" Tooltip="Save draft: keep it unfinished, to come back to from My effects; it shows here, and isn't worn until you finish it" @onclick=@(() => SaveDraft( effect, false ))>edit_note</div>
+            <div class="reset" Tooltip="Edit as code: the script it is (or would be), changed here and there alike" @onclick=@(() => OpenCode?.Invoke( effect.Id ))><div class="glyph code">code</div>Code</div>
+        </div>
+        @if ( effect.ForkedFrom is { } origin )
+        {
+            <div class="note">@ShapeCreator.BasedOn( origin )</div>
+        }
+        @if ( DraftsOpen?.Effects.ContainsKey( effect.Id ) == true )
+        {
+            <div class="row draft-note">
+                <div class="badge">edit</div>
+                <div class="note">A draft: the preview shows it, but it isn't worn, shared or published until you finish it.</div>
+                <div class="reset" Tooltip="Keep it in My effects; Apply then wears it" @onclick=@(() => FinishDraft( effect ))>Finish</div>
+            </div>
+        }
+        @if ( _confirmDrop is { } oldest )
+        {
+            <div class="row">
+                <div class="note">@( DropText( oldest ) )</div>
+                <div class="reset" @onclick=@(() => SaveDraft( effect, true ))>Drop it</div>
+                <div class="reset" @onclick=@CancelDrop>Cancel</div>
+            </div>
+        }
+        @if ( effect.Script is not null )
+        {
+            <ScriptParameters Look=@Look Effect=@effect Changed=@Changed FoldKey="Advanced/Parameters"
+                              Info="Written in code: what its script works out (in a loop, a function, from a parameter) changes only in code or with the parameter; the rest changes here and the script follows."></ScriptParameters>
+        }
+        <FoldingSection Title="Where It Comes From" Key="Advanced/Where It Comes From" Summary=@AnchorName( effect.Anchor )>
+            <Body>
+                <div class="row">
+                    <div class="label">Comes from</div>
+                    <ScrollingDropdown Items=@AnchorChoices() Value=@AnchorValue( effect.Anchor ) ValueChanged=@SetAnchor Tokenize=@false></ScrollingDropdown>
+                </div>
+                <ToggleRow Label="Keep it where it is when it moves to another place" Value=@_keep OnChanged=@KeepWhereItIs></ToggleRow>
+                <NumberRow Label="Forward / back" Unit=@NumberRow.Field.Offset Value=@effect.Anchor.Forward OnChanged=@(( float v ) => Set( () => effect.Anchor.Forward = v ))></NumberRow>
+                <NumberRow Label="Left / right" Unit=@NumberRow.Field.Offset Value=@effect.Anchor.Left OnChanged=@(( float v ) => Set( () => effect.Anchor.Left = v ))></NumberRow>
+                <NumberRow Label="Up / down" Unit=@NumberRow.Field.Offset Value=@effect.Anchor.Up OnChanged=@(( float v ) => Set( () => effect.Anchor.Up = v ))></NumberRow>
+            </Body>
+        </FoldingSection>
+
+        <FoldingSection Title=@( $"Layers ({effect.Layers.Count} of {Effect.MaxLayers})" ) Key="Advanced/Layers" Info=@BudgetText()>
+            <Body>
+        @{ var held = Budget.HeldBack( Look.Effects )[ Look.Effects.IndexOf( effect ) ]; }
+        @for ( var i = 0; i < effect.Layers.Count; i++ )
+        {
+            var index = i;
+            var layer = effect.Layers[ index ];
+            <div class="row layer @( IsChosen( index ) ? "selected" : "" ) @( held[ index ] ? "over" : "" )"
+                 Tooltip=@( held[ index ] ? "Over this server's budget: it doesn't show until layers before it are removed or switched off" : "" )
+                 @onclick=@(() => SelectLayer( index )) @onrightclick=@(() => LayerMenu( index ))>
+                <div class="switch @( layer.Off ? "" : "on" )" Tooltip=@( layer.Off ? "Turn on" : "Turn off" )
+                     @onclick=@(( PanelEvent e ) => ToggleLayer( layer, e ))>check</div>
+                <div class="layer-name">@NameOf( layer )</div>
+                <div class="icon-button on-hover @( index == 0 ? "disabled" : "" )" Tooltip="Move up" @onclick=@(( PanelEvent e ) => MoveLayer( index, -1, e ))>arrow_upward</div>
+                <div class="icon-button on-hover @( index == effect.Layers.Count - 1 ? "disabled" : "" )" Tooltip="Move down" @onclick=@(( PanelEvent e ) => MoveLayer( index, 1, e ))>arrow_downward</div>
+                <div class="icon-button on-hover @( CanAdd ? "" : "disabled" )" Tooltip="Duplicate" @onclick=@(( PanelEvent e ) => DuplicateLayer( index, e ))>library_add</div>
+                <div class="icon-button on-hover remove" Tooltip="Remove" @onclick=@(( PanelEvent e ) => RemoveLayer( index, e ))>delete</div>
+                <div class="icon-button" Tooltip="More: copy, paste, duplicate, move, switch off, delete (or right-click)" @onclick=@(( PanelEvent e ) => LayerMenuFrom( index, e ))>more_vert</div>
+            </div>
+        }
+        <div class="row layer-tools">
+            <div class="tool @( History?.CanUndo == true ? "" : "disabled" )" Tooltip="Undo the last change to your effects" @onclick=@(() => Undo?.Invoke())>undo</div>
+            <div class="tool @( History?.CanRedo == true ? "" : "disabled" )" Tooltip="Redo the change undone" @onclick=@(() => Redo?.Invoke())>redo</div>
+            <div class="tool @( Layer is null ? "disabled" : "" )" Tooltip="Copy layer: the selected one, to paste into this or another effect (or right-click a layer)" @onclick=@CopyLayer>content_copy</div>
+            <div class="tool @( _copied is not null && CanAdd ? "" : "disabled" )" Tooltip="Paste layer: the one copied, after the selected one" @onclick=@PasteLayer>content_paste</div>
+            <div class="spacer"></div>
+            <div class="reset @( CanAdd ? "" : "disabled" )" Tooltip="Add sprites" @onclick=@(() => AddLayer( LayerKind.Sprite ))><div class="glyph">add</div>Sprites</div>
+            <div class="reset @( CanAdd ? "" : "disabled" )" Tooltip="Add a light" @onclick=@(() => AddLayer( LayerKind.Light ))><div class="glyph">add</div>Light</div>
+            <div class="reset @( CanAdd ? "" : "disabled" )" Tooltip="Add a trail" @onclick=@(() => AddLayer( LayerKind.Trail ))><div class="glyph">add</div>Trail</div>
+        </div>
+            </Body>
+        </FoldingSection>
+
+        @if ( Layer is { } selected )
+        {
+            var kind = ChosenKind();
+            var chosen = Chosen().Count;
+            <FoldingSection Title=@( chosen > 1 ? $"{chosen} layers" : NameOf( selected ) ) Key="Advanced/Layer">
+                <Body>
+            @if ( effect.Script is not null && chosen == 1 )
+            {
+                <ScriptFieldsNote Look=@Look Effect=@effect Layer=@_layer OpenCodeAt=@OpenCodeAt></ScriptFieldsNote>
+            }
+            @if ( chosen > 1 )
+            {
+                <div class="note">@( kind is null ? $"Changes go to all {chosen}. They aren't all the same kind, so only what every layer has shows." : $"Changes go to all {chosen}." ) Ctrl+click a layer to add or drop it, Shift+click for a run of them.</div>
+            }
+            @if ( kind is null )
+            {
+                <ColorRow Label="Color" Hex=@selected.Color OnChanged=@(( string hex ) => SetAll( l => l.Color = string.IsNullOrEmpty( hex ) ? "#ffffff" : hex ))></ColorRow>
+            }
+            else if ( kind == LayerKind.Sprite )
+            {
+                <div class="row">
+                    <div class="label">Comes from</div>
+                    <ScrollingDropdown Items=@ShapeChoices() Value=@selected.ShapeIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Shape = (string)v ))
+                                Tokenize=@false></ScrollingDropdown>
+                </div>
+                <div class="row">
+                    <div class="label">As you move</div>
+                    <ScrollingDropdown Items=@MovesChoices() Value=@( selected.Follow ? WithBody : LeftBehind ) ValueChanged=@(( object v ) => SetAll( l => l.Follow = (string)v == WithBody ))
+                                Tokenize=@false></ScrollingDropdown>
+                </div>
+                @if ( selected.Follow )
+                {
+                    <NumberRow Label="Drag" Unit=@NumberRow.Field.Fraction Value=@selected.Drag OnChanged=@(( float v ) => SetAll( l => l.Drag = v ))></NumberRow>
+                }
+                @if ( selected.ShapeIs != LayerShape.Point )
+                {
+                    <NumberRow Label=@( selected.ShapeIs == LayerShape.Cone ? "Length" : "Spread" ) Unit=@NumberRow.Field.Spread Value=@selected.Spread
+                               OnChanged=@(( float v ) => SetAll( l => l.Spread = v ))></NumberRow>
+                }
+                @if ( selected.ShapeIs == LayerShape.Shape )
+                {
+                    <div class="row">
+                        <div class="label">Shape</div>
+                        <ScrollingDropdown Items=@ShapePickerChoices( StandardShapeChoices() ) Value=@( selected.DrawnFormation is null ? selected.FormationIs.ToString() : selected.Formation )
+                                    ValueChanged=@(( object v ) => PickShape( v as string, false )) Tokenize=@false Grouped=@true Thumbnail=@ShapeThumbnails()></ScrollingDropdown>
+                        @if ( Look.DrawnShapeOf( selected.DrawnFormation ) is { } formation )
+                        {
+                            <div class="tool" Tooltip="Change it in the shape creator" @onclick=@(() => OpenCreator( formation ))>edit</div>
+                        }
+                    </div>
+                    <ToggleRow Label=@( selected.DrawnFormation is null && StandardShapes.IsSolid( selected.FormationIs ) ? "All through it (not just its surface)" : "All over it (not just its outline)" )
+                               Value=@selected.Fill OnChanged=@(( bool v ) => SetAll( l => l.Fill = v ))></ToggleRow>
+                    <div class="row">
+                        <div class="label">Shape lies</div>
+                        <ScrollingDropdown Items=@ShapeLiesChoices() Value=@ShapeLies( selected ) ValueChanged=@(( object v ) => SetAll( l => l.Facing = (string)v )) Tokenize=@false></ScrollingDropdown>
+                    </div>
+                }
+                <div class="row">
+                    <div class="label">Looks like</div>
+                    <ScrollingDropdown Items=@ShapePickerChoices( PictureChoices() ) Value=@( selected.Picture ?? nameof( LayerPicture.Glow ) ) ValueChanged=@(( object v ) => PickShape( v as string, true ))
+                                Tokenize=@false Grouped=@true Thumbnail=@ShapeThumbnails()></ScrollingDropdown>
+                    @if ( Look.DrawnShapeOf( selected.DrawnPicture ) is { } picture )
+                    {
+                        <div class="tool" Tooltip="Change it in the shape creator" @onclick=@(() => OpenCreator( picture ))>edit</div>
+                    }
+                </div>
+                <ColorRow Label="Color" Hex=@selected.Color OnChanged=@(( string hex ) => SetAll( l => l.Color = string.IsNullOrEmpty( hex ) ? "#ffffff" : hex ))></ColorRow>
+                <NumberRow Label="Size" Unit=@NumberRow.Field.Size Value=@selected.Size OnChanged=@(( float v ) => SetAll( l => l.Size = v ))></NumberRow>
+                <NumberRow Label="Amount (a second)" Unit=@NumberRow.Field.Rate Value=@selected.Amount OnChanged=@(( float v ) => SetAll( l => l.Amount = v ))></NumberRow>
+                <NumberRow Label="Lasts (seconds)" Unit=@NumberRow.Field.Seconds Value=@selected.Lifetime OnChanged=@(( float v ) => SetAll( l => l.Lifetime = v ))></NumberRow>
+                <NumberRow Label="Speed" Unit=@NumberRow.Field.Speed Value=@selected.Speed OnChanged=@(( float v ) => SetAll( l => l.Speed = v ))></NumberRow>
+            }
+            else if ( kind == LayerKind.Light )
+            {
+                <ColorRow Label="Color" Hex=@selected.Color OnChanged=@(( string hex ) => SetAll( l => l.Color = string.IsNullOrEmpty( hex ) ? "#ffffff" : hex ))></ColorRow>
+                <NumberRow Label="Reach" Unit=@NumberRow.Field.Reach Value=@selected.Size OnChanged=@(( float v ) => SetAll( l => l.Size = v ))></NumberRow>
+                <NumberRow Label="Brightness" Unit=@NumberRow.Field.Brightness Value=@selected.Amount OnChanged=@(( float v ) => SetAll( l => l.Amount = v ))></NumberRow>
+            }
+            else
+            {
+                <ColorRow Label="Color" Hex=@selected.Color OnChanged=@(( string hex ) => SetAll( l => l.Color = string.IsNullOrEmpty( hex ) ? "#ffffff" : hex ))></ColorRow>
+                <NumberRow Label="Width" Unit=@NumberRow.Field.Size Value=@selected.Size OnChanged=@(( float v ) => SetAll( l => l.Size = v ))></NumberRow>
+                <NumberRow Label="Lasts (seconds)" Unit=@NumberRow.Field.Seconds Value=@selected.Lifetime OnChanged=@(( float v ) => SetAll( l => l.Lifetime = v ))></NumberRow>
+            }
+
+            <div class="row">
+                <div class="label">When</div>
+                <ScrollingDropdown Items=@WhenChoices() Value=@selected.WhenIs.ToString() ValueChanged=@(( object v ) => SetAll( l => SetWhen( l, (string)v ) )) Tokenize=@false></ScrollingDropdown>
+            </div>
+            @if ( selected.IsMoment )
+            {
+                @if ( kind == LayerKind.Sprite )
+                {
+                    <NumberRow Label="Burst (at once)" Unit=@NumberRow.Field.Burst Value=@selected.Burst OnChanged=@(( float v ) => SetAll( l => l.Burst = v ))></NumberRow>
+                }
+                <NumberRow Label="Shows for (seconds)" Unit=@NumberRow.Field.ShowFor Value=@selected.ShowFor OnChanged=@(( float v ) => SetAll( l => l.ShowFor = v ))></NumberRow>
+            }
+            <div class="row">
+                <div class="label">Rhythm</div>
+                <ScrollingDropdown Items=@RhythmChoices() Value=@selected.RhythmIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Rhythm = (string)v )) Tokenize=@false></ScrollingDropdown>
+            </div>
+            @if ( selected.RhythmIs != LayerRhythm.Steady )
+            {
+                <NumberRow Label=@( selected.RhythmIs == LayerRhythm.Spin ? "Turns a second" : "Beats a second" ) Unit=@NumberRow.Field.Beats Value=@selected.RhythmSpeed
+                           OnChanged=@(( float v ) => SetAll( l => l.RhythmSpeed = v ))></NumberRow>
+                @if ( selected.RhythmIs != LayerRhythm.Spin && selected.RhythmIs != LayerRhythm.Rainbow )
+                {
+                    <NumberRow Label="How much" Unit=@NumberRow.Field.Fraction Value=@selected.RhythmAmount OnChanged=@(( float v ) => SetAll( l => l.RhythmAmount = v ))></NumberRow>
+                }
+            }
+            <ToggleRow Label="Fade with how fast it moves" Value=@selected.FadeWithSpeed OnChanged=@(( bool v ) => SetAll( l => l.FadeWithSpeed = v ))></ToggleRow>
+            @if ( selected.WhenIs is LayerWhen.OnShoot or LayerWhen.OnHit )
+            {
+                <ToggleRow Label="Show where the shot hits" Value=@selected.AtHit OnChanged=@(( bool v ) => SetAll( l => l.AtHit = v ))></ToggleRow>
+            }
+
+            @if ( chosen == 1 )
+            {
+                <div class="row keep-layer">
+                    <div class="reset" Tooltip="Keep this layer alone in My effects, to add again" @onclick=@(() => KeepLayer( selected ))><div class="glyph">bookmark_add</div>Save layer to My effects</div>
+                </div>
+                <SharingPanel T="Effect" Library=@Shared.Effects Noun="effect" ModelId=@Shared.Everyone Scope=@Everywhere Current=@LayerShare( effect, selected )
+                              ShareLabel="Share this layer" Describe=@EffectsEditor.DescribeEffect Workshop=@false></SharingPanel>
+            }
+            @if ( _status is not null )
+            {
+                <div class="note status">@_status</div>
+            }
+
+            <div class="fold @( _more ? "open" : "" )" @onclick=@ToggleMore>
+                <div class="fold-icon">@( _more ? "expand_more" : "chevron_right" )</div>
+                <div class="fold-name">More</div>
+            </div>
+            @if ( _more )
+            {
+                <div class="row">
+                    <div class="label">From joint</div>
+                    <ScrollingDropdown Items=@LayerJointChoices() Value=@( selected.Joint ?? "" ) ValueChanged=@(( object v ) => SetAll( l => l.Joint = (string)v == "" ? null : (string)v ))
+                                Tokenize=@false></ScrollingDropdown>
+                </div>
+                <NumberRow Label="Forward / back" Unit=@NumberRow.Field.Offset Value=@selected.Forward OnChanged=@(( float v ) => SetAll( l => l.Forward = v ))></NumberRow>
+                <NumberRow Label="Left / right" Unit=@NumberRow.Field.Offset Value=@selected.Left OnChanged=@(( float v ) => SetAll( l => l.Left = v ))></NumberRow>
+                <NumberRow Label="Up / down" Unit=@NumberRow.Field.Offset Value=@selected.Up OnChanged=@(( float v ) => SetAll( l => l.Up = v ))></NumberRow>
+                @if ( kind is LayerKind.Sprite or LayerKind.Trail )
+                {
+                    <ColorRow Label="End color" Hex=@( selected.ColorEnd ?? "" ) OnChanged=@(( string hex ) => SetAll( l => l.ColorEnd = string.IsNullOrEmpty( hex ) ? null : hex ))></ColorRow>
+                    <NumberRow Label=@( kind == LayerKind.Trail ? "End width" : "End size" ) Unit=@NumberRow.Field.Size Value=@( selected.SizeEnd ?? selected.Size )
+                               OnChanged=@(( float v ) => SetAll( l => l.SizeEnd = v ))></NumberRow>
+                    <ToggleRow Label="Solid (covers what is behind, instead of glowing)" Value=@selected.Solid OnChanged=@(( bool v ) => SetAll( l => l.Solid = v ))></ToggleRow>
+                }
+                @if ( kind == LayerKind.Sprite )
+                {
+                    <NumberRow Label="Falls (rises below 0)" Unit=@NumberRow.Field.Gravity Value=@selected.Gravity OnChanged=@(( float v ) => SetAll( l => l.Gravity = v ))></NumberRow>
+                    <div class="row">
+                        <div class="label">Faces</div>
+                        <ScrollingDropdown Items=@FacingChoices() Value=@selected.FacingIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Facing = (string)v )) Tokenize=@false></ScrollingDropdown>
+                    </div>
+                    <div class="row">
+                        <div class="label">Sprites face</div>
+                        <ScrollingDropdown Items=@AlignChoices() Value=@selected.AlignIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.Align = (string)v )) Tokenize=@false></ScrollingDropdown>
+                    </div>
+                    <NumberRow Label="Turns as it lives (degrees)" Unit=@NumberRow.Field.Sweep Value=@selected.Sweep OnChanged=@(( float v ) => SetAll( l => l.Sweep = v ))></NumberRow>
+                    @if ( selected.PictureShape is null && selected.PictureIs == LayerPicture.Slash )
+                    {
+                        <NumberRow Label="Slash reach (degrees)" Unit=@NumberRow.Field.SlashArc Value=@selected.SlashShape.Arc OnChanged=@(( float v ) => SetAll( l => l.SlashArcDegrees = v ))></NumberRow>
+                        <NumberRow Label="Slash thickness" Unit=@NumberRow.Field.SlashWidth Value=@selected.SlashShape.Width OnChanged=@(( float v ) => SetAll( l => l.SlashThickness = v ))></NumberRow>
+                    }
+                    @if ( selected.ShapeIs == LayerShape.Cone )
+                    {
+                        <NumberRow Label="Cone width" Unit=@NumberRow.Field.Angle Value=@selected.Angle OnChanged=@(( float v ) => SetAll( l => l.Angle = v ))></NumberRow>
+                    }
+                    @if ( selected.ShapeIs == LayerShape.Line )
+                    {
+                        <div class="row">
+                            <div class="label">Line to</div>
+                            <ScrollingDropdown Items=@LineEndChoices() Value=@( selected.ToJoint ?? "" ) ValueChanged=@(( object v ) => SetAll( l => l.ToJoint = (string)v == "" ? null : (string)v ))
+                                        Tokenize=@false></ScrollingDropdown>
+                        </div>
+                    }
+                    <div class="row">
+                        <div class="label">Colors</div>
+                        <ScrollingDropdown Items=@ColourModeChoices() Value=@selected.ColorModeIs.ToString() ValueChanged=@(( object v ) => SetAll( l => l.ColorMode = (string)v ))
+                                    Tokenize=@false></ScrollingDropdown>
+                    </div>
+                }
+            }
+                </Body>
+            </FoldingSection>
+        }
+    }
+</root>
+
+@code
+{
+    /// <summary>The look being edited. Changed in place; <see cref="Changed"/> says when.</summary>
+    [Parameter] public PlayerLook Look { get; set; }
+
+    /// <summary>Called after every change to <see cref="Look"/>.</summary>
+    [Parameter] public Action Changed { get; set; }
+
+    /// <summary>The preview the look is worn in: where an effect is, for keeping it there as it moves to another place.</summary>
+    [Parameter] public ModelPreview Stage { get; set; }
+
+    /// <summary>Whether the host keeps this player's effects off: they are kept, and can still be changed.</summary>
+    [Parameter] public bool Locked { get; set; }
+
+    /// <summary>The effect to edit first, by id: the first one worn when it isn't worn.</summary>
+    [Parameter] public string EffectId { get; set; }
+
+    /// <summary>A shape to open the shape creator on (a fork from the Workshop); null to open on the layers.</summary>
+    [Parameter] public DrawnShape StartShape { get; set; }
+
+    /// <summary>Whether to open on the creator, once (on <see cref="StartShape"/> or <see cref="StartDraft"/>, or a new sticker or shape).</summary>
+    [Parameter] public bool StartCreator { get; set; }
+    [Parameter] public bool StartSticker { get; set; }
+    [Parameter] public Draft StartDraft { get; set; }
+
+    /// <summary>The drafts open in the editors (the page's): an effect that is one shows here, but isn't worn until finished.</summary>
+    [Parameter] public OpenDrafts DraftsOpen { get; set; }
+
+    /// <summary>The steps back and forward through changes to the effects, and what takes them.</summary>
+    [Parameter] public EditHistory History { get; set; }
+    [Parameter] public Action Undo { get; set; }
+    [Parameter] public Action Redo { get; set; }
+
+    /// <summary>Opens the code editor on an effect, by id; and is told which layer of which effect is picked here.</summary>
+    [Parameter] public Action<string> OpenCode { get; set; }
+    [Parameter] public Action<string, int> LayerPicked { get; set; }
+
+    /// <summary>Opens the code editor on an effect (by id) at a line: a field its script sets.</summary>
+    [Parameter] public Action<string, int> OpenCodeAt { get; set; }
+
+    /// <summary>Picks layer <paramref name="layer"/> of effect <paramref name="effect"/> alone (the code editor's caret is in it).</summary>
+    public void ShowLayer( string effect, int layer )
+    {
+        if ( effect is null || Look?.Effects.Find( x => x.Id == effect ) is not { } shown || layer < 0 || layer >= shown.Layers.Count )
+            return;
+
+        if ( _effect == effect && _layer == layer && _chosen.Count == 0 )
+            return;
+
+        _effect = effect;
+        ChooseOnly( layer );
+        StateHasChanged();
+    }
+
+    // The layer selected, by its place in the effect (its settings are the ones shown), and any others chosen with it
+    // (Ctrl or Shift), which every change goes to as well; whether everything else about it shows; and whether an effect
+    // moved to another place stays where it is
+    int _layer;
+    readonly SortedSet<int> _chosen = new();
+    bool _more;
+    bool _keep = true;
+
+    // The effect being edited, by id: the one asked for, until another is picked here
+    string _effect;
+
+    Effect Effect => Look?.Effects.FirstOrDefault( x => x.Id == (_effect ??= EffectId) ) ?? Look?.Effects.FirstOrDefault();
+
+    EffectLayer Layer => Effect is { } effect && _layer >= 0 && _layer < effect.Layers.Count ? effect.Layers[ _layer ] : null;
+
+    // Whether a new effect fits the look: an effect more, and its one layer
+    bool CanStart => Look is not null && Look.Effects.Count < Effect.MaxWorn && Look.Effects.Sum( x => x.Layers.Count ) < Effect.MaxLookLayers;
+
+    bool CanAdd => Effect is { } effect && effect.Layers.Count < Effect.MaxLayers && Look.Effects.Sum( x => x.Layers.Count ) < Effect.MaxLookLayers;
+
+    static PlayerModelSelector Selector => PlayerModelSelector.Find( Game.ActiveScene );
+
+    // What shows: the layers, the shape creator, or the Workshop's shapes
+    enum View { Layers, Creator, ShapesWorkshop }
+
+    View _view;
+    DrawnShape _creatorStart;
+    string _status;
+
+    // Shapes are shared for everyone, not for a model
+    const string Everywhere = "";
+
+    // The look as text, as last drawn
+    string _lookText;
+
+    protected override int BuildHash() => HashCode.Combine( _lookText = Look?.Serialize(), _effect, _layer, _more, _keep, Locked, Selector?.EffectsBudget,
+        HashCode.Combine( string.Join( ",", _chosen ), History?.CanUndo, History?.CanRedo, _view, _creatorStart, _status, DraftsOpen?.Revision, HashCode.Combine( _confirmDrop, _copied ) ) );
+
+    public override void Tick()
+    {
+        base.Tick();
+
+        // A draft opened from My effects takes up the layers it was left on
+        if ( Effect is { } effect && DraftsOpen?.States.Remove( effect.Id, out var state ) == true )
+            RestoreState( state );
+
+        if ( _view == View.Layers && Layer is not null && ContextMenu.KeyPressed() )
+            LayerMenu( _layer );
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+
+        // A fork from the Workshop, one of the player's or a draft opens the creator on it, once
+        if ( (StartCreator || StartShape is not null) && !_startedCreator )
+        {
+            _startedCreator = true;
+            _creatorDraft = StartDraft;
+            OpenCreator( StartShape );
+        }
+    }
+
+    void ShowView( View view )
+    {
+        _view = view;
+        StateHasChanged();
+    }
+
+    bool _startedCreator;
+    Draft _creatorDraft;
+
+    void OpenCreator( DrawnShape shape )
+    {
+        _creatorStart = shape;
+        ShowView( View.Creator );
+    }
+
+    // The look carries the shape, and every chosen layer comes from it or looks like it; a sticker shows its own colours,
+    // so the layers stop tinting them and cover what is behind
+    void UseShape( DrawnShape shape, bool asPicture )
+    {
+        if ( !Look.Carry( shape ) )
+        {
+            _status = $"A look carries up to {DrawnShape.MaxPerLook} drawn shapes. Use one of those, or remove a layer that uses another.";
+            ShowView( View.Layers );
+            return;
+        }
+
+        SetAll( l =>
+        {
+            if ( !asPicture )
+            {
+                l.Shape = nameof( LayerShape.Shape );
+                l.Formation = shape.Reference;
+                return;
+            }
+
+            l.Picture = shape.Reference;
+            if ( !shape.HasOwnColours )
+                return;
+
+            l.Color = "#ffffff";
+            l.ColorEnd = null;
+            l.Solid = true;
+        } );
+
+        _status = null;
+        ShowView( View.Layers );
+    }
+
+    // A shape picked in a list: a standard one or a picture by name, one the look carries ("@" and its id), one of My
+    // shapes ("mine:" and its name), or the creator or the Workshop
+    void PickShape( string choice, bool asPicture )
+    {
+        if ( choice is null )
+            return;
+
+        if ( choice == DrawChoice )
+        {
+            OpenCreator( null );
+            return;
+        }
+
+        if ( choice is WorkshopChoice or StickersChoice )
+        {
+            _pickingPicture = asPicture;
+            _workshopStickers = choice == StickersChoice;
+            ShowView( View.ShapesWorkshop );
+            return;
+        }
+
+        if ( choice.StartsWith( MineChoice ) )
+        {
+            if ( LocalPrefs.MyShapes().FirstOrDefault( x => x.Name == choice[ MineChoice.Length.. ] ) is { } mine )
+                UseShape( mine, asPicture );
+
+            return;
+        }
+
+        SetAll( l =>
+        {
+            if ( asPicture )
+                l.Picture = choice;
+            else
+                l.Formation = choice;
+        } );
+    }
+
+    const string DrawChoice = "draw";
+    const string WorkshopChoice = "workshop";
+    const string StickersChoice = "workshop-stickers";
+
+    // Which the Workshop opened from a list shows: stickers, or shapes
+    bool _workshopStickers;
+
+    bool Listed( DrawnShape shape ) => shape.IsSticker == _workshopStickers;
+    const string MineChoice = "mine:";
+
+    // Whether the Workshop was opened from Looks like, so a shape used from it goes there
+    bool _pickingPicture;
+
+    // A list of shapes, then the drawn ones the look carries, My shapes, and the creator and the Workshop at its end
+    List<UIDropdown.Item> ShapePickerChoices( List<UIDropdown.Item> standard )
+    {
+        var choices = new List<UIDropdown.Item>( standard );
+        foreach ( var shape in Look.DrawnShapes )
+            choices.Add( new UIDropdown.Item( $"Drawn: {shape.Name ?? "untitled"}", shape.Reference ) );
+
+        foreach ( var shape in LocalPrefs.MyShapes().Where( x => !Look.DrawnShapes.Exists( y => y.Id == x.Id ) ) )
+            choices.Add( new UIDropdown.Item( $"{(shape.IsSticker ? "My sticker" : "My shape")}: {shape.Name}", MineChoice + shape.Name ) );
+
+        choices.Add( new UIDropdown.Item( "Draw a new shape...", DrawChoice ) );
+        choices.Add( new UIDropdown.Item( "Workshop shapes...", WorkshopChoice ) );
+        choices.Add( new UIDropdown.Item( "Workshop stickers...", StickersChoice ) );
+        return choices;
+    }
+
+    // Each pick's picture in the shape lists: a curated picture or standard shape, or the drawn shape itself; My shapes
+    // read once a list
+    Func<object, Panel> ShapeThumbnails()
+    {
+        List<DrawnShape> mine = null;
+        return value =>
+        {
+            if ( value is not string choice )
+                return null;
+
+            if ( Look?.DrawnShapes.Find( x => x.Reference == choice ) is { } drawn )
+                return new ShapeIcon { Shape = drawn };
+
+            if ( choice.StartsWith( MineChoice ) )
+                return (mine ??= LocalPrefs.MyShapes()).Find( x => x.Name == choice[ MineChoice.Length.. ] ) is { } kept ? new ShapeIcon { Shape = kept } : null;
+
+            var named = Enum.TryParse<LayerPicture>( choice, out var picture ) && Enum.IsDefined( picture )
+                || Enum.TryParse<StandardShape>( choice, out var shape ) && Enum.IsDefined( shape );
+            if ( !named )
+                return null;
+
+            var thumb = new Panel();
+            thumb.Style.BackgroundImage = EffectAtlas.TextureOf( choice );
+            return thumb;
+        };
+    }
+
+    // A shape from the Workshop: kept in My shapes, crediting the share, and put on the selected layer when it is sprites
+    string UseSharedShape( SharedLibrary<DrawnShape>.Entry entry )
+    {
+        var shape = Credited( entry );
+        LocalPrefs.SaveMyShape( shape );
+        if ( Layer?.KindIs != LayerKind.Sprite )
+            return $"\"{shape.Name}\" is in My shapes. Select a sprites layer to use it on.";
+
+        UseShape( shape, _pickingPicture );
+        return null;
+    }
+
+    void ForkShape( SharedLibrary<DrawnShape>.Entry entry )
+    {
+        OpenCreator( Credited( entry ) );
+    }
+
+    static DrawnShape Credited( SharedLibrary<DrawnShape>.Entry entry )
+    {
+        var origin = new ShareOrigin { Kind = ShareOrigin.ShapeKind, Id = entry.Id, Name = entry.Name, Author = entry.Author };
+        return entry.Item.Credited( string.IsNullOrWhiteSpace( entry.Name ) ? "Shape" : entry.Name, origin );
+    }
+
+    // The selected layer on its own, as an effect of one layer from where it shows now, to share: made again only when
+    // the look changes
+    Effect _layerShare;
+    string _layerShareFor;
+
+    Effect LayerShare( Effect effect, EffectLayer layer )
+    {
+        var key = $"{effect.Id}:{_layer}:{_lookText}";
+        if ( key == _layerShareFor )
+            return _layerShare;
+
+        _layerShareFor = key;
+        var copy = JsonSerializer.Deserialize<EffectLayer>( JsonSerializer.Serialize( layer ) );
+        copy.Off = false;
+        _layerShare = Look.Standalone( new Effect { Name = SharePost.Tidy( $"{effect.Name}: {NameOf( layer )}", Effect.MaxNameLength ), Anchor = effect.Anchor, Layers = new() { copy } } );
+        return _layerShare;
+    }
+
+    void KeepLayer( EffectLayer layer )
+    {
+        var kept = LayerShare( Effect, layer );
+        _status = kept is not null && LocalPrefs.SaveMyEffect( kept ) ? $"Saved to My effects as \"{kept.Name}\"." : $"My effects is full ({LocalPrefs.MaxMyEffects}). Delete one first.";
+        StateHasChanged();
+    }
+
+    void Set( Action change )
+    {
+        change();
+        Changed?.Invoke();
+    }
+
+    // A change to the selected layer and every other one chosen with it
+    void SetAll( Action<EffectLayer> change )
+    {
+        foreach ( var layer in Chosen() )
+            change( layer );
+
+        Changed?.Invoke();
+    }
+
+    // The layers chosen, the selected one first
+    List<EffectLayer> Chosen()
+    {
+        var layers = new List<EffectLayer>();
+        if ( Effect is not { } effect || Layer is not { } selected )
+            return layers;
+
+        layers.Add( selected );
+        foreach ( var index in _chosen )
+        {
+            if ( index != _layer && index >= 0 && index < effect.Layers.Count )
+                layers.Add( effect.Layers[ index ] );
+        }
+
+        return layers;
+    }
+
+    bool IsChosen( int index ) => index == _layer || _chosen.Contains( index );
+
+    // What the chosen layers all are; null when they aren't all the same
+    LayerKind? ChosenKind()
+    {
+        var layers = Chosen();
+        return layers.Count > 0 && layers.All( x => x.KindIs == layers[ 0 ].KindIs ) ? layers[ 0 ].KindIs : null;
+    }
+
+    // Whether a modifier key is held: the window keeps the game from the keys (see InputLock), so that is lifted to read it
+    static bool Held( string key )
+    {
+        var suppressed = Input.Suppressed;
+        Input.Suppressed = false;
+        var held = Input.Keyboard.Down( key );
+        Input.Suppressed = suppressed;
+        return held;
+    }
+
+    void KeepWhereItIs( bool keep )
+    {
+        _keep = keep;
+        StateHasChanged();
+    }
+
+    // An effect from scratch, worn and edited from here on
+    void NewEffect()
+    {
+        if ( !CanStart )
+            return;
+
+        var effect = EffectPresets.New( Look.Effects );
+        Look.Effects.Add( effect );
+        _effect = effect.Id;
+        ChooseOnly( 0 );
+        Changed?.Invoke();
+    }
+
+    void SelectEffect( object id )
+    {
+        _effect = id as string;
+        ChooseOnly( 0 );
+        StateHasChanged();
+    }
+
+    // A click selects that layer alone; Ctrl+click adds it to the chosen ones or takes it out, Shift+click chooses every
+    // layer from the selected one to it
+    void SelectLayer( int index )
+    {
+        if ( Held( "ctrl" ) )
+        {
+            _chosen.Add( _layer );
+            if ( _chosen.Remove( index ) )
+            {
+                if ( _chosen.Count == 0 )
+                    _chosen.Add( index );
+
+                _layer = index == _layer ? _chosen.Min : _layer;
+            }
+            else
+            {
+                _chosen.Add( index );
+                _layer = index;
+            }
+        }
+        else if ( Held( "shift" ) )
+        {
+            var (from, to) = (Math.Min( _layer, index ), Math.Max( _layer, index ));
+            _chosen.Clear();
+            for ( var i = from; i <= to; i++ )
+                _chosen.Add( i );
+
+            _layer = index;
+        }
+        else
+        {
+            ChooseOnly( index );
+        }
+
+        LayerPicked?.Invoke( Effect?.Id, _layer );
+        StateHasChanged();
+    }
+
+    // The layer at index selected, and no others chosen with it: after the layers move, the places chosen mean others
+    void ChooseOnly( int index )
+    {
+        _layer = index;
+        _chosen.Clear();
+    }
+
+    // The ⋮ on a layer's row: its menu, as a right-click opens it
+    void LayerMenuFrom( int index, PanelEvent e )
+    {
+        e.StopPropagation();
+        LayerMenu( index );
+    }
+
+    // What the effect comes from, in the words its list gives it
+    string AnchorName( EffectAnchor anchor )
+    {
+        var value = AnchorValue( anchor );
+        return AnchorChoices().FirstOrDefault( x => Equals( x.Value, value ) )?.Label;
+    }
+
+    void ToggleMore()
+    {
+        _more = !_more;
+        StateHasChanged();
+    }
+
+    void ToggleLayer( EffectLayer layer, PanelEvent e )
+    {
+        e.StopPropagation();
+        Set( () => layer.Off = !layer.Off );
+    }
+
+    void MoveLayer( int index, int by, PanelEvent e )
+    {
+        e.StopPropagation();
+        Move( index, by );
+    }
+
+    void Move( int index, int by )
+    {
+        var layers = Effect.Layers;
+        var to = index + by;
+        if ( to < 0 || to >= layers.Count )
+            return;
+
+        (layers[ index ], layers[ to ]) = (layers[ to ], layers[ index ]);
+        ChooseOnly( _layer == index ? to : _layer == to ? index : _layer );
+        Changed?.Invoke();
+    }
+
+    void DuplicateLayer( int index, PanelEvent e )
+    {
+        e.StopPropagation();
+        Duplicate( index );
+    }
+
+    void Duplicate( int index )
+    {
+        if ( !CanAdd )
+            return;
+
+        var copy = JsonSerializer.Deserialize<EffectLayer>( JsonSerializer.Serialize( Effect.Layers[ index ] ) );
+        Effect.Layers.Insert( index + 1, copy );
+        ChooseOnly( index + 1 );
+        Changed?.Invoke();
+    }
+
+    void RemoveLayer( int index, PanelEvent e )
+    {
+        e.StopPropagation();
+        Remove( index );
+    }
+
+    void Remove( int index )
+    {
+        Effect.Layers.RemoveAt( index );
+        ChooseOnly( Math.Clamp( _layer, 0, Math.Max( 0, Effect.Layers.Count - 1 ) ) );
+
+        // An effect is its layers: without any it is taken off
+        if ( Effect.Layers.Count == 0 )
+            Look.Effects.Remove( Effect );
+
+        Changed?.Invoke();
+    }
+
+    // ----- Copy and paste, the layers' menu -----
+
+    // The layer copied, to paste into this or another effect
+    EffectLayer _copied;
+
+    void CopyLayer()
+    {
+        if ( Layer is not { } layer )
+            return;
+
+        _copied = JsonSerializer.Deserialize<EffectLayer>( JsonSerializer.Serialize( layer ) );
+        _status = $"Copied \"{NameOf( layer )}\". Paste it into this or another effect.";
+        StateHasChanged();
+    }
+
+    // A copy of the layer copied, after the selected one; its drawn shapes are the look's, as it came from this look
+    void PasteLayer()
+    {
+        if ( _copied is null || !CanAdd || Effect is not { } effect )
+            return;
+
+        var at = Math.Min( _layer + 1, effect.Layers.Count );
+        effect.Layers.Insert( at, JsonSerializer.Deserialize<EffectLayer>( JsonSerializer.Serialize( _copied ) ) );
+        ChooseOnly( at );
+        Changed?.Invoke();
+    }
+
+    // What can be done to a layer, from a right click or Shift+F10; each is a button here too
+    void LayerMenu( int index )
+    {
+        if ( Effect is not { } effect || index < 0 || index >= effect.Layers.Count )
+            return;
+
+        if ( !IsChosen( index ) )
+            ChooseOnly( index );
+
+        var layer = effect.Layers[ index ];
+        var full = $"An effect has up to {Effect.MaxLayers} layers and a look {Effect.MaxLookLayers}";
+        ContextMenu.OpenFrom( this, NameOf( layer ), new List<ContextMenu.Entry>
+        {
+            new( "Copy", "content_copy", CopyLayer, "Copy layer" ),
+            new( "Paste", "content_paste", PasteLayer, "Paste layer", _copied is not null && CanAdd, _copied is null ? "Copy a layer first" : full ),
+            new( "Duplicate", "library_add", () => Duplicate( index ), null, CanAdd, full ),
+            new( "Move up", "arrow_upward", () => Move( index, -1 ), null, index > 0, "It is the first layer" ),
+            new( "Move down", "arrow_downward", () => Move( index, 1 ), null, index < effect.Layers.Count - 1, "It is the last layer" ),
+            new( layer.Off ? "Switch on" : "Switch off", layer.Off ? "toggle_on" : "check", () => Set( () => layer.Off = !layer.Off ) ),
+            new( "Delete", "delete", () => Remove( index ) ),
+        } );
+    }
+
+    // ----- Drafts -----
+
+    // A full kind of drafts asking before its oldest is dropped
+    Draft _confirmDrop;
+
+    // The effect kept unfinished, with the layers chosen and More open or not: shown here, not worn until it is finished.
+    // Saved again, it stays the same draft
+    void SaveDraft( Effect effect, bool dropOldest )
+    {
+        _confirmDrop = null;
+        if ( DraftsOpen is null )
+            return;
+
+        if ( !DraftsOpen.KeepEffect( Look, effect, StateText(), dropOldest, out var dropped, out var full ) )
+        {
+            if ( full )
+                _confirmDrop = PlayerModels.Engine.Drafts.Oldest( Draft.Of.Effect );
+            else
+                _status = "This draft is too big to keep.";
+
+            StateHasChanged();
+            return;
+        }
+
+        _status = (dropped is null ? "" : $"\"{dropped.Name}\" was dropped. ") + $"Saved \"{effect.Name}\" as a draft: it shows in My effects with a pencil, and isn't worn until you finish it.";
+        StateHasChanged();
+    }
+
+    static string DropText( Draft oldest ) => $"Drafts are full ({Draft.MaxPerKind}). Drop the oldest, \"{oldest.Name}\" ({oldest.EditedText( PlayerModels.Engine.Drafts.Now )})?";
+
+    void CancelDrop()
+    {
+        _confirmDrop = null;
+        StateHasChanged();
+    }
+
+    // Finished: kept in My effects, no longer a draft, and worn on Apply
+    void FinishDraft( Effect effect )
+    {
+        if ( !LocalPrefs.SaveMyEffect( Look.Standalone( effect ) ) )
+        {
+            _status = $"My effects is full ({LocalPrefs.MaxMyEffects}). Delete one first.";
+            StateHasChanged();
+            return;
+        }
+
+        if ( DraftsOpen.Effects.Remove( effect.Id, out var draft ) )
+            PlayerModels.Engine.Drafts.Delete( Draft.Of.Effect, draft );
+
+        DraftsOpen.Changed();
+        _status = $"Finished: \"{effect.Name}\" is in My effects. Apply wears it.";
+        Changed?.Invoke();
+    }
+
+    // How the layers were left: the selected one, the others chosen with it, More open or not
+    string StateText() => JsonSerializer.Serialize( new Dictionary<string, string>
+    {
+        ["layer"] = _layer.ToString(), ["chosen"] = string.Join( ",", _chosen ), ["more"] = _more.ToString(),
+    } );
+
+    void RestoreState( string state )
+    {
+        Dictionary<string, string> values;
+        try
+        {
+            values = string.IsNullOrEmpty( state ) ? null : JsonSerializer.Deserialize<Dictionary<string, string>>( state );
+        }
+        catch ( JsonException )
+        {
+            return;
+        }
+
+        if ( values is null )
+            return;
+
+        ChooseOnly( int.TryParse( values.GetValueOrDefault( "layer" ), out var layer ) ? layer : 0 );
+        foreach ( var chosen in (values.GetValueOrDefault( "chosen" ) ?? "").Split( ',', StringSplitOptions.RemoveEmptyEntries ) )
+        {
+            if ( int.TryParse( chosen, out var index ) )
+                _chosen.Add( index );
+        }
+
+        _more = values.GetValueOrDefault( "more" ) == bool.TrueString;
+        StateHasChanged();
+    }
+
+    /// <summary>Whether the shape creator, if open, has a shape with changes not kept.</summary>
+    public bool CreatorHasChanges => _view == View.Creator && _creator?.HasChanges == true;
+
+    /// <summary>Keeps the shape creator's shape as a draft (the Advanced editor closing); false when it couldn't be.</summary>
+    public bool KeepCreatorDraft() => _creator?.KeepAsDraft() == true;
+
+    ShapeCreator _creator;
+
+    // A new layer that shows at once, to change from there
+    void AddLayer( LayerKind kind )
+    {
+        if ( !CanAdd )
+            return;
+
+        Effect.Layers.Add( EffectPresets.StartingLayer( kind ) );
+
+        ChooseOnly( Effect.Layers.Count - 1 );
+        Changed?.Invoke();
+    }
+
+    // A moment shows something by default: a burst of sprites, a light for half a second
+    void SetWhen( EffectLayer layer, string when )
+    {
+        layer.When = when;
+        if ( layer.IsMoment && layer.Burst == 0f && layer.ShowFor == 0f )
+        {
+            layer.Burst = layer.KindIs == LayerKind.Sprite ? 20f : 0f;
+            layer.ShowFor = layer.KindIs == LayerKind.Sprite ? 0f : 0.5f;
+        }
+
+        Changed?.Invoke();
+    }
+
+    // Moves the effect to another place: kept where it is (its offset worked out from where it is now) or onto the place
+    void SetAnchor( object value )
+    {
+        if ( Effect is not { } effect || value is not string chosen )
+            return;
+
+        var old = effect.Anchor ?? new EffectAnchor();
+        var next = AnchorFrom( chosen, old );
+        if ( _keep && Rack() is { } rack && rack.TryGetFrame( old, out var from ) && rack.TryGetFrame( next, out var to ) )
+        {
+            var here = from.ToWorld( new Transform( new Vector3( old.Forward, old.Left, old.Up ) ) ).Position;
+            var offset = to.PointToLocal( here );
+            next.Forward = offset.x;
+            next.Left = offset.y;
+            next.Up = offset.z;
+        }
+
+        effect.Anchor = next.Sanitized();
+        Changed?.Invoke();
+    }
+
+    // The rack wearing the look in the preview: on the model, or on the citizen itself
+    EffectRack Rack() => Stage?.Body?.Effects ?? (Stage?.Citizen is { } citizen && citizen.IsValid() ? CitizenEffects.On( citizen )?.Effects : null);
+
+    // An anchor chosen in the list: "j:" a joint, "i:" an item (by the item itself), "w" the weapon held. An item or the
+    // weapon falls back to the joint it is on
+    EffectAnchor AnchorFrom( string chosen, EffectAnchor old )
+    {
+        if ( chosen.StartsWith( "i:" ) )
+        {
+            var item = chosen[ 2.. ];
+            var pin = Look.Accessories.FirstOrDefault( x => x.Item == item )?.Pin ?? old.Joint;
+            return new EffectAnchor { Kind = nameof( AnchorKind.Item ), Item = item, Joint = pin };
+        }
+
+        if ( chosen == "w" )
+            return new EffectAnchor { Kind = nameof( AnchorKind.HeldWeapon ), Joint = nameof( Effect.Joint.RightHand ) };
+
+        return new EffectAnchor { Joint = chosen[ 2.. ] };
+    }
+
+    static string AnchorValue( EffectAnchor anchor ) => anchor.KindIs switch
+    {
+        AnchorKind.Item => $"i:{anchor.Item}",
+        AnchorKind.HeldWeapon => "w",
+        _ => $"j:{anchor.Joint}",
+    };
+
+    List<UIDropdown.Item> EffectChoices() => Look.Effects.Select( x => new UIDropdown.Item( string.IsNullOrEmpty( x.Name ) ? x.Id : x.Name, x.Id ) ).ToList();
+
+    List<UIDropdown.Item> AnchorChoices()
+    {
+        var choices = Enum.GetValues<Effect.Joint>().Select( x => new UIDropdown.Item( JointName( x ), $"j:{x}" ) ).ToList();
+        foreach ( var item in Look.Accessories.Select( x => x.Item ).Distinct() )
+            choices.Add( new UIDropdown.Item( $"Item: {AccessoryCatalog.Find( item )?.Title ?? item}", $"i:{item}" ) );
+
+        // An item no longer worn stays named, so the list still shows what the effect is set to
+        if ( Effect?.Anchor is { Kind: nameof( AnchorKind.Item ) } anchor && Look.Accessories.All( x => x.Item != anchor.Item ) )
+            choices.Add( new UIDropdown.Item( "Item no longer worn (its joint)", AnchorValue( anchor ) ) );
+
+        choices.Add( new UIDropdown.Item( "Weapon held (its tip)", "w" ) );
+        return choices;
+    }
+
+    static List<UIDropdown.Item> LayerJointChoices()
+    {
+        var choices = new List<UIDropdown.Item> { new( "Where the effect comes from", "" ) };
+        choices.AddRange( Enum.GetValues<Effect.Joint>().Select( x => new UIDropdown.Item( JointName( x ), x.ToString() ) ) );
+        return choices;
+    }
+
+    static List<UIDropdown.Item> LineEndChoices()
+    {
+        var choices = new List<UIDropdown.Item> { new( "Nowhere: across the way it faces", "" ) };
+        choices.AddRange( Enum.GetValues<Effect.Joint>().Select( x => new UIDropdown.Item( JointName( x ), x.ToString() ) ) );
+        return choices;
+    }
+
+    static string JointName( Effect.Joint joint ) => joint switch
+    {
+        Effect.Joint.LeftEye => "Left eye",
+        Effect.Joint.RightEye => "Right eye",
+        Effect.Joint.Crown => "Top of the head",
+        Effect.Joint.LeftHand => "Left hand",
+        Effect.Joint.RightHand => "Right hand",
+        Effect.Joint.LeftFoot => "Left foot",
+        Effect.Joint.RightFoot => "Right foot",
+        Effect.Joint.Ground => "Ground (under the feet)",
+        _ => joint.ToString(),
+    };
+
+    // Whether sprites stay with the body as it moves (dragging behind a little, as much as Drag says) or trail behind it
+    const string WithBody = "with";
+    const string LeftBehind = "trail";
+
+    static List<UIDropdown.Item> MovesChoices() => new()
+    {
+        new( "Moves with the body", WithBody ),
+        new( "Leaves a trail behind", LeftBehind ),
+    };
+
+    static List<UIDropdown.Item> ShapeChoices() => new()
+    {
+        new( "A point", nameof( LayerShape.Point ) ),
+        new( "A ball", nameof( LayerShape.Sphere ) ),
+        new( "A ring", nameof( LayerShape.Ring ) ),
+        new( "All around the body", nameof( LayerShape.AroundBody ) ),
+        new( "A box", nameof( LayerShape.Box ) ),
+        new( "A cone", nameof( LayerShape.Cone ) ),
+        new( "A line", nameof( LayerShape.Line ) ),
+        new( "A shape", nameof( LayerShape.Shape ) ),
+        new( "Along the shot", nameof( LayerShape.Shot ) ),
+    };
+
+    static List<UIDropdown.Item> StandardShapeChoices() => Enum.GetValues<StandardShape>().Select( x => new UIDropdown.Item( ShapeName( x ), x.ToString() ) ).ToList();
+
+    static List<UIDropdown.Item> PictureChoices()
+    {
+        var choices = Enum.GetValues<LayerPicture>().Select( x => new UIDropdown.Item( x.ToString(), x.ToString() ) ).ToList();
+        choices.AddRange( Enum.GetValues<StandardShape>().Select( x => new UIDropdown.Item( $"Shape: {ShapeName( x )}", x.ToString() ) ) );
+        return choices;
+    }
+
+    // "RightTriangle" as "Right triangle", "Star5" as "5-point star"
+    static string ShapeName( StandardShape shape )
+    {
+        var name = shape.ToString();
+        if ( name.StartsWith( "Star" ) )
+            return $"{name[ 4.. ]}-point star";
+
+        var spaced = string.Concat( name.Select( ( c, i ) => i > 0 && char.IsUpper( c ) ? $" {char.ToLowerInvariant( c )}" : c.ToString() ) );
+        return shape == StandardShape.SineWave ? "Sine wave" : spaced;
+    }
+
+    static List<UIDropdown.Item> WhenChoices() => Enum.GetValues<LayerWhen>().Select( x => new UIDropdown.Item( WhenName( x ), x.ToString() ) ).ToList();
+
+    static string WhenName( LayerWhen when ) => when switch
+    {
+        LayerWhen.Moving => "While moving",
+        LayerWhen.Grounded => "While on the ground",
+        LayerWhen.InAir => "While in the air",
+        LayerWhen.Crouching => "While crouching",
+        LayerWhen.HoldingWeapon => "While holding a weapon",
+        LayerWhen.OnJump => "On jumping",
+        LayerWhen.OnLand => "On landing",
+        LayerWhen.OnHurt => "On getting hurt",
+        LayerWhen.OnStartMoving => "On starting to move",
+        LayerWhen.OnStopMoving => "On stopping",
+        LayerWhen.OnCrouch => "On crouching down",
+        LayerWhen.OnUncrouch => "On standing up",
+        LayerWhen.OnShoot => "On shooting or swinging",
+        LayerWhen.OnImpact => "On hitting something hard",
+        LayerWhen.OnReload => "On reloading",
+        LayerWhen.OnEquip => "On drawing a weapon",
+        LayerWhen.OnHolster => "On putting a weapon away",
+        LayerWhen.OnHit => "On a shot or swing hitting",
+        LayerWhen.OnDeath => "On dying",
+        LayerWhen.OnRespawn => "On spawning again",
+        LayerWhen.OnFootstep => "On each footstep",
+        LayerWhen.OnKill => "On a kill (someone they shot dies)",
+        _ => "Always",
+    };
+
+    static List<UIDropdown.Item> RhythmChoices() => new()
+    {
+        new( "Steady", nameof( LayerRhythm.Steady ) ),
+        new( "Pulse", nameof( LayerRhythm.Pulse ) ),
+        new( "Flicker", nameof( LayerRhythm.Flicker ) ),
+        new( "Rainbow", nameof( LayerRhythm.Rainbow ) ),
+        new( "Turn (circles its place)", nameof( LayerRhythm.Spin ) ),
+        new( "Jiggle", nameof( LayerRhythm.Jiggle ) ),
+    };
+
+    static List<UIDropdown.Item> FacingChoices() => Enum.GetValues<LayerFacing>().Select( x => new UIDropdown.Item( x switch
+    {
+        LayerFacing.Flat => "Flat on the ground",
+        LayerFacing.Camera => "The camera",
+        _ => x.ToString(),
+    }, x.ToString() ) ).ToList();
+
+    // How a shape the sprites come from lies: up like a sign, flat on the ground (a magic circle), or facing whoever looks
+    static List<UIDropdown.Item> ShapeLiesChoices() => new()
+    {
+        new( "Upright", nameof( LayerFacing.Forward ) ),
+        new( "Flat on the ground", nameof( LayerFacing.Flat ) ),
+        new( "Facing the camera", nameof( LayerFacing.Camera ) ),
+    };
+
+    static string ShapeLies( EffectLayer layer ) => layer.FacingIs is LayerFacing.Flat or LayerFacing.Camera ? layer.FacingIs.ToString() : nameof( LayerFacing.Forward );
+
+    // Which way each sprite lies
+    static List<UIDropdown.Item> AlignChoices() => new()
+    {
+        new( "Facing the camera", nameof( LayerAlign.Camera ) ),
+        new( "Along the swing", nameof( LayerAlign.Swing ) ),
+        new( "Flat on the ground", nameof( LayerAlign.Ground ) ),
+        new( "The way the layer faces", nameof( LayerAlign.Facing ) ),
+        new( "Out from the middle", nameof( LayerAlign.Outward ) ),
+    };
+
+    static List<UIDropdown.Item> ColourModeChoices() => new()
+    {
+        new( "Its colors", nameof( LayerColorMode.Fixed ) ),
+        new( "Rain (clan tag)", nameof( LayerColorMode.Rain ) ),
+        new( "Cycle (clan tag)", nameof( LayerColorMode.Cycl ) ),
+        new( "Scanner (clan tag)", nameof( LayerColorMode.Cyln ) ),
+        new( "Mixed, one each", nameof( LayerColorMode.Mix ) ),
+    };
+
+    // "Sprites: Flame, on jumping", "Light", "Trail, while moving"; a drawn shape by its name
+    string NameOf( EffectLayer layer )
+    {
+        var name = layer.KindIs switch
+        {
+            LayerKind.Light => "Light",
+            LayerKind.Trail => "Trail",
+            _ when layer.DrawnPicture is { } drawn => $"Sprites: {Look?.DrawnShapeOf( drawn )?.Name ?? "drawn shape"}",
+            _ => $"Sprites: {(layer.PictureShape is { } shape ? ShapeName( shape ) : layer.PictureIs.ToString())}",
+        };
+
+        return layer.WhenIs == LayerWhen.Always ? name : $"{name}, {WhenName( layer.WhenIs ).ToLowerInvariant()}";
+    }
+
+    // The budget every player's effects show within on this server: what the preview shows, and what others see
+    static EffectBudget Budget => Selector?.EffectsBudget ?? EffectBudget.Normal;
+
+    // How much of the server's budget what is worn takes
+    string BudgetText()
+    {
+        var budget = Budget;
+        var shown = Look.Effects.Where( x => !x.Off ).ToList();
+        var used = $"Your effects use {shown.Sum( x => x.LayersOn() )} of the {budget.Layers} layers and {shown.Sum( x => x.Lights() )} of the {budget.Lights} lights this server allows each player.";
+        return budget.Fits( Look.Effects ) ? used : $"{used} Past that, the last layers and lights wait (faint, over budget) and the sprites thin out.";
+    }
+}

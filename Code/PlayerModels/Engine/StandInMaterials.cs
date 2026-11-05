@@ -20,6 +20,7 @@ internal static class StandInMaterials
 	private const string MissingShader = "shaders/player_model_selector_missing.shader";
 
 	// The textures a stand-in takes, each from the first of the names mounts give it that the material has
+	[SkipHotload]
 	private static readonly (string Slot, string[] Names)[] Textures =
 	{
 		("g_tColor", new[] { "g_tColor", "g_tColor1", "g_tAlbedo", "g_tDiffuse", "g_tBaseTexture" }),
@@ -27,9 +28,11 @@ internal static class StandInMaterials
 	};
 
 	// Features deciding which pixels draw at all: without them hair cards and leaves would show as solid sheets
+	[SkipHotload]
 	private static readonly string[] Features = { "F_ALPHA_TEST", "F_TRANSLUCENT" };
 
 	private static readonly Dictionary<string, bool> FailedShaders = new();
+	[SkipHotload]
 	private static readonly Dictionary<Material, Material> Made = new();
 	private static readonly HashSet<Material> StandIns = new();
 	private static string _failedSchema;

@@ -1,0 +1,1 @@
+{"id":"","n":"Muzzle flash","a":{"j":"RightHand","k":"HeldWeapon"},"l":[{"k":"Sprite","s":"Cone","r":3,"p":"Flame","c":"#fff0a0","c2":"#ff6a1a","a":5,"b":1.5,"v":40,"t":0.1,"n":0,"fo":true,"wh":"OnShoot","bu":6},{"k":"Sprite","c":"#ffe08a","c2":"#ff8a2a","a":7,"b":3,"t":0.1,"n":0,"wh":"OnShoot","bu":2},{"k":"Light","c":"#ffb25a","a":140,"t":1,"n":2,"wh":"OnShoot","sf":0.06}]}

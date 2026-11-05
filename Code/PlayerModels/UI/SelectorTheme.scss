@@ -33,6 +33,12 @@ $ui-button-bottom: rgba( 230, 230, 230, 0.9 );
 $ui-button-border: rgba( 0, 0, 0, 0.33 );
 $ui-separator: rgba( 0, 0, 0, 0.12 );
 
+$ui-control-border-hover: #6f6f6f;
+$ui-text-strong: #444444;
+$ui-blue-soft: rgba( 62, 131, 235, 0.14 );
+$ui-popup-bg: #e8e8e8;
+$ui-popup-hover: #d6d6d6;
+
 $ui-input-bg: rgba( 255, 255, 255, 0.96 );
 $ui-input-border: rgba( 0, 0, 0, 0.51 );
 $ui-text-placeholder: #a8a8a8;
@@ -161,10 +167,12 @@ $favorite-heart: #ff4d6d;
 }
 
 // a text field, like Sandbox's search boxes
-// a page's top row: what the page is for, and its buttons beside it (or the arrow back out of a Workshop before it)
+// a page's top row: what the page is for, and its buttons beside it (or the arrow back out of a Workshop before it). In
+// a narrow pane the buttons go under the words rather than squeezing them a word to a line
 @mixin ui-top-row
 {
 	flex-direction: row;
+	flex-wrap: wrap;
 	align-items: center;
 	flex-shrink: 0;
 	gap: 8px;
@@ -173,9 +181,21 @@ $favorite-heart: #ff4d6d;
 	> .intro
 	{
 		flex-grow: 1;
+		flex-basis: 0px;
+		min-width: 160px;
 		padding: 0 4px;
 		color: $ui-text-muted;
 		font-size: $ui-settings-font;
+	}
+
+	// the buttons, kept together: they go under the words as one
+	> .buttons
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		margin-left: auto;
+		gap: 8px;
 	}
 
 	// the same arrow as out of a group of models
@@ -241,6 +261,41 @@ $favorite-heart: #ff4d6d;
 {
 	color: white;
 	background-color: $ui-blue;
+}
+
+// an effect or layer switched on or off: its check mark alone, bright when on and faint when off, on a target as big as
+// a button's
+@mixin ui-check-switch
+{
+	width: 24px;
+	height: 24px;
+	flex-shrink: 0;
+	justify-content: center;
+	align-items: center;
+	border-radius: 2px;
+	font-family: "Material Icons";
+	font-size: 18px;
+	color: white;
+	text-transform: none;
+	opacity: 0.25;
+	cursor: pointer;
+
+	&.on
+	{
+		opacity: 1;
+	}
+
+	&:hover
+	{
+		opacity: 0.6;
+		background-color: rgba( 255, 255, 255, 0.08 );
+		sound-in: ui.hover;
+	}
+
+	&.on:hover
+	{
+		opacity: 1;
+	}
 }
 
 // a setting's name

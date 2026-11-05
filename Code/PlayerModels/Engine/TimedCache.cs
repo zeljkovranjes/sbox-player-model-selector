@@ -47,11 +47,16 @@ internal sealed class TimedCache<T>
 		var entries = Entries();
 		entries[ key ] = new Entry { Value = value, Saved = Now() };
 
-		foreach ( var oldest in entries.OrderBy( x => x.Value.Saved ).Take( entries.Count - _maxEntries ).Select( x => x.Key ).ToArray() )
+		// Named methods, not lambdas: a generic type's lambda can't be carried over a hot reload
+		foreach ( var oldest in entries.OrderBy( SavedAt ).Take( entries.Count - _maxEntries ).Select( KeyOf ).ToArray() )
 			entries.Remove( oldest );
 
 		FileSystem.Data.WriteJson( _file, entries );
 	}
+
+	private static long SavedAt( KeyValuePair<string, Entry> entry ) => entry.Value.Saved;
+
+	private static string KeyOf( KeyValuePair<string, Entry> entry ) => entry.Key;
 
 	private Dictionary<string, Entry> Entries()
 	{

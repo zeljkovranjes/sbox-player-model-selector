@@ -39,3 +39,18 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+## Hershey fonts
+
+The letters, digits and punctuation text shapes are written with (`Code/PlayerModels/Core/HersheyFont.cs`) are the glyphs of the Hershey "Futura Light" (roman simplex) font, from [kamalmostafa/hershey-fonts](https://github.com/kamalmostafa/hershey-fonts/blob/master/hershey-fonts/futural.jhf), kept in the James Hurt format they are distributed in. Only the glyphs the shape creator writes are included.
+
+The Hershey Fonts were originally created by Dr. A. V. Hershey while working at the U. S. National Bureau of Standards.
+
+The format of the Font data in this distribution was originally created by James Hurt, Cognition, Inc., 900 Technology Park Drive, Billerica, MA 01821 (mit-eddie!ci-dandelion!hurt).
+
+This distribution of the Hershey Fonts may be used by anyone for any purpose, commercial or otherwise, providing that:
+
+1. The following acknowledgements must be distributed with the font data:
+   - The Hershey Fonts were originally created by Dr. A. V. Hershey while working at the U. S. National Bureau of Standards.
+   - The format of the Font data in this distribution was originally created by James Hurt, Cognition, Inc., 900 Technology Park Drive, Billerica, MA 01821 (mit-eddie!ci-dandelion!hurt)
+2. The font data in this distribution may be converted into any other format *EXCEPT* the format distributed by the U.S. NTIS (which organization holds the rights to the distribution and use of the font data in that particular format).

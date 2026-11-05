@@ -17,8 +17,10 @@ namespace PlayerModels.Components;
 /// </summary>
 public sealed class ModelBody : Component
 {
-	// How often the citizen's renderers are hidden again, for clothing the dresser puts on after we started.
-	private const float HideInterval = 0.5f;
+	// How often the citizen's renderers are looked through again anyway, for clothing the dresser puts on after we started;
+	// clothing put on is noticed sooner, as the citizen gains a child for it. Looking through them walks every object under
+	// the citizen (this body's effects too) and allocates, so it isn't done often for a hundred bodies
+	private const float HideInterval = 5f;
 
 	/// <summary>The citizen renderer whose pose drives the model.</summary>
 	public SkinnedModelRenderer Source { get; private set; }
@@ -44,17 +46,31 @@ public sealed class ModelBody : Component
 	/// <summary>The renderer showing the picked model.</summary>
 	internal SkinnedModelRenderer Renderer => _renderer;
 
+	/// <summary>The effects it wears; null before its look is first put on.</summary>
+	internal EffectRack Effects => _effects;
+
 	private SkinnedModelRenderer _renderer;
 	private PoseTransfer _transfer;
 	// The citizen's renderers this hid, each with the shadows the game wants it to cast
 	private readonly Dictionary<ModelRenderer, ModelRenderer.ShadowRenderType> _hidden = new();
+
+	// The same renderers in the order they were hidden, gone through each pose, and how many children the citizen had
+	// when they were last looked for
+	private readonly List<ModelRenderer> _hiddenOrder = new();
+	private int _citizenChildren = -1;
 	private readonly List<ModelRenderer> _own = new();
 	private readonly HeldItems _held = new();
 	private readonly CancellationTokenSource _cancel = new();
 	private TimeSince _sinceHidden;
 	private TimeSince _sincePosed;
+
+	// How often its weapon's skin colours are filled, by how near and in view it is (see PoseSchedule.SkinIntervalFor); a
+	// preview, posing it itself, fills them every frame
+	private float _skinInterval;
 	private LookPainter _painter;
 	private AccessoryRack _accessories;
+	private EffectRack _effects;
+	private WeaponDresser _weapons;
 
 	/// <summary>
 	/// Puts <paramref name="model"/> on <paramref name="source"/>'s body, in the scene that is active now, dressed in
@@ -92,10 +108,12 @@ public sealed class ModelBody : Component
 	}
 
 	/// <summary>
-	/// Customises the model as <paramref name="look"/> says: body group choices, morph weights, skin, colours and body
-	/// shape. Whatever it no longer lists goes back to the model's default.
+	/// Customises the model as <paramref name="look"/> says: body group choices, morph weights, skin, colours, body
+	/// shape, items, effects and the design of the weapon held. Whatever it no longer lists goes back to the model's
+	/// default. <paramref name="keyShown"/> says whether an effect with a key shows now (null: always, as in a preview),
+	/// and <paramref name="wearer"/> who wears it (see <see cref="EffectWearer"/>; null: nobody in particular).
 	/// </summary>
-	internal void ApplyLook( PlayerLook look )
+	internal void ApplyLook( PlayerLook look, Func<string, bool> keyShown = null, EffectWearer wearer = null )
 	{
 		if ( !_renderer.IsValid() || look is null )
 			return;
@@ -111,7 +129,20 @@ public sealed class ModelBody : Component
 		// Made here too, for the same reason
 		_accessories ??= new AccessoryRack();
 		_accessories.Apply( look.Accessories, GameObject, _transfer, Source.Model, _renderer.Model, FindOwnRenderers );
+
+		_effects ??= new EffectRack();
+		_effects.Apply( look.Effects, look.Accessories, look.DrawnShapes, GameObject, _transfer, Source, _renderer.Model, keyShown, wearer );
+
+		_weapons ??= new WeaponDresser();
+		_weapons.Apply( look.Weapons, look.DrawnShapes );
+		_weapons.Dress( _held.Holding, _effects );
 	}
+
+	/// <summary>Dresses the weapon held as its design says; null before its look is first put on.</summary>
+	internal WeaponDresser Weapons => _weapons;
+
+	/// <summary>What the citizen holds, moved into the model's hand.</summary>
+	internal HeldItems Held => _held;
 
 	/// <summary>
 	/// The body shown on this citizen renderer, if any. Any other body found under it is taken off: a citizen shows one
@@ -157,11 +188,13 @@ public sealed class ModelBody : Component
 
 		try
 		{
-			if ( _sinceHidden > HideInterval )
+			// A weapon drawn, put away or swapped is dressed the frame it is noticed, not at the next look round
+			if ( _sinceHidden > HideInterval || Source.GameObject.Children.Count != _citizenChildren || _held.MayHaveChanged() )
 			{
 				FindOwnRenderers();
 				HideSource();
 				FindHeldItems();
+				_weapons?.Dress( _held.Holding, _effects );
 			}
 
 			Pose();
@@ -178,15 +211,20 @@ public sealed class ModelBody : Component
 	private bool IsIntact()
 	{
 		return _renderer.IsValid() && _transfer is { IsIntact: true } && _held is not null && _own is not null
-			&& _hidden is not null && _cancel is not null;
+			&& _hidden is not null && _hiddenOrder is not null && _cancel is not null;
 	}
 
-	// Bodies far from the camera or out of view are posed less often (see PoseSchedule)
+	// Bodies far from the camera or out of view are posed less often (see PoseSchedule); a weapon drawn is dressed the
+	// frame it appears all the same, so it is never seen as the game made it
 	protected override void OnPreRender()
 	{
 		var interval = Source.IsValid() ? Scene.GetSystem<PoseSchedule>()?.IntervalFor( Source.Bounds ) ?? 0f : 0f;
+		_skinInterval = PoseSchedule.SkinIntervalFor( interval );
 		if ( _sincePosed < interval )
+		{
+			FollowHeld();
 			return;
+		}
 
 		_sincePosed = 0;
 		Tick();
@@ -197,8 +235,15 @@ public sealed class ModelBody : Component
 		if ( !_renderer.IsValid() )
 			return;
 
-		// The model casts the shadows the game wants from the citizen, whose own are kept off
+		// The model casts the shadows the game wants from the citizen, whose own are kept off; the game setting a hidden
+		// renderer's shadows again is followed each pose
 		Hide( Source );
+		for ( var i = 0; i < _hiddenOrder.Count; i++ )
+		{
+			if ( _hiddenOrder[ i ].IsValid() )
+				Hide( _hiddenOrder[ i ] );
+		}
+
 		var shadows = _hidden.TryGetValue( Source, out var wanted ) ? wanted : Source.RenderType;
 		foreach ( var renderer in _own )
 		{
@@ -209,6 +254,8 @@ public sealed class ModelBody : Component
 		_transfer.Apply( Source, _renderer );
 		_held.Place( Source, _renderer, _transfer );
 		_accessories?.Place( Source, _renderer, _transfer );
+		_effects?.Place( Source, _renderer, _transfer, _accessories, _held );
+		_weapons?.Animate( _skinInterval );
 	}
 
 	/// <summary>
@@ -218,7 +265,9 @@ public sealed class ModelBody : Component
 	internal void TakeOff()
 	{
 		_cancel?.Cancel();
+		_weapons?.Release();
 		_held?.Release();
+		_effects?.Release();
 		ShowSource();
 
 		// Switched off at once, so it isn't drawn, posed or found again before it is removed
@@ -229,6 +278,7 @@ public sealed class ModelBody : Component
 	protected override void OnDestroy()
 	{
 		_cancel?.Cancel();
+		_weapons?.Release();
 		_held?.Release();
 		ShowSource();
 	}
@@ -273,6 +323,7 @@ public sealed class ModelBody : Component
 	private void HideSource()
 	{
 		_sinceHidden = 0;
+		_citizenChildren = Source.GameObject.Children.Count;
 
 		foreach ( var renderer in Source.GameObject.Components.GetAll<ModelRenderer>( FindMode.EverythingInSelfAndDescendants ) )
 		{
@@ -283,6 +334,19 @@ public sealed class ModelBody : Component
 	}
 
 	// Anything new in the citizen's hands moves to the model's hands
+	/// <summary>
+	/// Dresses a weapon drawn, put away or swapped since it last looked, now: every frame, and first thing for whoever
+	/// shows the same weapon in first person. No allocations while nothing changed.
+	/// </summary>
+	internal void FollowHeld()
+	{
+		if ( !Source.IsValid() || !IsIntact() || !_held.MayHaveChanged() )
+			return;
+
+		FindHeldItems();
+		_weapons?.Dress( _held.Holding, _effects );
+	}
+
 	private void FindHeldItems()
 	{
 		_held.Find( Source, _transfer, GameObject );
@@ -309,6 +373,7 @@ public sealed class ModelBody : Component
 			return;
 
 		_hidden[renderer] = renderer.RenderType;
+		_hiddenOrder.Add( renderer );
 		renderer.RenderOptions.Game = false;
 		renderer.RenderType = ModelRenderer.ShadowRenderType.Off;
 	}
@@ -331,6 +396,7 @@ public sealed class ModelBody : Component
 		}
 
 		_hidden.Clear();
+		_hiddenOrder.Clear();
 	}
 
 	// The list of what was hidden is gone (a hot reload), so everything under the citizen that isn't drawn is shown again,

@@ -12,7 +12,6 @@ internal static class FinishMaterials
 {
 	private const string Shiny = "materials/shine.vmat";
 	private const string Plain = "materials/default.vmat";
-	private const string Black = "materials/black_matte.vmat";
 
 	private const string TintAttribute = "g_vColorTint";
 	private const string MetalnessAttribute = "g_flMetalness";
@@ -20,25 +19,39 @@ internal static class FinishMaterials
 	private const string NormalTexture = "g_tNormal";
 
 	// Features deciding which pixels draw, from the alpha of the colour texture: hair cards would be solid sheets without
+	[SkipHotload]
 	private static readonly string[] CutOutFeatures = { "F_ALPHA_TEST", "F_TRANSLUCENT" };
 	private const string AlphaTestFeature = "F_ALPHA_TEST";
 
-	private readonly record struct Recipe( string Material, Color Colour, float Metalness );
+	// How rough each kind of finish is, where it is drawn by a shader of its own (a weapon's skin)
+	private const float ShinyRoughness = 0.25f;
+	private const float PlainRoughness = 0.6f;
+	private const float MatteRoughness = 0.85f;
+
+	private readonly record struct Recipe( string Material, Color Colour, float Metalness, float Roughness );
 
 	private static Recipe RecipeOf( string finish ) => finish switch
 	{
-		"Gold" => new( Shiny, new Color( 1f, 0.77f, 0.3f ), 1f ),
-		"Silver" => new( Shiny, new Color( 0.85f, 0.87f, 0.9f ), 1f ),
-		"Chrome" => new( Shiny, Color.White, 1f ),
-		"Copper" => new( Shiny, new Color( 0.85f, 0.45f, 0.27f ), 1f ),
-		"Bronze" => new( Shiny, new Color( 0.55f, 0.36f, 0.18f ), 1f ),
-		"Gloss" => new( Shiny, Color.White, 0f ),
-		"Matte black" => new( Black, Color.White, 0f ),
-		_ => new( Plain, Color.White, 0f ),
+		"Gold" => new( Shiny, new Color( 1f, 0.77f, 0.3f ), 1f, ShinyRoughness ),
+		"Silver" => new( Shiny, new Color( 0.85f, 0.87f, 0.9f ), 1f, ShinyRoughness ),
+		"Chrome" => new( Shiny, Color.White, 1f, ShinyRoughness ),
+		"Copper" => new( Shiny, new Color( 0.85f, 0.45f, 0.27f ), 1f, ShinyRoughness ),
+		"Bronze" => new( Shiny, new Color( 0.55f, 0.36f, 0.18f ), 1f, ShinyRoughness ),
+		"Gloss" => new( Shiny, Color.White, 0f, ShinyRoughness ),
+		// The plain material coloured black: the engine's own black_matte.vmat draws with the error shader (a red checker)
+		"Matte black" => new( Plain, new Color( 0.08f, 0.08f, 0.08f ), 0f, MatteRoughness ),
+		_ => new( Plain, Color.White, 0f, PlainRoughness ),
 	};
 
 	/// <summary>The colour <paramref name="finish"/> has until the player colours it.</summary>
 	internal static Color ColourOf( string finish ) => RecipeOf( finish ).Colour;
+
+	/// <summary>How metal and how rough <paramref name="finish"/> is (null or empty: a plain surface).</summary>
+	internal static (float Metalness, float Roughness) SurfaceOf( string finish )
+	{
+		var recipe = RecipeOf( finish );
+		return (recipe.Metalness, recipe.Roughness);
+	}
 
 	/// <summary>
 	/// A material of <paramref name="finish"/> to stand in for <paramref name="worn"/>, keeping its bumps and which of its

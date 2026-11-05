@@ -81,7 +81,7 @@ public sealed partial class PlayerModelSelector
 		if ( quota.TryTake( RealTime.Now, DownloadLimit, DownloadWindow ) )
 			return true;
 
-		if ( Networking.FindConnection( id ) is { } player )
+		if ( Connection.Find( id ) is { } player )
 		{
 			using ( Rpc.FilterInclude( player ) )
 				DownloadRefused( (float)quota.SecondsUntilFree( RealTime.Now, DownloadLimit, DownloadWindow ) );

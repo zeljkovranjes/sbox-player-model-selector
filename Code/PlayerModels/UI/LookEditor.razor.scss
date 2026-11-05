@@ -83,6 +83,21 @@ LookEditor
 		}
 	}
 
+	// finding a part, group or morph by name, over the Advanced editor's long lists
+	.find-row
+	{
+		gap: 6px;
+		margin-bottom: 2px;
+
+		> .find-icon
+		{
+			flex-shrink: 0;
+			font-family: "Material Icons";
+			font-size: 16px;
+			color: $ui-text-muted;
+		}
+	}
+
 	// saving the look shown under a name, and the looks saved for this model
 	.save-row
 	{
@@ -157,10 +172,41 @@ LookEditor
 		font-weight: 600;
 	}
 
-	// what the page is for, with Reset everything and Workshop beside it
+	// what the page is for, with Reset everything and Workshop beside it as icons named in their tooltips, and the way
+	// into the Advanced editor in words after its icon
 	.top
 	{
 		@include ui-top-row;
+	}
+
+	.top .tool
+	{
+		@include ui-button;
+		flex-shrink: 0;
+		min-width: 28px;
+		padding: 0 6px;
+		font-family: "Material Icons";
+		font-size: 16px;
+		text-transform: none;
+
+		// how many looks the Workshop has for the model, beside its icon
+		> .count
+		{
+			font-family: $body-font;
+			font-size: 12px;
+		}
+	}
+
+	.top .reset > .glyph, .top .tool > .glyph
+	{
+		font-family: "Material Icons";
+		font-size: 15px;
+		text-transform: none;
+	}
+
+	.top .reset > .glyph
+	{
+		color: $ui-blue;
 	}
 
 	// the Workshop fills the pane, which doesn't scroll then (see .fit-pane): its padding includes the pane's 4px
@@ -174,37 +220,5 @@ LookEditor
 	.sharing.mine
 	{
 		margin-top: 12px;
-	}
-}
-
-ColorRow
-{
-	flex-direction: row;
-	align-items: center;
-	flex-shrink: 0;
-	min-height: 26px;
-	gap: 8px;
-
-	> .label
-	{
-		@include ui-label;
-		width: 120px;
-		flex-shrink: 0;
-	}
-}
-
-SliderRow
-{
-	flex-direction: row;
-	align-items: center;
-	flex-shrink: 0;
-	min-height: 24px;
-	gap: 8px;
-
-	> .label
-	{
-		@include ui-label;
-		width: 120px;
-		flex-shrink: 0;
 	}
 }

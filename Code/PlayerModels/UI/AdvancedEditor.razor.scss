@@ -1,5 +1,6 @@
 @import "SelectorTheme.scss";
 @import "PreviewTheme.scss";
+@import "ContextMenu.scss";
 
 // The Advanced editor: a window over the whole screen with the model in the middle of it, the options down the right, and
 // sharing and what to do with the changes along the bottom. The preview fills the window, so the model is in the middle
@@ -29,43 +30,109 @@ AdvancedEditor
 		bottom: 0px;
 	}
 
+	// the title, what moves the model and a help icon with the view's keys, kept left of the options
 	> .heading
 	{
 		position: absolute;
 		left: 24px;
 		top: 20px;
+		right: 492px;
 		flex-direction: column;
 		pointer-events: none;
 
-		> .title
+		> .title-row
 		{
-			font-size: 22px;
-			font-weight: 600;
-		}
+			flex-direction: row;
+			align-items: center;
+			gap: 10px;
 
-		> .subtitle, > .graph
-		{
-			font-size: 12px;
-			color: $ui-text-muted;
+			> .title
+			{
+				flex-shrink: 1;
+				min-width: 0px;
+				font-size: 22px;
+				font-weight: 600;
+				white-space: nowrap;
+				text-overflow: ellipsis;
+				overflow: hidden;
+			}
+
+			> .graph
+			{
+				flex-shrink: 0;
+				padding: 2px 6px;
+				font-size: 11px;
+				font-weight: 600;
+				color: $ui-text-muted;
+				background-color: rgba( 255, 255, 255, 0.08 );
+				border-radius: 2px;
+				white-space: nowrap;
+			}
+
+			// the heading lets clicks through to the view; its icon and button take them
+			> .help
+			{
+				flex-shrink: 0;
+				font-family: "Material Icons";
+				font-size: 18px;
+				color: $ui-text-muted;
+				pointer-events: all;
+				cursor: help;
+
+				&:hover
+				{
+					color: white;
+				}
+			}
+
+			// leaving weapon mode: the heading's one control, so it takes clicks the heading lets through
+			> .back-button
+			{
+				@include ui-button;
+				flex-shrink: 0;
+				pointer-events: all;
+			}
 		}
 	}
 
+	// the test bar over the preview on the Effects tab: actions that play the effects' real causes here, as icons named in
+	// their tooltips, kept left of the options
+	> .tests
+	{
+		position: absolute;
+		left: 24px;
+		right: 492px;
+		bottom: 72px;
+		flex-direction: row;
+		align-items: flex-end;
+		pointer-events: none;
+
+		> TestBar
+		{
+			flex-shrink: 1;
+			min-width: 0px;
+		}
+	}
+
+	// the view's tools: the five that take turns as one segmented strip, then Walk and Frame all, each an icon named in
+	// its tooltip
 	> .view-tools
 	{
 		position: absolute;
 		left: 24px;
-		top: 76px;
+		top: 58px;
 		flex-direction: row;
-		gap: 6px;
+		align-items: center;
+		gap: 8px;
 
-		> .gap
-		{
-			width: 10px;
-		}
-
-		> .tool
+		.tool
 		{
 			@include ui-button;
+			width: 30px;
+			padding: 0;
+			font-family: "Material Icons";
+			font-size: 17px;
+			text-transform: none;
 
 			&.active
 			{
@@ -73,6 +140,28 @@ AdvancedEditor
 				background-image: none;
 				background-color: $ui-blue;
 				border-color: $ui-blue;
+			}
+		}
+
+		> .segmented
+		{
+			flex-direction: row;
+
+			> .tool
+			{
+				border-radius: 0px;
+				margin-left: -1px;
+
+				&:first-child
+				{
+					margin-left: 0px;
+					border-radius: 2px 0px 0px 2px;
+				}
+
+				&:last-child
+				{
+					border-radius: 0px 2px 2px 0px;
+				}
 			}
 		}
 	}
@@ -90,6 +179,13 @@ AdvancedEditor
 		background-color: rgba( 0, 0, 0, 0.6 );
 		border-radius: 3px;
 		pointer-events: none;
+
+		// walking: the keys that fly the view, while there is no move to say
+		&.hint
+		{
+			font-size: 13px;
+			font-weight: 500;
+		}
 	}
 
 	> .side
@@ -100,13 +196,17 @@ AdvancedEditor
 		bottom: 72px;
 		width: 460px;
 		flex-direction: column;
-		gap: 6px;
 
+		// the tabs sit on the options they name, which need no title of their own
 		> .tabs
 		{
 			flex-direction: row;
 			flex-shrink: 0;
-			gap: 4px;
+		}
+
+		> .options.tabbed > .title-bar
+		{
+			display: none;
 		}
 
 		> .options
@@ -132,6 +232,26 @@ AdvancedEditor
 		width: 100%;
 	}
 
+	// the options as far from the pane's right edge as from its left (6px), clearing the scrollbar as well only while
+	// there is one, as on the page
+	SlowScroll > *
+	{
+		padding-right: 6px;
+	}
+
+	SlowScroll.scrolling > *
+	{
+		padding-right: 14px;
+	}
+
+	// a color fills its row: the swatch reaches to the hex code, the Reset at the row's end
+	ColorRow > UIColor > .swatch
+	{
+		flex-grow: 1;
+		flex-shrink: 1;
+		min-width: 47px;
+	}
+
 	> .bar
 	{
 		position: absolute;
@@ -151,6 +271,13 @@ AdvancedEditor
 			flex-grow: 1;
 		}
 
+		// closing with changes: what it asks, beside its answers
+		> .closing
+		{
+			font-size: 14px;
+			color: $ui-text;
+		}
+
 		// here the bar sets its height: what sharing says goes beside the buttons, not under them
 		> .sharing.mine
 		{
@@ -164,16 +291,13 @@ AdvancedEditor
 				height: 32px;
 				padding: 0 16px;
 				font-size: 14px;
-			}
 
-			// the way into the Workshop: the first thing to find on the bar
-			.row > .button:first-child
-			{
-				color: white;
-				font-weight: 600;
-				background-image: none;
-				background-color: $ui-blue;
-				border-color: $ui-blue;
+				&.icon
+				{
+					width: 34px;
+					padding: 0;
+					font-size: 18px;
+				}
 			}
 		}
 

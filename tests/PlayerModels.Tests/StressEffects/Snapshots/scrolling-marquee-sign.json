@@ -1,0 +1,49 @@
+{
+  "id": "",
+  "n": "Marquee",
+  "a": {
+    "j": "Head",
+    "u": 20
+  },
+  "l": [
+    {
+      "k": "Sprite",
+      "s": "Shape",
+      "r": 24,
+      "fm": "@bfbfc43b8166c924",
+      "c": "#ffffff",
+      "a": 1,
+      "t": 1,
+      "n": 0,
+      "fo": true,
+      "kp": 100
+    }
+  ],
+  "sh": [
+    {
+      "id": "bfbfc43b8166c924",
+      "n": "Sign",
+      "s": [
+        "oCYkUBjj6AvjFAUiQAAhBAAe-AUdvAvc6BjcFCYbrEBbrE2cFFrc6GFdvGfe-GfhBGFiQFrjFE2j6EBkUCYkU",
+        "oGukUGubr",
+        "oGukUKbkULqj6MEjfMfirMfhcMEgnLqgNKbfyGufy",
+        "oNVkUNVbr",
+        "oNVkUSrkU",
+        "oNVgNQngN",
+        "oNVbrSrbr",
+        "oThkUThbr",
+        "oThkUZSbr",
+        "oZSkUZSbr",
+        "oguiQguirhJjfhjj6iYkUkBkUk2j6lQjflqirlqh2lQhBkbfygUbrmFbr",
+        "oqokUmgejsrej",
+        "oqokUqobr",
+        "oybkUtkbr",
+        "o5RkU1Kbr",
+        "ozgkU5RkU",
+        "o8ykU8ybr",
+        "o5MiK__d1",
+        "o__iK5Md1"
+      ]
+    }
+  ]
+}

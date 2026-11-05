@@ -1,0 +1,192 @@
+@using System
+@using System.Collections.Generic
+@using Sandbox
+@using Sandbox.UI
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    <div class="top">
+        <div class="back" Tooltip="Back to effects" @onclick=@(() => Back?.Invoke())>arrow_back</div>
+        <div class="intro">What each part of an effect is, then how to do the harder things. Each clip plays on a loop.</div>
+    </div>
+
+    <div class="section-header">Concepts</div>
+    <div class="chips">
+        @foreach ( var page in ConceptPages )
+        {
+            var shown = page;
+            <div class="chip @( shown == _page ? "active" : "" )" @onclick=@(() => Show( shown ))>@shown.Title</div>
+        }
+    </div>
+
+    <div class="section-header">How to</div>
+    <div class="chips">
+        @foreach ( var page in HowToPages )
+        {
+            var shown = page;
+            <div class="chip @( shown == _page ? "active" : "" )" @onclick=@(() => Show( shown ))>@shown.Title</div>
+        }
+    </div>
+
+    @if ( _page is { } open )
+    {
+        <div class="page">
+            <div class="page-title">@open.Title</div>
+            @if ( FileSystem.Mounted.FileExists( ClipOf( open ) ) )
+            {
+                <div class="clip" style="background-image: url( @ClipOf( open ) )"></div>
+            }
+            @if ( open.Steps is null )
+            {
+                <div class="text">@open.Text</div>
+            }
+            else
+            {
+                @for ( var i = 0; i < open.Steps.Length; i++ )
+                {
+                    <div class="step"><div class="number">@( i + 1 )</div><div class="text">@open.Steps[ i ]</div></div>
+                }
+            }
+        </div>
+    }
+</root>
+
+@code
+{
+    /// <summary>Called when the player goes back to the effects.</summary>
+    [Parameter] public Action Back { get; set; }
+
+    // The clips, recorded in the editor and played as looping pictures, ship with the addon
+    const string ClipFolder = "ui/effects/guides/";
+
+    // A concept explained in a paragraph, or a guide in steps, each with its clip
+    sealed record Page( string Title, string Clip, string Text, string[] Steps = null );
+
+    // Not carried over a hot reload: the pages are the code's, so a reload shows the new ones
+    [SkipHotload] static readonly Page[] ConceptPages =
+    {
+        new( "Effect", "effect",
+            "An effect is something you wear that isn't a model: glowing eyes, fire in your hands, a halo. Click one on the Effects tab to put it on; the preview shows it, Apply wears it, and everyone sees it. You can wear several at once, switch them off and on, and change each with four sliders: color, size, amount and speed." ),
+        new( "Layer", "layer",
+            "An effect is made of layers, each one thing: sprites (little pictures that appear, move and fade, like flames or sparks), a light that shines on what is around, or a trail left behind as it moves. Fire hands is flames, smoke and a light in each hand. In the Advanced editor you can add, copy, move, switch off and remove layers." ),
+        new( "Anchor", "anchor",
+            "An effect comes from somewhere on you: a joint (your head, eyes, hands, feet and more), an item you wear (it follows the hat as you move it), or the weapon you hold (its tip). If that isn't there, like a hat you took off or no weapon in hand, the effect shows on the joint it was on instead." ),
+        new( "Comes from and Looks like", "comesfrom",
+            "Comes from is the shape sprites appear in: a point, a ball, a ring, a box, a cone, a line or a shape like a star. Looks like is the picture each sprite is: a glow, a flame, a heart, or any of the shapes. A ring of hearts and a heart made of sparkles use the same two settings." ),
+        new( "Rhythm", "rhythm",
+            "Rhythm is how a layer changes over time: steady, pulsing brighter and dimmer, flickering like a flame, going through every color, turning round its place (so a layer set off to the side circles you), or jiggling about." ),
+        new( "When", "when",
+            "When says when a layer shows: always, while you move, stand, are in the air, crouch or hold a weapon, or for a moment when something happens: you jump, land, get hurt, start or stop moving, crouch, stand up, shoot or swing, reload, draw a weapon or put it away, or your shot or swing hits something. A moment can throw out a burst of sprites at once." ),
+        new( "Keys", "keys",
+            "Give an effect a key and it shows only when you press it, for everyone: for 10 seconds, until you press it again, or while you hold it, as you choose. To keep anyone from flooding the server, starting an effect with a key works once every 2 minutes for each player, whichever effect the key is for. Switching one off or letting go is always free." ),
+        new( "Shape", "shape",
+            "A shape is one of 40 standard shapes (circles, polygons, stars, hearts, lines, spirals and solids like a sphere or a torus) or one you made in the creator's Shape mode: drawn with the mouse, written, put together from others, and cut with the eraser. Sprites can come from a shape, along its outline or all over it (through a solid), or each sprite can look like the shape, in the layer's color. Shapes are under Effects, in their own Shapes tab." ),
+        new( "Sticker", "sticker",
+            "A sticker is a picture of layers, like an emblem in a shooter: each layer a standard shape, one of your shapes, text or a drawing, moved, turned and sized on its own, with its own color, outline, opacity and a color that can move (Rainbow, the clan tags, Pulse). An eraser layer cuts a hole through every layer below it. A sticker keeps its colors: as what sprites look like, and pressed onto a weapon, printed on paper, holo, foil, glitter, gold or lenticular. Stickers have their own Stickers tab under Effects." ),
+        new( "Workshop, Use and Fork", "workshop",
+            "The Workshop, on the Effects tab, lists the effects, single layers, shapes and stickers players shared, for any model. Use puts a copy on you (a single layer joins the effect you selected; a shape goes to My shapes). Fork opens a copy in the Advanced editor or the shape creator, to change and share as your own. Both remember the share: \"Based on\" its name and author shows with it, and stays when you share yours." ),
+        new( "Color cycles", "colors",
+            "A color cycle colors a layer's sprites one by one, the way World at War's clan tags did: Rain scrolls the colors along, Cycle wipes one color across them, and Scanner sweeps a highlight back and forth. Mixed gives each sprite one of the colors for its life, like confetti. Use the game's colors or your own." ),
+        new( "Weapon design", "weapon",
+            "Each weapon you hold can have a design of its own: a finish and tint, a skin painted over it (a pattern, and colors that move like World at War's clan tags), stickers, props on it or in place of its parts, parts hidden, and effects that come from it, like a tracer when you shoot. It is kept with your look for that weapon, so it shows on it in any game, for everyone, and on your weapon in first person. A weapon takes up to 8 props, 8 stickers and 4 effects, and a look up to 16 weapons." ),
+        new( "Script", "script",
+            "Every effect is also a short script: Edit as code opens it, and changing the code or the sliders changes the other. Code adds what sliders can't: values that follow what you do (brighter when running, bigger when hurt), something on every jump or key, each sprite moving on its own, and options of your own. Scripts run on every player's machine within strict limits, and the host can switch them off." ),
+        new( "Parameters", "parameters",
+            "A script can offer options, its parameters: they show under the effect's sliders as sliders, check marks, color pickers, palettes, keys and lists, so anyone can change the effect without the code. Reset puts the script's own value back; Save as default writes yours into the script." ),
+        new( "Budget and settings", "budget",
+            "Each server lets each player show so many layers, lights and sprites at once. Past that, your last layers wait (marked over budget) until you remove or switch off some; nothing is lost. The host can turn effects off or change the budget on the Server page, and you can lower Effects quality or hide one player's effects on your own screen." ),
+    };
+
+    [SkipHotload] static readonly Page[] HowToPages =
+    {
+        new( "Build an effect from layers", "build", null, new[]
+        {
+            "Put an effect on from the Effects tab, select it, and press Advanced editor.",
+            "Under Layers, press + Sprites, + Light or + Trail.",
+            "Pick what it comes from and what it looks like, its color, size and amount.",
+            "Use the arrows to reorder, the copy button to duplicate and the check mark to switch a layer off.",
+            "Press Apply to wear it.",
+        } ),
+        new( "Put an effect on a hat or a weapon", "attach", null, new[]
+        {
+            "Wear the hat first (Advanced editor, Accessories).",
+            "On the Effects tab, open Comes from and pick the hat, or Weapon held for the tip of what you hold.",
+            "Leave Keep it where it is on to keep the effect in place, or turn it off to snap it onto the hat or the tip.",
+            "Nudge it with Forward, Left and Up. It follows the hat as you move it.",
+        } ),
+        new( "Show a layer on a jump or a key", "triggers", null, new[]
+        {
+            "Select a layer and open When.",
+            "Pick a moment, like On jumping or On landing.",
+            "Set Burst for how many sprites appear at once, and Shows for to keep it going a while.",
+            "For a key, type it in the Key box on the Effects tab and choose what it does: show the effect for 10 seconds, switch it on and off, or show it while held; starting one works once every 2 minutes.",
+        } ),
+        new( "Set up a sword slash", "sword", null, new[]
+        {
+            "Put on Sword slash from the Effects tab.",
+            "Hold a melee weapon and swing: a crescent appears in front of you with each swing, lying along it and sweeping round with it.",
+            "In the Advanced editor, change the slash's color, its arc and thickness, and how far it sweeps.",
+            "For a streak that follows the tip instead, put on Blade trail.",
+        } ),
+        new( "Customize your weapon", "customize", null, new[]
+        {
+            "Hold the weapon in the game and open the Advanced editor: the preview holds it too.",
+            "Point at the weapon (it glows) and double-click it to design it; Back to player leaves.",
+            "Pick a finish and tint, then a skin: a pattern, its colors and a moving color.",
+            "Add stickers and props, click one on the weapon and move it with G, turn it with R, size it with S.",
+            "Right-click a part (the magazine, a rail) to replace it with a prop, attach one to it or hide it.",
+            "Press Apply to wear it. Share this design publishes it; the Workshop button lists what others shared for this weapon.",
+        } ),
+        new( "Bullet tracers", "tracer", null, new[]
+        {
+            "In weapon mode, under Effects, add Bullet tracer, and Muzzle flash or Impact sparks if you like.",
+            "Shoot: a streak runs from the muzzle to where each shot hits, gone in a blink.",
+            "Pick the effect in the list to change its color, size, amount and speed, or when it shows.",
+            "They come from the weapon you hold, in third person and in first person alike.",
+        } ),
+        new( "Expressions basics", "expressions", null, new[]
+        {
+            "Select an effect and press Edit as code: the code editor opens on its script.",
+            "Find a number, like glow.Size = 2, and make it work something out: glow.Size = 2 + Math.Sin( t * 4 ).",
+            "Put it in function OnUpdate( dt ) ... end to work it out every frame, from t (seconds), speed, grounded or crouching.",
+            "The preview follows as you type; a mistake is underlined with what is wrong, and the last good version keeps showing.",
+            "Press Save (Ctrl+S) to wear it. The ? button opens the reference, every example in it live.",
+        } ),
+        new( "Remix from the Workshop", "remix", null, new[]
+        {
+            "On the Effects tab, open the Workshop, and search or filter for something close to what you want.",
+            "Press Fork on it: the Advanced editor opens with a copy you wear, based on the share.",
+            "Change its layers, colors, sizes or where it comes from.",
+            "Press Apply to wear it, Save to My effects to keep it, or Share this effect to publish yours: it says what it is based on.",
+        } ),
+        new( "Draw your own shape", "draw", null, new[]
+        {
+            "Under Effects open Shapes and press New shape, or pick Draw a new shape at the end of a layer's Comes from or Looks like.",
+            "Draw with the left mouse button; turn on Draw filled shapes for solid ones. Undo and Redo go a stroke at a time.",
+            "Pick the eraser (its size with the slider, or [ and ]) and rub out what you don't want: fill, lines and text alike.",
+            "Add text, combine it with a standard shape or one of yours, then mirror, turn and size it.",
+            "Name it, press Save to My shapes, then Use as Comes from or Use as Looks like.",
+        } ),
+        new( "Make a sticker", "makesticker", null, new[]
+        {
+            "Under Effects open Stickers and press New sticker (or pick Sticker at the top of the creator).",
+            "Add a layer: a shape from the list, Draw by hand on the canvas, or Text. The top of the list is in front.",
+            "Click a layer on the canvas and drag it; its corners and sides size it, the knob above turns it. The wheel sizes, Shift+wheel turns.",
+            "Give each layer its color, outline, opacity and a moving color. The eraser cuts this layer, or everything below it as a layer of its own.",
+            "Pick what it is printed on (paper, holo, foil, glitter, gold, lenticular), name it and Save; Use as Looks like, or put it on your weapon as a sticker.",
+        } ),
+    };
+
+    static string ClipOf( Page page ) => $"{ClipFolder}{page.Clip}.webp";
+
+    Page _page = ConceptPages[ 0 ];
+
+    void Show( Page page )
+    {
+        _page = page;
+        StateHasChanged();
+    }
+
+    protected override int BuildHash() => HashCode.Combine( _page );
+}

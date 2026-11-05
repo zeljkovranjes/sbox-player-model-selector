@@ -39,8 +39,8 @@ public sealed class Accessory
 	private const float MaxShareOfBody = 0.5f;
 	private const float MaxReachOfBody = 0.25f;
 
-	// How tall the citizen stands: items are made for it, so a model this tall starts them at their own size
-	private const float CitizenHeight = 72f;
+	/// <summary>How tall the citizen stands: items and effects are made for it, so a model this tall wears them at their own size.</summary>
+	internal const float CitizenHeight = 72f;
 
 	private const int MaxItemLength = 256;
 

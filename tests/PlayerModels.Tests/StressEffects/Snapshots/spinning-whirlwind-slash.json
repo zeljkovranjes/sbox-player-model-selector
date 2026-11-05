@@ -1,0 +1,39 @@
+{
+  "id": "",
+  "n": "Whirlwind slash",
+  "a": {
+    "j": "Hips"
+  },
+  "l": [
+    {
+      "k": "Sprite",
+      "p": "@a6ab91e94290b107",
+      "c": "#c8f0ff",
+      "a": 48,
+      "t": 0.45,
+      "n": 0,
+      "fo": true,
+      "al": "Ground"
+    },
+    {
+      "k": "Sprite",
+      "p": "Spark",
+      "c": "#ffffff",
+      "a": 1.6,
+      "t": 0.45,
+      "n": 0,
+      "fo": true
+    }
+  ],
+  "sh": [
+    {
+      "id": "a6ab91e94290b107",
+      "n": "Whirlwind",
+      "s": [
+        "cQz6UNw4TK-19IgzRGXwVEmtJDOpxCQmQBuipBnfAB9bYCuX0D6UXFgRFHfOBJ0LOMdItPZGiSjEvV6DVZaCUdBBwgqBnkSB6n3CprUDyunFWxsHS0iJl3EMN5RPH7HSQ8jVm9mZG-Ncs-ZgV-Ij99cni8UrA6zuU45xb2o0S0C22xK5FuC69qt8cnO9hjo-LgA-ZgA-Zjm94nF88qZ7ntf56wV34y41i1Iy83BwI4ktI5vqA6hmz67ji69gS6ndF56Z942W93dUH1xRdzyPBxjM1vGK7scJUpoIBmrHCjpGagkGIddGNaXGoXWHZUaIhRoJ-PALvMlN0KaQKIgSxG5VmFoYnEtbzEJfFD_icEOl1E3pNF6sgHXvsJMytLZ1hN84EQz6U"
+      ],
+      "fa": 120,
+      "fr": 330
+    }
+  ]
+}

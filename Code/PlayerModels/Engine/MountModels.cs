@@ -31,6 +31,7 @@ internal static class MountModels
 
 	// Folders games keep their characters in: Source and GoldSrc's, the heroes, agents and units of later games, the
 	// actors of Skyrim and STALKER and the peds of GTA
+	[SkipHotload]
 	private static readonly string[] CharacterFolders =
 	{
 		"/player/", "/players/", "/humans/", "/characters/", "/character/", "/npc", "/heroes", "/hero/", "/agents/",
@@ -39,6 +40,7 @@ internal static class MountModels
 	};
 
 	// Words in the file names of characters, for a game whose folders say nothing: those come first in its group
+	[SkipHotload]
 	private static readonly string[] CharacterWords =
 		{ "ped", "player", "npc", "char", "human", "man", "woman", "male", "female", "body", "hero", "soldier", "citizen" };
 
@@ -46,9 +48,11 @@ internal static class MountModels
 	private const int FolderDepth = 2;
 
 	// Files in those folders that hold only animations or shared parts, never a body
+	[SkipHotload]
 	private static readonly string[] NotBodies = { "gesture", "anim", "posture", "shared", "_gib", "ragdoll_" };
 
 	// File names of standalone first-person arms (c_arms_citizen, v_hands, arms_combine...)
+	[SkipHotload]
 	private static readonly string[] ArmsWords = { "arms", "hands" };
 
 	/// <summary>

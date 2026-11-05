@@ -12,12 +12,14 @@ namespace PlayerModels.Core;
 public static class Hiding
 {
 	// Words in the names of a body's own groups and materials: what stays, whatever a look says
+	[Sandbox.SkipHotload]
 	private static readonly HashSet<string> BodyWords = new( StringComparer.OrdinalIgnoreCase )
 	{
 		"head", "chest", "torso", "body", "leg", "legs", "arm", "arms", "hand", "hands", "foot", "feet", "default", "base",
 		"skin",
 	};
 
+	[Sandbox.SkipHotload]
 	private static readonly Regex NameWords = new( "[^a-zA-Z]+" );
 
 	/// <summary>Whether what is called <paramref name="name"/> (a body group, a part) may be hidden, told by the words of its name.</summary>

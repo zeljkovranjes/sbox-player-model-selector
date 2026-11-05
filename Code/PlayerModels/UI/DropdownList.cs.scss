@@ -1,0 +1,133 @@
+@import "SelectorTheme.scss";
+
+// A dropdown's open list: a card with a soft shadow floating by its box, the search box at its top when it is long, and
+// rows that light up under the mouse (and the keys), the picked one ticked
+DropdownList.popup-panel
+{
+	flex-direction: column;
+	min-width: 180px;
+	padding: 4px;
+	gap: 4px;
+	background-color: $ui-popup-bg;
+	border: 1px solid $ui-control-border;
+	border-radius: 6px;
+	box-shadow: 0px 8px 24px rgba( 0, 0, 0, 0.45 );
+	font-family: $body-font;
+	font-size: $ui-settings-font;
+	color: $ui-text;
+	pointer-events: all;
+	// above the modal popups, as the game's lists are
+	z-index: 10001;
+
+	> .search
+	{
+		@include ui-text-entry;
+		flex-shrink: 0;
+		height: 26px;
+	}
+
+	> .rows
+	{
+		flex-direction: column;
+		flex-grow: 1;
+		flex-shrink: 1;
+		min-height: 0px;
+		overflow: scroll;
+	}
+
+	.group-header
+	{
+		flex-shrink: 0;
+		height: 24px;
+		padding: 8px 8px 0px 8px;
+		font-size: 10px;
+		font-weight: 800;
+		text-transform: uppercase;
+		color: $ui-text-muted;
+	}
+
+	.separator
+	{
+		flex-shrink: 0;
+		height: 1px;
+		margin: 4px 6px;
+		background-color: $ui-separator;
+	}
+
+	.option
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		height: 26px;
+		padding: 0px 6px 0px 8px;
+		gap: 8px;
+		border-radius: 4px;
+		font-weight: 500;
+		cursor: pointer;
+
+		&.active
+		{
+			background-color: $ui-popup-hover;
+		}
+
+		&:hover
+		{
+			background-color: $ui-popup-hover;
+			sound-in: ui.hover;
+		}
+
+		&.selected
+		{
+			color: $ui-blue;
+			font-weight: 600;
+		}
+
+		&.selected.active
+		{
+			background-color: $ui-blue-soft;
+		}
+
+		> .thumb
+		{
+			width: 20px;
+			height: 20px;
+			flex-shrink: 0;
+			background-size: contain;
+			background-repeat: no-repeat;
+			background-position: center;
+		}
+
+		> .text
+		{
+			flex-grow: 1;
+			flex-shrink: 1;
+			min-width: 0px;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		> .check
+		{
+			flex-shrink: 0;
+			width: 16px;
+			font-family: "Material Icons";
+			font-size: 15px;
+			color: $ui-blue;
+			text-transform: none;
+		}
+	}
+
+	> .rows > .empty
+	{
+		padding: 8px;
+		color: $ui-text-muted;
+	}
+}
+
+DropdownList.popup-panel:outro
+{
+	opacity: 0;
+	transition: opacity 0.1s ease-in;
+}

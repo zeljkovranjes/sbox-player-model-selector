@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using PlayerModels.Core;
+using PlayerModels.Core.Script;
 using PlayerModels.Engine;
 using Sandbox;
 
@@ -108,12 +109,14 @@ public sealed partial class PlayerModelSelector : Component
 
 	private readonly PlayerBodies _bodies = new();
 	private readonly ViewModelHands _hands = new();
+	private FirstPersonWeapon _firstPerson;
 	private TimeSince _sinceScan;
 	private bool _restored;
 
-	// The look each player is shown with, kept with the text and host rules it was read from: every scan asks for every
-	// player's, and reading the text each time made garbage for each player ten times a second
-	private Dictionary<Guid, (string Text, int Rules, PlayerLook Look)> _shownLooks;
+	// The look each player is shown with, kept with the text (and the look read from it), host rules and effects budget
+	// it was made from: every scan asks for every player's, and reading the text each time made garbage for each player
+	// ten times a second
+	private Dictionary<Guid, (string Text, PlayerLook Read, int Rules, EffectBudget Effects, PlayerLook Look, bool Pending)> _shownLooks;
 
 	// Who hosts, last seen: when that changes the host left and another took over (see TrackHost)
 	private Guid? _knownHost;
@@ -131,22 +134,33 @@ public sealed partial class PlayerModelSelector : Component
 	}
 
 	/// <summary>
-	/// How this connection is shown: <see cref="LookOf"/>, within what the host allows right now. The same object is
-	/// returned until their look or the host's rules change, so read it but never change it.
+	/// How this connection is shown: <see cref="LookOf"/>, within what the host allows right now, with only as much of its
+	/// effects as this player chose to see (those that show on a key fade in and out as <see cref="IsKeyShown"/> says, as
+	/// they are worn). The same object is returned until any of that changes, so read it but never change it.
 	/// </summary>
 	public PlayerLook ShownLookOf( Connection connection )
 	{
 		var id = KeyOf( connection );
 		var text = LookTextOf( id );
 		var isHost = (connection ?? Connection.Local)?.IsHost ?? true;
-		var rules = isHost ? 0 : 1 | (BlockBodyGroups ? 2 : 0) | (BlockAccessories ? 4 : 0) | (BlockCloudModels ? 8 : 0);
+		var rules = isHost ? 0 : HashCode.Combine( 1 | (BlockBodyGroups ? 2 : 0) | (BlockAccessories ? 4 : 0) | (BlockCloudModels ? 8 : 0) | (BlockEffects ? 16 : 0),
+			EffectsRulesFor( connection ?? Connection.Local ), WeaponRules );
+		var effects = ViewedBudget( connection );
 
 		_shownLooks ??= new();
-		if ( _shownLooks.TryGetValue( id, out var known ) && known.Rules == rules && known.Text == text )
+		var isKnown = _shownLooks.TryGetValue( id, out var known ) && known.Text == text;
+		var read = isKnown ? known.Read : PlayerLook.Parse( text );
+		if ( isKnown && known.Rules == rules && known.Effects == effects && !known.Pending )
 			return known.Look;
 
-		var look = Shown( PlayerLook.Parse( text ), isHost );
-		_shownLooks[ id ] = (text, rules, look);
+		var look = Shown( read, isHost, effects, connection ?? Connection.Local, out var pending );
+
+		// A look whose scripts wait their turn to compile is shown as its effects were saved until then: the same object
+		// while nothing changed, so the body isn't dressed again for nothing
+		if ( isKnown && pending && known.Pending && known.Rules == rules && known.Effects == effects )
+			look = known.Look;
+
+		_shownLooks[ id ] = (text, read, rules, effects, look, pending);
 		return look;
 	}
 
@@ -160,20 +174,49 @@ public sealed partial class PlayerModelSelector : Component
 	}
 
 	/// <summary>
-	/// <paramref name="look"/> within what the host allows right now: without its body group choices or items while the
-	/// host keeps them off, and without Workshop items while it keeps sbox.game downloads off, unless it is the host's
-	/// (<paramref name="isHost"/>).
+	/// <paramref name="look"/> within what the host allows right now: without its body group choices, items or effects
+	/// while the host keeps them off, and without Workshop items while it keeps sbox.game downloads off, unless it is the
+	/// host's (<paramref name="isHost"/>); and with its effects within the server's budget, whoever's it is.
 	/// </summary>
 	public PlayerLook Shown( PlayerLook look, bool isHost )
 	{
-		if ( isHost || look is null )
-			return look;
+		return Shown( look, isHost, EffectsBudget, Connection.Local, out _ );
+	}
 
-		var shown = BlockBodyGroups && look.BodyGroups.Count > 0 ? look.WithoutBodyGroups() : look;
-		if ( shown.Accessories.Count == 0 )
+	// The same, with the effects within the budget given, worn by connection (whose effects the host may have muted), and
+	// their scripts built as this machine runs them; pending says some wait their turn to compile
+	private PlayerLook Shown( PlayerLook look, bool isHost, EffectBudget effects, Connection connection, out bool pending )
+	{
+		pending = false;
+		if ( look is null )
+			return null;
+
+		var isLocal = connection is null || connection == Connection.Local;
+		look = ScriptPrograms.Built( look, KeyOf( connection ), isHost ? ScriptLimits.MaxScriptBytes : BlockScripts ? 0 : ScriptBytes, !isLocal, out pending );
+
+		var shown = look;
+		if ( !isHost )
+		{
+			if ( BlockBodyGroups && shown.BodyGroups.Count > 0 )
+				shown = shown.WithoutBodyGroups();
+
+			if ( shown.Accessories.Count > 0 )
+				shown = BlockAccessories ? shown.WithoutAccessories() : BlockCloudModels ? shown.WithoutWorkshopItems() : shown;
+		}
+
+		if ( shown.Weapons.Count > 0 )
+			shown = WeaponsAllowed( shown, isHost, connection );
+
+		if ( shown.Effects.Count == 0 && !shown.Weapons.Exists( x => x.Effects is not null ) )
 			return shown;
 
-		return BlockAccessories ? shown.WithoutAccessories() : BlockCloudModels ? shown.WithoutWorkshopItems() : shown;
+		if ( !isHost && BlockEffects )
+			return shown.WithoutEffects();
+
+		if ( !isHost )
+			shown = EffectsAllowed( shown, connection, ref effects );
+
+		return shown.WithinBudget( effects );
 	}
 
 	/// <summary>Whether the host chose this connection's model in place of their own pick.</summary>
@@ -307,7 +350,7 @@ public sealed partial class PlayerModelSelector : Component
 	// The rules the server has now, as its synced state says
 	private ServerRules CurrentRules()
 	{
-		return new ServerRules
+		var rules = new ServerRules
 		{
 			AllowCloudModels = !BlockCloudModels,
 			AllowMountedModels = !BlockMountedModels,
@@ -315,11 +358,20 @@ public sealed partial class PlayerModelSelector : Component
 			AllowBodyGroups = !BlockBodyGroups,
 			AllowArmature = !BlockArmature,
 			AllowAccessories = !BlockAccessories,
+			AllowEffects = !BlockEffects,
+			EffectsBudget = EffectsLevel,
+			EffectLayers = EffectLayers,
+			EffectLights = EffectLights,
+			EffectSprites = EffectSprites,
 			DownloadLimit = DownloadLimit,
 			DownloadMinutes = DownloadMinutes,
 			Blocked = (BlockedModels ?? Enumerable.Empty<string>()).ToList(),
 			BlockedMounts = (BlockedMounts ?? Enumerable.Empty<string>()).ToList(),
 		};
+
+		EffectsRulesInto( rules );
+		WeaponRulesInto( rules );
+		return rules;
 	}
 
 	// When the host leaves, another player takes over the server and this selector with it (see OnStart). Everyone then
@@ -343,6 +395,8 @@ public sealed partial class PlayerModelSelector : Component
 		BlockBodyGroups = !rules.AllowBodyGroups;
 		BlockArmature = !rules.AllowArmature;
 		BlockAccessories = !rules.AllowAccessories;
+		UseEffectsRules( rules );
+		UseWeaponRules( rules );
 		DownloadLimit = Math.Clamp( rules.DownloadLimit, 1, ServerRules.MaxDownloadLimit );
 		DownloadMinutes = Math.Clamp( rules.DownloadMinutes, 1, ServerRules.MaxDownloadMinutes );
 
@@ -356,10 +410,13 @@ public sealed partial class PlayerModelSelector : Component
 		foreach ( var ident in (rules.BlockedMounts ?? new()).Where( MountModels.IsGameIdent ).Distinct() )
 			BlockedMounts.Add( ident );
 
-		// Whoever wears what is no longer allowed goes back to the citizen, or to their own pick
+		// Whoever wears what is no longer allowed goes back to the citizen (keeping their effects), or to their own pick
 		foreach ( var id in Picks.Keys.ToList() )
 		{
 			var look = PlayerLook.Parse( Picks[ id ] );
+			if ( look.IsDefault )
+				continue;
+
 			if ( !Offers( look.Model ) )
 				Picks.Remove( id );
 			else if ( BlockArmature && id != KeyOf( Connection.Local ) && look.Bones.Count > 0 )
@@ -384,11 +441,11 @@ public sealed partial class PlayerModelSelector : Component
 
 	/// <summary>
 	/// Shows <paramref name="model"/> on the local player for everyone, customised the way the player left it last time.
-	/// Null or empty is the default citizen.
+	/// Null or empty is the default citizen, with the effects it wore last.
 	/// </summary>
 	public void Pick( string model )
 	{
-		Wear( string.IsNullOrEmpty( model ) ? new PlayerLook() : LocalPrefs.LookFor( model ) );
+		Wear( LocalPrefs.LookFor( model ?? "" ) );
 	}
 
 	/// <summary>Shows <paramref name="look"/> on the local player for everyone, and keeps it for next time.</summary>
@@ -404,7 +461,10 @@ public sealed partial class PlayerModelSelector : Component
 		StartCatalog();
 
 		if ( !Networking.IsHost )
+		{
+			AskShownKeys();
 			return;
+		}
 
 		// One selector is enough; a second one would only split the picks
 		if ( Scene.GetAll<PlayerModelSelector>().Any( x => x != this && x.IsValid() ) )
@@ -421,8 +481,16 @@ public sealed partial class PlayerModelSelector : Component
 
 	protected override void OnUpdate()
 	{
+		PollEffectKeys();
+
 		if ( _sinceScan < ScanInterval )
+		{
+			// Bodies still waiting to be dressed (see PlayerBodies.Waiting) are looked at again each frame until they are
+			if ( _bodies.Waiting )
+				_bodies.Update( Scene, this );
+
 			return;
+		}
 
 		_sinceScan = 0;
 		TrackHost();
@@ -433,18 +501,24 @@ public sealed partial class PlayerModelSelector : Component
 		RestoreSavedPick();
 		_bodies.Update( Scene, this );
 		_hands.Update( Scene, LocalPrefs.ViewModel, ArmsLook() );
+
+		// Made here: a hot reload keeps this component but not fields added since
+		_firstPerson ??= new FirstPersonWeapon();
+		_firstPerson.Update( Scene, ShownLookOf( Connection.Local ), LocalPrefs.ShowWeaponInFirstPerson );
 	}
 
 	// Bodies other addons show players as are looked for every frame, so each shows its player's pick from its first frame
 	protected override void OnPreRender()
 	{
 		_bodies.ShowNewStandIns( Scene, this );
+		_firstPerson?.Place();
 	}
 
 	protected override void OnDestroy()
 	{
 		_bodies.Clear( Scene );
 		_hands.Update( Scene, "", null );
+		_firstPerson?.Release();
 	}
 
 	/// <summary>
@@ -477,5 +551,8 @@ public sealed partial class PlayerModelSelector : Component
 		var saved = LocalPrefs.Pick;
 		if ( !string.IsNullOrEmpty( saved ) && Offers( saved ) && PickOf( Connection.Local ) != saved )
 			Pick( saved );
+		else if ( string.IsNullOrEmpty( saved ) && LocalPrefs.LookFor( "" ) is { } citizen && (citizen.Effects.Count > 0 || citizen.Weapons.Count > 0)
+			&& LookOf( Connection.Local ) is { Effects.Count: 0, Weapons.Count: 0 } )
+			Pick( "" );
 	}
 }

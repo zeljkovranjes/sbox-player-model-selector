@@ -23,9 +23,11 @@
     else
     {
         <div class="top">
-            <div class="intro">Parts found automatically are locked. A missing part can be given a bone: pick the part, then its bone. Saved for this model when you press Apply.</div>
-            <div class="reset @( Look.Bones.Count > 0 ? "" : "disabled" )" @onclick=@ClearAll>Clear my picks</div>
-            <div class="reset workshop" @onclick=@(() => ShowWorkshop( true ))>@WorkshopLabel</div>
+            <div class="intro" Tooltip="Parts found automatically are locked. A missing part can be given a bone: pick the part, then its bone. Saved for this model when you press Apply.">Pick a missing part, then its bone; Apply keeps it.</div>
+            <div class="buttons">
+                <div class="reset @( Look.Bones.Count > 0 ? "" : "disabled" )" Tooltip="Every bone you picked goes back to missing" @onclick=@ClearAll>Clear my picks</div>
+                <div class="reset workshop" Tooltip="Armatures players shared for this model" @onclick=@(() => ShowWorkshop( true ))>@WorkshopLabel</div>
+            </div>
         </div>
 
         <div class="columns">
@@ -66,11 +68,12 @@
                 }
                 else
                 {
+                    <TextEntry class="search-entry" Placeholder="Search bones" Value:bind=@_boneSearch HasClearButton=@true></TextEntry>
                     @if ( IsPicked( selected ) )
                     {
                         <div class="bone-option" @onclick=@(() => ClearPick( selected ))>Clear (back to missing)</div>
                     }
-                    @foreach ( var (name, depth) in FreeBones( selected ) )
+                    @foreach ( var (name, depth) in FreeBones( selected ).Where( x => string.IsNullOrWhiteSpace( _boneSearch ) || x.Name.Contains( _boneSearch.Trim(), StringComparison.OrdinalIgnoreCase ) ) )
                     {
                         var boneName = name;
                         <div class="bone @( boneName == BoneOf( selected ) ? "active" : "" )" style="padding-left: @( 6 + depth * 8 )px"
@@ -102,6 +105,7 @@
     [Parameter] public Action<string> Pointed { get; set; }
 
     // The body parts, in the order a person reads a body; fingers stay automatic
+    [SkipHotload]
     static readonly (string Group, (BoneRole Role, string Label)[] Roles)[] Groups =
     {
         ("Body", new[] { (BoneRole.Hips, "Hips"), (BoneRole.Spine0, "Lower spine"), (BoneRole.Spine1, "Middle spine"),
@@ -115,10 +119,14 @@
     };
 
     // A model can't be worn without these
+    [SkipHotload]
     static readonly HashSet<BoneRole> Required =
         new() { BoneRole.Hips, BoneRole.Head, BoneRole.HandL, BoneRole.HandR, BoneRole.FootL, BoneRole.FootR };
 
     BoneRole? _selected;
+
+    // What the bones offered are narrowed to, typed over them
+    string _boneSearch = "";
     Model _readModel;
 
     // The Workshop: the armatures players shared for the model, in place of the lists until Back to armature
@@ -143,7 +151,7 @@
         _bones = Model is null ? new() : Model.Bones.AllBones.Select( x => (x.Name, DepthOf( x )) ).ToList();
     }
 
-    protected override int BuildHash() => HashCode.Combine( Model, Look?.BonesKey(), _selected, _workshop, Shared.Armatures.CountOf( Look?.Model ) );
+    protected override int BuildHash() => HashCode.Combine( Model, Look?.BonesKey(), _selected, _workshop, Shared.Armatures.CountOf( Look?.Model ), _boneSearch );
 
     string WorkshopLabel => Shared.Armatures.CountOf( Look.Model ) is > 0 and var count ? $"Workshop ({count})" : "Workshop";
 

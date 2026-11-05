@@ -1,0 +1,379 @@
+@import "SelectorTheme.scss";
+
+// The Advanced editor's weapon mode: the weapon's finish and skin, its stickers, props and parts, its effects, and
+// sharing it; the selected sticker or prop's settings under its list
+WeaponEditor
+{
+	flex-direction: column;
+	flex-shrink: 0;
+	padding: 4px 14px 4px 6px;
+	font-family: $body-font;
+	color: $ui-text;
+
+	.note
+	{
+		flex-shrink: 0;
+		padding: 6px 4px;
+		font-size: $ui-settings-font;
+		color: $ui-text-muted;
+	}
+
+	.section-header
+	{
+		@include ui-section-header;
+		margin-top: 12px;
+		margin-bottom: 4px;
+
+		&:first-child
+		{
+			margin-top: 2px;
+		}
+	}
+
+	.row
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		min-height: 28px;
+		gap: 8px;
+	}
+
+	// direct children only: s&box gives every text in a div the class "label" too
+	.row > .label
+	{
+		@include ui-label;
+		width: 120px;
+		flex-shrink: 0;
+	}
+
+	UIDropdown
+	{
+		flex-grow: 1;
+	}
+
+	.reset
+	{
+		@include ui-button;
+		flex-shrink: 0;
+
+		&.disabled
+		{
+			opacity: 0.4;
+			pointer-events: none;
+		}
+	}
+
+	// a design that is a draft: its pencil, what that means, and Finish; and the drafts kept, each a row
+	.draft-note, .draft-row
+	{
+		gap: 6px;
+
+		> .badge
+		{
+			font-family: "Material Icons";
+			font-size: 16px;
+			text-transform: none;
+			color: $ui-blue;
+		}
+
+		> .note, > .draft-name
+		{
+			flex-grow: 1;
+			flex-shrink: 1;
+		}
+	}
+
+	.draft-row
+	{
+		padding: 0 4px;
+		border-radius: 2px;
+		cursor: pointer;
+		font-size: $ui-settings-font;
+		color: $ui-text;
+
+		&:hover
+		{
+			background-color: $ui-separator;
+		}
+
+		&.selected
+		{
+			@include ui-selected;
+
+			> .badge
+			{
+				color: white;
+			}
+		}
+
+		> .icon-button
+		{
+			font-family: "Material Icons";
+			font-size: 16px;
+			text-transform: none;
+			color: $ui-text-muted;
+		}
+	}
+
+	.note.status
+	{
+		color: $ui-text;
+	}
+
+	// undo and redo, before the buttons that add layers; editing a drawn shape, beside its list
+	.row > .tool
+	{
+		@include ui-button;
+		flex-shrink: 0;
+		width: 28px;
+		padding: 0;
+		font-family: "Material Icons";
+		font-size: 16px;
+		text-transform: none;
+	}
+
+	// a sticker, prop, part or effect: on or off where it can be, its name, and what can be done to it; the selected one
+	// is the one the settings below change
+	.item
+	{
+		gap: 2px;
+		min-height: 30px;
+		padding: 0 4px;
+		border-radius: 2px;
+		cursor: pointer;
+
+		// duplicating, removing, replacing and attaching show on the row pointed at and the selected one
+		.on-hover
+		{
+			display: none;
+		}
+
+		&:hover .on-hover, &.selected .on-hover
+		{
+			display: flex;
+		}
+
+		&:hover
+		{
+			background-color: $ui-separator;
+			sound-in: ui.hover;
+		}
+
+		&.selected
+		{
+			@include ui-selected;
+
+			.item-name, .icon-button
+			{
+				color: white;
+			}
+		}
+	}
+
+	.item-name
+	{
+		@include ui-label;
+		flex-grow: 1;
+		color: $ui-text;
+	}
+
+	.switch
+	{
+		@include ui-check-switch;
+
+		&.disabled
+		{
+			opacity: 0.3;
+			pointer-events: none;
+		}
+	}
+
+	.icon-button
+	{
+		width: 24px;
+		height: 24px;
+		flex-shrink: 0;
+		justify-content: center;
+		align-items: center;
+		font-family: "Material Icons";
+		font-size: 16px;
+		color: $ui-text-muted;
+		text-transform: none;
+
+		&:hover
+		{
+			color: $ui-blue;
+		}
+
+		&.remove:hover
+		{
+			color: $ui-danger;
+		}
+
+		&.disabled
+		{
+			opacity: 0.3;
+			pointer-events: none;
+		}
+	}
+
+	// the groups breathe: farther apart than the rows in them
+	FoldingSection > .fold-header
+	{
+		margin-top: 16px;
+	}
+
+	FoldingSection:first-child > .fold-header
+	{
+		margin-top: 2px;
+	}
+
+	// a prop's first-person nudges, folded away until wanted, under a heading like the groups'
+	.fold
+	{
+		@include ui-section-header;
+		flex-direction: row;
+		align-items: center;
+		min-height: 22px;
+		margin: 12px 0px 4px 0px;
+		gap: 4px;
+		cursor: pointer;
+
+		&:hover
+		{
+			color: $ui-text;
+			sound-in: ui.hover;
+		}
+	}
+
+	.fold-icon
+	{
+		font-family: "Material Icons";
+		font-size: 14px;
+		text-transform: none;
+	}
+
+	// an icon before a button's word; the way into the code editor in the accent colour, so it is found
+	.reset > .glyph
+	{
+		font-family: "Material Icons";
+		font-size: 15px;
+		text-transform: none;
+
+		&.code
+		{
+			color: $ui-blue;
+		}
+	}
+
+	// undo, redo, the Workshop, Save draft and Reset as icons named in their tooltips, Code in words at the end; in the
+	// Workshop, back and what it lists, as on the other pages
+	.top
+	{
+		@include ui-top-row;
+		flex-wrap: wrap;
+
+		> .spacer
+		{
+			flex-grow: 1;
+		}
+
+		> .tool
+		{
+			@include ui-button;
+			flex-shrink: 0;
+			width: 28px;
+			padding: 0;
+			font-family: "Material Icons";
+			font-size: 16px;
+			text-transform: none;
+
+			&.disabled
+			{
+				opacity: 0.4;
+				pointer-events: none;
+			}
+		}
+	}
+
+	// the Workshop's two scopes, this weapon's designs and every weapon, as tabs over it like the Effects Workshop's
+	.workshop-tabs
+	{
+		flex-direction: row;
+		flex-shrink: 0;
+		margin-bottom: 8px;
+		border-bottom: 1px solid $ui-block-border;
+	}
+
+	.workshop-tab
+	{
+		@include ui-tab;
+	}
+
+	.subheading
+	{
+		@include ui-label;
+		margin-top: 8px;
+		font-weight: 600;
+	}
+
+	.search-entry
+	{
+		@include ui-text-entry;
+		flex-grow: 1;
+	}
+
+	// prop and weapon pictures: five to a row, as the other grids are
+	.grid
+	{
+		flex-direction: row;
+		flex-wrap: wrap;
+		flex-shrink: 0;
+		gap: 4px;
+		padding: 4px 0;
+
+		// the picture over the name strip, which sits at the tile's bottom as a spawn icon's does
+		> .tile
+		{
+			position: relative;
+			flex-direction: column;
+			height: 86px;
+			width: 19%;
+			flex-grow: 1;
+			max-width: 19%;
+			cursor: pointer;
+			border-radius: 3px;
+			background-color: rgba( 0, 0, 0, 0.06 );
+
+			&:hover
+			{
+				background-color: $ui-separator;
+				sound-in: ui.hover;
+			}
+
+			> .thumb
+			{
+				@include ui-tile-thumb;
+				height: 56px;
+			}
+
+			> .title
+			{
+				@include ui-tile-title;
+			}
+		}
+	}
+
+	// the Workshop's designs, opened from here: a fixed height for its list to page in, as the pane scrolls
+	> .sharing.workshop
+	{
+		flex-shrink: 0;
+		height: 640px;
+
+		.shared .shared-age, .shared .avatar
+		{
+			display: none;
+		}
+	}
+}

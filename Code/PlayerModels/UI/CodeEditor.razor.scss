@@ -1,0 +1,375 @@
+// The code editor: a floating window in VS Code's colours, dark (Dark Modern around Dark+ text) by default or light
+// (Light Modern, Light+). The text's own colours are set from code (see CodeTheme); these are the window's
+@import "PreviewTheme.scss";
+
+$code-font: "Roboto Mono";
+$ui-font: "Inter";
+$line: 18px;
+
+CodeEditor
+{
+	position: absolute;
+	flex-direction: column;
+	z-index: 200;
+	pointer-events: all;
+	border-radius: 6px;
+	overflow: hidden;
+	font-family: $ui-font;
+	font-size: 12px;
+	box-shadow: 0 8px 32px rgba( 0, 0, 0, 0.5 );
+
+	&.maximized
+	{
+		border-radius: 0;
+	}
+
+	&.dark
+	{
+		background-color: #1f1f1f;
+		border: 1px solid #2b2b2b;
+		color: #cccccc;
+
+		.titlebar, .toolbar, .statusbar { background-color: #181818; border-color: #2b2b2b; }
+		.preview-pane { border-color: #2b2b2b; }
+		.gutter { color: #6e7681; background-color: #1f1f1f; }
+		.code-entry { color: #cccccc; }
+		.popup { background-color: #202020; border-color: #454545; color: #cccccc; }
+		.completion-row.selected { background-color: #04395e; }
+		.completion-detail, .completion-doc, .signature-doc, .hover-doc { color: #9d9d9d; }
+		.hover-example { color: #d7ba7d; background-color: #181818; }
+		.findbar { background-color: #202020; border-color: #454545; }
+		.find-entry { background-color: #313131; border-color: #3c3c3c; color: #cccccc; }
+		.find-toggle.on { background-color: #2489db66; border-color: #2489db; }
+		.errors { background-color: #181818; border-color: #2b2b2b; }
+		.error-row:hover { background-color: #2a2d2e; }
+		.tool:hover, .window-button:hover, .find-button:hover, .find-toggle:hover { background-color: #ffffff1a; }
+		.tool.on { color: #4daafc; }
+		.dialog { background-color: #202020; border-color: #454545; }
+		.dialog-button { background-color: #313131; }
+		.dialog-button.primary { background-color: #0078d4; color: white; }
+		.status-item.over, .errors-count.has { color: #f14c4c; }
+		.signature-part.active { color: #4daafc; }
+		.hover-more { color: #4daafc; }
+	}
+
+	&.light
+	{
+		background-color: #ffffff;
+		border: 1px solid #e5e5e5;
+		color: #3b3b3b;
+
+		.titlebar, .toolbar, .statusbar { background-color: #f8f8f8; border-color: #e5e5e5; }
+		.preview-pane { border-color: #e5e5e5; }
+		.gutter { color: #6e7681; background-color: #ffffff; }
+		.code-entry { color: #3b3b3b; }
+		.popup { background-color: #f8f8f8; border-color: #cecece; color: #3b3b3b; }
+		.completion-row.selected { background-color: #0060c0; color: white; }
+		.completion-detail, .completion-doc, .signature-doc, .hover-doc { color: #616161; }
+		.hover-example { color: #795e26; background-color: #f3f3f3; }
+		.findbar { background-color: #f8f8f8; border-color: #cecece; }
+		.find-entry { background-color: #ffffff; border-color: #cecece; color: #3b3b3b; }
+		.find-toggle.on { background-color: #005fb81a; border-color: #005fb8; }
+		.errors { background-color: #f8f8f8; border-color: #e5e5e5; }
+		.error-row:hover { background-color: #e8e8e8; }
+		.tool:hover, .window-button:hover, .find-button:hover, .find-toggle:hover { background-color: #0000000f; }
+		.tool.on { color: #005fb8; }
+		.dialog { background-color: #f8f8f8; border-color: #cecece; }
+		.dialog-button { background-color: #e5e5e5; }
+		.dialog-button.primary { background-color: #005fb8; color: white; }
+		.status-item.over, .errors-count.has { color: #e51400; }
+		.signature-part.active { color: #005fb8; }
+		.hover-more { color: #005fb8; }
+	}
+
+	.titlebar
+	{
+		position: relative;
+		flex-shrink: 0;
+		height: 32px;
+		align-items: center;
+		padding: 0 4px 0 10px;
+		gap: 8px;
+		border-bottom: 1px solid;
+
+		.title-drag { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+		.title-icon, .title, .dirty, .spacer { pointer-events: none; }
+		.title-icon { font-family: "Material Icons"; font-size: 16px; }
+		.title { font-size: 13px; }
+		.dirty { width: 8px; height: 8px; border-radius: 4px; background-color: #e2c08d; }
+	}
+
+	.spacer { flex-grow: 1; }
+
+	.window-button, .tool, .find-button
+	{
+		font-family: "Material Icons";
+		font-size: 17px;
+		width: 28px;
+		height: 26px;
+		justify-content: center;
+		align-items: center;
+		border-radius: 4px;
+		cursor: pointer;
+		flex-shrink: 0;
+
+		&.disabled { opacity: 0.35; pointer-events: none; }
+	}
+
+	.window-button.close:hover { background-color: #e81123; color: white; }
+
+	.toolbar
+	{
+		flex-shrink: 0;
+		height: 32px;
+		align-items: center;
+		padding: 0 6px;
+		gap: 2px;
+		border-bottom: 1px solid;
+
+		.separator { width: 1px; height: 18px; margin: 0 4px; background-color: #80808055; }
+	}
+
+	.findbar
+	{
+		flex-shrink: 0;
+		align-items: flex-start;
+		padding: 4px 6px;
+		gap: 4px;
+		border-bottom: 1px solid;
+
+		.find-rows { flex-direction: column; gap: 4px; flex-grow: 1; }
+		.find-row { align-items: center; gap: 4px; }
+		.find-label { align-self: center; padding: 0 6px; }
+		.find-entry { width: 260px; height: 24px; padding: 0 6px; border: 1px solid; border-radius: 3px; font-family: $code-font; font-size: 12px; }
+		.find-count { min-width: 74px; padding: 0 4px; font-size: 11px; opacity: 0.8; }
+		.find-toggle { width: 24px; height: 22px; justify-content: center; align-items: center; border: 1px solid transparent; border-radius: 3px; font-family: $code-font; font-size: 11px; cursor: pointer; }
+	}
+
+	// The code, and the preview beside it taking a share of the width (never too narrow to show the body)
+	.main
+	{
+		flex-direction: row;
+		flex-grow: 1;
+		min-height: 0;
+	}
+
+	.body
+	{
+		position: relative;
+		flex-grow: 1;
+		min-width: 0;
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	.preview-pane
+	{
+		flex-direction: column;
+		flex-shrink: 0;
+		width: 38%;
+		min-width: 200px;
+		border-left: 1px solid;
+
+		.stage { flex-grow: 1; min-height: 0; }
+		TestBar { flex-shrink: 0; border-radius: 0; }
+
+		.flat { flex-grow: 1; align-items: center; justify-content: center; background-color: $ui-tile-bg; }
+		.sticker
+		{
+			width: 80%;
+			height: 60%;
+			background-size: contain;
+			background-repeat: no-repeat;
+			background-position: center;
+			animation: sticker-turn 5s ease-in-out infinite;
+		}
+	}
+
+	.gutter
+	{
+		position: relative;
+		width: 52px;
+		flex-shrink: 0;
+		overflow: hidden;
+		padding-top: 6px;
+
+		.numbers
+		{
+			position: absolute;
+			right: 12px;
+			top: 0;
+			margin-top: 6px;
+			font-family: $code-font;
+			font-size: 13px;
+			line-height: $line;
+			white-space: pre;
+			text-align: right;
+		}
+	}
+
+	.code-entry
+	{
+		flex-grow: 1;
+		min-width: 0;
+		min-height: 0;
+		padding: 6px 12px 60px 4px;
+		border: 0;
+		border-radius: 0;
+		background-color: transparent;
+		align-items: flex-start;
+		justify-content: flex-start;
+		overflow: scroll;
+		cursor: text;
+		font-family: $code-font;
+		font-size: 13px;
+
+		.content-label
+		{
+			flex-shrink: 0;
+			min-width: 0;
+			white-space: pre;
+			line-height: $line;
+			font-family: $code-font;
+			font-size: 13px;
+		}
+	}
+
+	.swatch
+	{
+		position: absolute;
+		width: 11px;
+		height: 11px;
+		border: 1px solid #80808099;
+		cursor: pointer;
+		z-index: 2;
+	}
+
+	.key-picture
+	{
+		position: absolute;
+		width: 12px;
+		height: 12px;
+		background-size: contain;
+		background-repeat: no-repeat;
+		pointer-events: none;
+		z-index: 2;
+	}
+
+	.popup
+	{
+		position: absolute;
+		z-index: 10;
+		flex-direction: column;
+		border: 1px solid;
+		border-radius: 4px;
+		padding: 3px;
+		box-shadow: 0 2px 8px rgba( 0, 0, 0, 0.36 );
+		max-width: 440px;
+	}
+
+	.completion
+	{
+		min-width: 260px;
+
+		.completion-group { font-size: 10px; text-transform: uppercase; opacity: 0.6; padding: 4px 6px 2px 6px; }
+		.completion-row { height: 22px; align-items: center; gap: 6px; padding: 0 6px; border-radius: 3px; cursor: pointer; flex-shrink: 0; }
+		.completion-icon { font-family: "Material Icons"; font-size: 14px; width: 16px; opacity: 0.85; }
+		.completion-icon.function, .completion-icon.method { color: #b180d7; }
+		.completion-icon.property, .completion-icon.variable, .completion-icon.input, .completion-icon.output { color: #75beff; }
+		.completion-icon.event { color: #ee9d28; }
+		.completion-picture { width: 16px; height: 16px; background-size: contain; background-repeat: no-repeat; flex-shrink: 0; }
+		.completion-swatch { width: 12px; height: 12px; border: 1px solid #80808099; flex-shrink: 0; }
+		.completion-label { font-family: $code-font; font-size: 12px; flex-grow: 1; }
+		.completion-detail { font-size: 11px; }
+		.completion-doc { font-size: 11px; padding: 4px 6px; max-width: 420px; white-space: normal; border-top: 1px solid #80808044; margin-top: 2px; }
+	}
+
+	.signature
+	{
+		.signature-line { flex-wrap: wrap; font-family: $code-font; font-size: 12px; padding: 2px 4px; }
+		.signature-part.active { font-weight: 700; text-decoration: underline; }
+		.signature-doc { font-size: 11px; padding: 2px 4px; white-space: normal; max-width: 420px; }
+	}
+
+	.hover
+	{
+		gap: 3px;
+		padding: 6px 8px;
+
+		.hover-top { align-items: center; gap: 6px; }
+		.hover-key { width: 16px; height: 16px; background-size: contain; background-repeat: no-repeat; }
+		.hover-swatch { width: 12px; height: 12px; border: 1px solid #80808099; }
+		.hover-title { font-family: $code-font; font-size: 12px; }
+		.hover-doc { font-size: 12px; white-space: normal; max-width: 420px; }
+		.hover-example { font-family: $code-font; font-size: 11px; white-space: pre; padding: 4px; border-radius: 3px; }
+		.hover-more { font-size: 11px; cursor: pointer; align-self: flex-end; }
+	}
+
+	.picker { padding: 6px 8px; }
+
+	.errors
+	{
+		flex-direction: column;
+		flex-shrink: 0;
+		max-height: 120px;
+		overflow: scroll;
+		border-top: 1px solid;
+
+		.error-row { align-items: center; gap: 6px; padding: 2px 8px; cursor: pointer; flex-shrink: 0; }
+		.error-icon { font-family: "Material Icons"; font-size: 14px; color: #f14c4c; }
+		.error-place { font-family: $code-font; font-size: 11px; opacity: 0.7; min-width: 44px; }
+		.error-text { font-size: 12px; }
+	}
+
+	.statusbar
+	{
+		flex-shrink: 0;
+		height: 24px;
+		align-items: center;
+		gap: 14px;
+		padding: 0 10px;
+		border-top: 1px solid;
+		font-size: 11px;
+
+		.errors-count { align-items: center; gap: 4px; cursor: pointer; }
+		.status-icon { font-family: "Material Icons"; font-size: 13px; }
+		.note { opacity: 0.85; }
+	}
+
+	.dialog-shade
+	{
+		position: absolute;
+		left: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		z-index: 30;
+		background-color: rgba( 0, 0, 0, 0.4 );
+		justify-content: center;
+		align-items: center;
+
+		.dialog { flex-direction: column; gap: 12px; padding: 16px; border: 1px solid; border-radius: 6px; max-width: 420px; }
+		.dialog-buttons { gap: 8px; justify-content: flex-end; }
+		.dialog-button { padding: 5px 12px; border-radius: 3px; cursor: pointer; }
+	}
+
+	// Wide enough to catch without hunting for the border; the top ones thin, so the title bar's buttons stay clickable
+	.edge, .corner { position: absolute; z-index: 40; }
+	.corner { z-index: 41; }
+	.edge.left { left: 0; top: 10px; bottom: 16px; width: 8px; cursor: ew-resize; }
+	.edge.right { right: 0; top: 10px; bottom: 16px; width: 8px; cursor: ew-resize; }
+	.edge.top { top: 0; left: 10px; right: 10px; height: 5px; cursor: ns-resize; }
+	.edge.bottom { bottom: 0; left: 16px; right: 16px; height: 8px; cursor: ns-resize; }
+	.corner.top-left { left: 0; top: 0; width: 10px; height: 10px; cursor: nwse-resize; }
+	.corner.top-right { right: 0; top: 0; width: 10px; height: 10px; cursor: nesw-resize; }
+	.corner.bottom-left { left: 0; bottom: 0; width: 16px; height: 16px; cursor: nesw-resize; }
+	.corner.bottom-right { right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; }
+}
+
+// A sticker turned this way and that in the hand
+@keyframes sticker-turn
+{
+	0% { transform: perspective( 800px ) rotateY( -35deg ); }
+	50% { transform: perspective( 800px ) rotateY( 35deg ); }
+	100% { transform: perspective( 800px ) rotateY( -35deg ); }
+}

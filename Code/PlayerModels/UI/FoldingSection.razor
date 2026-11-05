@@ -1,0 +1,69 @@
+@using System
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root class="@( _open ? "open" : "folded" )">
+    <div class="fold-header" @onclick=@Toggle>
+        <div class="chevron">@( _open ? "expand_more" : "chevron_right" )</div>
+        <div class="heading">@Title</div>
+        @if ( !_open && !string.IsNullOrEmpty( Summary ) )
+        {
+            <div class="summary">@Summary</div>
+        }
+        @if ( !string.IsNullOrEmpty( Info ) )
+        {
+            <div class="info" Tooltip=@Info @onclick=@(( PanelEvent e ) => e.StopPropagation())>info</div>
+        }
+    </div>
+    @if ( _open )
+    {
+        @Body
+    }
+</root>
+
+@code
+{
+    /// <summary>The group's name, on its header.</summary>
+    [Parameter] public string Title { get; set; }
+
+    /// <summary>
+    /// What the player's choice to fold or open it is kept under (see <see cref="LocalPrefs.SetCollapsed"/>); the
+    /// title when not given. Give one where the title changes (a count in it).
+    /// </summary>
+    [Parameter] public string Key { get; set; }
+
+    /// <summary>Whether it starts folded until the player opens it.</summary>
+    [Parameter] public bool Folded { get; set; }
+
+    /// <summary>What it holds in a few words, beside the title while folded ("High", "2 of 3 on").</summary>
+    [Parameter] public string Summary { get; set; }
+
+    /// <summary>A longer explanation, behind an info icon on the header.</summary>
+    [Parameter] public string Info { get; set; }
+
+    /// <summary>The settings it groups.</summary>
+    [Parameter] public RenderFragment Body { get; set; }
+
+    bool _open;
+    bool _read;
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if ( _read )
+            return;
+
+        _read = true;
+        _open = LocalPrefs.Headings().TryGetValue( Key ?? Title ?? "", out var collapsed ) ? !collapsed : !Folded;
+    }
+
+    void Toggle()
+    {
+        _open = !_open;
+        LocalPrefs.SetCollapsed( Key ?? Title ?? "", !_open );
+        StateHasChanged();
+    }
+}

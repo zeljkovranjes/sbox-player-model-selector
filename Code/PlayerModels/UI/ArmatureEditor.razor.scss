@@ -46,6 +46,14 @@ ArmatureEditor
 		background-color: $ui-control-bg;
 	}
 
+	// narrows the bones offered, over them
+	.bones > .search-entry
+	{
+		@include ui-text-entry;
+		flex-shrink: 0;
+		margin: 4px;
+	}
+
 	.group-title
 	{
 		@include ui-section-header;

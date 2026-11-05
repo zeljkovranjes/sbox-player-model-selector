@@ -1,0 +1,759 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using System.Text.Json
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Core
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root>
+    <div class="top">
+        <div class="back" Tooltip="Back to the layer" @onclick=@Leave>arrow_back</div>
+        <div class="modes">
+            <div class="mode @( _emblemMode ? "" : "active" )" Tooltip="One plain shape, for sprites to come from or to look like: drawn, written, put together and erased" @onclick=@(() => SetMode( false ))>Shape</div>
+            <div class="mode @( _emblemMode ? "active" : "" )" Tooltip="Layers of shapes, text and drawings, each with its own colors, like a game's emblem editor" @onclick=@(() => SetMode( true ))>Sticker</div>
+        </div>
+        <div class="intro" Tooltip=@( _emblemMode ? "Each layer a shape, text or a drawing: move, turn, size and color it." : "Draw with the left mouse button, write text, put shapes together, or erase." )>@( _emblemMode ? "Layer shapes, text and drawings." : "Draw, write, combine or erase." )</div>
+        @if ( _emblemMode )
+        {
+            <div class="reset @( _emblem is null ? "disabled" : "" )" Tooltip="Edit as code: the sticker's layers as a script; the layers and the code stay in step" @onclick=@(() => OpenCode( CodeEditor.StickerCode.Layers ))><div class="glyph code">code</div>Code</div>
+        }
+    </div>
+
+    @if ( _leaving )
+    {
+        <div class="confirm">
+            <div class="note">This shape has changes you haven't saved.</div>
+            <div class="row">
+                <div class="reset @( Named is null ? "disabled" : "" )" Tooltip=@( Named is null ? "Give it a name first" : "" ) @onclick=@SaveAndLeave>Save</div>
+                <div class="reset @( Current is null ? "disabled" : "" )" @onclick=@DraftAndLeave>Keep as draft</div>
+                <div class="reset" @onclick=@(() => Back?.Invoke())>Discard</div>
+                <div class="reset" @onclick=@CancelLeave>Cancel</div>
+            </div>
+        </div>
+    }
+
+    @if ( _draft is { } draft )
+    {
+        <div class="note draft-note"><div class="badge">edit</div>@DraftText( draft )</div>
+    }
+    @if ( _forkedFrom is { } origin )
+    {
+        <div class="note">@BasedOn( origin )</div>
+    }
+
+    @if ( _workshop )
+    {
+        <SharingPanel T="DrawnShape" Library=@Shared.Shapes Noun="shape" ModelId=@Shared.Everyone Scope=@Everywhere Workshop=@true Pictures=@true Searchable=@true
+                      Intro="Shapes and stickers players made: Use one to add it to your sticker as a layer (and keep it in My shapes)."
+                      UseEntry=@AddFromWorkshop OriginOf=@(( DrawnShape x ) => x.ForkedFrom) Describe=@DescribeShape Back=@CloseWorkshop></SharingPanel>
+    }
+    @if ( _emblemMode )
+    {
+        <EmblemEditor @ref="_emblemEditor" class=@( _workshop ? "hidden" : "" ) Start=@_emblemStart Changed=@EmblemChanged Mine=@Mine OpenWorkshop=@OpenWorkshop
+                      Lenticular=@( _finish == StickerFinish.Lenticular )></EmblemEditor>
+    }
+    else
+    {
+        <div class="canvas-row">
+            <ShapeCanvas class="canvas" Strokes=@_strokes Closed=@_closed Erasing=@_erasing EraserSize=@_eraserSize Drawn=@AddStroke Resized=@SetEraserSize></ShapeCanvas>
+            <div class="canvas-tools">
+                <div class="tool @( _erasing ? "" : "active" )" Tooltip="Pen: draw with the left mouse button" @onclick=@(() => SetErasing( false ))>gesture</div>
+                <div class="tool @( _erasing ? "active" : "" )" Tooltip="Eraser: cuts away what is under it, fill and outline ([ and ] change its size)" @onclick=@(() => SetErasing( true ))>cleaning_services</div>
+                <div class="tool @( _undo.Count > 0 ? "" : "disabled" )" Tooltip="Undo" @onclick=@Undo>undo</div>
+                <div class="tool @( _redo.Count > 0 ? "" : "disabled" )" Tooltip="Redo" @onclick=@Redo>redo</div>
+                <div class="tool @( _strokes.Count > 0 ? "" : "disabled" )" Tooltip="Clear" @onclick=@Clear>delete_sweep</div>
+                <div class="tool" Tooltip="Mirror left to right" @onclick=@(() => Change( ShapeStroke.Mirrored( _strokes ) ))>flip</div>
+                <div class="tool" Tooltip="Add a mirrored copy (wings, faces)" @onclick=@(() => Change( _strokes.Concat( ShapeStroke.Mirrored( _strokes ) ).ToList() ))>join_left</div>
+                <div class="tool" Tooltip="Flip upside down" @onclick=@(() => Change( ShapeStroke.Flipped( _strokes ) ))>swap_vert</div>
+                <div class="tool" Tooltip="Turn left" @onclick=@(() => Change( ShapeStroke.Rotated( _strokes, TurnDegrees ) ))>rotate_left</div>
+                <div class="tool" Tooltip="Turn right" @onclick=@(() => Change( ShapeStroke.Rotated( _strokes, -TurnDegrees ) ))>rotate_right</div>
+                <div class="tool" Tooltip="Smaller" @onclick=@(() => Change( ShapeStroke.Scaled( _strokes, 1f / ScaleStep ) ))>zoom_out</div>
+                <div class="tool" Tooltip="Bigger" @onclick=@(() => Change( ShapeStroke.Scaled( _strokes, ScaleStep ) ))>zoom_in</div>
+                <div class="tool" Tooltip="Fit to the square" @onclick=@(() => Change( ShapeStroke.Fitted( _strokes ) ))>fit_screen</div>
+            </div>
+        </div>
+        @if ( _erasing )
+        {
+            <NumberRow Label="Eraser size" Unit=@NumberRow.Field.Eraser Value=@_eraserSize OnChanged=@SetEraserSize></NumberRow>
+        }
+        <div class="note">@PointsText()</div>
+        <ToggleRow Label="Draw filled shapes (each stroke closes round on itself)" Value=@_closed OnChanged=@SetClosed></ToggleRow>
+
+        <FoldingSection Title="Add to It" Key="Creator/Add to It">
+            <Body>
+                <div class="row">
+                    <div class="label">Text</div>
+                    <TextEntry class="entry" Placeholder="Letters, digits and . , ! ? & + - : # @@" MaxLength=@HersheyFont.MaxLength Value:bind=@_text @onsubmit=@AddText></TextEntry>
+                    <div class="tool @( string.IsNullOrWhiteSpace( _text ) ? "disabled" : "" )" Tooltip="Add text (Enter)" @onclick=@AddText>add</div>
+                </div>
+                <div class="row">
+                    <div class="label">Combine with</div>
+                    <ScrollingDropdown Items=@CombineChoices() Value=@_combineWith ValueChanged=@SetCombineWith Tokenize=@false></ScrollingDropdown>
+                    <div class="tool" Tooltip="Add it: put this shape together with yours" @onclick=@Combine>add</div>
+                </div>
+            </Body>
+        </FoldingSection>
+    }
+
+    @if ( _emblemMode )
+    {
+        <FoldingSection Title="Printed On" Key="Creator/Printed On" Summary=@_finish.ToString() Info=@FinishNote()>
+            <Body>
+                <div class="row">
+                    <div class="label">Printed on</div>
+                    <ScrollingDropdown Items=@FinishChoices() Value=@_finish.ToString() ValueChanged=@SetFinish Tokenize=@false></ScrollingDropdown>
+                </div>
+                <div class="row">
+                    <div class="label">Its own script</div>
+                    <div class="reset" Tooltip="A script of the sticker's own: colours its layers as it shows, and moves sprites showing it" @onclick=@(() => OpenCode( CodeEditor.StickerCode.Animation ))><div class="glyph">animation</div>@( _stickerScript is null ? "Animate with code" : "Edit its script" )</div>
+                    @if ( _stickerScript is not null )
+                    {
+                        <div class="tool" Tooltip="Remove script: let the sticker's own script go; its layers keep their own colours" @onclick=@(() => SetStickerScript( null ))>delete</div>
+                    }
+                </div>
+            </Body>
+        </FoldingSection>
+    }
+
+    <FoldingSection Title="Keep and Use It" Key="Creator/Keep and Use It" Summary=@( string.IsNullOrWhiteSpace( _name ) ? "Not named yet" : _name )>
+        <Body>
+    <div class="row">
+        <div class="label">Name</div>
+        <TextEntry class="entry" Placeholder="What to call it" MaxLength=@DrawnShape.MaxNameLength Value:bind=@_name></TextEntry>
+    </div>
+    <div class="row">
+        <div class="reset @( Named is null ? "disabled" : "" )" Tooltip=@( Named is null ? "Draw something and name it first" : _draft is null ? "" : "Finish the draft: keep it in My shapes" ) @onclick=@Save><div class="glyph">bookmark_add</div>@( _draft is null ? "Save to My shapes" : "Finish (save to My shapes)" )</div>
+        <div class="tool @( Current is null ? "disabled" : "" )" Tooltip="Save draft: keep it unfinished, to come back to; it isn't used or shared until you finish it" @onclick=@(() => SaveDraft( false ))>edit_note</div>
+    </div>
+    @if ( _confirmDrop is { } oldest )
+    {
+        <div class="confirm">
+            <div class="note">@DropText( oldest )</div>
+            <div class="row">
+                <div class="reset" @onclick=@(() => SaveDraft( true ))>Drop it and keep this</div>
+                <div class="reset" @onclick=@CancelDrop>Cancel</div>
+            </div>
+        </div>
+    }
+    @if ( CanUse )
+    {
+        <div class="row">
+            <div class="reset @( Current is null || _draft is not null ? "disabled" : "" )" Tooltip=@( _draft is not null ? DraftTip : "Sprites come from all along it" ) @onclick=@(() => Use( false ))>Use as Comes from</div>
+            <div class="reset @( Current is null || _draft is not null ? "disabled" : "" )" Tooltip=@( _draft is not null ? DraftTip : "Each sprite is this shape" ) @onclick=@(() => Use( true ))>Use as Looks like</div>
+        </div>
+    }
+    @if ( _status is not null )
+    {
+        <div class="note status">@_status</div>
+    }
+    @if ( Named is { } named && _draft is null )
+    {
+        <SharingPanel @ref="_sharing" T="DrawnShape" Library=@Shared.Shapes Noun="shape" ModelId=@Shared.Everyone Scope=@Everywhere Current=@named ShareLabel=@( named.IsSticker ? "Publish sticker" : "Publish shape" ) Describe=@DescribeShape Workshop=@false></SharingPanel>
+    }
+    else if ( _draft is not null )
+    {
+        <div class="note">@DraftTip</div>
+    }
+        </Body>
+    </FoldingSection>
+
+    <FoldingSection Title="My Shapes" Key="Creator/My Shapes" Info="Shapes and stickers you save, use from the Workshop or fork show here, to change and use again; drafts too, marked with a pencil.">
+        <Body>
+            <ShapeShelf Active=@_name ActiveDraft=@_draft?.Id Open=@Load OpenDraft=@OpenDraft Publish=@Publish Revision=@_shelfRevision
+                        Empty="None yet: save one, or use or fork one from the Workshop."></ShapeShelf>
+        </Body>
+    </FoldingSection>
+</root>
+
+@code
+{
+    /// <summary>The shape to start from (a kept one, or one forked from the Workshop); null for a new one.</summary>
+    [Parameter] public DrawnShape Start { get; set; }
+
+    /// <summary>A draft to open in it, as it was left; null for none.</summary>
+    [Parameter] public Draft StartDraft { get; set; }
+
+    /// <summary>Whether a new one (no <see cref="Start"/>) is a sticker rather than a shape.</summary>
+    [Parameter] public bool StartSticker { get; set; }
+
+    /// <summary>Uses the shape on the layer being edited: as where its sprites come from (false) or what they look like (true).</summary>
+    [Parameter] public Action<DrawnShape, bool> UseOnLayer { get; set; }
+
+    /// <summary>Whether the layer being edited is sprites, which a shape can be used on.</summary>
+    [Parameter] public bool CanUse { get; set; }
+
+    /// <summary>Goes back to the layer.</summary>
+    [Parameter] public Action Back { get; set; }
+
+    // Shapes are shared for everyone, not for a model
+    const string Everywhere = "";
+
+    // A turn and a size step of the tools; the eraser's size to start with and its step ([ and ])
+    const float TurnDegrees = 15f;
+    const float ScaleStep = 1.1f;
+    const float StartingEraser = 0.12f;
+
+    const string DraftTip = "A draft isn't used or shared until you finish it: Save to My shapes first.";
+
+    List<ShapeStroke> _strokes = new();
+    readonly Stack<List<ShapeStroke>> _undo = new();
+    readonly Stack<List<ShapeStroke>> _redo = new();
+    bool _closed;
+    bool _erasing;
+    float _eraserSize = StartingEraser;
+    string _text;
+    string _combineWith = nameof( StandardShape.Star5 );
+    string _name;
+    ShareOrigin _forkedFrom;
+    string _status;
+    DrawnShape _started;
+    Draft _startedDraft;
+    List<DrawnShape> _mine;
+    int _revision;
+
+    // Sticker mode: the sticker as its editor has it (null with no layers), what it started from, and whether the
+    // Workshop shows to add a layer from it
+    bool _emblemMode;
+    DrawnShape _emblem;
+    DrawnShape _emblemStart;
+    EmblemEditor _emblemEditor;
+    bool _workshop;
+
+    // The draft being changed (saving it again keeps it the same draft), a full kind waiting to drop its oldest, the
+    // shape or draft being renamed, leaving with changes, and what the shape was when last kept
+    Draft _draft;
+    Draft _confirmDrop;
+    int _shelfRevision;
+    bool _startedOnce;
+
+    // What a sticker is printed on (see StickerFinish)
+    StickerFinish _finish;
+
+    static List<UIDropdown.Item> FinishChoices() => Enum.GetValues<StickerFinish>().Select( x => new UIDropdown.Item( x.ToString(), x.ToString() ) ).ToList();
+
+    void SetFinish( object value )
+    {
+        _finish = StickerFinishes.Of( value as string );
+        Changed();
+        _code?.Sync();
+    }
+
+    string FinishNote() => _finish switch
+    {
+        StickerFinish.Holo => "Holo: a rainbow film that shifts as the sticker turns, on a weapon and on sprites.",
+        StickerFinish.Foil => "Foil: shiny metal under the print.",
+        StickerFinish.Glitter => "Glitter: flecks that twinkle as it turns.",
+        StickerFinish.Gold => "Gold: gold foil.",
+        StickerFinish.Lenticular => "Lenticular: two looks that swap with the angle; give each layer its look (both, first or second).",
+        _ => "Paper: plain and matte. Weapons show finishes as you turn them; sprites and tiles shimmer.",
+    };
+    bool _leaving;
+    string _keptAs;
+    SharingPanel<DrawnShape> _sharing;
+    bool _publishNext;
+
+    // The shape as it is now, worked out again only when it (or its name, as typed) changes
+    DrawnShape _current;
+    int _currentAt = -1;
+    string _currentName;
+
+    DrawnShape Current
+    {
+        get
+        {
+            if ( _currentAt != _revision || _currentName != _name )
+            {
+                var name = string.IsNullOrWhiteSpace( _name ) ? null : _name;
+                _current = _emblemMode
+                    ? _emblem?.Credited( name, _forkedFrom )?.Finished( _finish )?.Scripted( _stickerScript )
+                    : _strokes.Count > 0 ? DrawnShape.From( _strokes, name, null, _forkedFrom ) : null;
+                _currentAt = _revision;
+                _currentName = _name;
+            }
+
+            return _current;
+        }
+    }
+
+    // What is shared: the shape with the name typed for it
+    DrawnShape Named => string.IsNullOrWhiteSpace( _name ) ? null : Current;
+
+    List<DrawnShape> Mine => _mine ??= LocalPrefs.MyShapes();
+
+    IReadOnlyList<Draft> MyDrafts => Drafts.Of( Draft.Of.Shape );
+
+    // What is kept changed here: the shelf reads it again
+    void Kept()
+    {
+        _mine = null;
+        _shelfRevision++;
+    }
+
+    protected override int BuildHash() => HashCode.Combine( _revision, _closed, _undo.Count, _redo.Count, _status, _name, CanUse,
+        HashCode.Combine( Mine.Count, _emblemMode, _erasing, _eraserSize, _draft, _confirmDrop, _shelfRevision, HashCode.Combine( _leaving, Drafts.Revision ) ) );
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+
+        if ( !ReferenceEquals( StartDraft, _startedDraft ) )
+        {
+            _startedDraft = StartDraft;
+            if ( StartDraft is not null )
+                OpenDraft( StartDraft );
+        }
+
+        if ( ReferenceEquals( Start, _started ) && _startedOnce )
+            return;
+
+        _started = Start;
+        if ( Start is not null )
+            Load( Start );
+        else if ( !_startedOnce && StartDraft is null )
+            _emblemMode = StartSticker;
+
+        _startedOnce = true;
+    }
+
+    public override void Tick()
+    {
+        base.Tick();
+
+        // Publish, from a tile's menu, opens the share window once the shape it loaded is the one to share
+        if ( _publishNext && _sharing is not null && _sharing.IsValid() && Named is not null )
+        {
+            _publishNext = false;
+            _sharing.Share();
+        }
+    }
+
+    // A kept or forked shape in the creator to change: a shape's strokes, or a sticker's layers (one made before stickers
+    // had layers becomes one layer), its name and where it came from
+    void Load( DrawnShape shape )
+    {
+        _draft = null;
+        _name = shape.Name;
+        _forkedFrom = shape.ForkedFrom;
+        _status = null;
+        _leaving = false;
+        _workshop = false;
+        if ( shape.IsSticker )
+        {
+            _emblemMode = true;
+            _finish = shape.FinishIs;
+            _stickerScript = shape.Script;
+            _emblem = Emblem.FromShape( shape );
+            _emblemStart = _emblem;
+        }
+        else
+        {
+            _emblemMode = false;
+            _stickerScript = null;
+            _undo.Push( _strokes );
+            _redo.Clear();
+            _strokes = shape.Decode();
+        }
+
+        Changed();
+        _keptAs = Current?.Content;
+    }
+
+    /// <summary>The credit a copy of a share shows: "Based on "name" by author."</summary>
+    public static string BasedOn( ShareOrigin origin ) => $"Based on \"{origin.Name}\" by {AuthorIndex.NameOf( origin.Author )}.";
+
+    void Changed()
+    {
+        _revision++;
+        StateHasChanged();
+    }
+
+    void SetMode( bool emblem )
+    {
+        if ( emblem == _emblemMode )
+            return;
+
+        _emblemMode = emblem;
+        Changed();
+    }
+
+    void EmblemChanged( DrawnShape emblem )
+    {
+        _emblem = emblem;
+        Changed();
+        _code?.Sync();
+    }
+
+    // The sticker in code (see CodeEditor.StickerCode): its layers, or its own script; one code window at a time
+    CodeEditor _code;
+    string _stickerScript;
+
+    void OpenCode( CodeEditor.StickerCode part )
+    {
+        if ( _code.IsValid() )
+        {
+            if ( _code.Sticker == part )
+                return;
+
+            _code.RequestClose();
+            if ( _code.IsValid() )
+                return;
+        }
+
+        _code = new CodeEditor { Sticker = part, StickerNow = () => Current, StickerBuilt = ShowFromCode, StickerScriptChanged = SetStickerScript, Closed = () => _code = null };
+        _code.Parent = SpawnMenuHost.ModalLayer ?? FindPopupPanel();
+    }
+
+    // The code built the sticker's layers: shown in the sticker editor (one step to undo), printed as the code says
+    void ShowFromCode( DrawnShape made )
+    {
+        _finish = made.FinishIs;
+        _emblemEditor?.Show( made );
+    }
+
+    void SetStickerScript( string script )
+    {
+        _stickerScript = script;
+        Changed();
+        _code?.Sync();
+    }
+
+    public override void OnDeleted()
+    {
+        base.OnDeleted();
+        _code?.Delete();
+    }
+
+    // Every change to the strokes can be undone, a stroke at a time, and redone
+    void Change( List<ShapeStroke> strokes )
+    {
+        _undo.Push( _strokes );
+        _redo.Clear();
+        _strokes = strokes;
+        Changed();
+    }
+
+    void Clear() => Change( new List<ShapeStroke>() );
+
+    void AddStroke( ShapeStroke stroke )
+    {
+        Change( _strokes.Append( stroke ).ToList() );
+    }
+
+    void Undo()
+    {
+        if ( _undo.Count == 0 )
+            return;
+
+        _redo.Push( _strokes );
+        _strokes = _undo.Pop();
+        Changed();
+    }
+
+    void Redo()
+    {
+        if ( _redo.Count == 0 )
+            return;
+
+        _undo.Push( _strokes );
+        _strokes = _redo.Pop();
+        Changed();
+    }
+
+    void SetClosed( bool closed )
+    {
+        _closed = closed;
+        StateHasChanged();
+    }
+
+    void SetErasing( bool erasing )
+    {
+        _erasing = erasing;
+        StateHasChanged();
+    }
+
+    void SetEraserSize( float size )
+    {
+        _eraserSize = Math.Clamp( size, DrawnShape.MinStrokeWidth, DrawnShape.MaxStrokeWidth );
+        StateHasChanged();
+    }
+
+    // Text fills the square on its own, or goes over what is drawn already, to be sized and turned from there
+    void AddText()
+    {
+        var strokes = HersheyFont.Strokes( _text );
+        if ( strokes.Count == 0 )
+            return;
+
+        Change( _strokes.Concat( strokes ).ToList() );
+        _text = null;
+    }
+
+    void SetCombineWith( object choice )
+    {
+        _combineWith = choice as string;
+    }
+
+    void Combine()
+    {
+        var strokes = StrokesOf( _combineWith );
+        if ( strokes.Count > 0 )
+            Change( _strokes.Concat( strokes ).ToList() );
+    }
+
+    // A shape to combine with: one of My shapes ("mine:" and its name), or a standard one, its outlines as strokes
+    List<ShapeStroke> StrokesOf( string choice )
+    {
+        if ( choice is null )
+            return new List<ShapeStroke>();
+
+        if ( choice.StartsWith( "mine:" ) )
+            return Mine.FirstOrDefault( x => x.Name == choice[ 5.. ] )?.Decode() ?? new List<ShapeStroke>();
+
+        if ( !Enum.TryParse<StandardShape>( choice, out var shape ) )
+            return new List<ShapeStroke>();
+
+        var (closed, open) = StandardShapes.Outline( shape );
+        return closed.Select( x => new ShapeStroke { Closed = true, Points = x } ).Concat( open.Select( x => new ShapeStroke { Points = x } ) ).ToList();
+    }
+
+    List<UIDropdown.Item> CombineChoices()
+    {
+        var choices = Mine.Where( x => !x.IsEmblem ).Select( x => new UIDropdown.Item( $"Mine: {x.Name}", $"mine:{x.Name}" ) ).ToList();
+        choices.AddRange( Enum.GetValues<StandardShape>().Where( x => !StandardShapes.IsSolid( x ) ).Select( x => new UIDropdown.Item( x.ToString(), x.ToString() ) ) );
+        return choices;
+    }
+
+    /// <summary>The ways a sticker's or an emblem layer's color can move, for a list.</summary>
+    public static List<UIDropdown.Item> MotionChoices() => new()
+    {
+        new( "None", nameof( Sticker.Motion.None ) ),
+        new( "Rainbow", nameof( Sticker.Motion.Rainbow ) ),
+        new( "Rain (clan tag)", nameof( Sticker.Motion.Rain ) ),
+        new( "Cycle (clan tag)", nameof( Sticker.Motion.Cycl ) ),
+        new( "Scanner (clan tag)", nameof( Sticker.Motion.Cyln ) ),
+        new( "Pulse", nameof( Sticker.Motion.Pulse ) ),
+    };
+
+    // Kept in My shapes; a draft kept so is finished, and no longer a draft
+    void Save()
+    {
+        if ( Named is not { } shape )
+            return;
+
+        if ( !LocalPrefs.SaveMyShape( shape ) )
+        {
+            _status = $"My shapes is full ({LocalPrefs.MaxMyShapes}). Delete one first.";
+            Changed();
+            return;
+        }
+
+        _status = _draft is null ? $"Saved to My shapes as \"{shape.Name}\"." : $"Finished: \"{shape.Name}\" is in My shapes, and no longer a draft.";
+        if ( _draft is not null )
+            Drafts.Delete( Draft.Of.Shape, _draft.Id );
+
+        _draft = null;
+        _keptAs = shape.Content;
+        Kept();
+        Changed();
+    }
+
+    // ----- Drafts -----
+
+    // The shape kept unfinished, with how the creator was left: mode, tools and the emblem layers selected. Saved again,
+    // it stays the same draft; a new one past the cap asks before the oldest is dropped
+    void SaveDraft( bool dropOldest )
+    {
+        _confirmDrop = null;
+        if ( Current is not { } shape )
+            return;
+
+        var state = JsonSerializer.Serialize( new Dictionary<string, string>
+        {
+            ["mode"] = _emblemMode ? "emblem" : "draw", ["closed"] = _closed.ToString(), ["erasing"] = _erasing.ToString(),
+            ["eraser"] = _eraserSize.ToString( System.Globalization.CultureInfo.InvariantCulture ), ["emblem"] = _emblemEditor?.SaveState() ?? "",
+        } );
+        var name = string.IsNullOrWhiteSpace( _name ) ? (_emblemMode ? "Untitled emblem" : "Untitled shape") : _name.Trim();
+        var draft = Drafts.Make( Draft.Of.Shape, _draft?.Id, name, JsonSerializer.Serialize( shape ), state );
+        if ( !Drafts.Save( draft, dropOldest, out var dropped ) )
+        {
+            if ( Drafts.Find( Draft.Of.Shape, draft.Id ) is null && MyDrafts.Count >= Draft.MaxPerKind )
+                _confirmDrop = Drafts.Oldest( Draft.Of.Shape );
+            else
+                _status = "This draft is too big to keep.";
+
+            Changed();
+            return;
+        }
+
+        _draft = Drafts.Find( Draft.Of.Shape, draft.Id );
+        _keptAs = shape.Content;
+        _status = dropped is null ? $"Saved as a draft, \"{name}\": it shows in My shapes with a pencil." : $"Saved as a draft, \"{name}\"; \"{dropped.Name}\" was dropped.";
+        Changed();
+    }
+
+    // A draft back in the creator as it was left: its shape, mode, tools and selection
+    void OpenDraft( Draft draft )
+    {
+        if ( ShapeShelf.ShapeOf( draft ) is not { } shape )
+        {
+            _status = "This draft can't be read any more.";
+            Changed();
+            return;
+        }
+
+        Load( shape );
+        _draft = draft;
+        var state = ReadState( draft.State );
+        _emblemMode = state.GetValueOrDefault( "mode" ) == "emblem" || shape.IsEmblem;
+        _closed = state.GetValueOrDefault( "closed" ) == bool.TrueString;
+        _erasing = state.GetValueOrDefault( "erasing" ) == bool.TrueString;
+        if ( float.TryParse( state.GetValueOrDefault( "eraser" ), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var size ) )
+            _eraserSize = Math.Clamp( size, DrawnShape.MinStrokeWidth, DrawnShape.MaxStrokeWidth );
+
+        _pendingEmblemState = state.GetValueOrDefault( "emblem" );
+        Changed();
+    }
+
+    // The emblem editor is made when the markup is next drawn: its state goes to it then
+    string _pendingEmblemState;
+
+    protected override void OnAfterTreeRender( bool firstTime )
+    {
+        base.OnAfterTreeRender( firstTime );
+        if ( _pendingEmblemState is not null && _emblemEditor is not null )
+        {
+            _emblemEditor.LoadState( _pendingEmblemState );
+            _pendingEmblemState = null;
+        }
+    }
+
+    static Dictionary<string, string> ReadState( string state )
+    {
+        try
+        {
+            return string.IsNullOrEmpty( state ) ? new() : JsonSerializer.Deserialize<Dictionary<string, string>>( state ) ?? new();
+        }
+        catch ( JsonException )
+        {
+            return new();
+        }
+    }
+
+    static string DraftText( Draft draft ) => $"Draft \"{draft.Name}\", {draft.EditedText( Drafts.Now )}. It isn't used or shared until you finish it: Save to My shapes.";
+
+    static string DropText( Draft oldest ) => $"Drafts are full ({Draft.MaxPerKind}). Drop the oldest, \"{oldest.Name}\" ({oldest.EditedText( Drafts.Now )}), to keep this one?";
+
+    void CancelDrop()
+    {
+        _confirmDrop = null;
+        StateHasChanged();
+    }
+
+    // Going back with changes not kept asks first: Save, Keep as draft, Discard or Cancel
+    void Leave()
+    {
+        if ( HasChanges )
+        {
+            _leaving = true;
+            StateHasChanged();
+            return;
+        }
+
+        Back?.Invoke();
+    }
+
+    /// <summary>Whether the shape changed since it was opened, saved or kept as a draft.</summary>
+    public bool HasChanges => Current is { } shape && shape.Content != _keptAs;
+
+    /// <summary>Keeps the shape as a draft when it has changes (the Advanced editor closing); false when there was nothing to keep or it couldn't be.</summary>
+    public bool KeepAsDraft()
+    {
+        if ( !HasChanges )
+            return false;
+
+        SaveDraft( false );
+        return _draft is not null && !HasChanges;
+    }
+
+    void SaveAndLeave()
+    {
+        Save();
+        if ( !HasChanges )
+            Back?.Invoke();
+    }
+
+    void DraftAndLeave()
+    {
+        SaveDraft( false );
+        if ( !HasChanges )
+            Back?.Invoke();
+    }
+
+    void CancelLeave()
+    {
+        _leaving = false;
+        StateHasChanged();
+    }
+
+    // Opens it here and its share window, to name and describe it
+    void Publish( DrawnShape shape )
+    {
+        Load( shape );
+        _publishNext = true;
+    }
+
+    void Use( bool asPicture )
+    {
+        if ( _draft is null && Current is { } shape )
+            UseOnLayer?.Invoke( shape, asPicture );
+    }
+
+    string PointsText()
+    {
+        var points = _strokes.Sum( x => x.Count );
+        var kept = Math.Min( points, DrawnShape.MaxPoints );
+        return points > DrawnShape.MaxPoints
+            ? $"{points} points: a shape keeps {DrawnShape.MaxPoints}, so the last strokes are cut. Undo, or make it simpler."
+            : $"{kept} of {DrawnShape.MaxPoints} points, {_strokes.Count} {(_strokes.Count == 1 ? "stroke" : "strokes")}.";
+    }
+
+    // Adding a layer from the Workshop: the Workshop shows in place of the sticker's layers until one is used or Back
+    void OpenWorkshop()
+    {
+        _workshop = true;
+        StateHasChanged();
+    }
+
+    void CloseWorkshop()
+    {
+        _workshop = false;
+        StateHasChanged();
+    }
+
+    // A shape or sticker from the Workshop: kept in My shapes, crediting the share, and added to the sticker as a layer
+    string AddFromWorkshop( SharedLibrary<DrawnShape>.Entry entry )
+    {
+        var origin = new ShareOrigin { Kind = ShareOrigin.ShapeKind, Id = entry.Id, Name = entry.Name, Author = entry.Author };
+        var shape = entry.Item.Credited( string.IsNullOrWhiteSpace( entry.Name ) ? "Shape" : entry.Name, origin );
+        LocalPrefs.SaveMyShape( shape );
+        Kept();
+        _workshop = false;
+        _emblemEditor?.AddShape( shape );
+        Changed();
+        return null;
+    }
+
+    /// <summary>What a row says about a shape: how many strokes and points (a sticker: layers).</summary>
+    public static string DescribeShape( DrawnShape shape )
+    {
+        if ( shape.IsEmblem )
+            return $"Sticker, {shape.FinishIs.ToString().ToLowerInvariant()}, {shape.Emblem.Count} {(shape.Emblem.Count == 1 ? "layer" : "layers")}, {shape.PointCount} points";
+
+        var what = shape.Sticker is { } sticker ? sticker.IsAnimated ? $"{sticker.AnimationIs} sticker" : "Sticker" : "Shape";
+        return $"{what}, {shape.Strokes.Count} {(shape.Strokes.Count == 1 ? "stroke" : "strokes")}, {shape.PointCount} points";
+    }
+}

@@ -1,0 +1,502 @@
+@import "SelectorTheme.scss";
+
+// The Effects page: the effects to start from as tiles like the Models grid's, the effects worn, the selected one's
+// sliders, and how much of everyone's effects this player sees
+EffectsEditor
+{
+	flex-direction: column;
+	flex-shrink: 0;
+	padding: 4px 14px 4px 6px;
+	font-family: $body-font;
+	color: $ui-text;
+
+	// the Workshop fills the pane, which doesn't scroll then (see .fit-pane): its padding includes the pane's 4px
+	&.workshop
+	{
+		flex-grow: 1;
+		padding: 8px 18px 8px 10px;
+	}
+
+	// the Workshop's two halves, effects and shapes, as tabs over it
+	.workshop-tabs
+	{
+		flex-direction: row;
+		flex-shrink: 0;
+		margin-bottom: 8px;
+		border-bottom: 1px solid $ui-block-border;
+	}
+
+	.workshop-tab
+	{
+		@include ui-tab;
+	}
+
+	.note
+	{
+		flex-shrink: 0;
+		padding: 6px 4px;
+		font-size: $ui-settings-font;
+		color: $ui-text-muted;
+	}
+
+	.section-header
+	{
+		@include ui-section-header;
+		margin-top: 12px;
+		margin-bottom: 4px;
+
+		&:first-child
+		{
+			margin-top: 2px;
+		}
+	}
+
+	// the colours of the selected effect's colour cycle, under its sliders
+	.subheading
+	{
+		flex-shrink: 0;
+		margin: 10px 0 2px 0;
+		font-size: $ui-settings-font;
+		font-weight: 700;
+		color: $ui-text-label;
+	}
+
+	// what the page is for, its buttons beside it (under it, wrapping, in a narrow pane)
+	.top
+	{
+		@include ui-top-row;
+
+		> .buttons
+		{
+			flex-wrap: wrap;
+		}
+	}
+
+	.row
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		min-height: 28px;
+		gap: 8px;
+	}
+
+	// direct children only: s&box gives every text in a div the class "label" too
+	.row > .label
+	{
+		@include ui-label;
+		width: 120px;
+		flex-shrink: 0;
+	}
+
+	// the key that shows the selected effect: typed, with the key's picture beside it
+	.key-entry
+	{
+		@include ui-text-entry;
+		flex-grow: 1;
+	}
+
+	.key-glyph
+	{
+		width: 28px;
+		height: 28px;
+		flex-shrink: 0;
+		background-size: contain;
+		background-repeat: no-repeat;
+		background-position: center;
+
+		&.none
+		{
+			width: 0px;
+		}
+	}
+
+	// a setting chosen from a list: its name, then the list
+	.setting
+	{
+		flex-direction: row;
+		align-items: center;
+		flex-shrink: 0;
+		min-height: 26px;
+		gap: 8px;
+	}
+
+	// direct children only: s&box gives every text in a div the class "label" too
+	.setting > .label
+	{
+		@include ui-label;
+		width: 120px;
+		flex-shrink: 0;
+	}
+
+	.reset
+	{
+		@include ui-button;
+		flex-shrink: 0;
+
+		&.disabled
+		{
+			opacity: 0.4;
+			pointer-events: none;
+		}
+	}
+
+	// the groups breathe: farther apart than the rows in them
+	FoldingSection > .fold-header
+	{
+		margin-top: 16px;
+	}
+
+	FoldingSection:first-child > .fold-header
+	{
+		margin-top: 2px;
+	}
+
+	// the selected effect's name as its heading, with Reset sliders and Variations as icons at its end
+	.effect-head
+	{
+		margin: 16px 0px 4px 0px;
+		padding-bottom: 3px;
+		border-bottom: 1px solid $ui-separator;
+
+		> .effect-name
+		{
+			flex-grow: 1;
+			min-width: 0px;
+			font-size: $ui-settings-font;
+			font-weight: 800;
+			text-transform: uppercase;
+			color: $ui-text-muted;
+			white-space: nowrap;
+			text-overflow: ellipsis;
+			overflow: hidden;
+		}
+	}
+
+	// the page's secondary buttons (undo, redo, Guides, Workshop, a selected effect's and its saving's) as icons named in
+	// their tooltips
+	.top .tool, .effect-head > .tool, .row > .tool
+	{
+		@include ui-button;
+		flex-shrink: 0;
+		width: 28px;
+		padding: 0;
+		font-family: "Material Icons";
+		font-size: 16px;
+		text-transform: none;
+	}
+
+	// the ways into the Advanced editor and the code editor keep their words, after an icon
+	.top .reset > .glyph
+	{
+		font-family: "Material Icons";
+		font-size: 15px;
+		text-transform: none;
+		color: $ui-blue;
+	}
+
+	// the tiles that make a new effect and a surprise: a plus and a die where the pictures go
+	.tile.surprise .surprise-icon, .tile.new .new-icon
+	{
+		justify-content: center;
+		align-items: center;
+		font-family: "Material Icons";
+		font-size: 40px;
+		color: $ui-text-muted;
+		text-transform: none;
+	}
+
+	// a kept effect's delete button, in its tile's corner on hover
+	.tile .forget
+	{
+		position: absolute;
+		top: 2px;
+		right: 2px;
+		font-family: "Material Icons";
+		font-size: 18px;
+		color: white;
+		text-shadow: 0px 1px 2px rgba( 0, 0, 0, 0.8 );
+		text-transform: none;
+		opacity: 0;
+		cursor: pointer;
+		transition: opacity 0.15s ease-out, color 0.2s ease-out;
+
+		&:hover
+		{
+			color: $ui-danger;
+		}
+	}
+
+	.tile:hover .forget
+	{
+		opacity: 1;
+	}
+
+	// a draft's pencil, in its tile's (or row's) top left corner
+	.tile .badge
+	{
+		position: absolute;
+		top: 2px;
+		left: 2px;
+		padding: 1px 2px;
+		font-family: "Material Icons";
+		font-size: 14px;
+		color: white;
+		text-transform: none;
+		background-color: $ui-blue;
+		border-radius: 2px;
+	}
+
+	.row.worn .badge
+	{
+		font-family: "Material Icons";
+		font-size: 16px;
+		color: $ui-blue;
+		text-transform: none;
+	}
+
+	// a tile's menu, beside its delete button on hover
+	.tile .more
+	{
+		position: absolute;
+		top: 2px;
+		right: 22px;
+		font-family: "Material Icons";
+		font-size: 18px;
+		color: white;
+		text-shadow: 0px 1px 2px rgba( 0, 0, 0, 0.8 );
+		text-transform: none;
+		opacity: 0;
+		cursor: pointer;
+
+		&:hover
+		{
+			color: $ui-blue;
+		}
+	}
+
+	.tile.draft .more
+	{
+		right: 2px;
+	}
+
+	.tile:hover .more
+	{
+		opacity: 1;
+	}
+
+	// a script left as a draft: a code sign for its picture
+	.tile.draft .draft-icon
+	{
+		justify-content: center;
+		align-items: center;
+		font-family: "Material Icons";
+		font-size: 36px;
+		color: $ui-text-muted;
+	}
+
+
+	// variations under the sliders: the same tiles, a row of them
+	.grid.variations
+	{
+		margin-top: 4px;
+	}
+
+	// what just happened, said under where it happened
+	.note.status
+	{
+		color: $ui-text;
+	}
+
+	// an effect tile: its pictures moving on a dark ground, so glows show as they do in the world
+	.tile.effect
+	{
+		height: 96px;
+
+		.thumb
+		{
+			position: absolute;
+			left: 1px;
+			right: 1px;
+			top: 1px;
+			bottom: 29px;
+			width: auto;
+			height: auto;
+			background-color: #1b1d22;
+			overflow: hidden;
+		}
+
+		&.disabled
+		{
+			opacity: 0.4;
+			pointer-events: none;
+		}
+	}
+
+	// an effect worn: on or off, its name, and remove; the selected one is the one the sliders change
+	// a worn effect: on or off, its name and its menu; duplicating and removing it show on the row pointed at and the
+	// selected one
+	.worn
+	{
+		min-height: 30px;
+		padding: 0 4px;
+		border-radius: 2px;
+		cursor: pointer;
+
+		.on-hover
+		{
+			display: none;
+		}
+
+		&:hover .on-hover, &.selected .on-hover
+		{
+			display: flex;
+		}
+
+		&:hover
+		{
+			background-color: $ui-separator;
+			sound-in: ui.hover;
+		}
+
+		&.selected
+		{
+			@include ui-selected;
+
+			.worn-name, .icon-button
+			{
+				color: white;
+			}
+		}
+	}
+
+	// an effect the budget holds back, all or part of it: its name faint (its check mark still says on or off), and saying so
+	.worn.over .worn-name
+	{
+		opacity: 0.5;
+	}
+
+	.over-note
+	{
+		flex-shrink: 0;
+		font-size: 11px;
+		color: $ui-danger;
+	}
+
+	.worn-name
+	{
+		@include ui-label;
+		flex-grow: 1;
+		color: $ui-text;
+	}
+
+	.switch
+	{
+		@include ui-check-switch;
+	}
+
+	.icon-button
+	{
+		width: 24px;
+		height: 24px;
+		flex-shrink: 0;
+		justify-content: center;
+		align-items: center;
+		font-family: "Material Icons";
+		font-size: 16px;
+		color: $ui-text-muted;
+
+		&:hover
+		{
+			color: $ui-danger;
+		}
+	}
+}
+
+// One picture of an effect's tile, centred; the later ones smaller, over the first
+EffectIcon .picture
+{
+	position: absolute;
+	left: 18%;
+	right: 18%;
+	top: 8%;
+	bottom: 8%;
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: contain;
+	animation-duration: 2s;
+	animation-iteration-count: infinite;
+	animation-timing-function: ease-in-out;
+
+	&.picture-1
+	{
+		left: 30%;
+		right: 30%;
+		top: 22%;
+		bottom: 22%;
+	}
+
+	&.picture-2
+	{
+		left: 38%;
+		right: 38%;
+		top: 32%;
+		bottom: 32%;
+	}
+
+	&.pulse { animation-name: effect-pulse; }
+	&.flicker { animation-name: effect-flicker; animation-duration: 0.6s; }
+	&.spin { animation-name: effect-spin; animation-duration: 4s; animation-timing-function: linear; }
+	&.rise { animation-name: effect-rise; animation-duration: 1.6s; animation-timing-function: linear; }
+	&.fall { animation-name: effect-fall; animation-duration: 1.2s; animation-timing-function: linear; }
+	&.glow { animation-name: effect-pulse; animation-duration: 3s; }
+	&.sweep { animation-name: effect-sweep; animation-duration: 1.4s; animation-timing-function: linear; }
+}
+
+// a trail: a streak sweeping across the tile and fading behind (these three run at a steady pace, whole for most of their
+// loop and fading only to hide the jump back: eased over the whole loop, they sat at nothing and a tile looked empty)
+@keyframes effect-sweep
+{
+	0% { opacity: 0; transform: translateX( -35% ) scaleX( 2.4 ) scaleY( 0.5 ); }
+	20% { opacity: 1; }
+	75% { opacity: 1; }
+	100% { opacity: 0; transform: translateX( 35% ) scaleX( 2.4 ) scaleY( 0.5 ); }
+}
+
+@keyframes effect-pulse
+{
+	0% { opacity: 1; transform: scale( 1 ); }
+	50% { opacity: 0.6; transform: scale( 0.9 ); }
+	100% { opacity: 1; transform: scale( 1 ); }
+}
+
+@keyframes effect-flicker
+{
+	0% { opacity: 1; }
+	30% { opacity: 0.55; }
+	55% { opacity: 0.95; }
+	75% { opacity: 0.7; }
+	100% { opacity: 1; }
+}
+
+@keyframes effect-spin
+{
+	0% { transform: rotate( 0deg ); }
+	100% { transform: rotate( 360deg ); }
+}
+
+@keyframes effect-rise
+{
+	0% { opacity: 0; transform: translateY( 20% ) scale( 0.8 ); }
+	20% { opacity: 1; }
+	75% { opacity: 1; }
+	100% { opacity: 0; transform: translateY( -25% ) scale( 1.05 ); }
+}
+
+@keyframes effect-fall
+{
+	0% { opacity: 0; transform: translateY( -25% ); }
+	20% { opacity: 1; }
+	75% { opacity: 1; }
+	100% { opacity: 0; transform: translateY( 25% ); }
+}

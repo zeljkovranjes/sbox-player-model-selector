@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using PlayerModels.Core;
+using PlayerModels.Core.Script;
 using Sandbox;
 
 namespace PlayerModels.Engine;
@@ -8,7 +10,9 @@ namespace PlayerModels.Engine;
 /// <summary>
 /// What this player keeps between sessions, on this machine: the model they wear, how they customised each model and the
 /// looks they saved, their favourites, their first-person arms, which grid headings they collapsed, the mounted games'
-/// folders they added, how they rated what others shared, how they sort it and whose they hid and, as a host, which
+/// folders they added, how they rated what others shared, how they sort it and whose they hid, how much of others'
+/// effects they see and whose they hid, the effects and shapes they keep ("My effects", "My shapes"), how they like the
+/// code editor (its theme, Auto-apply, where its window is) and the scripts they left as drafts, and, as a host, which
 /// models their server allows.
 /// </summary>
 internal static class LocalPrefs
@@ -25,6 +29,26 @@ internal static class LocalPrefs
 	private const string VotesCookie = "player_model_selector.votes";
 	private const string HiddenAuthorsCookie = "player_model_selector.hidden_authors";
 	private const string SharesByNewestCookie = "player_model_selector.shares_by_newest";
+	private const string EffectsQualityCookie = "player_model_selector.effects_quality";
+	private const string HiddenEffectsCookie = "player_model_selector.hidden_effects";
+	private const string MyEffectsCookie = "player_model_selector.my_effects";
+
+	/// <summary>The most effects kept in My effects.</summary>
+	internal const int MaxMyEffects = 50;
+
+	private const string MyShapesCookie = "player_model_selector.my_shapes";
+	private const string WeaponDesignsCookie = "player_model_selector.weapon_designs";
+	private const string FirstPersonWeaponCookie = "player_model_selector.first_person_weapon";
+	private const string CodeThemeCookie = "player_model_selector.code_theme";
+	private const string CodeAutoApplyCookie = "player_model_selector.code_auto_apply";
+	private const string CodeWindowCookie = "player_model_selector.code_window";
+	private const string CodePreviewCookie = "player_model_selector.code_preview";
+	private const string CodeFindCookie = "player_model_selector.code_find";
+	private const string CodeReferenceCookie = "player_model_selector.code_reference";
+	private const string TestBarCookie = "player_model_selector.test_bar";
+
+	/// <summary>The most shapes kept in My shapes.</summary>
+	internal const int MaxMyShapes = 50;
 
 	/// <summary>The model worn last, empty for the default citizen.</summary>
 	internal static string Pick
@@ -71,18 +95,47 @@ internal static class LocalPrefs
 	internal static PlayerLook LookFor( string model )
 	{
 		var looks = Game.Cookies.Get( LooksCookie, new Dictionary<string, string>() );
-		return looks.TryGetValue( model ?? "", out var saved ) ? PlayerLook.Parse( saved ).WithModel( model ) : new PlayerLook { Model = model ?? "" };
+		var look = looks.TryGetValue( model ?? "", out var saved ) ? PlayerLook.Parse( saved ).WithModel( model ) : new PlayerLook { Model = model ?? "" };
+
+		// Weapon designs are the player's, whichever model they wear: the ones kept last go on it
+		return Game.Cookies.TryGetString( WeaponDesignsCookie, out _ ) ? look.WithWeapons( WeaponDesigns() ) : look;
 	}
 
-	/// <summary>Keeps <paramref name="look"/> as how its model is customised.</summary>
+	/// <summary>
+	/// Keeps <paramref name="look"/> as how its model is customised, and its weapon designs as the player's; for the
+	/// default citizen, the effects and designs it wears (see <see cref="PlayerLook.EffectsAlone"/>), and nothing once it
+	/// wears none.
+	/// </summary>
 	internal static void Remember( PlayerLook look )
 	{
-		if ( look.IsDefault )
-			return;
+		Game.Cookies.Set( WeaponDesignsCookie, look.StandaloneWeapons() );
 
 		var looks = Game.Cookies.Get( LooksCookie, new Dictionary<string, string>() );
-		looks[ look.Model ] = look.Serialize();
+		if ( !look.IsDefault )
+			looks[ look.Model ] = look.Serialize();
+		else if ( look.Effects.Count > 0 || look.Weapons.Count > 0 )
+			looks[ "" ] = look.EffectsAlone().Serialize();
+		else if ( !looks.Remove( "" ) )
+			return;
+
 		Game.Cookies.Set( LooksCookie, looks );
+	}
+
+	/// <summary>
+	/// Whether the weapon in first person shows its design's props, stickers and effects (and the effects that come from
+	/// the weapon held); off, it only shows its skin. On until the player turns it off.
+	/// </summary>
+	internal static bool ShowWeaponInFirstPerson
+	{
+		get => Game.Cookies.Get( FirstPersonWeaponCookie, true );
+		set => Game.Cookies.Set( FirstPersonWeaponCookie, value );
+	}
+
+	/// <summary>The player's weapon designs as kept last, each on its own (carrying its drawn shapes), within bounds.</summary>
+	internal static List<WeaponDesign> WeaponDesigns()
+	{
+		var kept = Game.Cookies.Get( WeaponDesignsCookie, new List<WeaponDesign>() ) ?? new List<WeaponDesign>();
+		return kept.Select( x => x?.Sanitized() ).Where( x => x is not null ).Take( WeaponDesign.MaxPerLook ).ToList();
 	}
 
 	/// <summary>The looks saved for <paramref name="model"/>, in the order they were saved.</summary>
@@ -170,6 +223,193 @@ internal static class LocalPrefs
 			authors.Remove( author );
 
 		Game.Cookies.Set( HiddenAuthorsCookie, authors.ToList() );
+	}
+
+	/// <summary>How much of everyone's effects this player sees, within what the host allows.</summary>
+	internal static EffectBudget.Quality EffectsQuality
+	{
+		get => Game.Cookies.Get( EffectsQualityCookie, (int)EffectBudget.Quality.High ) is var quality && Enum.IsDefined( typeof( EffectBudget.Quality ), quality )
+			? (EffectBudget.Quality)quality
+			: EffectBudget.Quality.High;
+		set => Game.Cookies.Set( EffectsQualityCookie, (int)value );
+	}
+
+	/// <summary>The players (by Steam id) whose effects this player hid.</summary>
+	internal static HashSet<long> HiddenEffects()
+	{
+		return new HashSet<long>( Game.Cookies.Get( HiddenEffectsCookie, new List<long>() ) ?? new List<long>() );
+	}
+
+	/// <summary>Hides <paramref name="player"/>'s effects from this player, or shows them again.</summary>
+	internal static void SetEffectsHidden( long player, bool hidden )
+	{
+		var players = HiddenEffects();
+		if ( hidden )
+			players.Add( player );
+		else
+			players.Remove( player );
+
+		Game.Cookies.Set( HiddenEffectsCookie, players.ToList() );
+	}
+
+	/// <summary>
+	/// The effects (and single layers) this player kept to put on again, in the order they were kept, each read within
+	/// bounds; one that no longer reads is left out.
+	/// </summary>
+	internal static List<Effect> MyEffects()
+	{
+		var kept = Game.Cookies.Get( MyEffectsCookie, new List<Effect>() ) ?? new List<Effect>();
+		return kept.Select( x => x?.Sanitized() ).Where( x => x is not null && !string.IsNullOrWhiteSpace( x.Name ) ).Take( MaxMyEffects ).ToList();
+	}
+
+	/// <summary>
+	/// Keeps <paramref name="effect"/> (within bounds, as it would be shared) in My effects under its name, in place of one
+	/// kept under that name. False when it has no name, or My effects is full.
+	/// </summary>
+	internal static bool SaveMyEffect( Effect effect )
+	{
+		var kept = MyEffects();
+		var saved = effect?.Sanitized();
+		if ( saved is null || string.IsNullOrWhiteSpace( saved.Name ) )
+			return false;
+
+		saved.Off = false;
+		var index = kept.FindIndex( x => x.Name == saved.Name );
+		if ( index >= 0 )
+			kept[ index ] = saved;
+		else if ( kept.Count >= MaxMyEffects )
+			return false;
+		else
+			kept.Add( saved );
+
+		Game.Cookies.Set( MyEffectsCookie, kept );
+		return true;
+	}
+
+	/// <summary>Takes the effect kept as <paramref name="name"/> out of My effects.</summary>
+	internal static void DeleteMyEffect( string name )
+	{
+		var kept = MyEffects();
+		if ( kept.RemoveAll( x => x.Name == name ) > 0 )
+			Game.Cookies.Set( MyEffectsCookie, kept );
+	}
+
+	/// <summary>Counts up whenever My shapes changes on this machine: what lists them reads them again when it does.</summary>
+	internal static int MyShapesVersion { get; private set; }
+
+	private static void SetMyShapes( List<DrawnShape> kept )
+	{
+		Game.Cookies.Set( MyShapesCookie, kept );
+		MyShapesVersion++;
+	}
+
+	/// <summary>
+	/// The shapes and stickers this player made, used or forked, kept to use and change again (My shapes), in the order
+	/// they were kept, each read within bounds; one that no longer reads is left out.
+	/// </summary>
+	internal static List<DrawnShape> MyShapes()
+	{
+		var kept = Game.Cookies.Get( MyShapesCookie, new List<DrawnShape>() ) ?? new List<DrawnShape>();
+		return kept.Select( x => x?.Sanitized() ).Where( x => x is not null && x.Name is not null ).Take( MaxMyShapes ).ToList();
+	}
+
+	/// <summary>
+	/// Keeps <paramref name="shape"/> in My shapes under its name, in place of one kept under that name. False when it has
+	/// no name, or My shapes is full.
+	/// </summary>
+	internal static bool SaveMyShape( DrawnShape shape )
+	{
+		var kept = MyShapes();
+		var saved = shape?.Sanitized();
+		if ( saved?.Name is null )
+			return false;
+
+		var index = kept.FindIndex( x => x.Name == saved.Name );
+		if ( index >= 0 )
+			kept[ index ] = saved;
+		else if ( kept.Count >= MaxMyShapes )
+			return false;
+		else
+			kept.Add( saved );
+
+		SetMyShapes( kept );
+		return true;
+	}
+
+	/// <summary>Takes the shape kept as <paramref name="name"/> out of My shapes.</summary>
+	internal static void DeleteMyShape( string name )
+	{
+		var kept = MyShapes();
+		if ( kept.RemoveAll( x => x.Name == name ) > 0 )
+			SetMyShapes( kept );
+	}
+
+	/// <summary>Whether the code editor is light (VS Code's Light+) rather than dark (Dark+, the default).</summary>
+	internal static bool CodeLight
+	{
+		get => Game.Cookies.Get( CodeThemeCookie, "dark" ) == "light";
+		set => Game.Cookies.Set( CodeThemeCookie, value ? "light" : "dark" );
+	}
+
+	/// <summary>Whether the code editor applies a script as it is typed (the default) rather than only on Save.</summary>
+	internal static bool CodeAutoApply
+	{
+		get => Game.Cookies.Get( CodeAutoApplyCookie, true );
+		set => Game.Cookies.Set( CodeAutoApplyCookie, value );
+	}
+
+	/// <summary>Whether the code editor shows the player's own character beside the code (the default).</summary>
+	internal static bool CodePreview
+	{
+		get => Game.Cookies.Get( CodePreviewCookie, true );
+		set => Game.Cookies.Set( CodePreviewCookie, value );
+	}
+
+	/// <summary>
+	/// Where the code editor's window was (left, top, width, height, in the UI's units) and whether it was maximized;
+	/// null when it was never moved.
+	/// </summary>
+	internal static (float Left, float Top, float Width, float Height, bool Maximized)? CodeWindow
+	{
+		get => Game.Cookies.Get<float[]>( CodeWindowCookie, null ) is { Length: 5 } kept && kept.All( float.IsFinite )
+			? (kept[ 0 ], kept[ 1 ], kept[ 2 ], kept[ 3 ], kept[ 4 ] != 0f)
+			: null;
+		set => Game.Cookies.Set( CodeWindowCookie, value is { } window ? new[] { window.Left, window.Top, window.Width, window.Height, window.Maximized ? 1f : 0f } : null );
+	}
+
+	/// <summary>The code editor's find options: match case, and whole words only.</summary>
+	internal static (bool MatchCase, bool WholeWord) CodeFind
+	{
+		get
+		{
+			var bits = Game.Cookies.Get( CodeFindCookie, 0 );
+			return ((bits & 1) != 0, (bits & 2) != 0);
+		}
+		set => Game.Cookies.Set( CodeFindCookie, (value.MatchCase ? 1 : 0) | (value.WholeWord ? 2 : 0) );
+	}
+
+	/// <summary>
+	/// Where the scripting reference was (left, top, in the UI's units) and whether it was left open, to open again with
+	/// the code editor; null when it was never opened.
+	/// </summary>
+	internal static (float Left, float Top, bool Open)? CodeReference
+	{
+		get => Game.Cookies.Get<float[]>( CodeReferenceCookie, null ) is { Length: 3 } kept && kept.All( float.IsFinite )
+			? (kept[ 0 ], kept[ 1 ], kept[ 2 ] != 0f)
+			: null;
+		set => Game.Cookies.Set( CodeReferenceCookie, value is { } place ? new[] { place.Left, place.Top, place.Open ? 1f : 0f } : null );
+	}
+
+	/// <summary>
+	/// The test bar's choices: how fast Walk goes (units a second), how slow time runs (1 for normal) and whether the last
+	/// action loops; null when never changed. Values the bar doesn't offer are the bar's to refuse.
+	/// </summary>
+	internal static (float Speed, float Slow, bool Loop)? TestBar
+	{
+		get => Game.Cookies.Get<float[]>( TestBarCookie, null ) is { Length: 3 } kept && kept.All( float.IsFinite )
+			? (kept[ 0 ], kept[ 1 ], kept[ 2 ] != 0f)
+			: null;
+		set => Game.Cookies.Set( TestBarCookie, value is { } bar ? new[] { bar.Speed, bar.Slow, bar.Loop ? 1f : 0f } : null );
 	}
 
 	/// <summary>The starred models, in the order they were starred.</summary>

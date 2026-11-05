@@ -1,0 +1,29 @@
+{
+  "id": "",
+  "n": "Energy shield",
+  "a": {
+    "j": "Chest"
+  },
+  "l": [
+    {
+      "k": "Sprite",
+      "s": "AroundBody",
+      "r": 30,
+      "p": "Hexagon",
+      "c": "#5ae0ff",
+      "a": 7,
+      "t": 1,
+      "n": 0,
+      "fo": true,
+      "kp": 90,
+      "al": "Outward"
+    },
+    {
+      "k": "Light",
+      "c": "#5ae0ff",
+      "a": 140,
+      "t": 1,
+      "n": 0.2
+    }
+  ]
+}

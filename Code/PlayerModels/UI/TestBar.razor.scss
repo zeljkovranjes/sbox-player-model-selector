@@ -1,0 +1,41 @@
+@import "SelectorTheme.scss";
+
+// The test bar on a preview: the actions that play the real cause on the body, the effect's keys, walking, looping,
+// slow motion and pausing; all on this preview only
+TestBar
+{
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 2px;
+	padding: 3px;
+	border-radius: 4px;
+	background-color: rgba( 20, 20, 20, 0.6 );
+	pointer-events: all;
+
+	.test
+	{
+		flex-direction: row;
+		align-items: center;
+		gap: 3px;
+		height: 24px;
+		min-width: 24px;
+		padding: 0 4px;
+		justify-content: center;
+		border-radius: 3px;
+		cursor: pointer;
+		color: #e8e8e8;
+
+		&:hover { background-color: rgba( 255, 255, 255, 0.15 ); }
+		&.on, &.looping { background-color: rgba( 62, 131, 235, 0.6 ); }
+		&.disabled { opacity: 0.35; pointer-events: none; }
+	}
+
+	.test-icon { font-family: "Material Icons"; font-size: 16px; }
+	.test-name { font-size: 11px; }
+	.test-key { width: 18px; height: 18px; background-size: contain; background-repeat: no-repeat; }
+	.test-note { padding: 0 6px; font-size: 11px; color: rgba( 232, 232, 232, 0.75 ); }
+	.separator { width: 1px; height: 16px; margin: 0 3px; background-color: rgba( 255, 255, 255, 0.3 ); }
+
+	&.compact .test { min-width: 22px; height: 22px; padding: 0 2px; }
+}

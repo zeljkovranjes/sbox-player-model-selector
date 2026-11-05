@@ -7,7 +7,7 @@
 <root>
     <div class="label">@Label</div>
     <UIColor Property=@_so?.GetProperty( nameof( Picked ) )></UIColor>
-    <div class="reset @( string.IsNullOrEmpty( Hex ) ? "disabled" : "" )" @onclick=@(() => OnChanged?.Invoke( "" ))>Reset</div>
+    <div class="reset clear @( string.IsNullOrEmpty( Hex ) || !CanReset ? "disabled" : "" )" Tooltip=@ResetLabel @onclick=@(() => OnChanged?.Invoke( "" ))>@( ResetLabel == "Remove" ? "close" : "refresh" )</div>
 </root>
 
 @code
@@ -20,6 +20,12 @@
 
     /// <summary>Called with the new colour as <c>#rrggbb</c>, or empty when reset.</summary>
     [Parameter] public Action<string> OnChanged { get; set; }
+
+    /// <summary>What the button that sends an empty colour does for this row ("Reset", "Remove"): its tooltip and icon.</summary>
+    [Parameter] public string ResetLabel { get; set; } = "Reset";
+
+    /// <summary>Whether that button can be pressed now.</summary>
+    [Parameter] public bool CanReset { get; set; } = true;
 
     SerializedObject _so;
 
@@ -40,5 +46,5 @@
         _so ??= TypeLibrary.GetSerializedObject( this );
     }
 
-    protected override int BuildHash() => HashCode.Combine( Label, Hex );
+    protected override int BuildHash() => HashCode.Combine( Label, Hex, ResetLabel, CanReset );
 }

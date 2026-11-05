@@ -1,0 +1,92 @@
+@import "SelectorTheme.scss";
+
+// A group of settings under a header that folds it away: a chevron, the name, what it holds while folded and an info
+// icon for the longer explanation, like the Models grid's folding headings
+FoldingSection
+{
+	flex-direction: column;
+	flex-shrink: 0;
+
+	> .fold-header
+	{
+		@include ui-section-header;
+		flex-direction: row;
+		align-items: center;
+		gap: 4px;
+		min-height: 22px;
+		margin: 12px 0px 4px 0px;
+		cursor: pointer;
+
+		&:hover
+		{
+			color: $ui-text;
+			sound-in: ui.hover;
+		}
+
+		&:active
+		{
+			sound-in: ui.select;
+		}
+
+		// the icon font only turns the lower-case word into the arrow, and section headers are upper-case
+		> .chevron, > .info
+		{
+			font-family: "Material Icons";
+			font-size: 14px;
+			text-transform: none;
+		}
+
+		> .heading
+		{
+			flex-shrink: 1;
+			min-width: 0px;
+			white-space: nowrap;
+			text-overflow: ellipsis;
+			overflow: hidden;
+		}
+
+		> .summary
+		{
+			flex-shrink: 1;
+			min-width: 0px;
+			margin-left: auto;
+			font-weight: 500;
+			text-transform: none;
+			white-space: nowrap;
+			text-overflow: ellipsis;
+			overflow: hidden;
+			color: $ui-text-muted;
+		}
+
+		> .info
+		{
+			flex-shrink: 0;
+			margin-left: auto;
+			padding: 0 2px;
+			color: $ui-text-muted;
+			cursor: help;
+
+			&:hover
+			{
+				color: $ui-blue;
+			}
+		}
+
+		> .summary + .info
+		{
+			margin-left: 4px;
+		}
+	}
+
+	// the first group of a page sits at its top
+	&:first-child > .fold-header
+	{
+		margin-top: 2px;
+	}
+
+	// folded, the next group follows closely
+	&.folded > .fold-header
+	{
+		margin-bottom: 0px;
+	}
+}

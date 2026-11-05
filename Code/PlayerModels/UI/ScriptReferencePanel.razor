@@ -1,0 +1,208 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Core
+@using PlayerModels.Core.Script
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root class="@CodeTheme.Of( LocalPrefs.CodeLight ).Name">
+    <div class="titlebar">
+        <DragHandle class="title-drag" Started=@Grab Moved=@Move Ended=@Remember></DragHandle>
+        <div class="title-icon">help</div>
+        <TextLabel class="title" Text="Scripting reference"></TextLabel>
+        <div class="spacer"></div>
+        <div class="window-button close" Tooltip="Close" @onclick=@Close>close</div>
+    </div>
+    <div class="columns">
+        <div class="contents">
+            <TextEntry class="search" Placeholder="Search" Value:bind=@Search></TextEntry>
+            <div class="list">
+                <TextLabel class="list-group" Text="Start here"></TextLabel>
+                @foreach ( var page in Pages )
+                {
+                    var shown = page;
+                    <div class="list-row @( _page == shown && _entry is null ? "active" : "" )" @onclick=@(() => ShowPage( shown ))>
+                        <TextLabel Text=@shown.Title></TextLabel>
+                    </div>
+                }
+                @foreach ( var group in Matching().GroupBy( x => x.Category ) )
+                {
+                    <TextLabel class="list-group" Text=@group.Key></TextLabel>
+                    @foreach ( var entry in group )
+                    {
+                        var shown = entry;
+                        <div class="list-row @( _entry == shown ? "active" : "" )" @onclick=@(() => ShowEntry( shown ))>
+                            <TextLabel Text=@shown.Name></TextLabel>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+        <div class="page">
+            @if ( _entry is { } open )
+            {
+                <TextLabel class="page-title" Text=@open.Name></TextLabel>
+                <TextLabel class="signature" Text=@open.Signature()></TextLabel>
+                <TextLabel class="doc" Text=@( open.Doc ?? "" )></TextLabel>
+                @if ( !string.IsNullOrEmpty( open.Example ) )
+                {
+                    <TextLabel class="subheading" Text="Try it: change the example, the result follows"></TextLabel>
+                    <CodePlayground Example=@open.Example Kind=@open.ExampleKind CopyInto=@CopyInto Wearer=@Wearer></CodePlayground>
+                }
+            }
+            else if ( _page is { } intro )
+            {
+                <TextLabel class="page-title" Text=@intro.Title></TextLabel>
+                @if ( intro.Clip is not null && FileSystem.Mounted.FileExists( ClipFolder + intro.Clip + ".webp" ) )
+                {
+                    <div class="clip" style="background-image: url( @( ClipFolder + intro.Clip + ".webp" ) )"></div>
+                }
+                @foreach ( var paragraph in intro.Text )
+                {
+                    <TextLabel class="doc" Text=@paragraph></TextLabel>
+                }
+                @if ( intro.Example is not null )
+                {
+                    <TextLabel class="subheading" Text="Try it"></TextLabel>
+                    <CodePlayground Example=@intro.Example Kind=@( intro.Kind ) CopyInto=@CopyInto Wearer=@Wearer></CodePlayground>
+                }
+            }
+        </div>
+    </div>
+</root>
+
+@code
+{
+    /// <summary>The entry to open on, by name or signature (as hover docs give it); null for the start.</summary>
+    public string Entry { get; set; }
+
+    /// <summary>Puts an example's code in the player's own script.</summary>
+    public Action<string> CopyInto { get; init; }
+
+    /// <summary>The look examples show on: the player's own, being edited (see <see cref="CodePlayground.Wearer"/>).</summary>
+    public Func<PlayerLook> Wearer { get; init; }
+
+    // The clips recorded in the editor for the pages below, beside the effects guides'
+    const string ClipFolder = "ui/effects/guides/";
+
+    LibraryEntry _entry;
+    Page _page = Pages[ 0 ];
+    string _search = "";
+    Vector2 _at = new( 120, 60 );
+    Vector2 _grabbed;
+
+    string Search
+    {
+        get => _search;
+        set
+        {
+            _search = value ?? "";
+            StateHasChanged();
+        }
+    }
+
+    protected override int BuildHash() => HashCode.Combine( _entry, _page, _search, LocalPrefs.CodeLight );
+
+    // Over the game's HUD while it is open, as the code editor is
+    public override void Tick()
+    {
+        base.Tick();
+        HudCover.Hold();
+    }
+
+    public override void OnDeleted()
+    {
+        base.OnDeleted();
+        HudCover.Release( this );
+    }
+
+    protected override void OnAfterTreeRender( bool firstTime )
+    {
+        base.OnAfterTreeRender( firstTime );
+        if ( !firstTime )
+            return;
+
+        if ( LocalPrefs.CodeReference is { } kept )
+            _at = new Vector2( kept.Left, kept.Top );
+
+        Place( _at );
+        Remember();
+        Show( Entry );
+    }
+
+    /// <summary>Opens the entry named (by name or signature), or the start for none.</summary>
+    public void Show( string entry )
+    {
+        _entry = Find( entry );
+        if ( _entry is null )
+            _page = Pages[ 0 ];
+
+        StateHasChanged();
+    }
+
+    void ShowEntry( LibraryEntry entry )
+    {
+        _entry = entry;
+        StateHasChanged();
+    }
+
+    void ShowPage( Page page )
+    {
+        _entry = null;
+        _page = page;
+        StateHasChanged();
+    }
+
+    void Grab() => _grabbed = _at;
+
+    void Move( Vector2 moved ) => Place( _grabbed + moved );
+
+    // How much of it always stays on screen, so its title bar can be reached
+    const float KeptOnScreen = 160f;
+
+    // Placed at at (in the UI's units), kept where its title bar can be reached however the screen changed
+    void Place( Vector2 at )
+    {
+        var scale = MathF.Max( ScaleToScreen, 0.01f );
+        var screen = (Parent?.Box.Rect.Size is { x: > 0f } size ? size : Screen.Size) / scale;
+        var width = Box.Rect.Width > 0f ? Box.Rect.Width / scale : KeptOnScreen;
+        _at = new Vector2( Math.Clamp( at.x, KeptOnScreen - width, MathF.Max( 0f, screen.x - KeptOnScreen ) ), Math.Clamp( at.y, 0f, MathF.Max( 0f, screen.y - KeptOnScreen ) ) );
+        Style.Left = Length.Pixels( _at.x );
+        Style.Top = Length.Pixels( _at.y );
+    }
+
+    // Where it is, and that it is open: the code editor opens it again there next time
+    void Remember() => LocalPrefs.CodeReference = (_at.x, _at.y, true);
+
+    void Close()
+    {
+        LocalPrefs.CodeReference = (_at.x, _at.y, false);
+        Delete();
+    }
+
+    // The entries whose name has the search in it, in the reference's order
+    IEnumerable<LibraryEntry> Matching() => ScriptLibrary.All
+        .Where( x => _search.Length == 0 || x.Name.Contains( _search, StringComparison.OrdinalIgnoreCase ) )
+        .OrderBy( x => Array.IndexOf( ScriptLibrary.Categories, x.Category ) );
+
+    // The entry a hover's title names: the longest name it starts with
+    static LibraryEntry Find( string title )
+    {
+        if ( string.IsNullOrWhiteSpace( title ) )
+            return null;
+
+        LibraryEntry best = null;
+        foreach ( var entry in ScriptLibrary.All )
+        {
+            if ( (title == entry.Name || title.StartsWith( entry.Name + "(" ) || title.StartsWith( entry.Name + " " ) || title.StartsWith( entry.Name + ":" ))
+                && (best is null || entry.Name.Length > best.Name.Length) )
+                best = entry;
+        }
+
+        return best;
+    }
+}

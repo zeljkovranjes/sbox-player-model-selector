@@ -17,16 +17,59 @@ internal sealed class AccessoryRack
 {
 	private const string ObjectName = "Accessory";
 
-	// A citizen's bone for each joint
-	private static string BoneOf( string joint ) => joint switch
+	/// <summary>
+	/// The citizen's bone for a joint an item is pinned to or an effect comes from (<see cref="Accessory.Joint"/>,
+	/// <see cref="Effect.Joint"/>), by name. The eyes are the head's.
+	/// </summary>
+	internal static string BoneOf( string joint ) => joint switch
 	{
 		nameof( Accessory.Joint.Neck ) => "neck_0",
 		nameof( Accessory.Joint.Chest ) => "spine_2",
 		nameof( Accessory.Joint.Hips ) => "pelvis",
 		nameof( Accessory.Joint.LeftHand ) => "hand_L",
 		nameof( Accessory.Joint.RightHand ) => "hand_R",
+		nameof( Effect.Joint.LeftFoot ) => "ankle_L",
+		nameof( Effect.Joint.RightFoot ) => "ankle_R",
 		_ => "head",
 	};
+
+	/// <summary>
+	/// Where the worn model's <paramref name="targetBone"/> is this frame (<paramref name="joint"/>), and how the citizen's
+	/// <paramref name="sourceBone"/> would be turned in the world to go with it (<paramref name="turn"/>): as the model's own
+	/// bone turned from the bind pose, which the solve doesn't turn quite like the citizen's (a head aiming up and down),
+	/// or as the citizen's own before the model is first posed. False while either bone isn't there.
+	/// </summary>
+	internal static bool TryGetJoint( SkinnedModelRenderer citizen, SkinnedModelRenderer model, PoseTransfer transfer, string sourceBone, string targetBone,
+		out Transform joint, out Rotation turn )
+	{
+		if ( citizen.Model.Bones.GetBone( sourceBone ) is { } bone )
+			return TryGetJoint( citizen, model, transfer, bone, targetBone, out joint, out turn );
+
+		joint = default;
+		turn = Rotation.Identity;
+		return false;
+	}
+
+	/// <summary>
+	/// The same, for the citizen's bone itself. Looking a bone up by name allocates, so what runs for every joint every
+	/// frame looks it up once and passes it here: no allocations.
+	/// </summary>
+	internal static bool TryGetJoint( SkinnedModelRenderer citizen, SkinnedModelRenderer model, PoseTransfer transfer, BoneCollection.Bone sourceBone,
+		string targetBone, out Transform joint, out Rotation turn )
+	{
+		turn = Rotation.Identity;
+		var world = citizen.BoneWorldTransforms;
+		if ( sourceBone.Index >= world.Length || !transfer.TryGetPosedBone( model, targetBone, out joint ) )
+		{
+			joint = default;
+			return false;
+		}
+
+		turn = transfer.TryGetPosedTurn( model, targetBone, out var turned )
+			? turned * sourceBone.LocalTransform.Rotation
+			: world[ sourceBone.Index ].Rotation;
+		return true;
+	}
 
 	// A bone of a worn piece of clothing. With a bone on the citizen it goes with it, offset from the nearest bone the
 	// model has too (Anchor); a bone the citizen doesn't have (a coat's tail) is carried by its parent
@@ -129,20 +172,17 @@ internal sealed class AccessoryRack
 			if ( worn.TargetBone is null )
 				continue;
 
-			if ( !citizen.TryGetBoneTransform( worn.SourceBone, out var source ) || !transfer.TryGetPosedBone( model, worn.TargetBone, out var target ) )
+			if ( !TryGetJoint( citizen, model, transfer, worn.SourceBone, worn.TargetBone, out var target, out var turn ) )
 				continue;
 
 			// Takes the item's rest pose to where the joint is turned now. Forward, left and up stay the model's own
-			// directions at rest whatever way the rig's bones point, so sliders mean the same on any model. The turn is
-			// the model's bone's, which the solve doesn't turn quite like the citizen's (a head aiming up and down)
-			var heading = transfer.TryGetPosedTurn( model, worn.TargetBone, out var turned ) && citizen.Model.Bones.GetBone( worn.SourceBone ) is { } bind
-				? turned * bind.LocalTransform.Rotation * worn.Rest.Rotation.Inverse
-				: source.Rotation * worn.Rest.Rotation.Inverse;
-			var turn = heading * worn.Turn;
+			// directions at rest whatever way the rig's bones point, so sliders mean the same on any model
+			var heading = turn * worn.Rest.Rotation.Inverse;
+			var turned = heading * worn.Turn;
 			var scale = worn.Scale * target.Scale.x;
 			var joint = target.Position + heading * (worn.Offset * target.Scale.x);
 
-			worn.Root.WorldTransform = new Transform( joint - turn * (worn.Rest.Position * scale), turn, scale );
+			worn.Root.WorldTransform = new Transform( joint - turned * (worn.Rest.Position * scale), turned, scale );
 			worn.Pivot = joint;
 			worn.Heading = heading;
 			worn.AnchorScale = target.Scale.x;

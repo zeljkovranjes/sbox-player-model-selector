@@ -206,9 +206,9 @@ internal sealed partial class PoseTransfer
 		try
 		{
 			var sourceSkeleton = SkeletonReader.Read( source );
-			var sourceMapping = AutoMapper.Map( sourceSkeleton );
+			var sourceMapping = MappingOf( source, sourceSkeleton );
 			var targetSkeleton = SkeletonReader.Read( target );
-			var targetMapping = AutoMapper.Map( targetSkeleton );
+			var targetMapping = MappingOf( target, targetSkeleton );
 			PickBones( targetMapping, targetSkeleton, bones );
 
 			if ( MissingEssentials( targetMapping ) is { } missing )
@@ -238,6 +238,7 @@ internal sealed partial class PoseTransfer
 		return AutoMapper.Map( skeleton ).RoleToBone.ToDictionary( x => x.Key, x => skeleton[ x.Value ].Name );
 	}
 
+	[SkipHotload]
 	private static readonly BoneRole[] Essentials =
 		{ BoneRole.Hips, BoneRole.Head, BoneRole.HandL, BoneRole.HandR, BoneRole.FootL, BoneRole.FootR };
 
@@ -439,5 +440,28 @@ internal sealed partial class PoseTransfer
 		}
 
 		return _writtenIndex;
+	}
+
+	// Each model's automatic mapping, worked out once: it takes ~0.4 ms and 330 KB, and was worked out again for every
+	// player wearing the model and for the citizen each is posed from. A copy is handed out, as picking bones changes it
+	private const int MostMappings = 64;
+	[SkipHotload]
+	private static readonly RecentCache<string, MappingResult> Mappings = new( MostMappings );
+
+	private static MappingResult MappingOf( Model model, SkeletonModel skeleton )
+	{
+		var key = $"{model.ResourcePath ?? model.Name}|{model.BoneCount}";
+		if ( !Mappings.TryGet( key, out var mapping ) )
+		{
+			mapping = AutoMapper.Map( skeleton );
+			Mappings.Set( key, mapping );
+		}
+
+		var copy = new MappingResult( mapping.ProfileName, mapping.Source ) { Confidence = mapping.Confidence };
+		foreach ( var (role, bone) in mapping.RoleToBone )
+			copy.RoleToBone[ role ] = bone;
+
+		copy.Notes.AddRange( mapping.Notes );
+		return copy;
 	}
 }

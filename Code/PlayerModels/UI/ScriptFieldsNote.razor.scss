@@ -1,0 +1,16 @@
+@import "SelectorTheme.scss";
+
+// The fields of a layer its script works out: each a chip with its line, to go to it in code, beside the words as a
+// setting is beside its name
+ScriptFieldsNote
+{
+	flex-direction: row;
+	align-items: flex-start;
+	flex-shrink: 0;
+	gap: 8px;
+	padding: 3px 0;
+
+	> .label { @include ui-label; width: 120px; flex-shrink: 0; padding-top: 3px; cursor: help; }
+	.chips { flex-direction: row; flex-wrap: wrap; flex-grow: 1; min-width: 0; gap: 4px; }
+	.chip { @include ui-button; padding: 1px 6px; font-size: 11px; cursor: pointer; }
+}

@@ -28,6 +28,16 @@ ServerEditor
 		color: $ui-text-muted;
 	}
 
+	// a list within a section: the Workshop shares blocked, under the effects' switches
+	.subheading
+	{
+		flex-shrink: 0;
+		margin: 8px 0 2px 0;
+		font-size: $ui-settings-font;
+		font-weight: 700;
+		color: $ui-text-label;
+	}
+
 	.row
 	{
 		flex-direction: row;

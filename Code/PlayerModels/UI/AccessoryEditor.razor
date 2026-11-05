@@ -20,22 +20,25 @@
     }
     else
     {
-        <div class="section-header">@( $"Worn ({Look.Accessories.Count} of {Accessory.MaxWorn})" )</div>
-        @if ( Look.Accessories.Count == 0 )
-        {
-            <div class="note">Nothing yet. Add an item below.</div>
-        }
-        @for ( var i = 0; i < Look.Accessories.Count; i++ )
-        {
-            var index = i;
-            var worn = AccessoryCatalog.Find( Look.Accessories[ index ].Item );
-            <div class="row worn @( index == _selected ? "active" : "" )">
-                <ModelIcon class="thumb" Model=@worn?.Model Icon=@worn?.Icon></ModelIcon>
-                <div class="worn-name">@( worn?.Title ?? "Unknown item" )</div>
-                <div class="button" @onclick=@(() => _ = SelectAsync( index ))>@( index == _selected ? "Done" : "Edit" )</div>
-                <div class="icon-button" @onclick=@(() => Remove( index ))>delete</div>
-            </div>
-        }
+        <FoldingSection Title=@( $"Worn ({Look.Accessories.Count} of {Accessory.MaxWorn})" ) Key="Advanced/Worn">
+            <Body>
+                @if ( Look.Accessories.Count == 0 )
+                {
+                    <div class="note">Nothing yet. Add an item below.</div>
+                }
+                @for ( var i = 0; i < Look.Accessories.Count; i++ )
+                {
+                    var index = i;
+                    var worn = AccessoryCatalog.Find( Look.Accessories[ index ].Item );
+                    <div class="row worn @( index == _selected ? "active" : "" )" Tooltip=@( index == _selected ? "" : "Edit where it sits, its size and colors" ) @onclick=@(() => _ = SelectAsync( index ))>
+                        <ModelIcon class="thumb" Model=@worn?.Model Icon=@worn?.Icon></ModelIcon>
+                        <div class="worn-name">@( worn?.Title ?? "Unknown item" )</div>
+                        <div class="tool" Tooltip=@( index == _selected ? "Done: back to the list" : "Edit where it sits, its size and colors" )>@( index == _selected ? "check" : "tune" )</div>
+                        <div class="icon-button" Tooltip="Remove" @onclick=@(( PanelEvent e ) => Remove( index, e ))>delete</div>
+                    </div>
+                }
+            </Body>
+        </FoldingSection>
 
         @if ( _status is not null )
         {
@@ -44,7 +47,8 @@
 
         @if ( OpenAccessory is { } selected )
         {
-            <div class="section-header">Position</div>
+            <FoldingSection Title="Position" Key="Advanced/Item Position" Summary=@( _item?.Follows == true ? "Bends with the body" : $"Pinned to {selected.Pin}" )>
+                <Body>
             @if ( _item?.Follows == true )
             {
                 <div class="note">This bends with the body. Size is how close it fits.</div>
@@ -53,7 +57,7 @@
             {
                 <div class="row">
                     <div class="label">Pinned to</div>
-                    <UIDropdown Items=@Joints() Value=@selected.Pin ValueChanged=@SetPin Tokenize=@false></UIDropdown>
+                    <ScrollingDropdown Items=@Joints() Value=@selected.Pin ValueChanged=@SetPin Tokenize=@false></ScrollingDropdown>
                 </div>
             }
             <SliderRow Label="Forward / back" Value=@( selected.Forward / Reach ) Signed=@true OnChanged=@(( float amount ) => Move( x => x.Forward = amount * Reach ))></SliderRow>
@@ -67,8 +71,10 @@
             }
             <SliderRow Label="Size" Value=@SizeSlider( selected.Scale ) Signed=@true OnChanged=@(( float amount ) => Move( x => x.Scale = SizeFrom( amount ) ))></SliderRow>
             <div class="row end">
-                <div class="button" @onclick=@(() => Reset( selected ))>Reset position</div>
+                <div class="button" @onclick=@(() => Reset( selected ))><div class="glyph">refresh</div>Reset position</div>
             </div>
+                </Body>
+            </FoldingSection>
 
             @if ( _itemModel is not null )
             {
@@ -77,7 +83,8 @@
         }
         else
         {
-            <div class="section-header">Add an item</div>
+            <FoldingSection Title="Add an Item" Key="Advanced/Add an Item" Summary=@_group>
+                <Body>
             <div class="browser">
                 <div class="rail">
                     @foreach ( var group in Groups )
@@ -89,28 +96,35 @@
                 <div class="shelf">
                     @if ( _group == WorkshopGroup )
                     {
-                        <TextEntry class="search" Placeholder="Search the Workshop" Value:bind=@_search @onsubmit=@(() => _ = SearchAsync( 0 ))></TextEntry>
+                        <TextEntry class="search" Placeholder="Search the Workshop (Enter)" Value:bind=@_search @onsubmit=@(() => _ = SearchAsync( 0 ))></TextEntry>
                         @if ( _searching )
                         {
                             <div class="note">Looking through the Workshop...</div>
                         }
                     }
+                    else
+                    {
+                        <TextEntry class="search" Placeholder=@( $"Find in {_group}" ) Value:bind=@_find></TextEntry>
+                    }
                     @foreach ( var item in PageOfItems )
                     {
                         var shown = item;
-                        <div class="row item">
+                        var canAdd = !_adding && Look.Accessories.Count < Accessory.MaxWorn;
+                        <div class="row item @( canAdd ? "" : "full" )" Tooltip=@( canAdd ? $"Wear {shown.Title}" : $"You wear as many items as a look can ({Accessory.MaxWorn})" ) @onclick=@(() => _ = AddAsync( shown ))>
                             <ModelIcon class="thumb" Model=@shown.Model Icon=@shown.Icon></ModelIcon>
                             <div class="worn-name">@shown.Title</div>
-                            <div class="button @( _adding || Look.Accessories.Count >= Accessory.MaxWorn ? "disabled" : "" )" @onclick=@(() => _ = AddAsync( shown ))>Add</div>
+                            <div class="tool add @( canAdd ? "" : "disabled" )">add</div>
                         </div>
                     }
-                    <Pager Page=@_page Pages=@Pages OnPage=@ShowPage></Pager>
+                    <Pager Page=@ShownPage Pages=@Pages OnPage=@ShowPage></Pager>
                     @if ( _unresponsive )
                     {
                         <div class="unresponsive">Facepunch Workshop is currently unresponsive</div>
                     }
                 </div>
             </div>
+                </Body>
+            </FoldingSection>
         }
     }
 </root>
@@ -182,14 +196,20 @@
     float MostSize => _item?.Follows == true ? Accessory.MaxFollowScale : Accessory.MaxScaleFor( BodyHeight, AccessoryCatalog.SizeOf( _itemModel ) );
 
     protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Body, Look?.Serialize(), _selected, _group, _page, _itemModel, Locked ),
-        _workshop, _searching, _unresponsive, _adding, _status );
+        _workshop, _searching, _unresponsive, _adding, _status, _find );
 
     List<AccessoryCatalog.Item> Items => _items ??= AccessoryCatalog.All();
 
     // The Workshop first, for what's on it is most of what there is
     IEnumerable<string> Groups => Items.Select( x => x.Group ).Distinct().OrderBy( x => x ).Prepend( WorkshopGroup );
 
-    IEnumerable<AccessoryCatalog.Item> InGroup => Items.Where( x => x.Group == _group );
+    IEnumerable<AccessoryCatalog.Item> InGroup => Items.Where( x => x.Group == _group && (string.IsNullOrWhiteSpace( _find ) || x.Title.Contains( _find.Trim(), StringComparison.OrdinalIgnoreCase )) );
+
+    // What a stock group's items are narrowed to as it is typed (the Workshop is searched on Enter instead)
+    string _find = "";
+
+    // The page shown: a stock group's last one when what is typed leaves fewer
+    int ShownPage => _group == WorkshopGroup ? _page : Math.Clamp( _page, 0, Pages - 1 );
 
     int ShownTotal => _group == WorkshopGroup ? _workshop?.Total ?? 0 : InGroup.Count();
 
@@ -197,7 +217,7 @@
 
     IEnumerable<AccessoryCatalog.Item> PageOfItems => _group == WorkshopGroup
         ? _workshop?.Items ?? Enumerable.Empty<AccessoryCatalog.Item>()
-        : InGroup.Skip( _page * ItemsPerPage ).Take( ItemsPerPage );
+        : InGroup.Skip( ShownPage * ItemsPerPage ).Take( ItemsPerPage );
 
     protected override void OnParametersSet()
     {
@@ -220,6 +240,7 @@
     {
         _group = group;
         _page = 0;
+        _find = "";
         if ( _group == WorkshopGroup )
             _ = SearchAsync( 0 );
 
@@ -338,6 +359,12 @@
         _item = item;
         _itemModel = model;
         StateHasChanged();
+    }
+
+    void Remove( int index, PanelEvent e )
+    {
+        e.StopPropagation();
+        Remove( index );
     }
 
     void Remove( int index )

@@ -1,0 +1,217 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Core
+@using PlayerModels.Core.Script
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root class="@CodeTheme.Of( LocalPrefs.CodeLight ).Name">
+    <div class="playground-code">
+        <CodeEntry @ref="_entry" Theme=@CodeTheme.Of( LocalPrefs.CodeLight ) Edited=@Edited></CodeEntry>
+        <div class="playground-bar">
+            <TextLabel class="playground-status @( _error is null ? "" : "error" )" Text=@( _error ?? _result )></TextLabel>
+            <div class="spacer"></div>
+            <div class="playground-button" Tooltip="Put the example back as it was" @onclick=@ResetExample>Reset example</div>
+            @if ( CopyInto is not null && Kind != ScriptKind.Skin )
+            {
+                <div class="playground-button" Tooltip="Put it in the script you are editing (or a new one)" @onclick=@(() => CopyInto( _entry?.Source ?? Example ))>@CopyLabel</div>
+            }
+        </div>
+    </div>
+    @if ( Kind == ScriptKind.Effect )
+    {
+        <div class="playground-preview">
+            <ModelPreview @ref="_preview" class="stage"></ModelPreview>
+            <TestBar Stage=@_preview Compact=@true></TestBar>
+        </div>
+    }
+    else if ( _shape is not null )
+    {
+        <div class="playground-preview">
+            <ShapeIcon class="shape" Shape=@_shape></ShapeIcon>
+        </div>
+    }
+</root>
+
+@code
+{
+    /// <summary>The example, as the reference has it.</summary>
+    [Parameter] public string Example { get; set; }
+
+    /// <summary>What kind of script it is: an effect shows on a body, a shape as itself, a sticker's values as text.</summary>
+    [Parameter] public ScriptKind Kind { get; set; }
+
+    /// <summary>Puts the code (as it is now) in the player's own script.</summary>
+    [Parameter] public Action<string> CopyInto { get; set; }
+
+    /// <summary>
+    /// The look an effect example is shown on: the player's own (the model they wear or are editing, as they made it),
+    /// without its effects; the citizen for none.
+    /// </summary>
+    [Parameter] public Func<PlayerLook> Wearer { get; set; }
+
+    // It updates this long after typing pauses
+    const float RunAfter = 0.15f;
+
+    const string ExampleInFront = "\nEffect.Offset = Vector3( 14, 0, 0 )";
+
+    CodeEntry _entry;
+    ModelPreview _preview;
+    string _shown;
+    string _error;
+    string _result = "";
+    DrawnShape _shape;
+    PlayerLook _look = new();
+    bool _pending;
+    RealTimeSince _sinceEdit;
+
+    string CopyLabel => Kind switch { ScriptKind.Shape => "Copy into my shape", ScriptKind.Sticker => "Copy into my sticker", _ => "Copy into my effect" };
+
+    protected override int BuildHash() => HashCode.Combine( Example, Kind, _error, _result, _shape, LocalPrefs.CodeLight );
+
+    protected override void OnAfterTreeRender( bool firstTime )
+    {
+        base.OnAfterTreeRender( firstTime );
+        if ( _entry is not null && _shown != Example )
+            ResetExample();
+    }
+
+    void ResetExample()
+    {
+        _shown = Example;
+        _entry.Load( Example ?? "" );
+        Run();
+    }
+
+    void Edited( string text )
+    {
+        _pending = true;
+        _sinceEdit = 0;
+        Colour();
+    }
+
+    public override void Tick()
+    {
+        base.Tick();
+        if ( _pending && _sinceEdit >= RunAfter )
+            Run();
+
+        if ( _preview is not null && _preview.IsValid() )
+        {
+            _preview.Look = _look;
+            _ = _preview.ShowAsync( _look.Model ?? "" );
+        }
+    }
+
+    void Colour() => _entry?.Decorate( CodeText.Highlight( _entry.Source ), _error is null ? null : ErrorRange(), null );
+
+    List<(int, int)> ErrorRange() => _errorAt < 0 ? null : new List<(int, int)> { (_errorAt, 1) };
+
+    int _errorAt = -1;
+
+    // Runs the code as it is now: an effect worn on the preview, a shape drawn, a sticker or skin run once for one element; the
+    // last good result stays while it has an error
+    void Run()
+    {
+        _pending = false;
+
+        // A shape's picture stays only while the example is a shape's: the panel is kept from one example to the next
+        if ( Kind != ScriptKind.Shape )
+            _shape = null;
+
+        var source = ScriptReference.Runnable( _entry?.Source ?? "", Kind );
+
+        // An example that says nothing of where its sprites go has them in the middle of the default joint, inside the body:
+        // a step in front of it they show (on the preview alone: Copy hands over the code as it is). Last, so errors keep
+        // their lines
+        if ( Kind == ScriptKind.Effect && !source.Contains( "Joint" ) && !source.Contains( "Offset" ) && !source.Contains( "Anchor" ) )
+            source += ExampleInFront;
+
+        // What an example takes by name: the player's own, or the reference's stand-in until they have one of that name
+        var library = source.Contains( ".Mine" ) ? new ExampleLibrary( new MyLibrary( Wearer?.Invoke()?.DrawnShapes ) ) : null;
+        var compiled = ScriptCompiler.Compile( source, Kind, library );
+        if ( !compiled.Succeeded )
+        {
+            Fail( compiled.Errors.Count > 0 ? compiled.Errors[ 0 ] : null );
+            return;
+        }
+
+        var machine = new ScriptMachine( compiled.Program );
+        if ( Kind is ScriptKind.Sticker or ScriptKind.Skin )
+        {
+            var io = new ScriptIO();
+            io.Set( ScriptInput.Time, 1500 );
+            io.Set( ScriptInput.Seconds, 1.5 );
+            io.Set( ScriptInput.Index, 2 );
+            io.Set( ScriptInput.Count, 5 );
+            io.Set( ScriptInput.Along, 0.25 );
+            if ( !machine.RunElement( io ) )
+            {
+                Fail( machine.Fault.Describe( compiled.Program ) );
+                return;
+            }
+
+            _result = Values( machine, compiled );
+            Succeeded();
+            return;
+        }
+
+        var build = machine.Build( library );
+        if ( !build.Succeeded )
+        {
+            Fail( build.Error );
+            return;
+        }
+
+        if ( Kind == ScriptKind.Shape )
+            _shape = build.Shape;
+        else if ( build.Effect is { } effect )
+        {
+            effect.Script = Minifier.Minify( source );
+            effect.Id = "e1";
+            var look = Wearer?.Invoke()?.WithoutEffects() ?? new PlayerLook();
+            if ( effect.Sanitized() is { } worn )
+                look.Adopt( worn );
+
+            _look = ScriptPrograms.Built( look, Guid.Empty, ScriptLimits.MaxScriptBytes, false, out _ );
+        }
+
+        _result = Values( machine, compiled );
+        Succeeded();
+    }
+
+    void Fail( ScriptError error )
+    {
+        _error = error?.ToString() ?? "It didn't run";
+        _errorAt = error?.Start ?? -1;
+        Colour();
+        StateHasChanged();
+    }
+
+    void Succeeded()
+    {
+        _error = null;
+        _errorAt = -1;
+        Colour();
+        StateHasChanged();
+    }
+
+    // The values of the script's own variables once it ran, a few of them
+    static string Values( ScriptMachine machine, CompileResult compiled )
+    {
+        var values = new List<string>();
+        foreach ( var symbol in compiled.Symbols )
+        {
+            if ( symbol.Kind != "variable" || values.Count >= 4 || machine.Variable( symbol.Name ) is not { } value )
+                continue;
+
+            values.Add( $"{symbol.Name} = {(value.Length > 24 ? value[ ..23 ] + "…" : value)}" );
+        }
+
+        return values.Count == 0 ? "Runs" : "Runs: " + string.Join( ", ", values );
+    }
+}

@@ -1,0 +1,1305 @@
+@using System
+@using System.Collections.Generic
+@using System.Linq
+@using Sandbox
+@using Sandbox.UI
+@using PlayerModels.Components
+@using PlayerModels.Core
+@using PlayerModels.Core.Script
+@using PlayerModels.Engine
+@inherits Panel
+@namespace PlayerModels.UI
+
+<root class="@( Workshop && !_guides ? "workshop" : "" )">
+    @if ( _guides )
+    {
+        <EffectGuides Back=@(() => ShowGuides( false ))></EffectGuides>
+    }
+    else
+    {
+        <div class="workshop-tabs">
+            <div class="workshop-tab @( _category == Category.Effects ? "active" : "" )" @onclick=@(() => ShowCategory( Category.Effects ))>Effects</div>
+            <div class="workshop-tab @( _category == Category.Shapes ? "active" : "" )" @onclick=@(() => ShowCategory( Category.Shapes ))>Shapes</div>
+            <div class="workshop-tab @( _category == Category.Stickers ? "active" : "" )" @onclick=@(() => ShowCategory( Category.Stickers ))>Stickers</div>
+        </div>
+    }
+    @if ( _guides )
+    {
+    }
+    else if ( Workshop && Look is not null )
+    {
+        @if ( _category == Category.Shapes )
+        {
+            <SharingPanel T="DrawnShape" Library=@Shared.Shapes Noun="shape" ModelId=@Shared.Everyone Scope=@Everywhere Workshop=@true Pictures=@true Searchable=@true
+                          Intro="Shapes players made, for sprites to come from or look like: Top lists the best rated first, New the newest. Use one to keep it in My shapes; Fork opens it in the creator."
+                          Shows=@IsShape UseEntry=@UseSharedShape Fork=@ForkShape ForkTip="Open a copy of it in the creator, to change and publish as your own"
+                          OriginOf=@(( DrawnShape x ) => x.ForkedFrom) Block=@BlockShape IsBlocked=@IsShapeBlocked Describe=@ShapeCreator.DescribeShape
+                          Back=@(() => ShowWorkshop?.Invoke( false ))></SharingPanel>
+        }
+        else if ( _category == Category.Stickers )
+        {
+            <SharingPanel T="DrawnShape" Library=@Shared.Shapes Noun="shape" ModelId=@Shared.Everyone Scope=@Everywhere Workshop=@true Pictures=@true Searchable=@true
+                          Intro="Stickers players made, for sprites and weapons: Top lists the best rated first, New the newest. Use one to keep it in My stickers; Fork opens it in the creator."
+                          Shows=@IsSticker Facets=@StickerFacets UseEntry=@UseSharedShape Fork=@ForkShape ForkTip="Open a copy of it in the creator, to change and publish as your own"
+                          OriginOf=@(( DrawnShape x ) => x.ForkedFrom) Block=@BlockShape IsBlocked=@IsShapeBlocked Describe=@ShapeCreator.DescribeShape
+                          Back=@(() => ShowWorkshop?.Invoke( false ))></SharingPanel>
+        }
+        else
+        {
+            <SharingPanel T="Effect" Library=@Shared.Effects Noun="effect" ModelId=@Shared.Everyone Scope=@Everywhere Workshop=@true Pictures=@true Searchable=@true
+                          Intro="Effects and single layers players shared: Top lists the best rated first, New the newest. Use one to wear a copy (a layer joins the effect you selected); Fork opens a copy in the Advanced editor."
+                          Facets=@EffectFacets UseEntry=@UseSharedEffect Fork=@ForkEffect ForkTip="Open a copy of it in the Advanced editor, to change and publish as your own"
+                          OriginOf=@(( Effect x ) => x.ForkedFrom) Block=@BlockEffect IsBlocked=@IsEffectBlocked Describe=@DescribeEffect
+                          Back=@(() => ShowWorkshop?.Invoke( false ))></SharingPanel>
+        }
+    }
+    else if ( Look is null )
+    {
+        <div class="note">Loading your look...</div>
+    }
+    else if ( _category == Category.Shapes )
+    {
+        <div class="top">
+            <div class="intro" Tooltip="Shapes sprites come from or look like: the standard ones, and yours to draw, write and erase">Click a shape to change it in the creator.</div>
+            <div class="buttons">
+                <div class="tool" Tooltip="Workshop: shapes players shared" @onclick=@(() => ShowWorkshop?.Invoke( true ))>storefront</div>
+            </div>
+        </div>
+        <div class="section-header">My Shapes</div>
+        <div class="grid">
+            <div class="tile effect new" Tooltip="A shape of your own, in the creator" @onclick=@(() => OpenCreator?.Invoke( null, false, null ))>
+                <div class="thumb new-icon">add</div>
+                <div class="title">New shape</div>
+            </div>
+            @for ( var i = 0; i < FillersFor( 1 ); i++ )
+            {
+                <div class="tile-filler"></div>
+            }
+        </div>
+        <ShapeShelf Stickers=@false Open=@OpenShape OpenDraft=@OpenShapeDraft Empty="None yet: draw one with New shape, or use one from the Workshop. Drafts show here too, marked with a pencil."></ShapeShelf>
+        <div class="section-header">Standard Shapes</div>
+        <div class="grid">
+            @foreach ( var standard in Enum.GetValues<StandardShape>() )
+            {
+                var shown = standard;
+                <div class="tile effect" Tooltip="Open it in the creator, to make a shape of your own from it" @onclick=@(() => OpenStandard( shown ))>
+                    <StandardShapeIcon class="thumb" Shape=@shown></StandardShapeIcon>
+                    <div class="title">@ShapeName( shown )</div>
+                </div>
+            }
+            @for ( var i = 0; i < FillersFor( Enum.GetValues<StandardShape>().Length ); i++ )
+            {
+                <div class="tile-filler"></div>
+            }
+        </div>
+    }
+    else if ( _category == Category.Stickers )
+    {
+        <div class="top">
+            <div class="intro" Tooltip="Stickers are layers of shapes, text and drawings in colors of their own, for sprites and weapons">Click a sticker to change it in the creator.</div>
+            <div class="buttons">
+                <div class="tool" Tooltip="Workshop: stickers players shared" @onclick=@(() => ShowWorkshop?.Invoke( true ))>storefront</div>
+            </div>
+        </div>
+        <div class="section-header">My Stickers</div>
+        <div class="grid">
+            <div class="tile effect new" Tooltip="A sticker of your own, in the creator" @onclick=@(() => OpenCreator?.Invoke( null, true, null ))>
+                <div class="thumb new-icon">add</div>
+                <div class="title">New sticker</div>
+            </div>
+            @for ( var i = 0; i < FillersFor( 1 ); i++ )
+            {
+                <div class="tile-filler"></div>
+            }
+        </div>
+        <ShapeShelf Stickers=@true Open=@OpenShape OpenDraft=@OpenShapeDraft Empty="None yet: make one with New sticker, or use one from the Workshop. Drafts show here too, marked with a pencil."></ShapeShelf>
+    }
+    else
+    {
+        <div class="top">
+            <div class="intro">Click an effect to try it on; Apply wears it.</div>
+            <div class="buttons">
+                <div class="tool @( History?.CanUndo == true ? "" : "disabled" )" Tooltip="Undo the last change to your effects" @onclick=@(() => Undo?.Invoke())>undo</div>
+                <div class="tool @( History?.CanRedo == true ? "" : "disabled" )" Tooltip="Redo the change undone" @onclick=@(() => Redo?.Invoke())>redo</div>
+                <div class="tool" Tooltip="Guides: what each part of an effect is, and how to do the harder things" @onclick=@(() => ShowGuides( true ))>menu_book</div>
+                <div class="tool" Tooltip="Workshop: effects players shared" @onclick=@(() => ShowWorkshop?.Invoke( true ))>storefront</div>
+                <div class="reset @( Selected is null ? "disabled" : "" )" Tooltip=@( Selected is null ? "Edit in Advanced editor: select an effect you wear first" : "Edit in Advanced editor: every layer of it, placed by hand" )
+                     @onclick=@(() => OpenAdvanced?.Invoke( Selected?.Id ))><div class="glyph">tune</div>Advanced editor</div>
+                <div class="reset" Tooltip=@( Selected is null ? "Write a new effect in code" : "Open it in the code editor: the script it is (or would be)" )
+                     @onclick=@(() => OpenCode?.Invoke( Selected?.Id ))><div class="glyph">code</div>Edit as code</div>
+            </div>
+        </div>
+
+        @if ( Locked )
+        {
+            <div class="note">The host keeps effects off on this server, so nobody sees yours. They stay with your look and come back when the host turns them on.</div>
+        }
+        else if ( Muted )
+        {
+            <div class="note">The host muted your effects on this server, so nobody sees them. They stay with your look and come back when the host unmutes you.</div>
+        }
+
+        <FoldingSection Title="Effects" Key="Effects/Effects" Summary=@( $"{EffectPresets.All.Count} to start from" )>
+            <Body>
+                <div class="grid">
+                    <div class="tile effect new @( IsFull ? "disabled" : "" )" Tooltip="An effect of your own, built layer by layer in the Advanced editor" @onclick=@AddNew>
+                        <div class="thumb new-icon">add</div>
+                        <div class="title">New effect</div>
+                    </div>
+                    @foreach ( var preset in EffectPresets.All )
+                    {
+                        var shown = preset;
+                        <div class="tile effect @( IsFull ? "disabled" : "" )" @onclick=@(() => PutOn( shown ))>
+                            <EffectIcon class="thumb" Effect=@shown></EffectIcon>
+                            <div class="title">@shown.Name</div>
+                        </div>
+                    }
+                    <div class="tile effect surprise @( IsFull ? "disabled" : "" )" Tooltip="A new effect from parts of the others, within this server's budget" @onclick=@AddSurprise>
+                        <div class="thumb surprise-icon">casino</div>
+                        <div class="title">Surprise me</div>
+                    </div>
+                    @for ( var i = 0; i < FillersFor( EffectPresets.All.Count + 2 ); i++ )
+                    {
+                        <div class="tile-filler"></div>
+                    }
+                </div>
+            </Body>
+        </FoldingSection>
+        @if ( IsFull )
+        {
+            <div class="note">You wear as many effects as a look can (@Effect.MaxWorn). Remove one to put on another.</div>
+        }
+
+        <FoldingSection Title="My Effects" Key="Effects/My Effects" Summary=@( Mine.Count + MyDrafts.Count is > 0 and var keptCount ? $"{keptCount} kept" : "None yet" )>
+            <Body>
+                @if ( Mine.Count == 0 && MyDrafts.Count == 0 )
+                {
+                    <div class="note" Tooltip="Drafts show here too, marked with a pencil">None yet: select an effect you wear and save it.</div>
+                }
+                else
+                {
+                    <div class="grid">
+                        @foreach ( var kept in MyDrafts )
+                        {
+                            var shown = kept;
+                            var isScript = shown.KindIs == Draft.Of.Script;
+                            <div class="tile effect draft" Tooltip=@( $"Draft: {shown.Name}, {shown.EditedText( PlayerModels.Engine.Drafts.Now )}. Click to go on with it in the {(isScript ? "code editor" : "Advanced editor")}" )
+                                 @onclick=@(() => OpenDraft( shown )) @onrightclick=@(() => DraftMenu( shown ))>
+                                @if ( isScript )
+                                {
+                                    <div class="thumb draft-icon">code</div>
+                                }
+                                else
+                                {
+                                    <EffectIcon class="thumb" Effect=@DraftEffect( shown )></EffectIcon>
+                                }
+                                <div class="title">@shown.Name</div>
+                                <div class="badge" Tooltip="Draft">edit</div>
+                                <div class="more" Tooltip="More: open, rename, duplicate, delete (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => DraftMenu( shown ) ))>more_vert</div>
+                            </div>
+                        }
+                        @foreach ( var kept in Mine )
+                        {
+                            var shown = kept;
+                            <div class="tile effect @( IsFull ? "disabled" : "" )" Tooltip=@KeptTooltip( shown ) @onclick=@(() => PutOn( shown )) @onrightclick=@(() => KeptMenu( shown ))>
+                                <EffectIcon class="thumb" Effect=@shown></EffectIcon>
+                                <div class="title">@shown.Name</div>
+                                <div class="more" Tooltip="More: open, rename, duplicate, delete, publish, copy code (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => KeptMenu( shown ) ))>more_vert</div>
+                                <div class="forget" Tooltip="Delete from My effects" @onclick=@(( PanelEvent e ) => Forget( shown, e ))>delete</div>
+                            </div>
+                        }
+                        @for ( var i = 0; i < FillersFor( Mine.Count + MyDrafts.Count ); i++ )
+                        {
+                            <div class="tile-filler"></div>
+                        }
+                    </div>
+                }
+            </Body>
+        </FoldingSection>
+        @if ( _renaming is not null )
+        {
+            <div class="row">
+                <div class="label">Rename to</div>
+                <TextEntry class="key-entry" MaxLength=@Effect.MaxNameLength Value:bind=@_newName @onsubmit=@Rename></TextEntry>
+                <div class="reset @( string.IsNullOrWhiteSpace( _newName ) ? "disabled" : "" )" @onclick=@Rename>Rename</div>
+                <div class="reset" @onclick=@CancelRename>Cancel</div>
+            </div>
+        }
+        @if ( _confirmDrop is { } oldest && Selected is { } dropFor )
+        {
+            <div class="row">
+                <div class="note">@DropText( oldest )</div>
+                <div class="reset" @onclick=@(() => KeepDraft( dropFor, true ))>Drop it</div>
+                <div class="reset" @onclick=@CancelDrop>Cancel</div>
+            </div>
+        }
+        @if ( _status is not null )
+        {
+            <div class="note status">@_status</div>
+        }
+
+        @if ( Look.Effects.Count > 0 )
+        {
+            <FoldingSection Title=@( $"Wearing ({Look.Effects.Count} of {Effect.MaxWorn})" ) Key="Effects/Wearing" Info=@BudgetText()>
+                <Body>
+                    @{ var held = Budget.HeldBack( Look.Effects ); }
+                    @for ( var i = 0; i < Look.Effects.Count; i++ )
+                    {
+                        var effect = Look.Effects[ i ];
+                        var waiting = held[ i ].Count( x => x );
+                        <div class="row worn @( effect.Id == _selected ? "selected" : "" ) @( waiting > 0 ? "over" : "" )"
+                             Tooltip=@WaitingText( effect, waiting ) @onclick=@(() => Select( effect )) @onrightclick=@(() => WornMenu( effect ))>
+                            <div class="switch @( effect.Off ? "" : "on" )" Tooltip=@( effect.Off ? "Turn on" : "Turn off" )
+                                 @onclick=@(( PanelEvent e ) => Toggle( effect, e ))>check</div>
+                            @if ( IsDraft( effect ) )
+                            {
+                                <div class="badge" Tooltip="Draft: shown here, not worn until you finish it in the Advanced editor">edit</div>
+                            }
+                            <div class="worn-name">@effect.Name</div>
+                            @if ( HiddenWhy( effect ) is { } why )
+                            {
+                                <div class="over-note" Tooltip=@why>Hidden on this server</div>
+                            }
+                            else if ( waiting > 0 )
+                            {
+                                <div class="over-note">Over this server's budget</div>
+                            }
+                            <div class="icon-button on-hover @( IsFull ? "disabled" : "" )" Tooltip="Duplicate" @onclick=@(( PanelEvent e ) => Act( e, () => Duplicate( effect ) ))>library_add</div>
+                            <div class="icon-button on-hover" Tooltip="Remove" @onclick=@(( PanelEvent e ) => Remove( effect, e ))>delete</div>
+                            <div class="icon-button" Tooltip="More: edit, duplicate, save, save draft, remove (or right-click)" @onclick=@(( PanelEvent e ) => Act( e, () => WornMenu( effect ) ))>more_vert</div>
+                        </div>
+                    }
+                </Body>
+            </FoldingSection>
+        }
+
+        @if ( Selected is { } selected )
+        {
+            <div class="row effect-head">
+                <div class="effect-name">@selected.Name</div>
+                <div class="tool @( IsAsMade( selected ) ? "disabled" : "" )" Tooltip="Reset sliders" @onclick=@(() => ResetSliders( selected ))>refresh</div>
+                <div class="tool @( IsDraft( selected ) ? "disabled" : "" )" Tooltip=@( IsDraft( selected ) ? "Variations: not for a draft, finish it first" : "Variations: a few changed copies of it to pick from" ) @onclick=@(() => ShowVariations( selected ))>auto_awesome</div>
+            </div>
+            @if ( selected.ForkedFrom is { } origin )
+            {
+                <div class="note">@ShapeCreator.BasedOn( origin )</div>
+            }
+            @if ( HiddenWhy( selected ) is { } hidden )
+            {
+                <div class="note">@hidden</div>
+            }
+            <SliderRow Label="Color" Value=@selected.Hue OnChanged=@(( float value ) => Set( () => selected.Hue = value ))></SliderRow>
+            <SliderRow Label="Size" Signed=@true Value=@selected.Size OnChanged=@(( float value ) => Set( () => selected.Size = value ))></SliderRow>
+            <SliderRow Label="Amount" Signed=@true Value=@selected.Amount OnChanged=@(( float value ) => Set( () => selected.Amount = value ))></SliderRow>
+            <SliderRow Label="Speed" Signed=@true Value=@selected.Speed OnChanged=@(( float value ) => Set( () => selected.Speed = value ))></SliderRow>
+            <ScriptParameters Look=@Look Effect=@selected Changed=@Changed></ScriptParameters>
+            @if ( _variations is { } variations && _variationsOf == selected.Id )
+            {
+                <div class="grid variations">
+                    @for ( var i = 0; i < variations.Count; i++ )
+                    {
+                        var picked = variations[ i ];
+                        <div class="tile effect" Tooltip="Use this one in place of it" @onclick=@(() => UseVariation( selected, picked ))>
+                            <EffectIcon class="thumb" Effect=@picked></EffectIcon>
+                            <div class="title">@( $"Variation {i + 1}" )</div>
+                        </div>
+                    }
+                    @for ( var i = 0; i < FillersFor( variations.Count ); i++ )
+                    {
+                        <div class="tile-filler"></div>
+                    }
+                </div>
+                <div class="row">
+                    <div class="reset" @onclick=@(() => ShowVariations( selected ))>More like it</div>
+                    <div class="reset" @onclick=@HideVariations>Close</div>
+                </div>
+            }
+
+            @if ( CycleOf( selected ) is { } cycle )
+            {
+                var mode = cycle.ColorModeIs;
+                var colours = cycle.CycleColours();
+                <FoldingSection Title=@( $"{ModeName( mode )} colors" ) Key="Effects/Cycle colors" Summary=@( $"{colours.Count} colors" )>
+                    <Body>
+                        @for ( var i = 0; i < colours.Count; i++ )
+                        {
+                            var index = i;
+                            <ColorRow Label=@ColourLabel( mode, index ) Hex=@colours[ index ] OnChanged=@(( string hex ) => SetCycleColour( selected, index, hex ))
+                                      ResetLabel=@( mode == LayerColorMode.Cyln ? "Reset" : "Remove" ) CanReset=@( mode == LayerColorMode.Cyln || colours.Count > 1 )></ColorRow>
+                        }
+                        <div class="row">
+                            @if ( mode != LayerColorMode.Cyln )
+                            {
+                                <div class="reset @( colours.Count < EffectLayer.MaxPalette ? "" : "disabled" )" @onclick=@(() => AddCycleColour( selected ))>Add color</div>
+                            }
+                            <div class="reset @( cycle.Palette is null ? "disabled" : "" )" @onclick=@(() => UseCycleColours( selected, null ))>Game colors</div>
+                        </div>
+                    </Body>
+                </FoldingSection>
+            }
+
+            <FoldingSection Title="Save and Share" Key="Effects/Save and Share">
+                <Body>
+                    <div class="row">
+                        <div class="label">Keep it</div>
+                        <TextEntry class="key-entry" Placeholder=@( string.IsNullOrEmpty( selected.Name ) ? "Its name" : selected.Name ) MaxLength=@Effect.MaxNameLength
+                                   Value:bind=@_keepName @onsubmit=@(() => Keep( selected ))></TextEntry>
+                        <div class="reset @( Mine.Count >= LocalPrefs.MaxMyEffects ? "disabled" : "" )" Tooltip="Save to My effects" @onclick=@(() => Keep( selected ))>Save</div>
+                        <div class="tool" Tooltip="Save draft: keep it unfinished, to come back to; it shows, and isn't worn until you finish it" @onclick=@(() => KeepDraft( selected, false ))>edit_note</div>
+                    </div>
+                    @if ( IsDraft( selected ) )
+                    {
+                        <div class="note">A draft isn't worn, shared or published until you finish it: open it in the Advanced editor and press Finish.</div>
+                    }
+                    else
+                    {
+                        <SharingPanel @ref="_sharing" T="Effect" Library=@Shared.Effects Noun="effect" ModelId=@Shared.Everyone Scope=@Everywhere Current=@Shareable( selected )
+                                      ShareLabel="Share this effect" Describe=@DescribeEffect Workshop=@false></SharingPanel>
+                    }
+                </Body>
+            </FoldingSection>
+
+            <FoldingSection Title="Key" Key="Effects/Key" Folded=@true Summary=@KeySummary( selected ) Info=@KeyNote( selected )>
+                <Body>
+                    <div class="row">
+                        <div class="label">Key</div>
+                        <TextEntry class="key-entry" Placeholder="None, always shows" Value:bind=@KeyText AutoComplete=@KeysMatching></TextEntry>
+                        <KeyGlyph class="key-glyph" Key=@selected.Key></KeyGlyph>
+                        <div class="reset @( selected.Key is null ? "disabled" : "" )" @onclick=@(() => SetKey( selected, null ))>Clear</div>
+                    </div>
+                    @if ( selected.Key is not null )
+                    {
+                        <div class="row">
+                            <div class="label">The key</div>
+                            <ScrollingDropdown Items=@KeyActions() Value=@selected.KeyActionIs.ToString() ValueChanged=@(( object v ) => SetKeyAction( selected, (string)v )) Tokenize=@false></ScrollingDropdown>
+                        </div>
+                    }
+                    @if ( (Selector?.TriggerWait() ?? 0f) > 0f )
+                    {
+                        <div class="note">@KeyNote( selected )</div>
+                    }
+                </Body>
+            </FoldingSection>
+        }
+    }
+
+    @if ( Selector is { } selector && !_guides && !Workshop && _category == Category.Effects )
+    {
+        <FoldingSection Title="What You See" Key="Effects/What You See" Folded=@true Summary=@QualityName( selector.EffectsQuality )
+                        Info="Only on your screen, and never more than the host allows. Lower quality shows fewer sprites and lights on everyone, you too.">
+            <Body>
+                <div class="setting">
+                    <div class="label">Effects quality</div>
+                    <ScrollingDropdown Items=@Qualities() Value=@selector.EffectsQuality ValueChanged=@SetQuality Tokenize=@false></ScrollingDropdown>
+                </div>
+                @foreach ( var player in Others() )
+                {
+                    var connection = player;
+                    <ToggleRow Label=@( $"Hide {connection.DisplayName}'s effects" ) Value=@selector.HidesEffectsOf( connection )
+                               OnChanged=@(( bool hidden ) => Hide( connection, hidden ))></ToggleRow>
+                }
+            </Body>
+        </FoldingSection>
+    }
+</root>
+
+@code
+{
+    /// <summary>The look being edited. Changed in place; <see cref="Changed"/> says when.</summary>
+    [Parameter] public PlayerLook Look { get; set; }
+
+    /// <summary>Called after every change to <see cref="Look"/>.</summary>
+    [Parameter] public Action Changed { get; set; }
+
+    /// <summary>Whether the host keeps this player's effects off: they are kept, and can still be changed.</summary>
+    [Parameter] public bool Locked { get; set; }
+
+    /// <summary>Opens the Advanced editor on the effect given, by id.</summary>
+    [Parameter] public Action<string> OpenAdvanced { get; set; }
+
+    /// <summary>Whether the Workshop shows (effects, shapes and stickers players shared) in place of the effects.</summary>
+    [Parameter] public bool Workshop { get; set; }
+
+    /// <summary>Opens the Workshop (true) or goes back to the effects (false); the page decides, as its pane fits the Workshop.</summary>
+    [Parameter] public Action<bool> ShowWorkshop { get; set; }
+
+    /// <summary>
+    /// Opens the Advanced editor's creator: on the shape given (one of the player's, a fork from the Workshop) or the
+    /// draft, or on a new sticker (true) or shape.
+    /// </summary>
+    [Parameter] public Action<DrawnShape, bool, Draft> OpenCreator { get; set; }
+
+    /// <summary>The drafts open in the editors (the page's): an effect that is one is shown, not worn until finished.</summary>
+    [Parameter] public OpenDrafts DraftsOpen { get; set; }
+
+    /// <summary>Opens the code editor on a worn effect (by id; null for a new one), or on a script draft as it was left.</summary>
+    [Parameter] public Action<string> OpenCode { get; set; }
+    [Parameter] public Action<Draft> OpenScriptDraft { get; set; }
+
+    /// <summary>The steps back and forward through changes to the effects, and what takes them.</summary>
+    [Parameter] public EditHistory History { get; set; }
+    [Parameter] public Action Undo { get; set; }
+    [Parameter] public Action Redo { get; set; }
+
+    static PlayerModelSelector Selector => PlayerModelSelector.Find( Game.ActiveScene );
+
+    // Five tiles to a row like the Models grid, the last row made up with fillers so its tiles keep their width
+    const int TilesPerRow = 5;
+
+    static int FillersFor( int tiles ) => (TilesPerRow - tiles % TilesPerRow) % TilesPerRow;
+
+    // The worn effect the sliders change, by id
+    string _selected;
+
+    // Whether the guides show in place of the effects
+    bool _guides;
+
+    void ShowGuides( bool show )
+    {
+        _guides = show;
+        StateHasChanged();
+    }
+
+    Effect Selected => Look?.Effects.FirstOrDefault( x => x.Id == _selected );
+
+    bool IsFull => Look.Effects.Count >= Effect.MaxWorn;
+
+    // The look as text, as last drawn: what the panel is drawn again for
+    string _lookText;
+
+    protected override int BuildHash() => HashCode.Combine( _lookText = Look?.Serialize(), _selected, _guides, Locked, Selector?.EffectsBudget, Selector?.EffectsQuality,
+        string.Join( ";", Others().Select( x => $"{x.Id}{Selector?.HidesEffectsOf( x )}" ) ),
+        HashCode.Combine( (int)(Selector?.TriggerWait() ?? 0f), History?.CanUndo, History?.CanRedo, _mineRevision, _status, _variationsOf, _variations,
+            HashCode.Combine( Workshop, _category, Muted, Selector?.BlockWorkshopEffects, Selector?.BlockDrawnShapes, Selector?.BlockEffectLights, Selector?.BlockedShares?.Count,
+                HashCode.Combine( DraftsOpen?.Revision, PlayerModels.Engine.Drafts.Revision, _renaming, _confirmDrop ) ) ) );
+
+    public override void Tick()
+    {
+        base.Tick();
+
+        // Publish, from a tile's menu, opens the share window once the effect it put on is the one selected
+        if ( _publishNext && _sharing is not null && _sharing.IsValid() && Selected is not null )
+        {
+            _publishNext = false;
+            _sharing.Share();
+        }
+    }
+
+    // Effects and shapes are shared for everyone, not for a model
+    const string Everywhere = "";
+
+    // Which category shows, on the tab and in its Workshop alike: effects, shapes or stickers
+    enum Category { Effects, Shapes, Stickers }
+
+    Category _category;
+
+    void ShowCategory( Category category )
+    {
+        _category = category;
+        StateHasChanged();
+    }
+
+    static bool IsShape( DrawnShape shape ) => !shape.IsSticker;
+
+    static bool IsSticker( DrawnShape shape ) => shape.IsSticker;
+
+    void OpenShape( DrawnShape shape ) => OpenCreator?.Invoke( shape, shape.IsSticker, null );
+
+    void OpenShapeDraft( Draft draft ) => OpenCreator?.Invoke( null, ShapeShelf.ShapeOf( draft )?.IsSticker == true, draft );
+
+    // A standard shape in the creator, its outlines as strokes, to make one of the player's own from
+    void OpenStandard( StandardShape shape )
+    {
+        var (closed, open) = StandardShapes.Outline( shape );
+        var strokes = closed.Select( x => new ShapeStroke { Closed = true, Points = x } ).Concat( open.Select( x => new ShapeStroke { Points = x } ) );
+        OpenCreator?.Invoke( DrawnShape.From( strokes, ShapeName( shape ) ), false, null );
+    }
+
+    // "RightTriangle" as "Right triangle", "Star5" as "5-point star"
+    static string ShapeName( StandardShape shape )
+    {
+        var name = shape.ToString();
+        if ( name.StartsWith( "Star" ) )
+            return $"{name[ 4.. ]}-point star";
+
+        return shape == StandardShape.SineWave ? "Sine wave" : string.Concat( name.Select( ( c, i ) => i > 0 && char.IsUpper( c ) ? $" {char.ToLowerInvariant( c )}" : c.ToString() ) );
+    }
+
+    static bool IsHost => Networking.IsHost;
+
+    // Whether the host muted this player's effects
+    static bool Muted => !IsHost && Selector?.IsEffectsMuted( Connection.Local ) == true;
+
+    // Why the host keeps an effect worn from showing (or showing whole) to others, in plain words; null when it shows
+    static string HiddenWhy( Effect effect )
+    {
+        if ( IsHost || Selector is not { } selector )
+            return null;
+
+        if ( effect.ForkedFrom is { } origin && selector.IsShareBlocked( origin.Key ) )
+            return "The host blocked the Workshop share this is based on, so nobody here sees it. It stays with your look.";
+
+        if ( effect.ForkedFrom is not null && selector.BlockWorkshopEffects )
+            return "The host keeps effects from the Workshop off here, so nobody sees this one. It stays with your look.";
+
+        if ( selector.BlockDrawnShapes && effect.Layers.Any( x => x.DrawnFormation is not null || x.DrawnPicture is not null ) )
+            return "The host keeps drawn shapes off here: others see a plain circle or glow in their place.";
+
+        return selector.BlockEffectLights && effect.Lights() > 0 ? "The host keeps effects' lights off here: others see it without them." : null;
+    }
+
+    // The selected effect as it would be shared, carrying its drawn shapes: made again only when the look changes
+    Effect _shareable;
+    string _shareableFor;
+
+    Effect Shareable( Effect effect )
+    {
+        var key = effect.Id + _lookText;
+        if ( key != _shareableFor )
+        {
+            _shareableFor = key;
+            _shareable = Look.Standalone( effect );
+        }
+
+        return _shareable;
+    }
+
+    /// <summary>What a row says about an effect: how many layers, of what, and where it comes from.</summary>
+    public static string DescribeEffect( Effect effect )
+    {
+        var kinds = effect.Layers.Select( x => x.KindIs ).Distinct().Select( x => x switch { LayerKind.Light => "light", LayerKind.Trail => "trail", _ => "sprites" } );
+        var layers = effect.Layers.Count == 1 ? "One layer" : $"{effect.Layers.Count} layers";
+        return $"{layers}: {string.Join( ", ", kinds )}, from the {AnchorWords( effect.Anchor )}";
+    }
+
+    static string AnchorWords( EffectAnchor anchor ) => anchor.KindIs switch
+    {
+        AnchorKind.Item => "item worn",
+        AnchorKind.HeldWeapon => "weapon held",
+        _ => anchor.Joint switch
+        {
+            nameof( Effect.Joint.LeftEye ) or nameof( Effect.Joint.RightEye ) or nameof( Effect.Joint.Eyes ) => "eyes",
+            nameof( Effect.Joint.LeftHand ) or nameof( Effect.Joint.RightHand ) => "hands",
+            nameof( Effect.Joint.LeftFoot ) or nameof( Effect.Joint.RightFoot ) => "feet",
+            nameof( Effect.Joint.Crown ) => "top of the head",
+            _ => anchor.Joint.ToLowerInvariant(),
+        },
+    };
+
+    // What an effect share is filtered by: where it comes from, whether it is a whole effect or one layer, what it has
+    static IEnumerable<string> EffectFacets( Effect effect )
+    {
+        yield return $"Comes from: {AnchorWords( effect.Anchor )}";
+        yield return effect.Layers.Count == 1 ? "Kind: single layer" : "Kind: whole effect";
+        foreach ( var kind in effect.Layers.Select( x => x.KindIs ).Distinct() )
+            yield return $"Has: {kind switch { LayerKind.Light => "a light", LayerKind.Trail => "a trail", _ => "sprites" }}";
+
+        if ( effect.Shapes is { Count: > 0 } )
+            yield return "Has: drawn shapes";
+    }
+
+    // What a sticker share is filtered by: how its colours move (its own, or its layers')
+    static IEnumerable<string> StickerFacets( DrawnShape shape )
+    {
+        var motion = shape.Sticker?.AnimationIs ?? Sticker.Motion.None;
+        foreach ( var layer in shape.Emblem ?? new List<EmblemLayer>() )
+            motion = motion == Sticker.Motion.None ? layer.AnimationIs : motion;
+
+        yield return motion == Sticker.Motion.None ? "Moves: no" : $"Moves: {motion.ToString().ToLowerInvariant()}";
+        if ( shape.Emblem is { } layers )
+            yield return layers.Count == 1 ? "Layers: one" : "Layers: several";
+
+        yield return $"Finish: {shape.FinishIs.ToString().ToLowerInvariant()}";
+    }
+
+    static ShareOrigin OriginOf<T>( SharedLibrary<T>.Entry entry, string kind ) => new() { Kind = kind, Id = entry.Id, Name = entry.Name, Author = entry.Author };
+
+    // A copy of the share to wear, crediting it: a single layer joins the selected effect when it has room, anything else
+    // is an effect of its own. Budget-checked like any effect put on
+    string UseSharedEffect( SharedLibrary<Effect>.Entry entry )
+    {
+        var copy = EffectPresets.Copy( entry.Item, Look.Effects );
+        copy.ForkedFrom = OriginOf( entry, ShareOrigin.EffectKind );
+        copy.Name = string.IsNullOrEmpty( entry.Name ) ? copy.Name : SharePost.Tidy( entry.Name, Effect.MaxNameLength );
+        var who = Whose( entry );
+
+        if ( copy.Layers.Count == 1 && Selected is { } selected && selected.Layers.Count < Effect.MaxLayers && LayersWorn() < Effect.MaxLookLayers )
+        {
+            foreach ( var shape in copy.Shapes ?? new() )
+            {
+                if ( !Look.Carry( shape ) )
+                    return $"A look carries up to {DrawnShape.MaxPerLook} drawn shapes, and this would take it past that.";
+            }
+
+            var layer = copy.Layers[ 0 ];
+            layer.Joint ??= copy.Anchor.KindIs == AnchorKind.Joint && copy.Anchor.Joint != selected.Anchor.Joint ? copy.Anchor.Joint : null;
+            selected.Layers.Add( layer );
+            Changed?.Invoke();
+            return $"Added {who} layer \"{entry.Name}\" to {selected.Name}. Apply wears it.";
+        }
+
+        if ( IsFull || LayersWorn() + copy.Layers.Count > Effect.MaxLookLayers )
+            return $"You wear as many effects as a look can ({Effect.MaxWorn} effects, {Effect.MaxLookLayers} layers). Remove one first.";
+
+        if ( !Look.Adopt( copy ) )
+            return $"A look carries up to {DrawnShape.MaxPerLook} drawn shapes, and this would take it past that. Remove an effect with drawn shapes first.";
+
+        _selected = copy.Id;
+        Changed?.Invoke();
+        return Budget.Fits( Look.Effects ) ? $"Put on {who} effect \"{entry.Name}\". Apply wears it."
+            : $"Put on {who} effect \"{entry.Name}\", but it is over this server's budget: its last layers wait until you remove some.";
+    }
+
+    // "your", "Ana's", or "a player's" while Steam doesn't say whose
+    static string Whose( SharedLibrary<Effect>.Entry entry )
+    {
+        var name = AuthorIndex.NameOf( entry.Author );
+        return entry.IsMine ? "your" : name == "A player" ? "a player's" : $"{name}'s";
+    }
+
+    // A copy worn and opened in the Advanced editor, crediting the share
+    void ForkEffect( SharedLibrary<Effect>.Entry entry )
+    {
+        if ( UseSharedEffectAsNew( entry ) is { } effect )
+            OpenAdvanced?.Invoke( effect.Id );
+    }
+
+    Effect UseSharedEffectAsNew( SharedLibrary<Effect>.Entry entry )
+    {
+        var copy = EffectPresets.Copy( entry.Item, Look.Effects );
+        copy.ForkedFrom = OriginOf( entry, ShareOrigin.EffectKind );
+        copy.Name = string.IsNullOrEmpty( entry.Name ) ? copy.Name : SharePost.Tidy( entry.Name, Effect.MaxNameLength );
+        if ( IsFull || !Look.Adopt( copy ) )
+            return null;
+
+        _selected = copy.Id;
+        Changed?.Invoke();
+        return copy;
+    }
+
+    int LayersWorn() => Look.Effects.Sum( x => x.Layers.Count );
+
+    // A shape shared is used by keeping it in My shapes, crediting the share, to pick in a layer's lists
+    string UseSharedShape( SharedLibrary<DrawnShape>.Entry entry )
+    {
+        var shape = Credited( entry );
+        return LocalPrefs.SaveMyShape( shape ) ? $"\"{shape.Name}\" is in My shapes: pick it in a layer's Comes from or Looks like, in the Advanced editor."
+            : $"My shapes is full ({LocalPrefs.MaxMyShapes}). Delete one in the shape creator first.";
+    }
+
+    void ForkShape( SharedLibrary<DrawnShape>.Entry entry )
+    {
+        var shape = Credited( entry );
+        OpenCreator?.Invoke( shape, shape.IsSticker, null );
+    }
+
+    static DrawnShape Credited( SharedLibrary<DrawnShape>.Entry entry )
+    {
+        var name = string.IsNullOrWhiteSpace( entry.Name ) ? "Shape" : entry.Name;
+        return entry.Item.Credited( name, OriginOf( entry, ShareOrigin.ShapeKind ) );
+    }
+
+    // The host blocks a share on their server from its details
+    Action<SharedLibrary<Effect>.Entry, bool> BlockEffect => IsHost ? ( entry, blocked ) => Selector?.SetShareBlocked( ShareOrigin.KeyOf( ShareOrigin.EffectKind, entry.Id ), entry.Name, blocked ) : null;
+    Action<SharedLibrary<DrawnShape>.Entry, bool> BlockShape => IsHost ? ( entry, blocked ) => Selector?.SetShareBlocked( ShareOrigin.KeyOf( ShareOrigin.ShapeKind, entry.Id ), entry.Name, blocked ) : null;
+
+    static bool IsEffectBlocked( SharedLibrary<Effect>.Entry entry ) => Selector?.IsShareBlocked( ShareOrigin.KeyOf( ShareOrigin.EffectKind, entry.Id ) ) == true;
+    static bool IsShapeBlocked( SharedLibrary<DrawnShape>.Entry entry ) => Selector?.IsShareBlocked( ShareOrigin.KeyOf( ShareOrigin.ShapeKind, entry.Id ) ) == true;
+
+    // My effects, read once and again after each change to them
+    List<Effect> _mine;
+    int _mineRevision;
+    string _keepName;
+    string _status;
+
+    List<Effect> Mine => _mine ??= LocalPrefs.MyEffects();
+
+    // The variations offered of the selected effect, by its id
+    List<Effect> _variations;
+    string _variationsOf;
+
+    // A copy of the preset (or of one kept in My effects), selected for its sliders
+    void PutOn( Effect preset )
+    {
+        if ( IsFull )
+            return;
+
+        var effect = EffectPresets.Copy( preset, Look.Effects );
+        if ( !Look.Adopt( effect ) )
+        {
+            _status = $"A look carries up to {DrawnShape.MaxPerLook} drawn shapes, and this would take it past that. Remove an effect with drawn shapes first.";
+            StateHasChanged();
+            return;
+        }
+
+        _selected = effect.Id;
+        _status = null;
+        Changed?.Invoke();
+    }
+
+    // An effect from scratch: worn, selected, and opened in the Advanced editor to build
+    void AddNew()
+    {
+        if ( IsFull || LayersWorn() >= Effect.MaxLookLayers )
+            return;
+
+        var effect = EffectPresets.New( Look.Effects );
+        Look.Effects.Add( effect );
+        _selected = effect.Id;
+        _status = null;
+        Changed?.Invoke();
+        OpenAdvanced?.Invoke( effect.Id );
+    }
+
+    // A surprise from the parts of the presets and My effects, within what the server's budget has left
+    void AddSurprise()
+    {
+        if ( IsFull )
+            return;
+
+        var sources = EffectPresets.All.Concat( Mine ).ToList();
+        var surprise = EffectRemix.Surprise( new Random(), sources, Look.Effects, Budget );
+        if ( surprise is null )
+        {
+            _status = "There's no room left in this server's budget for a surprise. Remove or switch off an effect first.";
+            StateHasChanged();
+            return;
+        }
+
+        surprise.Id = Effect.NewId( Look.Effects );
+        Look.Effects.Add( surprise );
+        _selected = surprise.Id;
+        _status = null;
+        Changed?.Invoke();
+    }
+
+    // Keeps the selected effect in My effects, under the name typed (its own name when none is)
+    void Keep( Effect effect )
+    {
+        var name = string.IsNullOrWhiteSpace( _keepName ) ? effect.Name : _keepName.Trim();
+        var kept = Look.Standalone( effect ) ?? effect;
+        kept.Name = name;
+        _status = LocalPrefs.SaveMyEffect( kept ) ? $"Saved to My effects as \"{kept.Sanitized()?.Name}\"."
+            : string.IsNullOrWhiteSpace( name ) ? "Give it a name first." : $"My effects is full ({LocalPrefs.MaxMyEffects}). Delete one first.";
+        _keepName = null;
+        _mine = null;
+        _mineRevision++;
+        StateHasChanged();
+    }
+
+    void Forget( Effect kept, PanelEvent e )
+    {
+        e.StopPropagation();
+        LocalPrefs.DeleteMyEffect( kept.Name );
+        _status = $"\"{kept.Name}\" is deleted from My effects.";
+        _mine = null;
+        _mineRevision++;
+        StateHasChanged();
+    }
+
+    static string KeptTooltip( Effect kept ) => $"{kept.Layers.Count} {(kept.Layers.Count == 1 ? "layer" : "layers")}: click to put it on";
+
+    // ----- Drafts, and the menus of My effects and of what is worn -----
+
+    SharingPanel<Effect> _sharing;
+    bool _publishNext;
+    object _renaming;
+    string _newName;
+    Draft _confirmDrop;
+
+    // Effects and scripts left unfinished, the newest first
+    List<Draft> MyDrafts => PlayerModels.Engine.Drafts.Of( Draft.Of.Effect ).Concat( PlayerModels.Engine.Drafts.Of( Draft.Of.Script ) ).OrderByDescending( x => x.Edited ).ToList();
+
+    bool IsDraft( Effect effect ) => DraftsOpen?.Effects.ContainsKey( effect.Id ) == true;
+
+    // A draft's effect, within bounds, for its tile; null for one that doesn't read
+    static Effect DraftEffect( Draft draft ) => Effect.ParseShared( draft.Item );
+
+    void Act( PanelEvent e, Action action )
+    {
+        e.StopPropagation();
+        action();
+    }
+
+    // A draft goes on, as a draft, and opens in the Advanced editor as it was left; one open already is selected. A
+    // script's opens in the code editor
+    void OpenDraft( Draft draft )
+    {
+        if ( draft.KindIs == Draft.Of.Script )
+        {
+            OpenScriptDraft?.Invoke( draft );
+            return;
+        }
+
+        foreach ( var (effectId, draftId) in DraftsOpen?.Effects ?? new Dictionary<string, string>() )
+        {
+            if ( draftId == draft.Id && Look.Effects.Exists( x => x.Id == effectId ) )
+            {
+                _selected = effectId;
+                OpenAdvanced?.Invoke( effectId );
+                return;
+            }
+        }
+
+        if ( DraftEffect( draft ) is not { } effect || DraftsOpen is null )
+        {
+            _status = "This draft can't be read any more.";
+            StateHasChanged();
+            return;
+        }
+
+        var copy = EffectPresets.Copy( effect, Look.Effects );
+        if ( IsFull || LayersWorn() + copy.Layers.Count > Effect.MaxLookLayers || !Look.Adopt( copy ) )
+        {
+            _status = $"There's no room for it: a look wears up to {Effect.MaxWorn} effects and {Effect.MaxLookLayers} layers. Remove one first.";
+            StateHasChanged();
+            return;
+        }
+
+        DraftsOpen.Effects[ copy.Id ] = draft.Id;
+        DraftsOpen.States[ copy.Id ] = draft.State;
+        DraftsOpen.Changed();
+        _selected = copy.Id;
+        _status = null;
+        Changed?.Invoke();
+        OpenAdvanced?.Invoke( copy.Id );
+    }
+
+    void KeepDraft( Effect effect, bool dropOldest )
+    {
+        _confirmDrop = null;
+        if ( DraftsOpen is null )
+            return;
+
+        if ( DraftsOpen.KeepEffect( Look, effect, null, dropOldest, out var dropped, out var full ) )
+            _status = (dropped is null ? "" : $"\"{dropped.Name}\" was dropped. ") + $"Saved \"{effect.Name}\" as a draft: it isn't worn until you finish it.";
+        else if ( full )
+            _confirmDrop = PlayerModels.Engine.Drafts.Oldest( Draft.Of.Effect );
+        else
+            _status = "This draft is too big to keep.";
+
+        StateHasChanged();
+    }
+
+    static string DropText( Draft oldest ) => $"Drafts are full ({Draft.MaxPerKind}). Drop the oldest, \"{oldest.Name}\" ({oldest.EditedText( PlayerModels.Engine.Drafts.Now )})?";
+
+    void CancelDrop()
+    {
+        _confirmDrop = null;
+        StateHasChanged();
+    }
+
+    // A copy of what is worn, beside it, carrying its drawn shapes
+    void Duplicate( Effect effect )
+    {
+        if ( IsFull || Look.Standalone( effect ) is not { } standalone )
+            return;
+
+        var copy = EffectPresets.Copy( standalone, Look.Effects );
+        copy.Name = SharePost.Tidy( $"{effect.Name} copy", Effect.MaxNameLength );
+        if ( LayersWorn() + copy.Layers.Count > Effect.MaxLookLayers || !Look.Adopt( copy ) )
+        {
+            _status = $"There's no room for a copy: a look wears up to {Effect.MaxWorn} effects and {Effect.MaxLookLayers} layers.";
+            StateHasChanged();
+            return;
+        }
+
+        _selected = copy.Id;
+        Changed?.Invoke();
+    }
+
+    /// <summary>Opens the menu of the effect selected in the list worn (Shift+F10 with nothing under the mouse); nothing for none.</summary>
+    public void OpenSelectedMenu()
+    {
+        if ( Selected is { } effect )
+            WornMenu( effect );
+    }
+
+    void WornMenu( Effect effect )
+    {
+        _selected = effect.Id;
+        var draft = IsDraft( effect );
+        ContextMenu.OpenFrom( this, effect.Name, new List<ContextMenu.Entry>
+        {
+            new( "Edit", "edit", () => OpenAdvanced?.Invoke( effect.Id ), "Edit in Advanced editor" ),
+            new( "Duplicate", "content_copy", () => Duplicate( effect ), null, !IsFull, $"A look wears up to {Effect.MaxWorn} effects" ),
+            new( "Save to My effects", "save", () => Keep( effect ), null, !draft && Mine.Count < LocalPrefs.MaxMyEffects, draft ? "Finish the draft first" : $"My effects is full ({LocalPrefs.MaxMyEffects})" ),
+            new( "Save draft", "edit_note", () => KeepDraft( effect, false ) ),
+            new( "Remove", "delete", () => RemoveWorn( effect ) ),
+        } );
+        StateHasChanged();
+    }
+
+    void KeptMenu( Effect kept )
+    {
+        ContextMenu.OpenFrom( this, kept.Name, new List<ContextMenu.Entry>
+        {
+            new( "Open", "add_circle", () => PutOn( kept ), "Click", !IsFull, $"A look wears up to {Effect.MaxWorn} effects" ),
+            new( "Rename", "drive_file_rename_outline", () => StartRename( kept, kept.Name ) ),
+            new( "Duplicate", "content_copy", () => DuplicateKept( kept ), null, Mine.Count < LocalPrefs.MaxMyEffects, $"My effects is full ({LocalPrefs.MaxMyEffects})" ),
+            new( "Delete", "delete", () => ForgetKept( kept ) ),
+            new( "Publish", "publish", () => Publish( kept ), null, !IsFull, $"A look wears up to {Effect.MaxWorn} effects: it is put on to publish" ),
+            new( "Copy code", "code", () => CopyCode( kept ) ),
+        } );
+    }
+
+    // My effects lists effects' drafts and scripts'
+    static Draft.Of KindOf( Draft draft ) => draft.KindIs ?? Draft.Of.Effect;
+
+    void DraftMenu( Draft draft )
+    {
+        const string tip = "A draft isn't shared until you finish it";
+        ContextMenu.OpenFrom( this, $"Draft: {draft.Name}", new List<ContextMenu.Entry>
+        {
+            new( "Open", "edit", () => OpenDraft( draft ), "Click" ),
+            new( "Rename", "drive_file_rename_outline", () => StartRename( draft, draft.Name ) ),
+            new( "Duplicate", "content_copy", () => DuplicateDraft( draft ), null, PlayerModels.Engine.Drafts.Of( KindOf( draft ) ).Count < Draft.MaxPerKind, $"Drafts are full ({Draft.MaxPerKind})" ),
+            new( "Delete", "delete", () => DeleteDraft( draft ) ),
+            new( "Publish", "publish", null, null, false, tip ),
+            new( "Copy code", "code", null, null, false, tip ),
+        } );
+    }
+
+    void StartRename( object what, string name )
+    {
+        _renaming = what;
+        _newName = name;
+        StateHasChanged();
+    }
+
+    void CancelRename()
+    {
+        _renaming = null;
+        StateHasChanged();
+    }
+
+    void Rename()
+    {
+        var name = _newName?.Trim();
+        if ( string.IsNullOrEmpty( name ) )
+            return;
+
+        if ( _renaming is Draft draft )
+            PlayerModels.Engine.Drafts.Rename( KindOf( draft ), draft.Id, name );
+        else if ( _renaming is Effect kept )
+        {
+            var renamed = kept.Sanitized();
+            renamed.Name = name;
+            if ( LocalPrefs.SaveMyEffect( renamed ) )
+                LocalPrefs.DeleteMyEffect( kept.Name );
+        }
+
+        _status = $"Renamed to \"{name}\".";
+        _renaming = null;
+        _mine = null;
+        _mineRevision++;
+        StateHasChanged();
+    }
+
+    void DuplicateKept( Effect kept )
+    {
+        var copy = kept.Sanitized();
+        copy.Name = SharePost.Tidy( $"{kept.Name} copy", Effect.MaxNameLength );
+        _status = LocalPrefs.SaveMyEffect( copy ) ? $"Copied as \"{copy.Name}\"." : $"My effects is full ({LocalPrefs.MaxMyEffects}). Delete one first.";
+        _mine = null;
+        _mineRevision++;
+        StateHasChanged();
+    }
+
+    void DuplicateDraft( Draft draft )
+    {
+        var copy = PlayerModels.Engine.Drafts.Make( KindOf( draft ), null, SharePost.Tidy( $"{draft.Name} copy", Draft.MaxNameLength ), draft.Item, draft.State );
+        _status = PlayerModels.Engine.Drafts.Save( copy, false, out _ ) ? $"Copied as the draft \"{copy.Name}\"." : $"Drafts are full ({Draft.MaxPerKind}). Delete one first.";
+        StateHasChanged();
+    }
+
+    // A draft deleted; one worn as a draft stays on the preview, no longer a draft of anything kept
+    void DeleteDraft( Draft draft )
+    {
+        PlayerModels.Engine.Drafts.Delete( KindOf( draft ), draft.Id );
+        _status = $"The draft \"{draft.Name}\" is deleted.";
+        StateHasChanged();
+    }
+
+    void ForgetKept( Effect kept )
+    {
+        LocalPrefs.DeleteMyEffect( kept.Name );
+        _status = $"\"{kept.Name}\" is deleted from My effects.";
+        _mine = null;
+        _mineRevision++;
+        StateHasChanged();
+    }
+
+    // Puts it on, selected, and opens its share window
+    void Publish( Effect kept )
+    {
+        PutOn( kept );
+        _publishNext = Selected is not null;
+    }
+
+    void CopyCode( Effect kept )
+    {
+        Clipboard.SetText( ShareCode.Write( Shared.Effects.Kind, Shared.Effects.Serialize( kept ) ) );
+        _status = $"Code copied. Paste it anywhere to pass \"{kept.Name}\" on.";
+        StateHasChanged();
+    }
+
+    void RemoveWorn( Effect effect )
+    {
+        Look.Effects.Remove( effect );
+        DraftsOpen?.Effects.Remove( effect.Id );
+        if ( _selected == effect.Id )
+            _selected = null;
+
+        Changed?.Invoke();
+    }
+
+    void ShowVariations( Effect effect )
+    {
+        _variations = EffectRemix.Variations( Look.Standalone( effect ), new Random() );
+        _variationsOf = effect.Id;
+        StateHasChanged();
+    }
+
+    void HideVariations()
+    {
+        _variations = null;
+        _variationsOf = null;
+        StateHasChanged();
+    }
+
+    // The variation takes the selected effect's place, keeping its id, name, key and whether it is on
+    void UseVariation( Effect effect, Effect variation )
+    {
+        var index = Look.Effects.IndexOf( effect );
+        if ( index < 0 )
+            return;
+
+        // Its drawn shapes are the look's already: a variation changes how they show, not what they are
+        var used = EffectPresets.Copy( variation, Array.Empty<Effect>() );
+        used.Shapes = null;
+        used.Id = effect.Id;
+        used.Key = effect.Key;
+        used.Off = effect.Off;
+        Look.Effects[ index ] = used;
+        HideVariations();
+        Changed?.Invoke();
+    }
+
+    void Select( Effect effect )
+    {
+        _selected = effect.Id;
+        StateHasChanged();
+    }
+
+    void Toggle( Effect effect, PanelEvent e )
+    {
+        e.StopPropagation();
+        effect.Off = !effect.Off;
+        Changed?.Invoke();
+    }
+
+    void Remove( Effect effect, PanelEvent e )
+    {
+        e.StopPropagation();
+        RemoveWorn( effect );
+    }
+
+    void Set( Action change )
+    {
+        change();
+        Changed?.Invoke();
+    }
+
+    static bool IsAsMade( Effect effect ) => effect.Hue == 0f && effect.Size == 0f && effect.Amount == 0f && effect.Speed == 0f;
+
+    void ResetSliders( Effect effect )
+    {
+        effect.Hue = effect.Size = effect.Amount = effect.Speed = 0f;
+        Changed?.Invoke();
+        StateHasChanged();
+    }
+
+    // The selected effect's key as typed: a key's name puts it on, an empty box takes it off, anything else waits for more
+    string KeyText
+    {
+        get => Selected?.Key ?? "";
+        set
+        {
+            if ( Selected is not { } effect )
+                return;
+
+            var key = Effect.KeyNamed( value );
+            if ( key is not null || string.IsNullOrWhiteSpace( value ) )
+                SetKey( effect, key );
+        }
+    }
+
+    static object[] KeysMatching( string typed )
+    {
+        var start = typed?.Trim() ?? "";
+        return Effect.Keys.Where( x => x.StartsWith( start, StringComparison.OrdinalIgnoreCase ) ).Cast<object>().ToArray();
+    }
+
+    void SetKey( Effect effect, string key )
+    {
+        if ( effect.Key == key )
+            return;
+
+        effect.Key = key;
+        Changed?.Invoke();
+        StateHasChanged();
+    }
+
+    // What a key can do: show the effect for a moment, switch it on and off, or show it while held
+    static List<UIDropdown.Item> KeyActions() => new()
+    {
+        new( $"Shows it for {Effect.TriggerSeconds:0} seconds", nameof( Effect.KeyAction.Fire ) ),
+        new( "Switches it on and off", nameof( Effect.KeyAction.Toggle ) ),
+        new( "Shows it while held", nameof( Effect.KeyAction.Hold ) ),
+    };
+
+    void SetKeyAction( Effect effect, string action )
+    {
+        effect.KeyMode = action == nameof( Effect.KeyAction.Fire ) ? null : action;
+        Changed?.Invoke();
+        StateHasChanged();
+    }
+
+    // What a key does, and how long until one works again
+    string KeyNote( Effect effect )
+    {
+        var minutes = (int)(Effect.TriggerCooldownSeconds / 60f);
+        if ( effect.Key is null )
+            return $"Give it a key and it shows only when you press it: for {Effect.TriggerSeconds:0} seconds, until you press it again, or while you hold it. Starting an effect with a key works once every {minutes} minutes.";
+
+        var wait = Selector?.TriggerWait() ?? 0f;
+        var ready = wait > 0f ? $" Your next one in {(int)wait / 60}:{(int)wait % 60:00}." : "";
+        var key = effect.Key.ToUpperInvariant();
+        var does = effect.KeyActionIs switch
+        {
+            Effect.KeyAction.Toggle => $"Press {key} to switch it on for everyone, and again to switch it off.",
+            Effect.KeyAction.Hold => $"Hold {key} and it shows for everyone until you let go.",
+            _ => $"Press {key} and it shows for {Effect.TriggerSeconds:0} seconds, for everyone.",
+        };
+
+        return $"{does} Starting an effect with a key works once every {minutes} minutes, whichever effect it is for; switching one off or letting go is always free.{ready}";
+    }
+
+    // The first layer of the effect whose colours cycle; the colours set here go to every such layer of it
+    static EffectLayer CycleOf( Effect effect ) => effect.Layers.FirstOrDefault( x => x.ColorModeIs != LayerColorMode.Fixed );
+
+    static string ModeName( LayerColorMode mode ) => mode switch
+    {
+        LayerColorMode.Rain => "Rain",
+        LayerColorMode.Cycl => "Cycle",
+        LayerColorMode.Mix => "Mixed",
+        _ => "Scanner",
+    };
+
+    // The scanner has a highlight and the rest; the other cycles go through their colours in order
+    static string ColourLabel( LayerColorMode mode, int index ) => mode == LayerColorMode.Cyln ? (index == 0 ? "Highlight" : "Rest") : $"Color {index + 1}";
+
+    void UseCycleColours( Effect effect, List<string> colours )
+    {
+        foreach ( var layer in effect.Layers.Where( x => x.ColorModeIs != LayerColorMode.Fixed ) )
+            layer.Palette = colours is null ? null : new List<string>( colours );
+
+        Changed?.Invoke();
+        StateHasChanged();
+    }
+
+    // A colour set; Remove takes it out of the cycle (at least one stays), the scanner's Reset puts the game's back
+    void SetCycleColour( Effect effect, int index, string hex )
+    {
+        var cycle = CycleOf( effect );
+        var colours = cycle.CycleColours().ToList();
+        var defaults = new EffectLayer { ColorMode = cycle.ColorMode }.CycleColours();
+
+        if ( !string.IsNullOrEmpty( hex ) )
+            colours[ index ] = hex;
+        else if ( cycle.ColorModeIs == LayerColorMode.Cyln )
+            colours[ index ] = defaults[ index ];
+        else if ( colours.Count > 1 )
+            colours.RemoveAt( index );
+
+        UseCycleColours( effect, colours.SequenceEqual( defaults, StringComparer.OrdinalIgnoreCase ) ? null : colours );
+    }
+
+    void AddCycleColour( Effect effect )
+    {
+        var colours = CycleOf( effect ).CycleColours().ToList();
+        if ( colours.Count >= EffectLayer.MaxPalette )
+            return;
+
+        colours.Add( colours[ ^1 ] );
+        UseCycleColours( effect, colours );
+    }
+
+    // The budget every player's effects show within on this server: what the preview shows, and what others see
+    static EffectBudget Budget => Selector?.EffectsBudget ?? EffectBudget.Normal;
+
+    // Why an effect worn doesn't show whole, for its row
+    static string WaitingText( Effect effect, int waiting ) => waiting == 0 ? ""
+        : waiting == effect.LayersOn()
+            ? "Over this server's budget: it doesn't show until effects before it are removed or switched off."
+            : $"Over this server's budget: {waiting} of its layers don't show until effects before it are removed or switched off.";
+
+    // How much of the server's budget what is worn takes, and what happens past it
+    string BudgetText()
+    {
+        var budget = Budget;
+        var shown = Look.Effects.Where( x => !x.Off ).ToList();
+        var layers = shown.Sum( x => x.LayersOn() );
+        var lights = shown.Sum( x => x.Lights() );
+        var used = $"Your effects use {layers} of the {budget.Layers} layers and {lights} of the {budget.Lights} lights this server allows each player.";
+
+        return budget.Fits( Look.Effects )
+            ? used
+            : $"{used} Past that, the last layers and lights wait (marked over budget) and the sprites thin out until you remove some. The preview shows what others see.";
+    }
+
+    // The quality picked, in a word, for its folded group to say
+    static string QualityName( EffectBudget.Quality quality ) => quality == EffectBudget.Quality.High ? "High" : quality.ToString();
+
+    // The key that shows the effect and what it does, for its folded group to say
+    static string KeySummary( Effect effect )
+    {
+        if ( effect.Key is null )
+            return "None";
+
+        var does = effect.KeyActionIs switch
+        {
+            Effect.KeyAction.Toggle => "on and off",
+            Effect.KeyAction.Hold => "while held",
+            _ => $"{Effect.TriggerSeconds:0} seconds",
+        };
+
+        return $"{effect.Key.ToUpperInvariant()}, {does}";
+    }
+
+    static List<UIDropdown.Item> Qualities() => new()
+    {
+        new( "High (as the host allows)", EffectBudget.Quality.High ),
+        new( "Normal", EffectBudget.Quality.Normal ),
+        new( "Low", EffectBudget.Quality.Low ),
+        new( "Off", EffectBudget.Quality.Off ),
+    };
+
+    void SetQuality( object value )
+    {
+        if ( value is EffectBudget.Quality quality && Selector is { } selector )
+            selector.EffectsQuality = quality;
+
+        StateHasChanged();
+    }
+
+    // Everyone connected but this player
+    static List<Connection> Others() => Connection.All.Where( x => x != Connection.Local ).ToList();
+
+    void Hide( Connection connection, bool hidden )
+    {
+        Selector?.SetEffectsHidden( connection, hidden );
+        StateHasChanged();
+    }
+}

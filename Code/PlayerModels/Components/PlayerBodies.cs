@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using PlayerModels.Core;
 using PlayerModels.Engine;
@@ -9,7 +10,8 @@ namespace PlayerModels.Components;
 
 /// <summary>
 /// Keeps every body in the scene showing its owner's pick: living players, the ragdolls Sandbox makes when one dies,
-/// and the bodies other addons show players as. Each client does this for itself from the picks the host shares.
+/// and the bodies other addons show players as. Each client does this for itself from the picks the host shares. A
+/// player who picked no model still wears their effects, on the citizen itself (see <see cref="CitizenEffects"/>).
 /// </summary>
 internal sealed class PlayerBodies
 {
@@ -28,6 +30,11 @@ internal sealed class PlayerBodies
 
 	private static string UsableKey( string model, string bones ) => $"{model}|{bones}";
 
+	// The player object last seen for each connection, and when one came back after theirs was gone: a respawn. Made
+	// where used: a hot reload keeps this object but not fields added since
+	private Dictionary<Guid, Player> _players;
+	private Dictionary<Guid, float> _respawnedAt;
+
 	// The models picks loaded, so a body put on for a model already worn goes on the moment it is found. Both made where
 	// used: a hot reload keeps this object but not fields added since
 	private Dictionary<string, Model> _models;
@@ -36,17 +43,19 @@ internal sealed class PlayerBodies
 	/// <summary>Puts each body in step with its owner's pick in <paramref name="selector"/>.</summary>
 	internal void Update( Scene scene, PlayerModelSelector selector )
 	{
+		Waiting = false;
 		foreach ( var player in scene.GetAll<Player>() )
 		{
+			NoteRespawn( player );
 			if ( player.Controller.IsValid() && player.Controller.Renderer.IsValid() )
-				Show( player.Controller.Renderer, selector.ShownLookOf( player.Network.Owner ), player.Network.Owner );
+				Show( player.Controller.Renderer, selector.ShownLookOf( player.Network.Owner ), player.Network.Owner, selector, player: player );
 		}
 
 		// Sandbox's ragdolls are made on every client by a broadcast, each with the dead player's connection
 		foreach ( var corpse in scene.GetAll<DeathCameraTarget>() )
 		{
 			if ( corpse.Components.Get<SkinnedModelRenderer>() is { } renderer )
-				Show( renderer, selector.ShownLookOf( corpse.Connection ), corpse.Connection );
+				Show( renderer, selector.ShownLookOf( corpse.Connection ), corpse.Connection, selector, corpse: corpse );
 		}
 
 		ShowStandIns( scene, selector, false );
@@ -79,7 +88,7 @@ internal sealed class PlayerBodies
 			if ( owner is null && Networking.IsActive )
 				continue;
 
-			Show( body, selector.ShownLookOf( owner ), owner, PlayerBodyOf( scene, owner ) );
+			Show( body, selector.ShownLookOf( owner ), owner, selector, PlayerBodyOf( scene, owner ) );
 		}
 	}
 
@@ -97,17 +106,37 @@ internal sealed class PlayerBodies
 		return null;
 	}
 
-	/// <summary>Takes every picked model off, showing the citizens again.</summary>
+	/// <summary>Takes every picked model and the citizens' effects off, showing the citizens again.</summary>
 	internal void Clear( Scene scene )
 	{
 		foreach ( var body in scene.GetAll<ModelBody>() )
 			body.TakeOff();
 
+		foreach ( var effects in scene.GetAll<CitizenEffects>() )
+			effects.TakeOff();
+
 		_loading.Clear();
 	}
 
-	// dressedAs is the body whose outfit a stock character wears: the citizen itself when null
-	private void Show( SkinnedModelRenderer citizen, PlayerLook look, Connection owner, SkinnedModelRenderer dressedAs = null )
+	// A player object for a connection whose last one is gone is that player spawning again. A scan apart: a respawn is
+	// told within one, and the first player object seen for a connection (a join) isn't one
+	private void NoteRespawn( Player player )
+	{
+		_players ??= new();
+		var id = player.Network.OwnerId;
+		if ( _players.TryGetValue( id, out var last ) && last == player )
+			return;
+
+		if ( last is not null && !last.IsValid() )
+			(_respawnedAt ??= new())[ id ] = RealTime.Now;
+
+		_players[ id ] = player;
+	}
+
+	// dressedAs is the body whose outfit a stock character wears: the citizen itself when null. player is the player whose
+	// body it is, if a living player's, and corpse the ragdoll it is, if one (see WearerOf)
+	private void Show( SkinnedModelRenderer citizen, PlayerLook look, Connection owner, PlayerModelSelector selector, SkinnedModelRenderer dressedAs = null,
+		Player player = null, DeathCameraTarget corpse = null )
 	{
 		var body = ModelBody.On( citizen );
 
@@ -115,27 +144,67 @@ internal sealed class PlayerBodies
 		if ( body.IsValid() && ReferenceEquals( body.ShownLook, look ) )
 			return;
 
-		var pick = look.Model;
-		var bones = look.BonesKey();
-
-		if ( string.IsNullOrEmpty( pick ) || _unusable.Contains( UsableKey( pick, bones ) ) )
+		if ( Time.Now != _dressFrame )
 		{
-			if ( body.IsValid() )
-				body.TakeOff();
+			_dressFrame = Time.Now;
+			_dressedThisFrame = 0;
+		}
 
+		if ( _dressedThisFrame >= DressMillisecondsPerFrame )
+		{
+			Waiting = true;
 			return;
 		}
 
-		// The same model posed the same way only needs the rest of the look; bones picked differently need a new pose plan
-		if ( body.IsValid() && body.ModelId == pick && body.BonesKey == bones )
+		var started = Stopwatch.GetTimestamp();
+		Dress( citizen, body, look, owner, selector, dressedAs, player, corpse );
+		_dressedThisFrame += Stopwatch.GetElapsedTime( started ).TotalMilliseconds;
+	}
+
+	// The citizen's own effects and weapon designs, for a player who picked no model (or one that can't be worn); none for
+	// a look without any
+	private void ShowCitizenEffects( SkinnedModelRenderer citizen, PlayerLook look, Connection owner, PlayerModelSelector selector, Player player,
+		DeathCameraTarget corpse )
+	{
+		var worn = CitizenEffects.On( citizen );
+		if ( worn.IsValid() && ReferenceEquals( worn.ShownLook, look ) )
+			return;
+
+		if ( look.Effects.Count == 0 && look.Weapons.Count == 0 )
 		{
-			body.ApplyLook( look );
-			body.ShownLook = look;
+			worn?.TakeOff();
 			return;
 		}
 
-		if ( _loading.Add( citizen ) )
-			_ = ShowAsync( citizen, look, owner, dressedAs ?? citizen );
+		using ( citizen.Scene.Push() )
+			CitizenEffects.Wear( citizen, look, KeyShownFor( selector, owner ), WearerOf( player, corpse ) );
+	}
+
+	// Whether owner's effect with a key shows now, by its id: made once a look changes, read every frame
+	private static Func<string, bool> KeyShownFor( PlayerModelSelector selector, Connection owner )
+	{
+		return effect => selector.IsKeyShown( owner, effect );
+	}
+
+	// Who wears a body's effects (see EffectWearer): a living player's health, aim and whether they just spawned again; a
+	// ragdoll's death. Made when a look goes on a body, never each scan
+	private EffectWearer WearerOf( Player player, DeathCameraTarget corpse )
+	{
+		if ( corpse.IsValid() )
+			return new EffectWearer { DiedAt = RealTime.Now - (float)(DateTime.Now - corpse.Created).TotalSeconds };
+
+		if ( !player.IsValid() )
+			return EffectWearer.None;
+
+		var controller = player.Controller;
+		var respawned = _respawnedAt is not null && _respawnedAt.TryGetValue( player.Network.OwnerId, out var at ) ? at : (float?)null;
+		return new EffectWearer
+		{
+			Health = () => player.IsValid() ? player.Health : 0f,
+			Aim = () => controller.IsValid() ? controller.EyeAngles.Forward : Vector3.Forward,
+			Shooter = player.GameObject,
+			RespawnedAt = respawned,
+		};
 	}
 
 	private async Task ShowAsync( SkinnedModelRenderer citizen, PlayerLook look, Connection owner, SkinnedModelRenderer dressedAs )
@@ -184,5 +253,50 @@ internal sealed class PlayerBodies
 		{
 			_loading.Remove( citizen );
 		}
+	}
+
+	// Added since the first version of this class, so last: hot reload finds the closures of the methods above
+	// (KeyShownFor, WearerOf) by their place in the class
+
+	/// <summary>
+	/// Whether a body is still waiting to be dressed because a frame's dressing time ran out (see
+	/// <see cref="DressMillisecondsPerFrame"/>): the selector looks again next frame rather than at its next scan.
+	/// </summary>
+	internal bool Waiting { get; private set; }
+
+	// Dressing a body (its pose plan, then its look: items, effects, weapon design) takes a few milliseconds; a frame does
+	// at most this much of it, so a crowd coming into view at once (joining a full server) is dressed over a few frames
+	// rather than in one long one. The first body of a frame always goes on
+	private const double DressMillisecondsPerFrame = 3.0;
+	private float _dressFrame;
+	private double _dressedThisFrame;
+
+	private void Dress( SkinnedModelRenderer citizen, ModelBody body, PlayerLook look, Connection owner, PlayerModelSelector selector, SkinnedModelRenderer dressedAs,
+		Player player, DeathCameraTarget corpse )
+	{
+		var pick = look.Model;
+		var bones = look.BonesKey();
+
+		if ( string.IsNullOrEmpty( pick ) || _unusable.Contains( UsableKey( pick, bones ) ) )
+		{
+			if ( body.IsValid() )
+				body.TakeOff();
+
+			ShowCitizenEffects( citizen, look, owner, selector, player, corpse );
+			return;
+		}
+
+		CitizenEffects.On( citizen )?.TakeOff();
+
+		// The same model posed the same way only needs the rest of the look; bones picked differently need a new pose plan
+		if ( body.IsValid() && body.ModelId == pick && body.BonesKey == bones )
+		{
+			body.ApplyLook( look, KeyShownFor( selector, owner ), WearerOf( player, corpse ) );
+			body.ShownLook = look;
+			return;
+		}
+
+		if ( _loading.Add( citizen ) )
+			_ = ShowAsync( citizen, look, owner, dressedAs ?? citizen );
 	}
 }

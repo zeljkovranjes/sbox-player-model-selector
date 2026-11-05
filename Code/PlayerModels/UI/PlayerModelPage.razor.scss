@@ -1,5 +1,6 @@
 @import "SelectorTheme.scss";
 @import "PreviewTheme.scss";
+@import "ContextMenu.scss";
 
 // The Custom Player Model tab's page in Sandbox's window: view buttons, then the preview and the models. Sandbox's
 // window is sized by the page in it; this one is never more than the screen has room for: on a small screen the models
@@ -15,14 +16,28 @@ PlayerModelPage
 	font-family: $body-font;
 
 	// the same buttons as the window's own tabs
+	// on a narrow screen the switches on the right go under the others together, rather than squeezing them
 	> .views
 	{
 		flex-direction: row;
+		flex-wrap: wrap;
 		flex-shrink: 0;
 		gap: 2px;
+
+		> *
+		{
+			flex-shrink: 0;
+		}
+
+		> .pane-views
+		{
+			flex-direction: row;
+			margin-left: auto;
+			gap: 2px;
+		}
 	}
 
-	> .views > .view
+	> .views .view
 	{
 		@include ui-tab;
 		border: 1px solid $ui-tab-border;
@@ -49,13 +64,13 @@ PlayerModelPage
 		flex-grow: 1;
 	}
 
-	> .views > .gap
+	> .views .gap
 	{
 		width: 8px;
 	}
 
 	// Revert / Apply while customizing: lit up only when there are changes to wear
-	> .views > .action
+	> .views .action
 	{
 		@include ui-button;
 
@@ -64,6 +79,16 @@ PlayerModelPage
 			@include ui-selected;
 			background-image: none;
 			border-color: $ui-blue;
+		}
+
+		// Revert, an icon named in its tooltip beside Apply's word
+		&.icon
+		{
+			width: 28px;
+			padding: 0;
+			font-family: "Material Icons";
+			font-size: 16px;
+			text-transform: none;
 		}
 	}
 
@@ -323,9 +348,20 @@ PlayerModelPage
 
 	// while the pane scrolls, the grid and what lines up with it clear the scrollbar (8px, drawn over the pane's right
 	// edge and padding) by as much as they clear the pane's left edge (its 4px padding)
-	SlowScroll.scrolling .grid, SlowScroll.scrolling .search
+	SlowScroll.scrolling > .grid, SlowScroll.scrolling > .search
 	{
 		padding-right: 8px;
+	}
+
+	// an editor's right edge is as far in as its left (6px), and clears the scrollbar as well only while there is one
+	SlowScroll > LookEditor, SlowScroll > EffectsEditor
+	{
+		padding-right: 6px;
+	}
+
+	SlowScroll.scrolling > LookEditor, SlowScroll.scrolling > EffectsEditor
+	{
+		padding-right: 14px;
 	}
 
 	SlowScroll.scrolling .collection

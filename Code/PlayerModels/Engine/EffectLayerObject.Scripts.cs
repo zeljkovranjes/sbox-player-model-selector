@@ -548,6 +548,10 @@ internal sealed partial class EffectLayerObject
 			case LayerKind.Beam:
 				_beam.ApplyLive( machine, layer, _sizeFactor * _motion );
 				return;
+
+			case LayerKind.Ghost:
+				_ghosts.ApplyLive( machine, layer, _amountFactor, _speedFactor );
+				return;
 		}
 	}
 

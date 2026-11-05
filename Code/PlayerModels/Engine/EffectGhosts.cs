@@ -1,5 +1,6 @@
 using System;
 using PlayerModels.Core;
+using PlayerModels.Core.Script;
 using Sandbox;
 
 namespace PlayerModels.Engine;
@@ -169,5 +170,18 @@ public sealed class EffectGhosts : Component, Component.ExecuteInEditor
 			if ( ghost?.Root.IsValid() == true )
 				ghost.Root.Destroy();
 		}
+	}
+
+	/// <summary>Takes its script's changes to how many it leaves, their colour and how long they stay, with its effect's amount and speed.</summary>
+	internal void ApplyLive( ScriptMachine machine, int layer, float amount, float speed )
+	{
+		if ( machine.IsLiveChanged( layer, PropertyId.LayerAmount ) )
+			_rate = Math.Min( (float)machine.LiveValue( layer, PropertyId.LayerAmount ) * amount, EffectLayer.MaxGhostRate );
+
+		if ( machine.IsLiveChanged( layer, PropertyId.LayerColor ) )
+			_colour = new Color( (float)machine.LiveValue( layer, PropertyId.LayerColor ), (float)machine.LiveValue( layer, PropertyId.LayerColor, 1 ), (float)machine.LiveValue( layer, PropertyId.LayerColor, 2 ) );
+
+		if ( machine.IsLiveChanged( layer, PropertyId.LayerLifetime ) )
+			_lifetime = Math.Max( (float)machine.LiveValue( layer, PropertyId.LayerLifetime ) / Math.Max( speed, 0.01f ), EffectLayer.MinLifetime );
 	}
 }

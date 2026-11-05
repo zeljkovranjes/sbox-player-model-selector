@@ -397,7 +397,8 @@ internal sealed partial class EffectLayerObject
 		// Lying along the last swing: its sprites face out of the swing's plane, so they lie in it
 		if ( _alongSwing )
 		{
-			if ( _bursting )
+			// A script sends its sprites out itself: any shot turns the layer, not just the burst it shows for
+			if ( _bursting || signals.Has( LayerWhen.OnShoot ) )
 				_swing = SwingOf( signals.Shot, from.Rotation );
 
 			placed = placed.WithRotation( _swing );

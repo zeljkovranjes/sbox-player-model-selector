@@ -5,6 +5,111 @@
   "Category": "World",
   "IncludeCode": true,
   "Developer": false,
+  "PackageAssets": [
+    "shaders/weapon_skin.shader"
+  ],
+  "PackageFiles": [
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/anchor.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/attach.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/budget.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/build.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/colors.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/comesfrom.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/customize.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/draw.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/effect.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/expressions.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/keys.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/layer.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/makesticker.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/parameters.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/remix.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/rhythm.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/script.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/shape.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/sticker.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/sword.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/tracer.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/triggers.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/weapon.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/when.webp"
+    },
+    {
+      "$reference_type": "filereference",
+      "path": "ui/effects/guides/workshop.webp"
+    }
+  ],
   "__references": [],
   "__version": 0
 }

@@ -448,9 +448,20 @@ public sealed partial class PlayerModelSelector : Component
 		Wear( LocalPrefs.LookFor( model ?? "" ) );
 	}
 
-	/// <summary>Shows <paramref name="look"/> on the local player for everyone, and keeps it for next time.</summary>
+	/// <summary>
+	/// Shows <paramref name="look"/> on the local player for everyone, and keeps it for next time. On the model the host
+	/// chose for them it is kept for that model, but their own pick stays theirs: here once the host lets go, and in every
+	/// other lobby.
+	/// </summary>
 	public void Wear( PlayerLook look )
 	{
+		if ( IsPickedByHost( Connection.Local ) && look.Model == HostChoiceOf( Connection.Local ) )
+		{
+			LocalPrefs.Remember( look );
+			PickOnHost( LocalPrefs.LookFor( LocalPrefs.Pick ).Serialize() );
+			return;
+		}
+
 		LocalPrefs.Pick = look.Model;
 		LocalPrefs.Remember( look );
 		PickOnHost( look.Serialize() );
@@ -554,5 +565,11 @@ public sealed partial class PlayerModelSelector : Component
 		else if ( string.IsNullOrEmpty( saved ) && LocalPrefs.LookFor( "" ) is { } citizen && (citizen.Effects.Count > 0 || citizen.Weapons.Count > 0)
 			&& LookOf( Connection.Local ) is { Effects.Count: 0, Weapons.Count: 0 } )
 			Pick( "" );
+	}
+
+	// The model the host chose for this connection in place of their own pick; null when they wear their own
+	private string HostChoiceOf( Connection connection )
+	{
+		return HostPicks?.TryGetValue( KeyOf( connection ), out var chosen ) == true ? PlayerLook.Parse( chosen ).Model : null;
 	}
 }

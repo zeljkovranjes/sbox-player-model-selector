@@ -1199,7 +1199,7 @@
 
         // An sbox.game model is downloaded only now; everyone here downloads a body too, so a player brings in only so many
         var downloads = tile.NeedsDownload;
-        if ( downloads && !viewModel && !selector.TakeOwnDownload() )
+        if ( downloads && !viewModel && !selector.TakeOwnDownload( tile.Model ) )
             return;
 
         DropChecking();

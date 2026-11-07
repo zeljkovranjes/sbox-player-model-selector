@@ -57,12 +57,12 @@ public sealed partial class PlayerModelSelector
 	}
 
 	/// <summary>
-	/// Counts an sbox.game model this player is about to download and put on. False, counting nothing, while they have
-	/// to wait (see <see cref="DownloadWait"/>).
+	/// Counts <paramref name="model"/>, an sbox.game model this player is about to download and put on, unless the server
+	/// has it already (as the host counts). False, counting nothing, while they have to wait (see <see cref="DownloadWait"/>).
 	/// </summary>
-	internal bool TakeOwnDownload()
+	internal bool TakeOwnDownload( string model )
 	{
-		if ( Networking.IsHost )
+		if ( Networking.IsHost || IsOnServer( model ) )
 			return true;
 
 		return DownloadWait() <= 0 && _ownDownloads.TryTake( RealTime.Now, DownloadLimit, DownloadWindow );
@@ -114,6 +114,25 @@ public sealed partial class PlayerModelSelector
 		if ( Rpc.Caller is not { IsHost: true } || Application.IsDedicatedServer || !CloudModels.IsPackageIdent( model ) )
 			return;
 
+		_onServer.Add( model );
 		_ = ModelLoader.LoadAsync( model );
+	}
+
+	// This machine: the sbox.game models the host said everyone downloads, which cost no player a download
+	private readonly HashSet<string> _onServer = new();
+
+	// Whether the server has the model already: the host shared it since this player joined, or someone wears it now
+	private bool IsOnServer( string model )
+	{
+		if ( _onServer.Contains( model ) )
+			return true;
+
+		foreach ( var connection in Connection.All )
+		{
+			if ( LookOf( connection ).Model == model )
+				return true;
+		}
+
+		return false;
 	}
 }

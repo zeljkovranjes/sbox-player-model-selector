@@ -46,11 +46,13 @@ public static partial class PresetScripts
 		glow = color * 0.12
 		""";
 
-	/// <summary>A weapon skin's pulse: the weapon's own colour brighter in the palette's first and back, once a second.</summary>
+	/// <summary>A weapon skin's pulse: the weapon brighter in the palette's first colour and back, once a second.</summary>
 	public const string SkinPulse = """
-		-- Pulse: once a second the weapon's own colour turns brighter, in the palette's first colour, and back.
+		-- Pulse: once a second the weapon turns brighter in the palette's first colour, and back: its own colour lifted, and
+		-- a glow, so a dark weapon pulses too.
 		local beat = 0.5 - 0.5 * Math.Cos( t * Math.PI * 2 )
 		shade = Color.White + (palette[ 0 ] * 1.4 - Color.White) * beat
+		glow = palette[ 0 ] * (beat * 0.6)
 		""";
 
 	/// <summary>A weapon skin's glow: lit from within in the palette's first colour, breathing.</summary>

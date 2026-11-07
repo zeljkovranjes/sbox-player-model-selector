@@ -14,9 +14,10 @@ namespace PlayerModels.Tests;
 /// <see cref="SkinColours"/>), give what the skin shader worked out itself before the scripts took over: its maths is
 /// copied below as the reference, and both are put through the shader's shading (old: the motion's own formula; new:
 /// shade, paint, glow and sheen from the table) for the same surfaces. Compared at the clan tags' whole milliseconds, a
-/// band's own texel, or a continuous skin's texel centres (the shader blends between those). Two changes are meant: a
+/// band's own texel, or a continuous skin's texel centres (the shader blends between those). Three changes are meant: a
 /// skin's glow is as bright as the weapon's own surface (see <see cref="GlowDetail"/>), and Glow breathes at 0.6 rather
-/// than 1.5, so the gun's detail reads through it instead of a flat silhouette.
+/// than 1.5, so the gun's detail reads through it instead of a flat silhouette. Pulse glows as well, so it shows on a dark
+/// weapon.
 /// </summary>
 public class SkinColoursTests
 {
@@ -91,6 +92,7 @@ public class SkinColoursTests
 			{
 				var beat = 0.5f - 0.5f * MathF.Cos( seconds * 6.28318f );
 				albedo = Lerp( albedo, Mul( Mul( albedo, p0 ), 1.4f ), beat );
+				emission = Mul( p0, beat * PulseGlow );
 				break;
 			}
 			case WeaponSkin.Motion.Glow:
@@ -113,6 +115,9 @@ public class SkinColoursTests
 	// Meant changes from the old shader: Glow's strength, and glow following the surface's own brightness (the shader's
 	// GlowFloor and GlowDetail)
 	private const float GlowStrength = 0.6f;
+
+	// Meant change: Pulse glows as it brightens, as only lifting a dark weapon's own colour left it dark
+	private const float PulseGlow = 0.6f;
 
 	private static float GlowDetail( (float R, float G, float B) surface ) =>
 		0.35f + 0.65f * Saturate( (surface.R * 0.3f + surface.G * 0.59f + surface.B * 0.11f) * 3f );

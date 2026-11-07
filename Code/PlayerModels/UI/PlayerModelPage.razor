@@ -171,6 +171,15 @@
                             </div>
                         }
 
+                        @if ( Selector is { } refusing && refusing.Refusals != _seenRefusals && refusing.RefusedModel is { } refused )
+                        {
+                            <div class="offline">
+                                <div class="offline-icon">block</div>
+                                <div class="offline-title">The server didn't put it on</div>
+                                <div class="offline-text">@RefusalText( refused, refusing.RefusedFor )</div>
+                            </div>
+                        }
+
                         @if ( _fixable is { } fixable && !_viewModel && !ArmatureLocked && _choosingFor is null )
                         {
                             <div class="fix">
@@ -655,7 +664,8 @@
         _ = Preview.ShowAsync( shown );
     }
 
-    protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Worn, WornArms, _hovered, _checking, _refused.Count, _viewModel, _pane, _timedOut ),
+    protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Worn, WornArms, _hovered, _checking, _refused.Count, _viewModel, _pane,
+            HashCode.Combine( _timedOut, _seenRefusals, Selector?.Refusals ) ),
         HashCode.Combine( Selector?.Models.Count, _catalog.Revision, _catalog.SearchFailed, _favorites.Count, _wornModel, _lookDirty, _fixable,
             HashCode.Combine( _collection, _gridPage, _sharedRevision, _catalog.HasMore, (int)(_catalog.Download.Fraction * 100f), (int)(Selector?.DownloadWait() ?? 0) ) ),
         HashCode.Combine( _server, _search, HashCode.Combine( LocalPrefs.UseModelArms, LocalPrefs.ShowWeaponInFirstPerson ), Selector?.BlockCloudModels, Selector?.BlockMountedModels,
@@ -1218,6 +1228,7 @@
 
         DropChecking();
         _timedOut = null;
+        _seenRefusals = selector.Refusals;
         _checking = tile.Model;
         if ( downloads )
             _catalog.Download.Start( tile.Model, (await InAnswerTime( DownloadSizeAsync( tile.Model ) )).Value );
@@ -1348,6 +1359,9 @@
     // The model last given up on (its title), said under the grid until the next click; null for none
     string _timedOut;
 
+    // The host's refusals of this player's picks already seen: one counted since shows under the grid until the next click
+    int _seenRefusals;
+
     // How often a task waited on is looked at (Task.WhenAny isn't allowed in s&box)
     const float AnswerPollSeconds = 0.25f;
 
@@ -1364,5 +1378,13 @@
         }
 
         return (await task, false);
+    }
+
+    string RefusalText( string model, PlayerModelSelector.PickRefusal reason )
+    {
+        var title = _catalog.Find( model, false )?.Title ?? model;
+        return reason == PlayerModelSelector.PickRefusal.NotAllowed
+            ? $"The host doesn't allow {title} here."
+            : $"sbox.game doesn't list {title} as a model a body can be, or couldn't be reached, so the host didn't put it on.";
     }
 }

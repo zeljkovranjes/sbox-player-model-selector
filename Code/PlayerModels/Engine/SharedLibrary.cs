@@ -157,7 +157,7 @@ public sealed class SharedLibrary<T>
 		{
 			var owner = listed.Record.OwnerSteamId;
 			var count = perOwner.GetValueOrDefault( owner );
-			if ( count >= _perPlayer )
+			if ( count >= _perPlayer && owner != Shared.Curator )
 				continue;
 
 			if ( shared.Count >= reading.Listed )

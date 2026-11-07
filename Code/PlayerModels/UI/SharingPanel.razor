@@ -333,7 +333,7 @@
 
     // Loops and named methods rather than lambdas in here: a generic type's lambda can't be carried over a hot reload
     // (LINQ keeps one in a static field once it has run, and the markup's would throw from then on). See Bind
-    bool AtLimit => MineCount() >= Library.PerPlayer;
+    bool AtLimit => MineCount() >= Library.PerPlayer && Game.SteamId.Value != Shared.Curator;
 
     int MineCount()
     {

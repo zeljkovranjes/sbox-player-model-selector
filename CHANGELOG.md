@@ -9,6 +9,18 @@ Pulse - a weapon skin's Pulse glows in its colour as it brightens (as strongly a
 # Effects
 Light colours - Glowing eyes, Fire hands, Flame head and Lantern hand light what is around them in the colour picked for them (Eye color, Flame color, Lantern color), where their light always kept its stock colour on walls and faces
 Color slider on lights - a light whose script changes it as it runs (a pulse, a flicker) turns with the effect's Color slider too, where it kept its own colour while the sprites around it changed
+# Armature
+Bone search - the search box over the bones keeps its height in a game, where it stretched to fill the list
+
+## 2026-11-07
+Title: Workshop Seed
+### Changed
+# Weapons
+Pulse - a weapon skin's Pulse glows in its colour as it brightens (as strongly as Glow at its peak), so it shows on dark weapons like the M4A1, where it only lifted the weapon's own colour and looked still
+### Fixed
+# Effects
+Light colours - Glowing eyes, Fire hands, Flame head and Lantern hand light what is around them in the colour picked for them (Eye color, Flame color, Lantern color), where their light always kept its stock colour on walls and faces
+Color slider on lights - a light whose script changes it as it runs (a pulse, a flicker) turns with the effect's Color slider too, where it kept its own colour while the sprites around it changed
 
 ## 2026-11-07
 Title: Workshop Seed

@@ -225,6 +225,9 @@ $favorite-heart: #ff4d6d;
 @mixin ui-text-entry
 {
 	height: 24px;
+	// Not stretched unless a page says so: in a column, a game's s&box stretched it to fill the room left (the Armature
+	// page's bone search, as tall as the list)
+	flex-grow: 0;
 	min-width: 0px;
 	padding: 0 6px;
 	flex-direction: row;

@@ -70,10 +70,7 @@ public sealed partial class PlayerModelSelector
 		// with it
 		if ( look.IsDefault )
 		{
-			if ( look.Effects.Count > 0 || look.Weapons.Count > 0 )
-				Picks[ id ] = look.EffectsAlone().Serialize();
-			else
-				Picks.Remove( id );
+			KeepPick( id, look.Effects.Count > 0 || look.Weapons.Count > 0 ? look.EffectsAlone().Serialize() : null );
 
 			return;
 		}
@@ -93,7 +90,7 @@ public sealed partial class PlayerModelSelector
 			return;
 		}
 
-		Picks[ id ] = look.Serialize();
+		KeepPick( id, look.Serialize() );
 	}
 
 	// Workshop items are downloaded by everyone who sees them, so what a player brings in counts like a model: past their
@@ -115,6 +112,25 @@ public sealed partial class PlayerModelSelector
 			return;
 
 		ShareDownload( look.Model );
-		Picks[ id ] = look.Serialize();
+		KeepPick( id, look.Serialize() );
+	}
+
+	// Host: a player's own pick (null: none), and the model the host chose for them, if it did, wearing its effects and
+	// weapon designs as they change
+	private void KeepPick( Guid id, string text )
+	{
+		if ( text is null )
+			Picks.Remove( id );
+		else
+			Picks[ id ] = text;
+
+		if ( HostPicks?.TryGetValue( id, out var chosen ) == true )
+			HostPicks[ id ] = HostChoice( PlayerLook.Parse( chosen ).Model, text );
+	}
+
+	// Host: the model the host chose for a player, wearing that player's own effects and weapon designs (own: their pick)
+	private static string HostChoice( string model, string own )
+	{
+		return PlayerLook.Parse( own ).EffectsAlone().WithModel( model ).Serialize();
 	}
 }

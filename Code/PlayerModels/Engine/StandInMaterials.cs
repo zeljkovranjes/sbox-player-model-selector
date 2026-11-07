@@ -110,7 +110,7 @@ internal static class StandInMaterials
 		return made;
 	}
 
-	private static bool HasFailedShader( Material material )
+	internal static bool HasFailedShader( Material material )
 	{
 		var name = material.ShaderName;
 		if ( string.IsNullOrEmpty( name ) )

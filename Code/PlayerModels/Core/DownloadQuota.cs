@@ -24,6 +24,13 @@ public sealed class DownloadQuota
 		return true;
 	}
 
+	/// <summary>Hands back the last download counted, for one that never happened (it timed out); nothing when none is counted.</summary>
+	public void GiveBack()
+	{
+		if ( _taken.Count > 0 )
+			_taken.RemoveAt( _taken.Count - 1 );
+	}
+
 	/// <summary>Seconds from <paramref name="now"/> until another download fits; 0 when one does now.</summary>
 	public double SecondsUntilFree( double now, int limit, double window )
 	{

@@ -135,7 +135,12 @@ internal static class WeaponSkins
 		}
 
 		_template ??= Material.Create( "weapon_skin", Shader );
-		var made = _template?.CreateCopy();
+		// Where the compiled shader isn't there (a game that didn't get it), the weapon keeps its own surface rather than
+		// the error checker
+		if ( _template is null || StandInMaterials.HasFailedShader( _template ) )
+			return null;
+
+		var made = _template.CreateCopy();
 		if ( made is null )
 		{
 			Log.Warning( $"Player Model Selector: couldn't make a weapon skin with {Shader}." );

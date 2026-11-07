@@ -5,6 +5,13 @@ Title: Workshop Seed
 ### Fixed
 # Effects
 Light colours - Glowing eyes, Fire hands, Flame head and Lantern hand light what is around them in the colour picked for them (Eye color, Flame color, Lantern color), where their light always kept its stock colour on walls and faces
+Color slider on lights - a light whose script changes it as it runs (a pulse, a flicker) turns with the effect's Color slider too, where it kept its own colour while the sprites around it changed
+
+## 2026-11-07
+Title: Workshop Seed
+### Fixed
+# Effects
+Light colours - Glowing eyes, Fire hands, Flame head and Lantern hand light what is around them in the colour picked for them (Eye color, Flame color, Lantern color), where their light always kept its stock colour on walls and faces
 
 ## 2026-10-25
 Title: Customize, View Models, Armature and Server

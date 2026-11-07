@@ -140,11 +140,6 @@
                             }
                         </div>
 
-                        @if ( DownloadWaitText() is { } waitText )
-                        {
-                            <div class="note">@waitText</div>
-                        }
-
                         @if ( _catalog.SearchFailed )
                         {
                             <div class="offline">
@@ -155,6 +150,15 @@
                                         ? "Couldn't reach sbox.game or the Workshop, so only the game's own arms are listed. Open the menu again in a while."
                                         : "Couldn't reach sbox.game or the Workshop, so only the game's own models and your mounted games are listed. Open the menu again in a while." )
                                 </div>
+                            </div>
+                        }
+
+                        @if ( DownloadWaitText() is { } waitText )
+                        {
+                            <div class="offline">
+                                <div class="offline-icon">hourglass_top</div>
+                                <div class="offline-title">Download limit reached</div>
+                                <div class="offline-text">@waitText</div>
                             </div>
                         }
 

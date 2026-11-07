@@ -1,1 +1,1 @@
-{"id":"","n":"Flame head","a":{"j":"Crown"},"l":[{"k":"Sprite","s":"Sphere","r":4,"u":-1,"p":"Flame","c":"#ffd25a","c2":"#ff3300","a":7,"b":1.5,"v":5,"g":-100,"t":0.6,"n":40},{"k":"Light","u":2,"c":"#ff8a2a","a":70,"t":1,"n":1.2,"rh":"Flicker","rs":8,"ra":0.3}]}
+{"id":"","n":"Flame head","a":{"j":"Crown"},"l":[{"k":"Sprite","s":"Sphere","r":4,"u":-1,"p":"Flame","c":"#ffd25a","c2":"#ff3300","a":7,"b":1.5,"v":5,"g":-100,"t":0.6,"n":40},{"k":"Light","u":2,"c":"#ffd25a","a":70,"t":1,"n":1.2,"rh":"Flicker","rs":8,"ra":0.3}]}

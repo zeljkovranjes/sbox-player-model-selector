@@ -70,16 +70,16 @@ public sealed partial class PlayerModelSelector
 		// with it
 		if ( look.IsDefault )
 		{
-			if ( look.Effects.Count > 0 || look.Weapons.Count > 0 )
-				Picks[ id ] = look.EffectsAlone().Serialize();
-			else
-				Picks.Remove( id );
+			KeepPick( id, look.Effects.Count > 0 || look.Weapons.Count > 0 ? look.EffectsAlone().Serialize() : null );
 
 			return;
 		}
 
 		if ( !Offers( look.Model ) )
+		{
+			Refuse( id, look.Model, PickRefusal.NotAllowed );
 			return;
+		}
 
 		KeepAffordableItems( id, look, fromHost );
 
@@ -93,7 +93,7 @@ public sealed partial class PlayerModelSelector
 			return;
 		}
 
-		Picks[ id ] = look.Serialize();
+		KeepPick( id, look.Serialize() );
 	}
 
 	// Workshop items are downloaded by everyone who sees them, so what a player brings in counts like a model: past their
@@ -111,10 +111,79 @@ public sealed partial class PlayerModelSelector
 
 	private async Task PutOnVettedAsync( Guid id, PlayerLook look, int count )
 	{
-		if ( !await CloudModels.VetAsync( look.Model ) || !IsValid || _pickCounts.GetValueOrDefault( id ) != count )
+		var vetted = await CloudModels.VetAsync( look.Model );
+		if ( !IsValid || _pickCounts.GetValueOrDefault( id ) != count )
 			return;
 
+		if ( !vetted )
+		{
+			Refuse( id, look.Model, PickRefusal.NotABody );
+			return;
+		}
+
 		ShareDownload( look.Model );
-		Picks[ id ] = look.Serialize();
+		KeepPick( id, look.Serialize() );
 	}
+
+	/// <summary>Why the host didn't put on a model a player picked.</summary>
+	public enum PickRefusal
+	{
+		/// <summary>The host doesn't allow it: blocked, or its kind (sbox.game, mounted games) switched off.</summary>
+		NotAllowed,
+
+		/// <summary>sbox.game didn't say it can be a body (hands, clothing, too few bones), or couldn't be reached.</summary>
+		NotABody,
+	}
+
+	/// <summary>The model the host last didn't put on for this player, and why; null until it refuses one.</summary>
+	internal string RefusedModel { get; private set; }
+
+	/// <summary>Why <see cref="RefusedModel"/> wasn't put on.</summary>
+	internal PickRefusal RefusedFor { get; private set; }
+
+	/// <summary>Counts the host's refusals of this player's picks, for what shows them.</summary>
+	internal int Refusals { get; private set; }
+
+	// Host: a player's own pick (null: none), and the model the host chose for them, if it did, wearing its effects and
+	// weapon designs as they change
+	private void KeepPick( Guid id, string text )
+	{
+		if ( text is null )
+			Picks.Remove( id );
+		else
+			Picks[ id ] = text;
+
+		if ( HostPicks?.TryGetValue( id, out var chosen ) == true )
+			HostPicks[ id ] = HostChoice( PlayerLook.Parse( chosen ).Model, text );
+	}
+
+	// Host: the model the host chose for a player, wearing that player's own effects and weapon designs (own: their pick)
+	private static string HostChoice( string model, string own )
+	{
+		return PlayerLook.Parse( own ).EffectsAlone().WithModel( model ).Serialize();
+	}
+
+	// Host: tells the player who picked model why it didn't go on
+	private void Refuse( Guid id, string model, PickRefusal reason )
+	{
+		if ( Connection.Find( id ) is not { } player )
+			return;
+
+		using ( Rpc.FilterInclude( player ) )
+			PickRefused( model, reason );
+	}
+
+	[Rpc.Broadcast]
+	private void PickRefused( string model, PickRefusal reason )
+	{
+		if ( Rpc.Caller is not { IsHost: true } || string.IsNullOrEmpty( model ) || model.Length > MaxRefusedLength || !Enum.IsDefined( reason ) )
+			return;
+
+		RefusedModel = model;
+		RefusedFor = reason;
+		Refusals++;
+	}
+
+	// The longest model a refusal names: longer than any path or ident this addon picks
+	private const int MaxRefusedLength = 512;
 }

@@ -1,5 +1,211 @@
 # Changelog
 
+## 2026-11-07
+Title: Workshop Seed
+### Added
+# Models
+Timed out models - a model sbox.game doesn't send or check within 30 seconds is given up on, and a box under the grid says so; clicking it again tries again, without counting against the download limit
+Refused picks - when the server doesn't put on a model you picked (the host doesn't allow it, or sbox.game doesn't list it as a body), a box under the grid says which and why
+# Effects
+Update - a stock effect you wear whose script differs from the stock one now (put on before it changed) offers Update under its Parameters: the latest stock version, keeping your parameters and sliders
+# Workshop
+Curated shares - every Workshop share of the addon's author is listed, past the few listed of each player (20 effects, 5 designs per weapon), so the effects and weapon skins they seed the Workshops with all show
+### Changed
+# Weapons
+Pulse - a weapon skin's Pulse glows in its colour as it brightens (as strongly as Glow at its peak), so it shows on dark weapons like the M4A1, where it only lifted the weapon's own colour and looked still
+# Models
+Download limit notice - while you can't download another sbox.game model, a box under the grid says so and how long until you can, beside sbox.game being down when both are so
+# Server
+Host's choice - a model the host chooses for a player wears that player's own effects and weapon designs, and follows their changes to them
+### Fixed
+# Effects
+Light colours - Glowing eyes, Fire hands, Flame head and Lantern hand light what is around them in the colour picked for them (Eye color, Flame color, Lantern color), where their light always kept its stock colour on walls and faces
+Color slider on lights - a light whose script changes it as it runs (a pulse, a flicker) turns with the effect's Color slider too, where it kept its own colour while the sprites around it changed
+# Armature
+Bone search - the search box over the bones keeps its height in a game, where it stretched to fill the list
+# Models
+Download limit - a model the server already has (someone wears it, or it was downloaded since you joined) no longer counts against your 3 new sbox.game models every 5 minutes, where clicking it past the limit did nothing
+# Server
+Host's choice in other lobbies - applying a change while the host chose your model no longer makes that model your own pick, which you then wore in every other lobby
+
+## 2026-11-07
+Title: Workshop Seed
+### Added
+# Models
+Timed out models - a model sbox.game doesn't send or check within 30 seconds is given up on, and a box under the grid says so; clicking it again tries again, without counting against the download limit
+Refused picks - when the server doesn't put on a model you picked (the host doesn't allow it, or sbox.game doesn't list it as a body), a box under the grid says which and why
+# Effects
+Update - a stock effect you wear whose script differs from the stock one now (put on before it changed) offers Update under its Parameters: the latest stock version, keeping your parameters and sliders
+### Changed
+# Weapons
+Pulse - a weapon skin's Pulse glows in its colour as it brightens (as strongly as Glow at its peak), so it shows on dark weapons like the M4A1, where it only lifted the weapon's own colour and looked still
+# Models
+Download limit notice - while you can't download another sbox.game model, a box under the grid says so and how long until you can, beside sbox.game being down when both are so
+# Server
+Host's choice - a model the host chooses for a player wears that player's own effects and weapon designs, and follows their changes to them
+### Fixed
+# Effects
+Light colours - Glowing eyes, Fire hands, Flame head and Lantern hand light what is around them in the colour picked for them (Eye color, Flame color, Lantern color), where their light always kept its stock colour on walls and faces
+Color slider on lights - a light whose script changes it as it runs (a pulse, a flicker) turns with the effect's Color slider too, where it kept its own colour while the sprites around it changed
+# Armature
+Bone search - the search box over the bones keeps its height in a game, where it stretched to fill the list
+# Models
+Download limit - a model the server already has (someone wears it, or it was downloaded since you joined) no longer counts against your 3 new sbox.game models every 5 minutes, where clicking it past the limit did nothing
+# Server
+Host's choice in other lobbies - applying a change while the host chose your model no longer makes that model your own pick, which you then wore in every other lobby
+
+## 2026-11-07
+Title: Workshop Seed
+### Added
+# Models
+Timed out models - a model sbox.game doesn't send or check within 30 seconds is given up on, and a box under the grid says so; clicking it again tries again, without counting against the download limit
+Refused picks - when the server doesn't put on a model you picked (the host doesn't allow it, or sbox.game doesn't list it as a body), a box under the grid says which and why
+### Changed
+# Weapons
+Pulse - a weapon skin's Pulse glows in its colour as it brightens (as strongly as Glow at its peak), so it shows on dark weapons like the M4A1, where it only lifted the weapon's own colour and looked still
+# Models
+Download limit notice - while you can't download another sbox.game model, a box under the grid says so and how long until you can, beside sbox.game being down when both are so
+# Server
+Host's choice - a model the host chooses for a player wears that player's own effects and weapon designs, and follows their changes to them
+### Fixed
+# Effects
+Light colours - Glowing eyes, Fire hands, Flame head and Lantern hand light what is around them in the colour picked for them (Eye color, Flame color, Lantern color), where their light always kept its stock colour on walls and faces
+Color slider on lights - a light whose script changes it as it runs (a pulse, a flicker) turns with the effect's Color slider too, where it kept its own colour while the sprites around it changed
+# Armature
+Bone search - the search box over the bones keeps its height in a game, where it stretched to fill the list
+# Models
+Download limit - a model the server already has (someone wears it, or it was downloaded since you joined) no longer counts against your 3 new sbox.game models every 5 minutes, where clicking it past the limit did nothing
+# Server
+Host's choice in other lobbies - applying a change while the host chose your model no longer makes that model your own pick, which you then wore in every other lobby
+
+## 2026-11-07
+Title: Workshop Seed
+### Added
+# Models
+Timed out models - a model sbox.game doesn't send or check within 30 seconds is given up on, and a box under the grid says so; clicking it again tries again, without counting against the download limit
+### Changed
+# Weapons
+Pulse - a weapon skin's Pulse glows in its colour as it brightens (as strongly as Glow at its peak), so it shows on dark weapons like the M4A1, where it only lifted the weapon's own colour and looked still
+# Models
+Download limit notice - while you can't download another sbox.game model, a box under the grid says so and how long until you can, beside sbox.game being down when both are so
+# Server
+Host's choice - a model the host chooses for a player wears that player's own effects and weapon designs, and follows their changes to them
+### Fixed
+# Effects
+Light colours - Glowing eyes, Fire hands, Flame head and Lantern hand light what is around them in the colour picked for them (Eye color, Flame color, Lantern color), where their light always kept its stock colour on walls and faces
+Color slider on lights - a light whose script changes it as it runs (a pulse, a flicker) turns with the effect's Color slider too, where it kept its own colour while the sprites around it changed
+# Armature
+Bone search - the search box over the bones keeps its height in a game, where it stretched to fill the list
+# Models
+Download limit - a model the server already has (someone wears it, or it was downloaded since you joined) no longer counts against your 3 new sbox.game models every 5 minutes, where clicking it past the limit did nothing
+# Server
+Host's choice in other lobbies - applying a change while the host chose your model no longer makes that model your own pick, which you then wore in every other lobby
+
+## 2026-11-07
+Title: Workshop Seed
+### Added
+# Models
+Timed out models - a model sbox.game doesn't send or check within 30 seconds is given up on, and a box under the grid says so; clicking it again tries again, without counting against the download limit
+### Changed
+# Weapons
+Pulse - a weapon skin's Pulse glows in its colour as it brightens (as strongly as Glow at its peak), so it shows on dark weapons like the M4A1, where it only lifted the weapon's own colour and looked still
+# Models
+Download limit notice - while you can't download another sbox.game model, a box under the grid says so and how long until you can, beside sbox.game being down when both are so
+### Fixed
+# Effects
+Light colours - Glowing eyes, Fire hands, Flame head and Lantern hand light what is around them in the colour picked for them (Eye color, Flame color, Lantern color), where their light always kept its stock colour on walls and faces
+Color slider on lights - a light whose script changes it as it runs (a pulse, a flicker) turns with the effect's Color slider too, where it kept its own colour while the sprites around it changed
+# Armature
+Bone search - the search box over the bones keeps its height in a game, where it stretched to fill the list
+# Models
+Download limit - a model the server already has (someone wears it, or it was downloaded since you joined) no longer counts against your 3 new sbox.game models every 5 minutes, where clicking it past the limit did nothing
+# Server
+Host's choice in other lobbies - applying a change while the host chose your model no longer makes that model your own pick, which you then wore in every other lobby
+
+## 2026-11-07
+Title: Workshop Seed
+### Added
+# Models
+Timed out models - a model sbox.game doesn't send or check within 30 seconds is given up on, and a box under the grid says so; clicking it again tries again, without counting against the download limit
+### Changed
+# Weapons
+Pulse - a weapon skin's Pulse glows in its colour as it brightens (as strongly as Glow at its peak), so it shows on dark weapons like the M4A1, where it only lifted the weapon's own colour and looked still
+# Models
+Download limit notice - while you can't download another sbox.game model, a box under the grid says so and how long until you can, beside sbox.game being down when both are so
+### Fixed
+# Effects
+Light colours - Glowing eyes, Fire hands, Flame head and Lantern hand light what is around them in the colour picked for them (Eye color, Flame color, Lantern color), where their light always kept its stock colour on walls and faces
+Color slider on lights - a light whose script changes it as it runs (a pulse, a flicker) turns with the effect's Color slider too, where it kept its own colour while the sprites around it changed
+# Armature
+Bone search - the search box over the bones keeps its height in a game, where it stretched to fill the list
+# Models
+Download limit - a model the server already has (someone wears it, or it was downloaded since you joined) no longer counts against your 3 new sbox.game models every 5 minutes, where clicking it past the limit did nothing
+
+## 2026-11-07
+Title: Workshop Seed
+### Changed
+# Weapons
+Pulse - a weapon skin's Pulse glows in its colour as it brightens (as strongly as Glow at its peak), so it shows on dark weapons like the M4A1, where it only lifted the weapon's own colour and looked still
+# Models
+Download limit notice - while you can't download another sbox.game model, a box under the grid says so and how long until you can, beside sbox.game being down when both are so
+### Fixed
+# Effects
+Light colours - Glowing eyes, Fire hands, Flame head and Lantern hand light what is around them in the colour picked for them (Eye color, Flame color, Lantern color), where their light always kept its stock colour on walls and faces
+Color slider on lights - a light whose script changes it as it runs (a pulse, a flicker) turns with the effect's Color slider too, where it kept its own colour while the sprites around it changed
+# Armature
+Bone search - the search box over the bones keeps its height in a game, where it stretched to fill the list
+# Models
+Download limit - a model the server already has (someone wears it, or it was downloaded since you joined) no longer counts against your 3 new sbox.game models every 5 minutes, where clicking it past the limit did nothing
+
+## 2026-11-07
+Title: Workshop Seed
+### Changed
+# Weapons
+Pulse - a weapon skin's Pulse glows in its colour as it brightens (as strongly as Glow at its peak), so it shows on dark weapons like the M4A1, where it only lifted the weapon's own colour and looked still
+### Fixed
+# Effects
+Light colours - Glowing eyes, Fire hands, Flame head and Lantern hand light what is around them in the colour picked for them (Eye color, Flame color, Lantern color), where their light always kept its stock colour on walls and faces
+Color slider on lights - a light whose script changes it as it runs (a pulse, a flicker) turns with the effect's Color slider too, where it kept its own colour while the sprites around it changed
+# Armature
+Bone search - the search box over the bones keeps its height in a game, where it stretched to fill the list
+# Models
+Download limit - a model the server already has (someone wears it, or it was downloaded since you joined) no longer counts against your 3 new sbox.game models every 5 minutes, where clicking it past the limit did nothing
+
+## 2026-11-07
+Title: Workshop Seed
+### Changed
+# Weapons
+Pulse - a weapon skin's Pulse glows in its colour as it brightens (as strongly as Glow at its peak), so it shows on dark weapons like the M4A1, where it only lifted the weapon's own colour and looked still
+### Fixed
+# Effects
+Light colours - Glowing eyes, Fire hands, Flame head and Lantern hand light what is around them in the colour picked for them (Eye color, Flame color, Lantern color), where their light always kept its stock colour on walls and faces
+Color slider on lights - a light whose script changes it as it runs (a pulse, a flicker) turns with the effect's Color slider too, where it kept its own colour while the sprites around it changed
+# Armature
+Bone search - the search box over the bones keeps its height in a game, where it stretched to fill the list
+
+## 2026-11-07
+Title: Workshop Seed
+### Changed
+# Weapons
+Pulse - a weapon skin's Pulse glows in its colour as it brightens (as strongly as Glow at its peak), so it shows on dark weapons like the M4A1, where it only lifted the weapon's own colour and looked still
+### Fixed
+# Effects
+Light colours - Glowing eyes, Fire hands, Flame head and Lantern hand light what is around them in the colour picked for them (Eye color, Flame color, Lantern color), where their light always kept its stock colour on walls and faces
+Color slider on lights - a light whose script changes it as it runs (a pulse, a flicker) turns with the effect's Color slider too, where it kept its own colour while the sprites around it changed
+
+## 2026-11-07
+Title: Workshop Seed
+### Fixed
+# Effects
+Light colours - Glowing eyes, Fire hands, Flame head and Lantern hand light what is around them in the colour picked for them (Eye color, Flame color, Lantern color), where their light always kept its stock colour on walls and faces
+Color slider on lights - a light whose script changes it as it runs (a pulse, a flicker) turns with the effect's Color slider too, where it kept its own colour while the sprites around it changed
+
+## 2026-11-07
+Title: Workshop Seed
+### Fixed
+# Effects
+Light colours - Glowing eyes, Fire hands, Flame head and Lantern hand light what is around them in the colour picked for them (Eye color, Flame color, Lantern color), where their light always kept its stock colour on walls and faces
+
 ## 2026-10-25
 Title: Customize, View Models, Armature and Server
 ### Added

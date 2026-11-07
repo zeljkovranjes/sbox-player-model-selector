@@ -55,7 +55,7 @@ public static partial class PresetScripts
 		-- A soft light on the face, pulsing with the eyes
 		local light = Light()
 		light.Offset = Vector3( 5, 0, 0 )
-		light.Color = Color.Parse( "#5ad8ff" )
+		light.Color = eyeColor
 		light.Size = 28
 		light.Amount = 0.5
 		light.Rhythm = Rhythm.Pulse

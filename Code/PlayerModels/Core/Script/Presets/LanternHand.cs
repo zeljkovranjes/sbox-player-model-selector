@@ -43,7 +43,7 @@ public static partial class PresetScripts
 		-- The warm light it throws
 		local light = Light()
 		light.Offset = Vector3( 0, 4, 0 )
-		light.Color = Color.Parse( "#ffb35a" )
+		light.Color = lanternColor
 		light.Size = reach
 		light.Amount = 1.4
 		light.Rhythm = Rhythm.Flicker

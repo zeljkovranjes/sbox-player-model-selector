@@ -140,11 +140,6 @@
                             }
                         </div>
 
-                        @if ( DownloadWaitText() is { } waitText )
-                        {
-                            <div class="note">@waitText</div>
-                        }
-
                         @if ( _catalog.SearchFailed )
                         {
                             <div class="offline">
@@ -155,6 +150,33 @@
                                         ? "Couldn't reach sbox.game or the Workshop, so only the game's own arms are listed. Open the menu again in a while."
                                         : "Couldn't reach sbox.game or the Workshop, so only the game's own models and your mounted games are listed. Open the menu again in a while." )
                                 </div>
+                            </div>
+                        }
+
+                        @if ( DownloadWaitText() is { } waitText )
+                        {
+                            <div class="offline">
+                                <div class="offline-icon">hourglass_top</div>
+                                <div class="offline-title">Download limit reached</div>
+                                <div class="offline-text">@waitText</div>
+                            </div>
+                        }
+
+                        @if ( _timedOut is { } late )
+                        {
+                            <div class="offline">
+                                <div class="offline-icon">hourglass_disabled</div>
+                                <div class="offline-title">sbox.game didn't answer</div>
+                                <div class="offline-text">@( $"{late} took over {AnswerSeconds:0} seconds to download or check, so it was given up on. Click it to try again." )</div>
+                            </div>
+                        }
+
+                        @if ( Selector is { } refusing && refusing.Refusals != _seenRefusals && refusing.RefusedModel is { } refused )
+                        {
+                            <div class="offline">
+                                <div class="offline-icon">block</div>
+                                <div class="offline-title">The server didn't put it on</div>
+                                <div class="offline-text">@RefusalText( refused, refusing.RefusedFor )</div>
                             </div>
                         }
 
@@ -642,7 +664,8 @@
         _ = Preview.ShowAsync( shown );
     }
 
-    protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Worn, WornArms, _hovered, _checking, _refused.Count, _viewModel, _pane ),
+    protected override int BuildHash() => HashCode.Combine( HashCode.Combine( Worn, WornArms, _hovered, _checking, _refused.Count, _viewModel, _pane,
+            HashCode.Combine( _timedOut, _seenRefusals, Selector?.Refusals ) ),
         HashCode.Combine( Selector?.Models.Count, _catalog.Revision, _catalog.SearchFailed, _favorites.Count, _wornModel, _lookDirty, _fixable,
             HashCode.Combine( _collection, _gridPage, _sharedRevision, _catalog.HasMore, (int)(_catalog.Download.Fraction * 100f), (int)(Selector?.DownloadWait() ?? 0) ) ),
         HashCode.Combine( _server, _search, HashCode.Combine( LocalPrefs.UseModelArms, LocalPrefs.ShowWeaponInFirstPerson ), Selector?.BlockCloudModels, Selector?.BlockMountedModels,
@@ -1199,21 +1222,35 @@
 
         // An sbox.game model is downloaded only now; everyone here downloads a body too, so a player brings in only so many
         var downloads = tile.NeedsDownload;
-        if ( downloads && !viewModel && !selector.TakeOwnDownload() )
+        var counted = false;
+        if ( downloads && !viewModel && !selector.TakeOwnDownload( tile.Model, out counted ) )
             return;
 
         DropChecking();
+        _timedOut = null;
+        _seenRefusals = selector.Refusals;
         _checking = tile.Model;
         if ( downloads )
-            _catalog.Download.Start( tile.Model, await DownloadSizeAsync( tile.Model ) );
+            _catalog.Download.Start( tile.Model, (await InAnswerTime( DownloadSizeAsync( tile.Model ) )).Value );
 
-        var error = viewModel ? await ViewModelArms.WhyNotArmsAsync( tile.Model ) : await ModelCheck.WhyNotWearableAsync( tile.Model );
-        if ( downloads )
+        var (error, timedOut) = await InAnswerTime( viewModel ? ViewModelArms.WhyNotArmsAsync( tile.Model ) : ModelCheck.WhyNotWearableAsync( tile.Model ) );
+        if ( downloads && !timedOut )
             _catalog.Remember( tile.Model, viewModel, error );
 
         // Dropped for a later pick while it was downloaded or checked: what it found is kept, but it isn't worn
         if ( _checking != tile.Model )
             return;
+
+        // Given up on, not refused: nothing is kept of it, and the download it counted is handed back for the next click
+        if ( timedOut )
+        {
+            DropChecking();
+            if ( counted )
+                selector.GiveBackOwnDownload();
+
+            _timedOut = tile.Title;
+            return;
+        }
 
         _catalog.Download.Finish();
         _checking = null;
@@ -1314,5 +1351,40 @@
         {
             selector.Pick( model );
         }
+    }
+
+    // sbox.game can keep a download or a check waiting for good: past this it is given up on, and a click tries again
+    const float AnswerSeconds = 30f;
+
+    // The model last given up on (its title), said under the grid until the next click; null for none
+    string _timedOut;
+
+    // The host's refusals of this player's picks already seen: one counted since shows under the grid until the next click
+    int _seenRefusals;
+
+    // How often a task waited on is looked at (Task.WhenAny isn't allowed in s&box)
+    const float AnswerPollSeconds = 0.25f;
+
+    // What task gives, or nothing once it took longer than AnswerSeconds (TimedOut says which)
+    static async Task<(T Value, bool TimedOut)> InAnswerTime<T>( Task<T> task )
+    {
+        var until = RealTime.Now + AnswerSeconds;
+        while ( !task.IsCompleted )
+        {
+            if ( RealTime.Now >= until )
+                return (default, true);
+
+            await GameTask.DelaySeconds( AnswerPollSeconds );
+        }
+
+        return (await task, false);
+    }
+
+    string RefusalText( string model, PlayerModelSelector.PickRefusal reason )
+    {
+        var title = _catalog.Find( model, false )?.Title ?? model;
+        return reason == PlayerModelSelector.PickRefusal.NotAllowed
+            ? $"The host doesn't allow {title} here."
+            : $"sbox.game doesn't list {title} as a model a body can be, or couldn't be reached, so the host didn't put it on.";
     }
 }

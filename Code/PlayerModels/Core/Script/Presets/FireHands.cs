@@ -89,7 +89,7 @@ public static partial class PresetScripts
 		local leftLight = Light()
 		leftLight.Joint = Joint.LeftHand
 		leftLight.Offset = Vector3( 0, 3, 0 )
-		leftLight.Color = Color.Parse( "#ff7a1f" )
+		leftLight.Color = flameColor
 		leftLight.Size = 60
 		leftLight.Amount = 1.2
 		leftLight.Rhythm = Rhythm.Flicker
@@ -99,7 +99,7 @@ public static partial class PresetScripts
 		local rightLight = Light()
 		rightLight.Joint = Joint.RightHand
 		rightLight.Offset = Vector3( 0, -3, 0 )
-		rightLight.Color = Color.Parse( "#ff7a1f" )
+		rightLight.Color = flameColor
 		rightLight.Size = 60
 		rightLight.Amount = 1.2
 		rightLight.Rhythm = Rhythm.Flicker

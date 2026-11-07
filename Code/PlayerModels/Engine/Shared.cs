@@ -24,6 +24,12 @@ internal static class Shared
 	/// </summary>
 	internal const string Everyone = "everyone";
 
+	/// <summary>
+	/// The addon's author, whose shares seed the Workshops: all of them are listed, past the few each player has listed
+	/// (see <see cref="SharedLibrary{T}.PerPlayer"/>).
+	/// </summary>
+	internal const long Curator = 76561199542962865;
+
 	// shortcut: one group for everyone lists the newest 50 shares, a few dozen each from the most active players; group
 	// by tag or month if the Workshop ever outgrows that
 	private const int PerPlayerForEveryone = 20;

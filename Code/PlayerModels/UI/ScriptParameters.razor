@@ -15,6 +15,14 @@
     {
         <FoldingSection Title="Parameters" Key=@FoldKey Summary=@( $"{parameters.Count} set in its script" ) Info=@Info>
             <Body>
+        @if ( StockToUpdateTo() is { } stock )
+        {
+            <div class="row">
+                <TextLabel class="note" Text=@( $"Differs from the stock {stock.Name}" )></TextLabel>
+                <div class="reset" Tooltip="Update to the latest stock version: your parameters and sliders stay; changes made in its code are replaced"
+                     @onclick=@(() => UpdateTo( stock ))>Update</div>
+            </div>
+        }
         @foreach ( var group in parameters.GroupBy( x => x.Group ?? "Options" ) )
         {
             <div class="group @( _folded.Contains( group.Key ) ? "folded" : "" )" @onclick=@(() => Fold( group.Key ))>
@@ -321,4 +329,22 @@
     // The player's own shape a value names, as the look carries it or My shapes has it; null for a stock one
     DrawnShape OwnShape( string value ) =>
         ScriptParameter.OwnShapeOf( value ) is { } own ? Library().Shape( own.Name, own.Kind ) : null;
+
+    // The stock preset this effect was put on as, when its script is no longer that preset's (the preset changed since, or
+    // its code was edited); none for one from the Workshop, which is someone's own even under a stock name
+    Effect StockToUpdateTo()
+    {
+        if ( Effect?.Script is not { } script || Effect.ForkedFrom is not null )
+            return null;
+
+        return EffectPresets.All.FirstOrDefault( x => x.Name == Effect.Name && x.Script is not null && x.Script != script );
+    }
+
+    // The stock preset's script in place of its own, built again with the values chosen
+    void UpdateTo( Effect stock )
+    {
+        Effect.Script = stock.Script;
+        _status = $"Updated to the latest {stock.Name}: Apply wears it";
+        Rebuild();
+    }
 }

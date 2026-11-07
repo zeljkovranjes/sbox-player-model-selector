@@ -535,7 +535,7 @@ internal sealed partial class EffectLayerObject
 				if ( machine.IsLiveChanged( layer, PropertyId.LayerColor ) || machine.IsLiveChanged( layer, PropertyId.LayerAmount ) )
 				{
 					var brightness = (float)machine.LiveValue( layer, PropertyId.LayerAmount ) * _amountFactor;
-					var colour = _colours is null ? LiveColour( machine, layer, PropertyId.LayerColor ) : Color.White;
+					var colour = _colours is null ? Hued( LiveColour( machine, layer, PropertyId.LayerColor ) ) : Color.White;
 					_colour = new Color( colour.r * brightness, colour.g * brightness, colour.b * brightness, 1f );
 				}
 

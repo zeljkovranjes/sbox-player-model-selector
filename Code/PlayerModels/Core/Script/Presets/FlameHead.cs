@@ -33,7 +33,7 @@ public static partial class PresetScripts
 		-- A flickering orange light around the head
 		local light = Light()
 		light.Offset = Vector3( 0, 0, 2 )
-		light.Color = Color.Parse( "#ff8a2a" )
+		light.Color = flameColor
 		light.Size = 70
 		light.Amount = 1.2
 		light.Rhythm = Rhythm.Flicker

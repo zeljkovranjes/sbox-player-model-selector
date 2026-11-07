@@ -57,15 +57,18 @@ public sealed partial class PlayerModelSelector
 	}
 
 	/// <summary>
-	/// Counts an sbox.game model this player is about to download and put on. False, counting nothing, while they have
-	/// to wait (see <see cref="DownloadWait"/>).
+	/// Counts <paramref name="model"/>, an sbox.game model this player is about to download and put on, unless the server
+	/// has it already (as the host counts); <paramref name="counted"/> says whether it was. False, counting nothing, while
+	/// they have to wait (see <see cref="DownloadWait"/>).
 	/// </summary>
-	internal bool TakeOwnDownload()
+	internal bool TakeOwnDownload( string model, out bool counted )
 	{
-		if ( Networking.IsHost )
+		counted = false;
+		if ( Networking.IsHost || IsOnServer( model ) )
 			return true;
 
-		return DownloadWait() <= 0 && _ownDownloads.TryTake( RealTime.Now, DownloadLimit, DownloadWindow );
+		counted = DownloadWait() <= 0 && _ownDownloads.TryTake( RealTime.Now, DownloadLimit, DownloadWindow );
+		return counted;
 	}
 
 	// Host: whether a pick of the package model may go on: one new to the server counts against its player, unless that
@@ -114,6 +117,31 @@ public sealed partial class PlayerModelSelector
 		if ( Rpc.Caller is not { IsHost: true } || Application.IsDedicatedServer || !CloudModels.IsPackageIdent( model ) )
 			return;
 
+		_onServer.Add( model );
 		_ = ModelLoader.LoadAsync( model );
+	}
+
+	// This machine: the sbox.game models the host said everyone downloads, which cost no player a download
+	private readonly HashSet<string> _onServer = new();
+
+	// Whether the server has the model already: the host shared it since this player joined, or someone wears it now
+	private bool IsOnServer( string model )
+	{
+		if ( _onServer.Contains( model ) )
+			return true;
+
+		foreach ( var connection in Connection.All )
+		{
+			if ( LookOf( connection ).Model == model )
+				return true;
+		}
+
+		return false;
+	}
+
+	/// <summary>Hands back the download <see cref="TakeOwnDownload"/> last counted, for a model that never came (it timed out).</summary>
+	internal void GiveBackOwnDownload()
+	{
+		_ownDownloads.GiveBack();
 	}
 }

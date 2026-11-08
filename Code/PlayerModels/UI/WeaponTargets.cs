@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using PlayerModels.Core;
+using PlayerModels.Core.Script;
 using PlayerModels.Engine;
 using Sandbox;
 
@@ -85,6 +86,7 @@ internal sealed class WeaponTargets : IGizmoTargets
 
 	public void Write( in TransformGizmo.Pose pose )
 	{
+		var before = Snapshot();
 		var angles = pose.Turn.Angles();
 		if ( Prop is { } prop )
 		{
@@ -101,11 +103,12 @@ internal sealed class WeaponTargets : IGizmoTargets
 			Fit( sticker );
 		}
 
-		_changed?.Invoke();
+		Changed( before );
 	}
 
 	public void Clear( string key )
 	{
+		var before = Snapshot();
 		if ( Prop is { } prop )
 		{
 			if ( key == "g" )
@@ -129,28 +132,30 @@ internal sealed class WeaponTargets : IGizmoTargets
 			Fit( sticker );
 		}
 
-		_changed?.Invoke();
+		Changed( before );
 	}
 
 	public void Duplicate()
 	{
+		var before = Snapshot();
 		var design = _design();
 		if ( Prop is { } prop && design.Props.Count < WeaponDesign.MaxProps )
 		{
 			design.Props.Add( Copy( prop ) );
-			_changed?.Invoke();
+			Changed( before );
 			Select( design.Props.Count - 1 );
 		}
 		else if ( Sticker is { } sticker && design.Stickers.Count < WeaponDesign.MaxStickers )
 		{
 			design.Stickers.Add( Copy( sticker ) );
-			_changed?.Invoke();
+			Changed( before );
 			Select( PropCount + design.Stickers.Count - 1 );
 		}
 	}
 
 	public void Remove()
 	{
+		var before = Snapshot();
 		var design = _design();
 		if ( Prop is { } prop )
 			design.Props.Remove( prop );
@@ -160,7 +165,7 @@ internal sealed class WeaponTargets : IGizmoTargets
 			return;
 
 		Select( -1 );
-		_changed?.Invoke();
+		Changed( before );
 	}
 
 	public int At( Ray ray )
@@ -206,6 +211,7 @@ internal sealed class WeaponTargets : IGizmoTargets
 
 	public void Restore( string snapshot )
 	{
+		var before = Snapshot();
 		var design = _design();
 		var was = JsonSerializer.Deserialize<WeaponDesign>( snapshot );
 		if ( design is null || was is null )
@@ -216,7 +222,7 @@ internal sealed class WeaponTargets : IGizmoTargets
 		if ( _selected >= PropCount + design.Stickers.Count )
 			Select( -1 );
 
-		_changed?.Invoke();
+		Changed( before );
 	}
 
 	/// <summary>The middle of <paramref name="part"/> of <paramref name="model"/>, where a prop on it is placed from; the origin for none.</summary>
@@ -270,4 +276,21 @@ internal sealed class WeaponTargets : IGizmoTargets
 	}
 
 	private static T Copy<T>( T item ) => JsonSerializer.Deserialize<T>( JsonSerializer.Serialize( item ) );
+
+	/// <summary>
+	/// The player's library a design written as a script is followed in (see <see cref="Changed"/>); none, or none given,
+	/// while the code editor is open on the design, which follows it itself.
+	/// </summary>
+	public Func<IPlayerLibrary> Library { get; set; }
+
+	// A design written as a script takes each change into its script too, as the weapon panel's changes do: built again
+	// from the script, the change was undone (a sticker moved stayed where it was, one duplicated never showed)
+	private void Changed( string before )
+	{
+		var design = _design();
+		if ( design?.Script is not null && Library?.Invoke() is { } library && JsonSerializer.Deserialize<WeaponDesign>( before ) is { } was )
+			design.Script = WeaponScripts.Follow( was.Script, was, design, library );
+
+		_changed?.Invoke();
+	}
 }

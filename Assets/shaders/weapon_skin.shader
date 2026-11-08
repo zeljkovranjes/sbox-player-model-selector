@@ -374,10 +374,13 @@ PS
 			stickerRough = 0.3;
 		}
 
+		// Covering what is under it, the weapon's own glow too (on the physgun it washed a sticker out), lit by that glow
+		// in its own colour as if the weapon shone through it, so it reads on a glowing part however dark around it
+		float under = dot( emission, float3( 0.3, 0.59, 0.11 ) );
 		albedo = lerp( albedo, rgb, alpha );
 		metal = lerp( metal, stickerMetal, alpha );
 		rough = lerp( rough, stickerRough, alpha );
-		emission += glow * alpha;
+		emission = lerp( emission, glow + rgb * under, alpha );
 	}
 
 	// A complex material's bumps, kept as a point on a folded square (Source 2's hemi-octahedral encoding)
@@ -458,6 +461,7 @@ PS
 			m.Roughness = lerp( m.Roughness, 0.1, skinGlow.a );
 		}
 
+		emission += sourceGlow;
 		if ( g_flStickerCount > 0.5 )
 		{
 			float metal = m.Metalness;
@@ -479,7 +483,7 @@ PS
 		}
 
 		m.Albedo = albedo;
-		m.Emission = emission + sourceGlow;
+		m.Emission = emission;
 		return ShadingModelStandard::Shade( i, m );
 	}
 }

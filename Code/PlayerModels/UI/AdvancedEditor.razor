@@ -312,7 +312,11 @@
 
         Stage.FillsWindow = true;
         _itemTargets ??= new ItemTargets( Stage, () => _look, Changed, () => _selectedItem, SelectItem );
-        _weaponTargets ??= new WeaponTargets( () => _look?.DesignFor( _weaponPath ), () => Stage.WeaponRenderer, Changed ) { Selecting = _ => StateHasChanged() };
+        _weaponTargets ??= new WeaponTargets( () => _look?.DesignFor( _weaponPath ), () => Stage.WeaponRenderer, Changed )
+        {
+            Selecting = _ => StateHasChanged(),
+            Library = () => WeaponCodeOpen?.Invoke( _weaponPath ) == true ? null : new MyLibrary( _look?.DrawnShapes ),
+        };
         if ( _viewport is null )
         {
             _viewport = new EditorViewport( Stage, () => _weaponMode ? _weaponTargets : _itemTargets ) { DoubleClicked = DoubleClicked, RightClicked = RightClicked };

@@ -5,6 +5,7 @@ Title: Stickers
 ### Fixed
 # Weapons
 Stickers on glowing weapons - a sticker shows over a weapon's own glow and a skin's moving glow, lit by it in its own colour, where on the physgun or under a glowing skin it was washed out and only its white border showed
+Moving stickers on Workshop designs - a sticker or prop moved, reset, duplicated or deleted with the Advanced editor's gizmo on a design written as a script (every Workshop design) stays where it is put, where it went straight back and never showed
 
 ## 2026-11-07
 Title: Workshop Seed

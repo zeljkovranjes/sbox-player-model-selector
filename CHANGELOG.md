@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-08
+Title: Stickers
+### Fixed
+# Weapons
+Stickers on glowing weapons - a sticker shows over a weapon's own glow and a skin's moving glow, lit by it in its own colour, where on the physgun or under a glowing skin it was washed out and only its white border showed
+
 ## 2026-11-07
 Title: Workshop Seed
 ### Added
